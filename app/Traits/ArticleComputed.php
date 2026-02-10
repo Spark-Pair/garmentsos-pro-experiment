@@ -59,7 +59,7 @@ trait ArticleComputed
                 'Size' => strtoupper(str_replace('_', ' ', $this->size)),
             ],
             'sales_rate'=> number_format($this->sales_rate),
-            'processed_by'=> ucwords($this->processed_by) ?? '-',
+            'processed_by'=> $this->processed_by ? ucwords($this->processed_by) : '-',
             'fabric_type'=> $this->fabric_type,
             'quantity'=> $this->quantity,
             'current_stock'=> $this->quantity - $this->ordered_quantity,

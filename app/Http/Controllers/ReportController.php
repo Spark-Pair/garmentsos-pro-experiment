@@ -6,8 +6,10 @@ use App\Models\Article;
 use App\Models\BankAccount;
 use App\Models\Customer;
 use App\Models\CustomerPayment;
+use App\Models\InvoiceArticles;
 use App\Models\OrderArticles;
 use App\Models\Supplier;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\FacadesLog;
@@ -195,32 +197,81 @@ class ReportController extends Controller
         }
 
         if ($request->ajax()) {
-            $data = [];
 
+            $invoiceArticles = InvoiceArticles::with([
+                'article',
+                'invoice.customer.city'
+            ]);
+
+            /* 🔍 ARTICLE FILTER */
             if ($request->article_no) {
-                $article = Article::where('article_no', 'like', "%{$request->article_no}%")
-                    ->with('invoiceArticles.invoice.customer.city')
-                    ->first();
-
-                if (!$article) {
-                    return response()->json(['data' => [], 'authLayout' => 'table']);
-                }
-
-                // Direct invoice data from invoice_articles table
-                $data = $article->invoiceArticles->map(function ($invoiceArticle) use ($article) {
-                    $invoice = $invoiceArticle->invoice;
-
-                    return [
-                        'article_no' => $article->article_no,
-                        'invoice_no' => $invoice->invoice_no,
-                        'customer_name' => $invoice->customer?->customer_name . ' | ' . $invoice->customer?->city?->short_title,
-                        'invoice_date' => $invoice->date?->format('d-M-Y, D'),
-                        'invoice_pcs' => $invoiceArticle->invoice_pcs,
-                    ];
+                $invoiceArticles->whereHas('article', function ($q) use ($request) {
+                    $q->where('article_no', 'like', "%{$request->article_no}%");
                 });
             }
 
-            return response()->json(['data' => $data, 'authLayout' => 'table']);
+            /* 🔍 CUSTOMER FILTER */
+            if ($request->customer_name) {
+                $invoiceArticles->whereHas('invoice.customer', function ($q) use ($request) {
+                    $q->where('customer_name', 'like', "%{$request->customer_name}%");
+                });
+            }
+
+            /* 🔍 INVOICE NO FILTER */
+            if ($request->invoice_no) {
+                $invoiceArticles->whereHas('invoice', function ($q) use ($request) {
+                    $q->where('invoice_no', 'like', "%{$request->invoice_no}%");
+                });
+            }
+
+            /* 📅 DATE RANGE FILTER */
+            if ($request->date_range_start || $request->date_range_end) {
+
+                $startDate = $request->date_range_start
+                    ? Carbon::parse($request->date_range_start)->startOfDay()
+                    : null;
+
+                $endDate = $request->date_range_end
+                    ? Carbon::parse($request->date_range_end)->endOfDay()
+                    : null;
+
+                $invoiceArticles->whereHas('invoice', function ($q) use ($startDate, $endDate) {
+                    if ($startDate && $endDate) {
+                        $q->whereBetween('date', [$startDate, $endDate]);
+                    } elseif ($startDate) {
+                        $q->whereDate('date', '>=', $startDate);
+                    } elseif ($endDate) {
+                        $q->whereDate('date', '<=', $endDate);
+                    }
+                });
+            }
+
+            /* ⚡ FIRST LOAD OPTIMIZATION */
+            if ($request->limit) {
+                $invoiceArticles
+                    ->latest('id')        // or invoice_id / created_at
+                    ->limit((int) $request->limit);
+            }
+
+            $data = $invoiceArticles->get()->map(function ($invoiceArticle) {
+
+                $invoice  = $invoiceArticle->invoice;
+                $customer = $invoice?->customer;
+                $article  = $invoiceArticle->article;
+
+                return [
+                    'article_no'    => $article?->article_no,
+                    'invoice_no'    => $invoice?->invoice_no,
+                    'customer_name' => $customer?->customer_name . ' | ' . $customer?->city?->short_title,
+                    'invoice_date'  => $invoice?->date?->format('d-M-Y, D'),
+                    'invoice_pcs'   => $invoiceArticle->invoice_pcs,
+                ];
+            });
+
+            return response()->json([
+                'data' => $data,
+                'authLayout' => 'table'
+            ]);
         }
 
         return view('reports.article');
