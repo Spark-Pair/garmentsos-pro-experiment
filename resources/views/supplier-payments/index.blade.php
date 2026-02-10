@@ -2,113 +2,44 @@
 @section('title', 'Show Supplier Payments | ' . $client_company->name)
 @section('content')
 @php
-    // $searchFields = [
-    //     "Date Range" => [
-    //         "id" => "date_range_start",
-    //         "type" => "date",
-    //         // "value" => now()->startOfMonth()->toDateString(),
-    //         "id2" => "date_range_end",
-    //         "type2" => "date",
-    //         // "value2" => now()->toDateString(),
-    //         "dataFilterPath" => "date",
-    //     ],
-    //     "Supplier Name" => [
-    //         "type" => "text",
-    //         "id" => "supplier_name",
-    //         "placeholder" => "Enter supplier name",
-    //         "dataFilterPath" => "supplier_name",
-    //     ],
-    //     "City" => [
-    //         "type" => "text",
-    //         "id" => "city",
-    //         "placeholder" => "Enter city",
-    //         "dataFilterPath" => "city",
-    //     ],
-    //     "Beneficiary" => [
-    //         "type" => "text",
-    //         "id" => "beneficiary",
-    //         "placeholder" => "Enter beneficiary",
-    //         "dataFilterPath" => "beneficiary",
-    //     ],
-    //     "Supplier Name" => [
-    //         "type" => "text",
-    //         "id" => "supplier_name",
-    //         "placeholder" => "Enter supplier name",
-    //         "dataFilterPath" => "supplier_name",
-    //     ],
-    //     "Method" => [
-    //         "type" => "select",
-    //         "id" => "method",
-    //         "options" => [
-    //                     'cash' => ['text' => 'Cash'],
-    //                     'cheque' => ['text' => 'Cheque'],
-    //                     'slip' => ['text' => 'Slip'],
-    //                     'program' => ['text' => 'Program'],
-    //                     'adjustment' => ['text' => 'Adjustment'],
-    //                 ],
-    //         "dataFilterPath" => "method",
-    //     ],
-    //     "Category" => [
-    //         "type" => "select",
-    //         "id" => "category",
-    //         "options" => [
-    //                     'cash' => ['text' => 'Cash'],
-    //                     'non-cash' => ['text' => 'Non Cash'],
-    //                 ],
-    //         "dataFilterPath" => "category",
-    //     ],
-    //     "Type" => [
-    //         "type" => "select",
-    //         "id" => "type",
-    //         "options" => [
-    //                     'normal' => ['text' => 'Normal'],
-    //                     'payment_program' => ['text' => 'Payment Program'],
-    //                     'recovery' => ['text' => 'Recovery'],
-    //                 ],
-    //         "dataFilterPath" => "type",
-    //     ],
-    //     "Issued" => [
-    //         "type" => "select",
-    //         "id" => "issued",
-    //         "options" => [
-    //                     'Issued' => ['text' => 'Issued'],
-    //                     'Return' => ['text' => 'Return'],
-    //                     'DR' => ['text' => 'DR'],
-    //                     'Not Issued' => ['text' => 'Not Issued'],
-    //                 ],
-    //         "dataFilterPath" => "issued",
-    //     ],
-    //     "Status" => [
-    //         "type" => "select",
-    //         "id" => "status",
-    //         "options" => [
-    //                     'Cleared' => ['text' => 'Cleared'],
-    //                     'Pending' => ['text' => 'Pending'],
-    //                 ],
-    //         "dataFilterPath" => "status",
-    //     ],
-    //     "Reff. No." => [
-    //         "id" => "reff_no",
-    //         "type" => "text",
-    //         "placeholder" => "Enter reff. no.",
-    //         "dataFilterPath" => "reff_no",
-    //     ],
-    //     "Voucher No." => [
-    //         "type" => "text",
-    //         "id" => "voucher_no",
-    //         "placeholder" => "Enter voucher no.",
-    //         "dataFilterPath" => "voucher_no",
-    //     ],
-    //     "Amount" => [
-    //         "type" => "text",
-    //         "id" => "amount",
-    //         "placeholder" => "Enter Amount",
-    //         "dataFilterPath" => "amount",
-    //     ],
-    // ];s
+    $searchFields = [
+        // "Date Range" => [
+        //     "id" => "date_range_start",
+        //     "type" => "date",
+        //     // "value" => now()->startOfMonth()->toDateString(),
+        //     "id2" => "date_range_end",
+        //     "type2" => "date",
+        //     // "value2" => now()->toDateString(),
+        //     "dataFilterPath" => "date",
+        // ],
+        "Supplier Name" => [
+            "type" => "text",
+            "id" => "supplier_name",
+            "placeholder" => "Enter supplier name",
+            "dataFilterPath" => "supplier_name",
+        ],
+        "Method" => [
+            "type" => "select",
+            "id" => "method",
+            "options" => [
+                        'Cash' => ['text' => 'Cash'],
+                        'Cheque' => ['text' => 'Cheque'],
+                        'Slip' => ['text' => 'Slip'],
+                        'program' => ['text' => 'Program'],
+                        'Adjustment' => ['text' => 'Adjustment'],
+                    ],
+            "dataFilterPath" => "method",
+        ],
+        "Voucher No." => [
+            "type" => "text",
+            "id" => "voucher_no",
+            "placeholder" => "Enter voucher no.",
+            "dataFilterPath" => "voucher_no",
+        ],
+    ];
 @endphp
     <div class="w-[80%] mx-auto">
-        <x-search-header heading="Supplier Payments" :search_fields=[]/>
+        <x-search-header heading="Supplier Payments" :search_fields=$searchFields/>
     </div>
 
     <!-- Main Content -->
