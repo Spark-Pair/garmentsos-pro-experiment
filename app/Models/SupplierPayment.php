@@ -55,11 +55,6 @@ class SupplierPayment extends Model
                 $thisModel->creator_id = Auth::id();
             }
         });
-
-        // Always eager load the associated creator
-        // static::addGlobalScope('withCreator', function (builder $builder) {
-        //     $builder->with('creator');
-        // });
     }
 
     public function creator()

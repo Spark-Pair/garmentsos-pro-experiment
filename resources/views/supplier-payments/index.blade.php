@@ -26,9 +26,17 @@
                         'Cheque' => ['text' => 'Cheque'],
                         'Slip' => ['text' => 'Slip'],
                         'program' => ['text' => 'Program'],
+                        'Self Cheque' => ['text' => 'Self Cheque'],
+                        'ATM' => ['text' => 'ATM'],
                         'Adjustment' => ['text' => 'Adjustment'],
                     ],
             "dataFilterPath" => "method",
+        ],
+        "Reff No." => [
+            "type" => "text",
+            "id" => "reff_no",
+            "placeholder" => "Enter reff no.",
+            "dataFilterPath" => "reff_no",
         ],
         "Voucher No." => [
             "type" => "text",
@@ -56,6 +64,7 @@
                             <div class="text-center grow cursor-pointer" onclick="sortByThis(this)">Supplier Name</div>
                             <div class="text-center w-1/7 cursor-pointer" onclick="sortByThis(this)">Method</div>
                             <div class="text-center w-1/7 cursor-pointer" onclick="sortByThis(this)">Amount</div>
+                            <div class="text-center w-1/7 cursor-pointer" onclick="sortByThis(this)">Reff No.</div>
                             <div class="text-center w-1/7 cursor-pointer" onclick="sortByThis(this)">Voucher No.</div>
                         </div>
                         <p id="noItemsError" style="display: none" class="text-sm text-[var(--border-error)] mt-3">No items found</p>
@@ -85,6 +94,7 @@
                     <span class="text-center grow">${data.name}</span>
                     <span class="text-center w-1/7 capitalize">${data.method}</span>
                     <span class="text-center w-1/7">${data.amount}</span>
+                    <span class="text-center w-1/7">${data.reff_no}</span>
                     <span class="text-center w-1/7">${data.voucher_no}</span>
                 </div>
             `;
