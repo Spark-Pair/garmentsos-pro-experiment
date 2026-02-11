@@ -29,7 +29,6 @@ class Shipment extends Model
     ];
 
     protected $casts = [
-        'articles' => 'json',
         'date' => 'date',
     ];
 
@@ -55,7 +54,7 @@ class Shipment extends Model
 
     public function articles()
     {
-        return $this->hasMany(ShipmentArticles::class, 'shipment_id');
+        return $this->hasMany(ShipmentArticles::class, 'shipment_id', 'id');
     }
 
     public function invoices()

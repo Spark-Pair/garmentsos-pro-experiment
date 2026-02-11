@@ -904,12 +904,12 @@
                                 <div class="company-logo">
                                     <img src="{{ asset('images/${companyData.logo}') }}" alt="garmentsos-pro"
                                         class="w-[12rem]" />
+                                    <div class='mt-1'>${ companyData.phone_number }</div>
                                 </div>
                             </div>
                             <div class="right">
                                 <div>
                                     <h1 class="text-2xl font-medium text-[var(--primary-color)] pr-2">Voucher</h1>
-                                    <div class='mt-1'>${ companyData.phone_number }</div>
                                 </div>
                             </div>
                         </div>
@@ -952,7 +952,7 @@
                                             return `
                                                     <div>
                                                         <hr class="w-full ${hrClass} border-gray-600">
-                                                        <div class="tr flex justify-between w-full px-4">
+                                                        <div class="tr flex justify-between w-full px-4 text-nowrap gap-0.5">
                                                             <div class="td text-sm font-semibold w-[7%]">${index + 1}.</div>
                                                             <div class="td text-sm font-semibold w-[11%] capitalize">${payment.method ?? '-'}</div>
                                                             <div class="td text-sm font-semibold w-1/5">${selected?.program?.customer?.customer_name ? selected?.program?.customer?.customer_name : selected.customer?.customer_name ? selected.customer?.customer_name : '-'}</div>

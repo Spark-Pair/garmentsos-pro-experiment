@@ -335,6 +335,12 @@
         .selectParent:has(input:focus) .selectDropdownIcon {
             scale: 1 -1;
         }
+
+        .td {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
     </style>
 
     @vite('resources/css/app.css')
