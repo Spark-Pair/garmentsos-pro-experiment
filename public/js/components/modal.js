@@ -675,9 +675,30 @@ function createModal(data, animate = 'animate') {
                 <div class="flex flex-col h-full">
                     <div id="banner" class="banner w-full flex justify-between items-center px-5">
                         <div class="left">
-                            <div class="logo">
-                                <img src="images/${companyData.logo}" alt="garmentsos-pro" class="w-[12rem]" />
-                                ${data.preview.type != 'form' ? `<div class='mt-1'>${companyData.phone_number}</div>` : ''}
+                            <div class="logo flex flex-col">
+                                <!-- Top Row: Image + Logo Text -->
+                                <div class="flex items-center gap-3">
+                                    ${companyData.logo ? `
+                                        <div class="h-[3.50rem] w-[13.5rem] flex items-center justify-center gap-2.5">
+                                            <img 
+                                                src="images/${companyData.logo}" 
+                                                alt="garmentsos-pro"
+                                                class="max-h-full max-w-full object-contain"
+                                            />
+                                            ${companyData.logo_text ? `
+                                                <h1 class="text-lg font-bold tracking-wide">
+                                                    ${companyData.logo_text}
+                                                </h1>
+                                            ` : ''}
+                                        </div>
+                                    ` : ''}
+                                </div>
+                                <!-- Phone Number (Below Both) -->
+                                ${data.preview.type != 'form' && companyData.phone_number ? `
+                                    <div class="mt-2 text-sm text-gray-600">
+                                        ${companyData.phone_number}
+                                    </div>
+                                ` : ''}
                             </div>
                         </div>
                         <div class="right">
