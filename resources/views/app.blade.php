@@ -1549,6 +1549,7 @@
 
         // Column selection state
         let printColumns = [];
+        let draggedRow = null;
 
         // Open modal and populate columns
         window.openPrintColumnModal = function() {
@@ -1560,35 +1561,55 @@
 
             const columns = Array.from(tableHead.children).map((col, index) => ({
                 index,
+                originalIndex: index, // Track original position
                 text: col.textContent.trim(),
                 width: col.className.match(/w-\[(\d+)%\]/)?.[1] || '10',
-                selected: true
+                selected: true,
+                mergeWith: null
             }));
 
             printColumns = columns;
 
             // Create table body for modal
-            let tableBody = columns.map((col, index) => [
+            let tableBody = printColumns.map((col, displayIndex) => [
+                {
+                    rawHTML: `
+                        <div class="w-[5%] flex items-center justify-center cursor-move drag-handle" data-display-index="${displayIndex}">
+                            <i class="fas fa-grip-vertical text-gray-400"></i>
+                        </div>
+                    `
+                },
                 {
                     checkbox: true,
-                    checked: true,
-                    class: 'w-[10%] flex items-center',
-                    jsonData: { columnIndex: index } // Add index for tracking
+                    checked: col.selected,
+                    class: 'w-[8%] flex items-center'
                 },
                 {
                     data: col.text,
-                    class: 'grow font-medium'
+                    class: 'grow font-medium truncate'
+                },
+                {
+                    rawHTML: `
+                        <div class="w-[15%] flex items-center gap-2">
+                            <select class="merge-select text-xs px-2 py-1 rounded bg-[var(--h-bg-color)] border border-gray-600 w-full" data-display-index="${displayIndex}">
+                                <option value="">No Merge</option>
+                                ${printColumns.map((c, i) => i !== displayIndex ? `<option value="${i}" ${col.mergeWith === i ? 'selected' : ''}>→ ${c.text}</option>` : '').join('')}
+                            </select>
+                        </div>
+                    `
                 }
             ]);
 
             let modalData = {
                 id: 'printColumnModal',
-                name: 'Select Columns to Print',
-                class: 'p-5 max-w-2xl h-[30rem]',
+                name: 'Select & Arrange Columns',
+                class: 'p-5 max-w-4xl h-[35rem]',
                 table: {
                     headers: [
-                        { label: "Select", class: "w-[10%]" },
-                        { label: "Column Name", class: "grow" }
+                        { label: "", class: "w-[5%]" },
+                        { label: "Select", class: "w-[8%]" },
+                        { label: "Column Name", class: "grow" },
+                        { label: "Merge With", class: "w-[15%]" }
                     ],
                     body: tableBody,
                 },
@@ -1606,6 +1627,12 @@
                         onclick: 'selectAllPrintColumns(false)'
                     },
                     {
+                        id: 'reset-order',
+                        text: 'Reset Order',
+                        type: 'button',
+                        onclick: 'resetColumnOrder()'
+                    },
+                    {
                         id: 'print-selected',
                         text: 'Print',
                         type: 'button',
@@ -1616,79 +1643,208 @@
 
             createModal(modalData);
 
-            // Add click handlers to rows
             setTimeout(() => {
-                const tableBody = document.querySelector('#printColumnModal #table-body');
-                if (!tableBody) {
-                    console.error('Table body not found');
-                    return;
-                }
+                setupModalInteractions();
+            }, 150);
+        };
 
-                const rows = tableBody.querySelectorAll('[data-json]');
-                console.log('Found rows:', rows.length);
+        function updateTableBodyOnly() {
+            const tableBody = document.querySelector('#printColumnModal #table-body');
+            if (!tableBody) return;
 
-                rows.forEach((row) => {
-                    const dataJson = row.getAttribute('data-json');
-                    if (!dataJson) return;
+            // Generate new table body HTML
+            let bodyHTML = '';
 
-                    const rowData = JSON.parse(dataJson);
-                    const index = rowData.columnIndex;
+            printColumns.forEach((col, displayIndex) => {
+                const mergeOptions = printColumns
+                    .map((c, i) => i !== displayIndex ? `<option value="${i}" ${col.mergeWith === i ? 'selected' : ''}>→ ${c.text}</option>` : '')
+                    .join('');
 
-                    const checkbox = row.querySelector('.row-checkbox');
-                    if (!checkbox) return;
+                bodyHTML += `
+                    <div class="flex justify-between items-center border-t border-gray-600 py-2 px-4 cursor-pointer hover:bg-[var(--h-secondary-bg-color)] transition-all">
+                        <div class="w-[5%] flex items-center justify-center cursor-move drag-handle" data-display-index="${displayIndex}">
+                            <i class="fas fa-grip-vertical text-gray-400"></i>
+                        </div>
+                        <div class="w-[8%] flex items-center">
+                            <input ${col.selected ? 'checked' : ''} type="checkbox" class="row-checkbox mr-2 shrink-0 w-3.5 h-3.5 appearance-none border border-gray-400 rounded-sm checked:bg-[var(--primary-color)] checked:border-transparent focus:outline-none transition duration-150 cursor-pointer" />
+                        </div>
+                        <div class="grow font-medium truncate">${col.text}</div>
+                        <div class="w-[15%] flex items-center gap-2">
+                            <select class="merge-select text-xs px-2 py-1 rounded bg-[var(--h-bg-color)] border border-gray-600 w-full" data-display-index="${displayIndex}">
+                                <option value="">No Merge</option>
+                                ${mergeOptions}
+                            </select>
+                        </div>
+                    </div>
+                `;
+            });
 
-                    // Remove existing onclick to prevent conflicts
-                    row.removeAttribute('onclick');
+            tableBody.innerHTML = bodyHTML;
 
-                    // Add row click handler - toggle checkbox on entire row click
+            // Re-setup interactions
+            setTimeout(() => {
+                setupModalInteractions();
+            }, 50);
+        }
+
+        function setupModalInteractions() {
+            const tableBody = document.querySelector('#printColumnModal #table-body');
+            if (!tableBody) {
+                console.error('Table body not found');
+                return;
+            }
+
+            const rows = Array.from(tableBody.children);
+
+            // Setup checkboxes and row clicks
+            rows.forEach((row, displayIndex) => {
+                const checkbox = row.querySelector('.row-checkbox');
+                if (checkbox) {
+                    // Row click handler
                     row.addEventListener('click', function(e) {
-                        e.stopPropagation();
-
-                        // Prevent double toggle if checkbox itself was clicked
-                        if (e.target === checkbox) {
-                            printColumns[index].selected = checkbox.checked;
-                            console.log(`Column ${index} (${printColumns[index].text}) checkbox clicked:`, checkbox.checked);
+                        // Ignore clicks on specific elements
+                        if (e.target === checkbox ||
+                            e.target.classList.contains('drag-handle') ||
+                            e.target.closest('.drag-handle') ||
+                            e.target.classList.contains('merge-select') ||
+                            e.target.tagName === 'SELECT' ||
+                            e.target.tagName === 'I') {
                             return;
                         }
 
                         checkbox.checked = !checkbox.checked;
-                        printColumns[index].selected = checkbox.checked;
-                        console.log(`Column ${index} (${printColumns[index].text}) row clicked:`, checkbox.checked);
+                        printColumns[displayIndex].selected = checkbox.checked;
+                        console.log(`Column ${displayIndex} (${printColumns[displayIndex].text}) selected:`, checkbox.checked);
                     });
 
-                    // Update state when checkbox changes directly
-                    checkbox.addEventListener('change', function(e) {
-                        printColumns[index].selected = this.checked;
-                        console.log(`Column ${index} (${printColumns[index].text}) changed:`, this.checked);
+                    // Checkbox change handler
+                    checkbox.addEventListener('change', function() {
+                        printColumns[displayIndex].selected = this.checked;
+                        console.log(`Column ${displayIndex} (${printColumns[displayIndex].text}) checkbox changed:`, this.checked);
                     });
+                }
+            });
+
+            // Setup drag and drop
+            setupDragAndDrop();
+
+            // Setup merge selects
+            setupMergeSelects();
+        }
+
+        function setupDragAndDrop() {
+            const tableBody = document.querySelector('#printColumnModal #table-body');
+            if (!tableBody) return;
+
+            const rows = Array.from(tableBody.children);
+
+            rows.forEach((row, index) => {
+                const dragHandle = row.querySelector('.drag-handle');
+                if (!dragHandle) return;
+
+                dragHandle.setAttribute('draggable', 'true');
+
+                dragHandle.addEventListener('dragstart', function(e) {
+                    draggedRow = row;
+                    row.style.opacity = '0.5';
+                    e.dataTransfer.effectAllowed = 'move';
                 });
-            }, 150);
+
+                dragHandle.addEventListener('dragend', function() {
+                    row.style.opacity = '1';
+                    draggedRow = null;
+                });
+
+                row.addEventListener('dragover', function(e) {
+                    if (draggedRow && draggedRow !== row) {
+                        e.preventDefault();
+                        e.dataTransfer.dropEffect = 'move';
+                        this.style.borderTop = '2px solid var(--primary-color)';
+                    }
+                });
+
+                row.addEventListener('dragleave', function() {
+                    this.style.borderTop = '';
+                });
+
+                row.addEventListener('drop', function(e) {
+                    e.preventDefault();
+                    this.style.borderTop = '';
+
+                    if (!draggedRow || draggedRow === row) return;
+
+                    // Get indices
+                    const fromIndex = Array.from(tableBody.children).indexOf(draggedRow);
+                    const toIndex = Array.from(tableBody.children).indexOf(row);
+
+                    console.log(`Moving from ${fromIndex} to ${toIndex}`);
+
+                    // Reorder array
+                    const [movedColumn] = printColumns.splice(fromIndex, 1);
+                    printColumns.splice(toIndex, 0, movedColumn);
+
+                    console.log('New order:', printColumns.map(c => c.text));
+
+                    // Update table body only (smooth, no modal close)
+                    updateTableBodyOnly();
+                });
+            });
+        }
+
+        function setupMergeSelects() {
+            const mergeSelects = document.querySelectorAll('.merge-select');
+
+            mergeSelects.forEach(select => {
+                const displayIndex = parseInt(select.dataset.displayIndex);
+
+                select.addEventListener('change', function() {
+                    const mergeWithIndex = this.value ? parseInt(this.value) : null;
+                    printColumns[displayIndex].mergeWith = mergeWithIndex;
+                    console.log(`Column ${displayIndex} (${printColumns[displayIndex].text}) merge with:`, mergeWithIndex);
+                });
+            });
+        }
+
+        window.resetColumnOrder = function() {
+            // Reset to original order
+            printColumns.sort((a, b) => a.originalIndex - b.originalIndex);
+
+            // Clear all merges and selections
+            printColumns.forEach(col => {
+                col.mergeWith = null;
+                col.selected = true;
+            });
+
+            console.log('Order reset to original');
+
+            // Update table body only (smooth)
+            updateTableBodyOnly();
         };
 
-        // Select/Deselect all
         window.selectAllPrintColumns = function(select) {
-            console.log('Select all:', select);
-
-            printColumns.forEach((col, i) => {
+            printColumns.forEach(col => {
                 col.selected = select;
             });
 
-            // Update checkboxes
             const checkboxes = document.querySelectorAll('#printColumnModal #table-body .row-checkbox');
             checkboxes.forEach(checkbox => {
                 checkbox.checked = select;
             });
 
-            console.log('Updated columns:', printColumns.map(c => ({ text: c.text, selected: c.selected })));
+            console.log('All columns selected:', select);
         };
 
-        // Print with selected columns
         window.printWithSelectedColumns = function() {
-            console.log('Print clicked. Current columns state:', printColumns.map(c => ({ text: c.text, selected: c.selected })));
-
             const selectedColumns = printColumns.filter(col => col.selected);
 
-            console.log('Selected columns for print:', selectedColumns.map(c => ({ index: c.index, text: c.text })));
+            console.log('=== PRINT EXECUTION ===');
+            console.log('Total columns:', printColumns.length);
+            console.log('Selected columns:', selectedColumns.length);
+            console.log('Selected column details:', selectedColumns.map(c => ({
+                originalIndex: c.originalIndex,
+                text: c.text,
+                mergeWith: c.mergeWith
+            })));
 
             if (selectedColumns.length === 0) {
                 alert('Please select at least one column');
@@ -1696,14 +1852,11 @@
             }
 
             closeModal('printColumnModal');
-
-            // Call modified print with selected columns
             executePrintWithColumns(selectedColumns);
         };
 
-        // Modified print function with column filtering and dynamic width
         function executePrintWithColumns(selectedColumns) {
-            console.log('Executing print with columns:', selectedColumns.map(c => c.text));
+            console.log('Executing print with', selectedColumns.length, 'columns');
 
             const preview = document.querySelector('.container-parent');
             let clone = preview.cloneNode(true);
@@ -1732,26 +1885,61 @@
                 const body = clone.querySelector('.search_container');
                 if (!header || !body) return clone.innerHTML;
 
-                console.log('Original header columns:', header.children.length);
-                console.log('Selected column indices:', selectedColumns.map(c => c.index));
+                console.log('Original header has', header.children.length, 'columns');
 
-                // Calculate dynamic width for each column
-                const totalSelectedColumns = selectedColumns.length;
-                const columnWidth = `${(100 / totalSelectedColumns).toFixed(2)}%`;
+                // Process merges
+                const processedColumns = [];
+                const mergedIndices = new Set();
 
-                // Filter header columns with dynamic width
-                const headerCols = Array.from(header.children);
-                const filteredHeaderCols = selectedColumns.map(col => {
-                    const colClone = headerCols[col.index].cloneNode(true);
-                    colClone.className = colClone.className.replace(/w-\[\d+%\]/, '');
-                    colClone.style.width = columnWidth;
-                    colClone.style.minWidth = columnWidth;
-                    colClone.style.maxWidth = columnWidth;
-                    colClone.style.flex = `0 0 ${columnWidth}`;
-                    return colClone.outerHTML;
+                selectedColumns.forEach((col, idx) => {
+                    if (mergedIndices.has(idx)) return;
+
+                    if (col.mergeWith !== null) {
+                        const mergeTargetCol = selectedColumns[col.mergeWith];
+                        if (mergeTargetCol && !mergedIndices.has(col.mergeWith)) {
+                            processedColumns.push({
+                                originalIndices: [col.originalIndex, mergeTargetCol.originalIndex],
+                                text: `${col.text} / ${mergeTargetCol.text}`,
+                                isMerged: true
+                            });
+                            mergedIndices.add(idx);
+                            mergedIndices.add(col.mergeWith);
+                        } else {
+                            processedColumns.push({
+                                originalIndices: [col.originalIndex],
+                                text: col.text,
+                                isMerged: false
+                            });
+                            mergedIndices.add(idx);
+                        }
+                    } else {
+                        processedColumns.push({
+                            originalIndices: [col.originalIndex],
+                            text: col.text,
+                            isMerged: false
+                        });
+                        mergedIndices.add(idx);
+                    }
                 });
 
-                console.log('Filtered header columns:', filteredHeaderCols.length);
+                console.log('Processed to', processedColumns.length, 'columns (after merge)');
+                console.log('Processed columns:', processedColumns.map(c => c.text));
+
+                const totalColumns = processedColumns.length;
+                const columnWidth = `${(100 / totalColumns).toFixed(2)}%`;
+
+                // Build header
+                const headerCols = Array.from(header.children);
+                const filteredHeaderCols = processedColumns.map(col => {
+                    const headerDiv = document.createElement('div');
+                    headerDiv.className = 'truncate';
+                    headerDiv.style.width = columnWidth;
+                    headerDiv.style.minWidth = columnWidth;
+                    headerDiv.style.maxWidth = columnWidth;
+                    headerDiv.style.flex = `0 0 ${columnWidth}`;
+                    headerDiv.textContent = col.text;
+                    return headerDiv.outerHTML;
+                });
 
                 const headerHTML = `<div id="table-head" class="flex items-center bg-[var(--h-bg-color)] rounded-lg font-medium py-2 text-center px-4">
                     ${filteredHeaderCols.join('')}
@@ -1767,27 +1955,28 @@
                     rowClone.removeAttribute('onclick');
                     rowClone.removeAttribute('oncontextmenu');
 
-                    // Filter row columns with dynamic width
                     const spans = Array.from(rowClone.querySelectorAll('span'));
-                    console.log('Row has spans:', spans.length);
 
-                    const filteredSpans = selectedColumns.map(col => {
-                        const span = spans[col.index];
-                        if (span) {
-                            const spanClone = span.cloneNode(true);
-                            spanClone.className = spanClone.className.replace(/w-\[\d+%\]/, '');
-                            spanClone.style.width = columnWidth;
-                            spanClone.style.minWidth = columnWidth;
-                            spanClone.style.maxWidth = columnWidth;
-                            spanClone.style.flex = `0 0 ${columnWidth}`;
-                            return spanClone;
+                    const filteredSpans = processedColumns.map(col => {
+                        const spanDiv = document.createElement('span');
+                        spanDiv.style.width = columnWidth;
+                        spanDiv.style.minWidth = columnWidth;
+                        spanDiv.style.maxWidth = columnWidth;
+                        spanDiv.style.flex = `0 0 ${columnWidth}`;
+
+                        if (col.isMerged) {
+                            const texts = col.originalIndices.map(idx => spans[idx]?.textContent || '').filter(Boolean);
+                            spanDiv.textContent = texts.join(' / ');
+                        } else {
+                            const span = spans[col.originalIndices[0]];
+                            if (span) {
+                                spanDiv.textContent = span.textContent;
+                            }
                         }
-                        return null;
-                    }).filter(Boolean);
 
-                    console.log('Filtered to spans:', filteredSpans.length);
+                        return spanDiv;
+                    });
 
-                    // Clear and add only selected columns
                     rowClone.innerHTML = '';
                     filteredSpans.forEach(span => rowClone.appendChild(span));
 
@@ -1866,7 +2055,6 @@
                             thead { display: table-header-group; }
                             .scrollbar-hidden { overflow: visible !important; }
 
-                            /* Dynamic column width support */
                             body #table-head {
                                 color: white !important;
                                 background: var(--primary-color) !important;
@@ -1912,7 +2100,6 @@
             };
         }
 
-        // Override printPage function
         window.printPage = function() {
             window.openPrintColumnModal();
         };
