@@ -1366,179 +1366,558 @@
     //     document.body.innerHTML = originalContent;
     // }
 
-    function printPage() {
-        const preview = document.querySelector('.container-parent');
+    // function printPage() {
+    //     const preview = document.querySelector('.container-parent');
 
-        let clone = preview.cloneNode(true);
+    //     let clone = preview.cloneNode(true);
 
-        let oldIframe = document.getElementById('printIframe');
-        if (oldIframe) {
-            oldIframe.remove();
-        }
+    //     let oldIframe = document.getElementById('printIframe');
+    //     if (oldIframe) {
+    //         oldIframe.remove();
+    //     }
 
-        // Naya iframe banao
-        let printIframe = document.createElement('iframe');
-        printIframe.id = "printIframe";
-        printIframe.style.position = "absolute";
-        printIframe.style.width = "0px";
-        printIframe.style.height = "0px";
-        printIframe.style.border = "none";
-        printIframe.style.display = "none";
+    //     // Naya iframe banao
+    //     let printIframe = document.createElement('iframe');
+    //     printIframe.id = "printIframe";
+    //     printIframe.style.position = "absolute";
+    //     printIframe.style.width = "0px";
+    //     printIframe.style.height = "0px";
+    //     printIframe.style.border = "none";
+    //     printIframe.style.display = "none";
 
-        document.body.appendChild(printIframe);
+    //     document.body.appendChild(printIframe);
 
-        let printDocument = printIframe.contentDocument || printIframe.contentWindow.document;
-        printDocument.open();
+    //     let printDocument = printIframe.contentDocument || printIframe.contentWindow.document;
+    //     printDocument.open();
 
-        const headContent = document.head.innerHTML;
+    //     const headContent = document.head.innerHTML;
 
-        clone.querySelector('#calc-bottom')?.remove();
+    //     clone.querySelector('#calc-bottom')?.remove();
 
-        function generatePrintBody(clone) {
-            const header = clone.querySelector('#table-head');
-            const body = clone.querySelector('.search_container'); // ✅ main rows container
-            if (!header || !body) return clone.innerHTML;
+    //     function generatePrintBody(clone) {
+    //         const header = clone.querySelector('#table-head');
+    //         const body = clone.querySelector('.search_container'); // ✅ main rows container
+    //         if (!header || !body) return clone.innerHTML;
 
-            // Clean unnecessary classes
-            body.innerHTML = body.innerHTML
-                .replaceAll('fade-in', '')
-                .replaceAll('my-scrollbar-2', 'scrollbar-hidden');
+    //         // Clean unnecessary classes
+    //         body.innerHTML = body.innerHTML
+    //             .replaceAll('fade-in', '')
+    //             .replaceAll('my-scrollbar-2', 'scrollbar-hidden');
 
-            // Get all rows and remove `data-json` attribute
-            const rows = Array.from(body.children).map(r => {
-                const rowClone = r.cloneNode(true);
-                rowClone.removeAttribute('data-json'); // ✅ remove if exists
-                return rowClone;
-            });
+    //         // Get all rows and remove `data-json` attribute
+    //         const rows = Array.from(body.children).map(r => {
+    //             const rowClone = r.cloneNode(true);
+    //             rowClone.removeAttribute('data-json'); // ✅ remove if exists
+    //             return rowClone;
+    //         });
 
-            const headerHTML = header.outerHTML.replace('mt-4', 'text-center');
+    //         const headerHTML = header.outerHTML.replace('mt-4', 'text-center');
 
-            let html = '';
-            let currentRows = [];
-            let height = 0;
-            const maxHeight = 840; // ~A4 landscape height
+    //         let html = '';
+    //         let currentRows = [];
+    //         let height = 0;
+    //         const maxHeight = 840; // ~A4 landscape height
 
-            rows.forEach((r, i) => {
-                currentRows.push(r.outerHTML);
-                height += r.scrollHeight || 40;
+    //         rows.forEach((r, i) => {
+    //             currentRows.push(r.outerHTML);
+    //             height += r.scrollHeight || 40;
 
-                // If height exceeds limit or last row reached
-                if (height >= maxHeight || i === rows.length - 1) {
-                    html += `
-                        <div class="print-page flex flex-col min-h-[750px]">
-                            <div class="px-4 w-full flex justify-between text-[12px] font-medium tracking-wide leading-none mb-2">
-                                <div class="capitalize">${ document.getElementById('page-name').textContent } | {{ $client_company->name }}</div>
-                                <div>Printed on: ${formatDate(new Date())}</div>
-                            </div>
-                            ${headerHTML}
-                            <div class="rows px-4 text-center">
-                                ${currentRows.join('')}
-                            </div>
-                            <div class="grow">
-                            </div>
-                            <div class="px-4 w-full grid grid-cols-3 text-[12px] tracking-wide leading-none mt-3">
-                                <div class="text-left">
-                                    Showing ${i + 1} of ${rows.length} Records
-                                </div>
-                                <div class="text-center">
-                                    Powered by: <strong>SparkPair</strong>
-                                </div>
-                                <div class="text-right">
-                                    Page ${Math.ceil((i + 1) / (maxHeight / 40))} of ${Math.ceil(rows.length / (maxHeight / 40))}
-                                </div>
-                            </div>
-                        </div>
-                    `;
-                    if (i !== rows.length - 1)
-                        html += `<div style="page-break-after:always"></div>`;
+    //             // If height exceeds limit or last row reached
+    //             if (height >= maxHeight || i === rows.length - 1) {
+    //                 html += `
+    //                     <div class="print-page flex flex-col min-h-[750px]">
+    //                         <div class="px-4 w-full flex justify-between text-[12px] font-medium tracking-wide leading-none mb-2">
+    //                             <div class="capitalize">${ document.getElementById('page-name').textContent } | {{ $client_company->name }}</div>
+    //                             <div>Printed on: ${formatDate(new Date())}</div>
+    //                         </div>
+    //                         ${headerHTML}
+    //                         <div class="rows px-4 text-center">
+    //                             ${currentRows.join('')}
+    //                         </div>
+    //                         <div class="grow">
+    //                         </div>
+    //                         <div class="px-4 w-full grid grid-cols-3 text-[12px] tracking-wide leading-none mt-3">
+    //                             <div class="text-left">
+    //                                 Showing ${i + 1} of ${rows.length} Records
+    //                             </div>
+    //                             <div class="text-center">
+    //                                 Powered by: <strong>SparkPair</strong>
+    //                             </div>
+    //                             <div class="text-right">
+    //                                 Page ${Math.ceil((i + 1) / (maxHeight / 40))} of ${Math.ceil(rows.length / (maxHeight / 40))}
+    //                             </div>
+    //                         </div>
+    //                     </div>
+    //                 `;
+    //                 if (i !== rows.length - 1)
+    //                     html += `<div style="page-break-after:always"></div>`;
 
-                    // Reset for next batch
-                    currentRows = [];
-                    height = 0;
+    //                 // Reset for next batch
+    //                 currentRows = [];
+    //                 height = 0;
+    //             }
+    //         });
+
+    //         return html;
+    //     }
+
+    //     printDocument.write(`
+    //         <html>
+    //             <head>
+    //                 <title>Print Statement</title>
+    //                 ${headContent}
+    //                 <style>
+    //                     @page {
+    //                         size: A4 landscape;
+    //                         margin: 16px;
+    //                     }
+
+    //                     body {
+    //                         margin: 0;
+    //                         padding: 0;
+    //                         background: #fff;
+    //                         -webkit-print-color-adjust: exact;
+    //                         print-color-adjust: exact;
+    //                     }
+
+    //                     /* ✅ Make all major containers flow naturally in print */
+    //                     .container-parent,
+    //                     .card_container {
+    //                         display: block !important;
+    //                         overflow: visible !important;
+    //                         height: auto !important;
+    //                     }
+
+    //                     /* ✅ Allow automatic page breaks */
+    //                     * {
+    //                         page-break-inside: auto;
+    //                     }
+
+    //                     /* ✅ Prevent rows, headers, etc. from splitting mid-page */
+    //                     .row,
+    //                     .record,
+    //                     tr,
+    //                     .card {
+    //                         page-break-inside: avoid;
+    //                         break-inside: avoid;
+    //                     }
+
+    //                     /* ✅ Repeat header section if you have it in a table */
+    //                     thead {
+    //                         display: table-header-group;
+    //                     }
+
+    //                     /* ✅ Hide scrollbars for printed view */
+    //                     .scrollbar-hidden {
+    //                         overflow: visible !important;
+    //                     }
+
+    //                     /* ✅ Header styling */
+    //                     body #table-head {
+    //                         color: white !important;
+    //                         background: var(--primary-color) !important;
+    //                         font-size: 10px !important;
+    //                     }
+
+    //                     body span {
+    //                         color: black !important;
+    //                         font-size: 10px !important;
+    //                     }
+    //                 </style>
+    //             </head>
+    //             <body>
+    //                 ${generatePrintBody(clone)}
+    //             </body>
+    //         </html>
+    //     `);
+
+    //     printDocument.close();
+
+    //     // Print jab iframe load ho jaye
+    //     printIframe.onload = () => {
+    //         printIframe.contentWindow.focus();
+    //         printIframe.contentWindow.print();
+    //     };
+    // }
+
+    // ==================== PRINT COLUMN SELECTOR ====================
+    // Production-safe: Uses existing modal system
+
+    (function() {
+        // Store original printPage function
+        const originalPrintPage = window.printPage;
+
+        // Column selection state
+        let printColumns = [];
+
+        // Open modal and populate columns
+        window.openPrintColumnModal = function() {
+            const tableHead = document.querySelector('#table-head');
+            if (!tableHead) {
+                alert('Table header not found');
+                return;
+            }
+
+            const columns = Array.from(tableHead.children).map((col, index) => ({
+                index,
+                text: col.textContent.trim(),
+                width: col.className.match(/w-\[(\d+)%\]/)?.[1] || '10',
+                selected: true
+            }));
+
+            printColumns = columns;
+
+            // Create table body for modal
+            let tableBody = columns.map((col, index) => [
+                {
+                    checkbox: true,
+                    checked: true,
+                    class: 'w-[10%] flex items-center',
+                    jsonData: { columnIndex: index } // Add index for tracking
+                },
+                {
+                    data: col.text,
+                    class: 'grow font-medium'
                 }
+            ]);
+
+            let modalData = {
+                id: 'printColumnModal',
+                name: 'Select Columns to Print',
+                class: 'p-5 max-w-2xl h-[30rem]',
+                table: {
+                    headers: [
+                        { label: "Select", class: "w-[10%]" },
+                        { label: "Column Name", class: "grow" }
+                    ],
+                    body: tableBody,
+                },
+                bottomActions: [
+                    {
+                        id: 'select-all',
+                        text: 'Select All',
+                        type: 'button',
+                        onclick: 'selectAllPrintColumns(true)'
+                    },
+                    {
+                        id: 'deselect-all',
+                        text: 'Deselect All',
+                        type: 'button',
+                        onclick: 'selectAllPrintColumns(false)'
+                    },
+                    {
+                        id: 'print-selected',
+                        text: 'Print',
+                        type: 'button',
+                        onclick: 'printWithSelectedColumns()'
+                    }
+                ]
+            };
+
+            createModal(modalData);
+
+            // Add click handlers to rows
+            setTimeout(() => {
+                const tableBody = document.querySelector('#printColumnModal #table-body');
+                if (!tableBody) {
+                    console.error('Table body not found');
+                    return;
+                }
+
+                const rows = tableBody.querySelectorAll('[data-json]');
+                console.log('Found rows:', rows.length);
+
+                rows.forEach((row) => {
+                    const dataJson = row.getAttribute('data-json');
+                    if (!dataJson) return;
+
+                    const rowData = JSON.parse(dataJson);
+                    const index = rowData.columnIndex;
+
+                    const checkbox = row.querySelector('.row-checkbox');
+                    if (!checkbox) return;
+
+                    // Remove existing onclick to prevent conflicts
+                    row.removeAttribute('onclick');
+
+                    // Add row click handler - toggle checkbox on entire row click
+                    row.addEventListener('click', function(e) {
+                        e.stopPropagation();
+
+                        // Prevent double toggle if checkbox itself was clicked
+                        if (e.target === checkbox) {
+                            printColumns[index].selected = checkbox.checked;
+                            console.log(`Column ${index} (${printColumns[index].text}) checkbox clicked:`, checkbox.checked);
+                            return;
+                        }
+
+                        checkbox.checked = !checkbox.checked;
+                        printColumns[index].selected = checkbox.checked;
+                        console.log(`Column ${index} (${printColumns[index].text}) row clicked:`, checkbox.checked);
+                    });
+
+                    // Update state when checkbox changes directly
+                    checkbox.addEventListener('change', function(e) {
+                        printColumns[index].selected = this.checked;
+                        console.log(`Column ${index} (${printColumns[index].text}) changed:`, this.checked);
+                    });
+                });
+            }, 150);
+        };
+
+        // Select/Deselect all
+        window.selectAllPrintColumns = function(select) {
+            console.log('Select all:', select);
+
+            printColumns.forEach((col, i) => {
+                col.selected = select;
             });
 
-            return html;
+            // Update checkboxes
+            const checkboxes = document.querySelectorAll('#printColumnModal #table-body .row-checkbox');
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = select;
+            });
+
+            console.log('Updated columns:', printColumns.map(c => ({ text: c.text, selected: c.selected })));
+        };
+
+        // Print with selected columns
+        window.printWithSelectedColumns = function() {
+            console.log('Print clicked. Current columns state:', printColumns.map(c => ({ text: c.text, selected: c.selected })));
+
+            const selectedColumns = printColumns.filter(col => col.selected);
+
+            console.log('Selected columns for print:', selectedColumns.map(c => ({ index: c.index, text: c.text })));
+
+            if (selectedColumns.length === 0) {
+                alert('Please select at least one column');
+                return;
+            }
+
+            closeModal('printColumnModal');
+
+            // Call modified print with selected columns
+            executePrintWithColumns(selectedColumns);
+        };
+
+        // Modified print function with column filtering and dynamic width
+        function executePrintWithColumns(selectedColumns) {
+            console.log('Executing print with columns:', selectedColumns.map(c => c.text));
+
+            const preview = document.querySelector('.container-parent');
+            let clone = preview.cloneNode(true);
+
+            let oldIframe = document.getElementById('printIframe');
+            if (oldIframe) oldIframe.remove();
+
+            let printIframe = document.createElement('iframe');
+            printIframe.id = "printIframe";
+            printIframe.style.position = "absolute";
+            printIframe.style.width = "0px";
+            printIframe.style.height = "0px";
+            printIframe.style.border = "none";
+            printIframe.style.display = "none";
+
+            document.body.appendChild(printIframe);
+
+            let printDocument = printIframe.contentDocument || printIframe.contentWindow.document;
+            printDocument.open();
+
+            const headContent = document.head.innerHTML;
+            clone.querySelector('#calc-bottom')?.remove();
+
+            function generatePrintBody(clone) {
+                const header = clone.querySelector('#table-head');
+                const body = clone.querySelector('.search_container');
+                if (!header || !body) return clone.innerHTML;
+
+                console.log('Original header columns:', header.children.length);
+                console.log('Selected column indices:', selectedColumns.map(c => c.index));
+
+                // Calculate dynamic width for each column
+                const totalSelectedColumns = selectedColumns.length;
+                const columnWidth = `${(100 / totalSelectedColumns).toFixed(2)}%`;
+
+                // Filter header columns with dynamic width
+                const headerCols = Array.from(header.children);
+                const filteredHeaderCols = selectedColumns.map(col => {
+                    const colClone = headerCols[col.index].cloneNode(true);
+                    colClone.className = colClone.className.replace(/w-\[\d+%\]/, '');
+                    colClone.style.width = columnWidth;
+                    colClone.style.minWidth = columnWidth;
+                    colClone.style.maxWidth = columnWidth;
+                    colClone.style.flex = `0 0 ${columnWidth}`;
+                    return colClone.outerHTML;
+                });
+
+                console.log('Filtered header columns:', filteredHeaderCols.length);
+
+                const headerHTML = `<div id="table-head" class="flex items-center bg-[var(--h-bg-color)] rounded-lg font-medium py-2 text-center px-4">
+                    ${filteredHeaderCols.join('')}
+                </div>`;
+
+                body.innerHTML = body.innerHTML
+                    .replaceAll('fade-in', '')
+                    .replaceAll('my-scrollbar-2', 'scrollbar-hidden');
+
+                const rows = Array.from(body.children).map(r => {
+                    const rowClone = r.cloneNode(true);
+                    rowClone.removeAttribute('data-json');
+                    rowClone.removeAttribute('onclick');
+                    rowClone.removeAttribute('oncontextmenu');
+
+                    // Filter row columns with dynamic width
+                    const spans = Array.from(rowClone.querySelectorAll('span'));
+                    console.log('Row has spans:', spans.length);
+
+                    const filteredSpans = selectedColumns.map(col => {
+                        const span = spans[col.index];
+                        if (span) {
+                            const spanClone = span.cloneNode(true);
+                            spanClone.className = spanClone.className.replace(/w-\[\d+%\]/, '');
+                            spanClone.style.width = columnWidth;
+                            spanClone.style.minWidth = columnWidth;
+                            spanClone.style.maxWidth = columnWidth;
+                            spanClone.style.flex = `0 0 ${columnWidth}`;
+                            return spanClone;
+                        }
+                        return null;
+                    }).filter(Boolean);
+
+                    console.log('Filtered to spans:', filteredSpans.length);
+
+                    // Clear and add only selected columns
+                    rowClone.innerHTML = '';
+                    filteredSpans.forEach(span => rowClone.appendChild(span));
+
+                    return rowClone;
+                });
+
+                let html = '';
+                let currentRows = [];
+                let height = 0;
+                const maxHeight = 840;
+
+                rows.forEach((r, i) => {
+                    currentRows.push(r.outerHTML);
+                    height += r.scrollHeight || 40;
+
+                    if (height >= maxHeight || i === rows.length - 1) {
+                        html += `
+                            <div class="print-page flex flex-col min-h-[750px]">
+                                <div class="px-4 w-full flex justify-between text-[12px] font-medium tracking-wide leading-none mb-2">
+                                    <div class="capitalize">${document.getElementById('page-name')?.textContent || ''} | {{ $client_company->name }}</div>
+                                    <div>Printed on: ${formatDate(new Date())}</div>
+                                </div>
+                                ${headerHTML}
+                                <div class="rows px-4 text-center">
+                                    ${currentRows.join('')}
+                                </div>
+                                <div class="grow"></div>
+                                <div class="px-4 w-full grid grid-cols-3 text-[12px] tracking-wide leading-none mt-3">
+                                    <div class="text-left">Showing ${i + 1} of ${rows.length} Records</div>
+                                    <div class="text-center">Powered by: <strong>SparkPair</strong></div>
+                                    <div class="text-right">Page ${Math.ceil((i + 1) / (maxHeight / 40))} of ${Math.ceil(rows.length / (maxHeight / 40))}</div>
+                                </div>
+                            </div>
+                        `;
+                        if (i !== rows.length - 1)
+                            html += `<div style="page-break-after:always"></div>`;
+
+                        currentRows = [];
+                        height = 0;
+                    }
+                });
+
+                return html;
+            }
+
+            printDocument.write(`
+                <html>
+                    <head>
+                        <title>Print Statement</title>
+                        ${headContent}
+                        <style>
+                            @page {
+                                size: A4 landscape;
+                                margin: 16px;
+                            }
+                            body {
+                                margin: 0;
+                                padding: 0;
+                                background: #fff;
+                                -webkit-print-color-adjust: exact;
+                                print-color-adjust: exact;
+                            }
+                            .container-parent, .card_container {
+                                display: block !important;
+                                overflow: visible !important;
+                                height: auto !important;
+                            }
+                            * {
+                                page-break-inside: auto;
+                                box-sizing: border-box;
+                            }
+                            .row, .record, tr, .card {
+                                page-break-inside: avoid;
+                                break-inside: avoid;
+                            }
+                            thead { display: table-header-group; }
+                            .scrollbar-hidden { overflow: visible !important; }
+
+                            /* Dynamic column width support */
+                            body #table-head {
+                                color: white !important;
+                                background: var(--primary-color) !important;
+                                font-size: 10px !important;
+                                display: flex !important;
+                            }
+                            body #table-head > div {
+                                flex-shrink: 0;
+                                flex-grow: 0;
+                                text-align: center;
+                                overflow: hidden;
+                                text-overflow: ellipsis;
+                                white-space: nowrap;
+                            }
+                            body .row {
+                                display: flex !important;
+                                border-bottom: 1px solid #e5e7eb;
+                                padding: 8px 0;
+                            }
+                            body .row span {
+                                color: black !important;
+                                font-size: 10px !important;
+                                flex-shrink: 0;
+                                flex-grow: 0;
+                                text-align: center;
+                                overflow: hidden;
+                                text-overflow: ellipsis;
+                                white-space: nowrap;
+                            }
+                        </style>
+                    </head>
+                    <body>
+                        ${generatePrintBody(clone)}
+                    </body>
+                </html>
+            `);
+
+            printDocument.close();
+
+            printIframe.onload = () => {
+                printIframe.contentWindow.focus();
+                printIframe.contentWindow.print();
+            };
         }
 
-        printDocument.write(`
-            <html>
-                <head>
-                    <title>Print Statement</title>
-                    ${headContent}
-                    <style>
-                        @page {
-                            size: A4 landscape;
-                            margin: 16px;
-                        }
-
-                        body {
-                            margin: 0;
-                            padding: 0;
-                            background: #fff;
-                            -webkit-print-color-adjust: exact;
-                            print-color-adjust: exact;
-                        }
-
-                        /* ✅ Make all major containers flow naturally in print */
-                        .container-parent,
-                        .card_container {
-                            display: block !important;
-                            overflow: visible !important;
-                            height: auto !important;
-                        }
-
-                        /* ✅ Allow automatic page breaks */
-                        * {
-                            page-break-inside: auto;
-                        }
-
-                        /* ✅ Prevent rows, headers, etc. from splitting mid-page */
-                        .row,
-                        .record,
-                        tr,
-                        .card {
-                            page-break-inside: avoid;
-                            break-inside: avoid;
-                        }
-
-                        /* ✅ Repeat header section if you have it in a table */
-                        thead {
-                            display: table-header-group;
-                        }
-
-                        /* ✅ Hide scrollbars for printed view */
-                        .scrollbar-hidden {
-                            overflow: visible !important;
-                        }
-
-                        /* ✅ Header styling */
-                        body #table-head {
-                            color: white !important;
-                            background: var(--primary-color) !important;
-                            font-size: 10px !important;
-                        }
-
-                        body span {
-                            color: black !important;
-                            font-size: 10px !important;
-                        }
-                    </style>
-                </head>
-                <body>
-                    ${generatePrintBody(clone)}
-                </body>
-            </html>
-        `);
-
-        printDocument.close();
-
-        // Print jab iframe load ho jaye
-        printIframe.onload = () => {
-            printIframe.contentWindow.focus();
-            printIframe.contentWindow.print();
+        // Override printPage function
+        window.printPage = function() {
+            window.openPrintColumnModal();
         };
-    }
+
+    })();
 
     // function backupDB() {
     //     window.location.href = '/backup-db';
