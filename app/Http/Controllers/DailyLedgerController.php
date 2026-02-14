@@ -52,45 +52,51 @@ class DailyLedgerController extends Controller
     public function index(Request $request)
     {
         if ($request->ajax()) {
-            // ✅ DB se hi newest first order mein data aaye
+            // Get filtered deposits
             $filteredDeposits = DailyLedgerDeposit::orderByDesc('date')
                 ->orderByDesc('created_at')
                 ->applyFilters($request, false)
                 ->get()
-                ->map->toFormattedArray();
+                ->map(function($item) {
+                    return $item->toFormattedArray();
+                });
 
+            // Get filtered uses
             $filteredUses = DailyLedgerUse::orderByDesc('date')
                 ->orderByDesc('created_at')
                 ->applyFilters($request, false)
                 ->get()
-                ->map->toFormattedArray();
+                ->map(function($item) {
+                    return $item->toFormattedArray();
+                });
 
-            // Merge and sort OLDEST first (for balance calculation only)
-            $filteredLedgers = $filteredDeposits
-                ->merge($filteredUses)
+            // ✅ Use collect() to merge arrays (not Eloquent merge)
+            $filteredLedgers = collect($filteredDeposits)
+                ->concat($filteredUses) // concat instead of merge for arrays
                 ->sortBy([
                     ['date', 'asc'],
                     ['created_at', 'asc']
                 ])
                 ->values();
 
-            // Rest remains same...
+            // Opening balance calculation
             $openingBalance = 0;
             if ($filteredLedgers->isNotEmpty()) {
-                // Get all IDs from filtered records
                 $filteredDepositIds = $filteredLedgers->where('deposit', '>', 0)->pluck('id')->toArray();
                 $filteredUseIds = $filteredLedgers->where('use', '>', 0)->pluck('id')->toArray();
                 
-                // Sum all deposits NOT in filtered list
-                $beforeDeposits = DailyLedgerDeposit::whereNotIn('id', $filteredDepositIds)->sum('amount');
+                $beforeDeposits = empty($filteredDepositIds) 
+                    ? DailyLedgerDeposit::sum('amount')
+                    : DailyLedgerDeposit::whereNotIn('id', $filteredDepositIds)->sum('amount');
                 
-                // Sum all uses NOT in filtered list
-                $beforeUses = DailyLedgerUse::whereNotIn('id', $filteredUseIds)->sum('amount');
+                $beforeUses = empty($filteredUseIds)
+                    ? DailyLedgerUse::sum('amount')
+                    : DailyLedgerUse::whereNotIn('id', $filteredUseIds)->sum('amount');
                 
                 $openingBalance = $beforeDeposits - $beforeUses;
             }
 
-            // ✅ Final sort: newest first
+            // Final sort: newest first
             $finalData = $filteredLedgers
                 ->sortByDesc(function($item) {
                     return [
@@ -100,8 +106,7 @@ class DailyLedgerController extends Controller
                 })
                 ->values();
 
-            // Calculate running balance
-            // Balance calculation ke liye reverse karo (oldest first)
+            // Calculate running balance (reverse for oldest first)
             $runningBalance = $openingBalance;
             $ledgersWithBalance = $finalData->reverse()->map(function ($row) use (&$runningBalance) {
                 $runningBalance += floatval($row['deposit']);
@@ -110,7 +115,7 @@ class DailyLedgerController extends Controller
                 return $row;
             });
 
-            // Wapas newest first kar do
+            // Reverse back to newest first
             $finalData = $ledgersWithBalance->reverse()->values();
 
             $totalDeposit = $finalData->sum('deposit');

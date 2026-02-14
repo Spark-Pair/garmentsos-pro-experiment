@@ -23,7 +23,6 @@
         "Date Range" => [
             "id" => "date_range_start",
             "type" => "date",
-            "value" => \Carbon\Carbon::now()->startOfWeek()->toDateString(),
             "id2" => "date_range_end",
             "type2" => "date",
             "oninput" => "runDynamicFilter()",

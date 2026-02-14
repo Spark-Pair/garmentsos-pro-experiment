@@ -26,13 +26,12 @@ trait DailyLedgerUseComputed
                 return $query->where('case', 'like', "%{$value}%")->orWhere('remarks', 'like', "%{$value}%");
 
             case 'type':
-                return $query->where(function ($q) use ($value) {
-                    if ($value === 'deposit') {
-                        $q;
-                    } elseif ($value === 'use') {
-                        $q->where('amount', '>', 0);
-                    }
-                });
+                if ($value === 'deposit') {
+                    return $query->whereRaw('1 = 0');
+                } elseif ($value === 'use') {
+                    return $query->where('amount', '>', 0);
+                }
+                return $query;
 
             case 'date':
                 $start = $value['start'] ?? null;

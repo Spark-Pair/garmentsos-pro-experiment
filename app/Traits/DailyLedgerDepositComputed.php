@@ -26,13 +26,12 @@ trait DailyLedgerDepositComputed
                 return $query->where('method', 'like', "%{$value}%")->orWhere('reff_no', 'like', "%{$value}%");
 
             case 'type':
-                return $query->where(function ($q) use ($value) {
-                    if ($value === 'deposit') {
-                        $q->where('amount', '>', 0);
-                    } elseif ($value === 'use') {
-                        $q;
-                    }
-                });
+                if ($value === 'deposit') {
+                    return $query->where('amount', '>', 0);
+                } elseif ($value === 'use') {
+                    return $query->whereRaw('1 = 0');
+                }
+                return $query;
 
             case 'date':
                 $start = $value['start'] ?? null;
