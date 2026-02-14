@@ -52,18 +52,20 @@ class DailyLedgerController extends Controller
     public function index(Request $request)
     {
         if ($request->ajax()) {
-            // Get filtered deposits and uses
+            // ✅ DB se hi newest first order mein data aaye
             $filteredDeposits = DailyLedgerDeposit::orderByDesc('date')
+                ->orderByDesc('created_at')
                 ->applyFilters($request, false)
                 ->get()
                 ->map->toFormattedArray();
 
             $filteredUses = DailyLedgerUse::orderByDesc('date')
+                ->orderByDesc('created_at')
                 ->applyFilters($request, false)
                 ->get()
                 ->map->toFormattedArray();
 
-            // Merge and sort chronologically (ascending)
+            // Merge and sort OLDEST first (for balance calculation only)
             $filteredLedgers = $filteredDeposits
                 ->merge($filteredUses)
                 ->sortBy([
@@ -72,70 +74,61 @@ class DailyLedgerController extends Controller
                 ])
                 ->values();
 
-            // Calculate opening balance (records before first filtered record)
+            // Rest remains same...
             $openingBalance = 0;
             if ($filteredLedgers->isNotEmpty()) {
-                $firstRecord = $filteredLedgers->first();
-                $firstDate = \Carbon\Carbon::parse($firstRecord['date']);
-                $firstCreatedAt = \Carbon\Carbon::parse($firstRecord['created_at']);
-
-                // Get all deposits before first filtered record
-                $beforeDeposits = DailyLedgerDeposit::where(function($q) use ($firstDate, $firstCreatedAt) {
-                    $q->where('date', '<', $firstDate)
-                    ->orWhere(function($q2) use ($firstDate, $firstCreatedAt) {
-                        $q2->where('date', '=', $firstDate)
-                            ->where('created_at', '<', $firstCreatedAt);
-                    });
-                })->sum('amount');
-
-                // Get all uses before first filtered record
-                $beforeUses = DailyLedgerUse::where(function($q) use ($firstDate, $firstCreatedAt) {
-                    $q->where('date', '<', $firstDate)
-                    ->orWhere(function($q2) use ($firstDate, $firstCreatedAt) {
-                        $q2->where('date', '=', $firstDate)
-                            ->where('created_at', '<', $firstCreatedAt);
-                    });
-                })->sum('amount');
-
-                // Opening Balance = Previous Deposits - Previous Uses
+                // Get all IDs from filtered records
+                $filteredDepositIds = $filteredLedgers->where('deposit', '>', 0)->pluck('id')->toArray();
+                $filteredUseIds = $filteredLedgers->where('use', '>', 0)->pluck('id')->toArray();
+                
+                // Sum all deposits NOT in filtered list
+                $beforeDeposits = DailyLedgerDeposit::whereNotIn('id', $filteredDepositIds)->sum('amount');
+                
+                // Sum all uses NOT in filtered list
+                $beforeUses = DailyLedgerUse::whereNotIn('id', $filteredUseIds)->sum('amount');
+                
                 $openingBalance = $beforeDeposits - $beforeUses;
             }
 
-            // Calculate running balance for filtered records
-            $runningBalance = $openingBalance;
-            $filteredLedgers = $filteredLedgers->map(function ($row) use (&$runningBalance) {
-                // Deposit increases balance (+)
-                $runningBalance += floatval($row['deposit']);
-                // Use decreases balance (-)
-                $runningBalance -= floatval($row['use']);
+            // ✅ Final sort: newest first
+            $finalData = $filteredLedgers
+                ->sortByDesc(function($item) {
+                    return [
+                        \Carbon\Carbon::createFromFormat('d-M-Y, D', $item['date'])->format('Y-m-d'),
+                        $item['created_at']
+                    ];
+                })
+                ->values();
 
+            // Calculate running balance
+            // Balance calculation ke liye reverse karo (oldest first)
+            $runningBalance = $openingBalance;
+            $ledgersWithBalance = $finalData->reverse()->map(function ($row) use (&$runningBalance) {
+                $runningBalance += floatval($row['deposit']);
+                $runningBalance -= floatval($row['use']);
                 $row['balance'] = $runningBalance;
                 return $row;
             });
 
-            // Calculate totals for filtered records only
-            $totalDeposit = $filteredLedgers->sum('deposit');
-            $totalUse = $filteredLedgers->sum('use');
+            // Wapas newest first kar do
+            $finalData = $ledgersWithBalance->reverse()->values();
 
-            // Net change = Total Deposits - Total Uses
+            $totalDeposit = $finalData->sum('deposit');
+            $totalUse = $finalData->sum('use');
             $netChange = $totalDeposit - $totalUse;
-
-            // Closing Balance = Opening Balance + Net Change
             $closingBalance = $openingBalance + $netChange;
-
-            // Get total count without filters for info display
             $totalRecordsCount = DailyLedgerDeposit::count() + DailyLedgerUse::count();
 
             return response()->json([
-                'data' => $filteredLedgers->reverse()->values(), // Reverse to show latest first in UI
+                'data' => $finalData,
                 'authLayout' => 'table',
                 'calculations' => [
                     'opening_balance' => round($openingBalance, 2),
                     'total_deposit' => round($totalDeposit, 2),
                     'total_use' => round($totalUse, 2),
-                    'balance' => round($netChange, 2), // Net change in filtered period
+                    'balance' => round($netChange, 2),
                     'closing_balance' => round($closingBalance, 2),
-                    'showing_count' => $filteredLedgers->count(),
+                    'showing_count' => $finalData->count(),
                     'total_count' => $totalRecordsCount
                 ]
             ]);
@@ -143,6 +136,7 @@ class DailyLedgerController extends Controller
 
         return view('daily-ledger.index');
     }
+
     /**
      * Show the form for creating a new resource.
      */
