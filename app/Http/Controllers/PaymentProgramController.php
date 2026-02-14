@@ -281,7 +281,7 @@ class PaymentProgramController extends Controller
         }
 
         if ($request->ajax()) {
-            $customers = Customer::whereHas('paymentPrograms')->with('paymentPrograms')->applyFilters($request);
+            $customers = Customer::whereHas('paymentPrograms')->with('paymentPrograms')->applyFilters($request, true, true);
 
             return response()->json(['data' => $customers, 'authLayout' => 'table']);
         }
@@ -296,7 +296,7 @@ class PaymentProgramController extends Controller
         }
 
         if ($request->ajax()) {
-            $suppliers = Supplier::whereHas('paymentPrograms')->with('paymentPrograms')->applyFilters($request);
+            $suppliers = Supplier::whereHas('paymentPrograms')->with('paymentPrograms')->applyFilters($request, true, true);
 
             return response()->json(['data' => $suppliers, 'authLayout' => 'table']);
         }
