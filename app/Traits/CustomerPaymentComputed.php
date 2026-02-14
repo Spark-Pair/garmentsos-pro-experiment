@@ -277,43 +277,43 @@ trait CustomerPaymentComputed
                     });
                 });
 
-case 'voucher_no':
-    return $query->where(function ($q) use ($value) {
+            case 'voucher_no':
+                return $query->where(function ($q) use ($value) {
 
-        // cheque / slip vouchers
-        $q->whereHas('cheque.voucher', fn ($sq) =>
-                $sq->where('voucher_no', 'like', "%$value%")
-            )
-          ->orWhereHas('slip.voucher', fn ($sq) =>
-                $sq->where('voucher_no', 'like', "%$value%")
-            )
+                    // cheque / slip vouchers
+                    $q->whereHas('cheque.voucher', fn ($sq) =>
+                            $sq->where('voucher_no', 'like', "%$value%")
+                        )
+                    ->orWhereHas('slip.voucher', fn ($sq) =>
+                            $sq->where('voucher_no', 'like', "%$value%")
+                        )
 
-        // cheque / slip CR
-          ->orWhereHas('cheque.cr', fn ($sq) =>
-                $sq->where('c_r_no', 'like', "%$value%")
-            )
-          ->orWhereHas('slip.cr', fn ($sq) =>
-                $sq->where('c_r_no', 'like', "%$value%")
-            )
+                    // cheque / slip CR
+                    ->orWhereHas('cheque.cr', fn ($sq) =>
+                            $sq->where('c_r_no', 'like', "%$value%")
+                        )
+                    ->orWhereHas('slip.cr', fn ($sq) =>
+                            $sq->where('c_r_no', 'like', "%$value%")
+                        )
 
-        // DR
-          ->orWhereHas('dr', fn ($sq) =>
-                $sq->where('d_r_no', 'like', "%$value%")
-            )
+                    // DR
+                    ->orWhereHas('dr', fn ($sq) =>
+                            $sq->where('d_r_no', 'like', "%$value%")
+                        )
 
-        // 🔥 PROGRAM BASED SUPPLIER VOUCHER (FIX)
-          ->orWhereExists(function ($sq) use ($value) {
-                $sq->selectRaw(1)
-                    ->from('supplier_payments')
-                    ->join('vouchers', 'vouchers.id', '=', 'supplier_payments.voucher_id')
-                    ->whereColumn('supplier_payments.program_id', 'customer_payments.program_id')
-                    ->whereColumn('supplier_payments.bank_account_id', 'customer_payments.bank_account_id')
-                    ->whereColumn('supplier_payments.transaction_id', 'customer_payments.transaction_id')
-                    ->whereColumn('supplier_payments.amount', 'customer_payments.amount')
-                    ->whereRaw('DATE(supplier_payments.date) = DATE(customer_payments.date)')
-                    ->where('vouchers.voucher_no', 'like', "%$value%");
-            });
-    });
+                    // 🔥 PROGRAM BASED SUPPLIER VOUCHER (FIX)
+                    ->orWhereExists(function ($sq) use ($value) {
+                            $sq->selectRaw(1)
+                                ->from('supplier_payments')
+                                ->join('vouchers', 'vouchers.id', '=', 'supplier_payments.voucher_id')
+                                ->whereColumn('supplier_payments.program_id', 'customer_payments.program_id')
+                                ->whereColumn('supplier_payments.bank_account_id', 'customer_payments.bank_account_id')
+                                ->whereColumn('supplier_payments.transaction_id', 'customer_payments.transaction_id')
+                                ->whereColumn('supplier_payments.amount', 'customer_payments.amount')
+                                ->whereRaw('DATE(supplier_payments.date) = DATE(customer_payments.date)')
+                                ->where('vouchers.voucher_no', 'like', "%$value%");
+                        });
+                });
 
             case 'beneficiary':
                 return $query->where(function($q) use ($value) {

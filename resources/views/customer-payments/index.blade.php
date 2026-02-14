@@ -226,6 +226,16 @@
         //     };
         // });
 
+        let totalAmountDom = document.querySelector('#calc-bottom >.total-Amount .text-right');
+        let totalPaymentDom = document.querySelector('#calc-bottom >.total-Payment .text-right');
+        let totalBalanceDom = document.querySelector('#calc-bottom >.balance .text-right');
+
+        function renderCalculation(data) {
+            totalAmountDom.innerText = formatNumbersWithDigits(data.total_amount, 1, 1);
+            totalPaymentDom.innerText = formatNumbersWithDigits(data.total_payment, 1, 1);
+            totalBalanceDom.innerText = formatNumbersWithDigits(data.balance, 1, 1);
+        }
+
         function generateClearModal(item) {
             let data = item;
 
@@ -530,8 +540,6 @@
             }
         }
 
-        let totalAmountDom = document.querySelector('#calc-bottom >.total-Amount .text-right');
-        let totalPaymentDom = document.querySelector('#calc-bottom >.total-Payment .text-right');
         let balanceDom = document.querySelector('#calc-bottom >.balance .text-right');
         let infoDom = document.getElementById('info').querySelector('span');
 

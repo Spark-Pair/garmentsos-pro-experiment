@@ -52,7 +52,7 @@ const GlobalFilterManager = {
             rootAuthLayout = data.authLayout;
 
             this.renderData(data);
-            console.log(data.data);
+            console.log(data);
             
 
         } catch (error) {

@@ -31,8 +31,19 @@ class CustomerPaymentController extends Controller
                 // ->where('type', '!=', 'DR')
                 ->orderByDesc('id')
                 ->applyFilters($request);
+                
+            $totalAmount = $payments->sum(fn($p) => $p['details']['Amount'] ?? 0);
+            $totalPayment = $payments->sum('cleared_amount');
 
-            return response()->json(['data' => $payments, 'authLayout' => $authLayout]);
+            return response()->json([
+                'data' => $payments,
+                'authLayout' => $authLayout,
+                'calculations' => [
+                    'total_amount' => $totalAmount,
+                    'total_payment' => $totalPayment,
+                    'balance' => $totalAmount - $totalPayment
+                ]
+            ]);
         }
 
         // Eager load only necessary relations
