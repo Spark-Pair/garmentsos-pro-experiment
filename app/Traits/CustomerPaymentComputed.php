@@ -116,7 +116,7 @@ trait CustomerPaymentComputed
                     return $this->paymentClearRecord->sum('amount');
                 }
             } else {
-                return '-';
+                return null;
             }
         });
     }
