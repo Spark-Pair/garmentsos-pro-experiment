@@ -29,6 +29,10 @@ class CustomerPaymentController extends Controller
         if ($request->ajax()) {
             $payments = CustomerPayment::whereNotNull('customer_id')
                 // ->where('type', '!=', 'DR')
+                ->with([
+                    'cheque.voucher.supplier.bankAccounts.bank',
+                    'slip.voucher.supplier.bankAccounts.bank',
+                ])
                 ->orderByDesc('id')
                 ->applyFilters($request);
                 
