@@ -237,7 +237,7 @@
         }
 
         function generateClearModal(item) {
-            let data = item;
+            let data = item.data;
 
             let modalData = {
                 id: 'clearModal',
@@ -388,7 +388,7 @@
                     ...(data.data.bank && { 'Bank': data.data.bank }),
                     ...(data.data.cheque_date && { 'Cheque Date': formatDate(data.data.cheque_date) }),
                     ...(data.data.slip_date && { 'Slip Date': formatDate(data.data.slip_date) }),
-                    // ...(data.data.clear_date && { 'Clear Date': formatDate(data.data.clear_date) }),
+                    ...(data.data.clear_date && { 'Clear Date': formatDate(data.data.clear_date) }),
                     ...(data.data.clear_amount && { 'Clear Amount': formatNumbersWithDigits(data.data.clear_amount, 1, 1) }),
                     ...((data.data.method == 'cheque' || data.data.method == 'slip') && (data.data.clear_date ? { 'Clear Date': formatDate(data.data.clear_date)} : { 'Clear Date': 'Pending'} )),
                     ...((data.data.method == 'cheque' || data.data.method == 'slip') && { 'Issued': data.issued }),
@@ -406,7 +406,7 @@
                     (data.data.method === 'slip' && new Date(data.data.slip_date) <= new Date())
                 )
             ) {
-                if (data.clear_date == null && data.issued == 'Issued') {
+                if (data.clear_date == 'Pending' && data.issued == 'Issued') {
                     modalData.bottomActions.push(
                         {id: 'clear', text: 'Clear', onclick: `generateClearModal(${JSON.stringify(data)})`},
                     );
