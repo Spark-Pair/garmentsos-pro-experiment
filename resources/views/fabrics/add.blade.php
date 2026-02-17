@@ -16,6 +16,7 @@
         'printed' => ['text' => 'Printed', 'data_option' => 'prt'],
         'red' => ['text' => 'Red', 'data_option' => 'red'],
         'skin' => ['text' => 'Skin', 'data_option' => 'skn'],
+        'brown' => ['text' => 'Brown', 'data_option' => 'brn'],
         'white' => ['text' => 'White', 'data_option' => 'wht'],
         'yellow' => ['text' => 'Yellow', 'data_option' => 'ylw'],
         'orange' => ['text' => 'Orange', 'data_option' => 'org'],
