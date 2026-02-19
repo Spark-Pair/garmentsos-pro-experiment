@@ -184,11 +184,21 @@
 
                                 {{-- Company Logo + Banner --}}
                                 <div id="preview-banner" class="preview-banner w-full flex justify-between items-center pl-5 pr-8">
-                                    <div class="left">
-                                        <div class="company-logo">
-                                            <img src="{{ asset('images/'.$companyData->logo) }}" alt="garmentsos-pro"
-                                                class="w-[12rem]" />
-                                        </div>
+                                    <div class="flex items-center gap-3">
+                                        @if($companyData->logo)
+                                            <div class="h-[3.50rem] w-[13.5rem] flex items-center justify-center gap-2.5">
+                                                <img 
+                                                    src="{{ asset('images/' . $companyData->logo) }}" 
+                                                    alt="garmentsos-pro"
+                                                    class="max-h-full max-w-full object-contain"
+                                                />
+                                                @if($companyData->logo_text)
+                                                    <h1 class="text-lg font-bold tracking-wide">
+                                                        {{ $companyData->logo_text }}
+                                                    </h1>
+                                                @endif
+                                            </div>
+                                        @endif
                                     </div>
                                     <div class="right">
                                         <div>
@@ -226,12 +236,12 @@
                                             {{-- Table Header --}}
                                             <div class="thead w-full">
                                                 <div class="tr flex justify-between w-full px-4 py-1.5 bg-[var(--primary-color)] text-white text-center">
-                                                    <div class="th font-medium w-[4%]">S.No</div>
-                                                    <div class="th font-medium w-[12%]">Date</div>
+                                                    <div class="th font-medium w-[1.5%]">#</div>
+                                                    <div class="th font-medium w-[11.5%]">Date</div>
                                                     @if($statementType == 'detailed')
                                                         <div class="th font-medium w-[12%]">Reff. No.</div>
-                                                        <div class="th font-medium w-[10%]">Method</div>
-                                                        <div class="th font-medium w-[31%]">Description</div>
+                                                        <div class="th font-medium w-[11%]">Method</div>
+                                                        <div class="th font-medium w-[33%]">Description</div>
                                                     @endif
                                                     <div class="th font-medium w-[9%]">Bill</div>
                                                     <div class="th font-medium w-[9%]">Payment</div>
@@ -257,13 +267,13 @@
                                                     @endphp
                                                     <div>
                                                         <hr class="w-full {{ $hrClass }} border-gray-700">
-                                                        <div class="tr flex justify-between w-full px-4 text-center">
-                                                            <div class="td font-semibold w-[4%]">{{ $loop->iteration }}.</div>
-                                                            <div class="td font-medium w-[12%]">{{ $statement['date']->format('d-M-Y') }}</div>
+                                                        <div class="tr flex justify-between w-full px-4 text-center gap-0.5">
+                                                            <div class="td font-semibold w-[1.5%]">{{ $loop->iteration }}.</div>
+                                                            <div class="td font-medium w-[11.5%]">{{ $statement['date']->format('d-M-Y') }}</div>
                                                             @if($statementType == 'detailed')
                                                                 <div class="td font-medium w-[12%]">{{ $statement['reff_no'] }}</div>
-                                                                <div class="td font-medium w-[10%] capitalize">{{ $statement['method'] ?? "-" }}</div>
-                                                                <div class="td font-medium w-[31%] text-nowrap overflow-hidden">{{ $statement['description'] ?? "-" }}</div>
+                                                                <div class="td font-medium w-[11%] capitalize">{{ $statement['method'] ?? "-" }}</div>
+                                                                <div class="td font-medium w-[33%] text-nowrap truncate">{{ $statement['description'] ?? "-" }}</div>
                                                             @endif
                                                             <div class="td font-medium w-[9%]">{{ number_format($statement['bill']) ?? "-" }}</div>
                                                             <div class="td font-medium w-[9%]">{{ number_format($statement['payment']) ?? "-" }}</div>
@@ -296,11 +306,21 @@
 
                                     {{-- Banner --}}
                                     <div id="preview-banner" class="preview-banner w-full flex justify-between items-center pl-5 pr-8">
-                                        <div class="left">
-                                            <div class="company-logo">
-                                                <img src="{{ asset('images/'.$companyData->logo) }}" alt="garmentsos-pro"
-                                                    class="w-[10.5rem]" />
-                                            </div>
+                                        <div class="flex items-center gap-3">
+                                            @if($companyData->logo)
+                                                <div class="h-[3.50rem] w-[13.5rem] flex items-center justify-center gap-2.5">
+                                                    <img 
+                                                        src="{{ asset('images/' . $companyData->logo) }}" 
+                                                        alt="garmentsos-pro"
+                                                        class="max-h-full max-w-full object-contain"
+                                                    />
+                                                    @if($companyData->logo_text)
+                                                        <h1 class="text-lg font-bold tracking-wide">
+                                                            {{ $companyData->logo_text }}
+                                                        </h1>
+                                                    @endif
+                                                </div>
+                                            @endif
                                         </div>
                                         <div class="right">
                                             <div>
@@ -319,12 +339,12 @@
                                                 {{-- Table Header --}}
                                                 <div class="thead w-full">
                                                     <div class="tr flex justify-between w-full px-4 py-1.5 bg-[var(--primary-color)] text-white text-center">
-                                                        <div class="th font-medium w-[4%]">S.No</div>
-                                                        <div class="th font-medium w-[12%]">Date</div>
+                                                        <div class="th font-medium w-[1.5%]">#</div>
+                                                        <div class="th font-medium w-[11.5%]">Date</div>
                                                         @if($statementType == 'detailed')
                                                             <div class="th font-medium w-[12%]">Reff. No.</div>
-                                                            <div class="th font-medium w-[10%]">Method</div>
-                                                            <div class="th font-medium w-[31%]">Description</div>
+                                                            <div class="th font-medium w-[11%]">Method</div>
+                                                            <div class="th font-medium w-[33%]">Description</div>
                                                         @endif
                                                         <div class="th font-medium w-[9%]">Bill</div>
                                                         <div class="th font-medium w-[9%]">Payment</div>
@@ -351,12 +371,12 @@
                                                         <div>
                                                             <hr class="w-full {{ $hrClass }} border-gray-700">
                                                             <div class="tr flex justify-between w-full px-4 text-center">
-                                                                <div class="td font-semibold w-[4%]">{{ $loop->iteration + 26 + ($pageIndex * 29) }}.</div>
-                                                                <div class="td font-medium w-[12%]">{{ $statement['date']->format('d-M-Y') }}</div>
+                                                                <div class="td font-semibold w-[1.5%]">{{ $loop->iteration + 26 + ($pageIndex * 29) }}.</div>
+                                                                <div class="td font-medium w-[11.5%]">{{ $statement['date']->format('d-M-Y') }}</div>
                                                                 @if($statementType == 'detailed')
                                                                     <div class="td font-medium w-[12%]">{{ $statement['reff_no'] }}</div>
-                                                                    <div class="td font-medium w-[10%] capitalize">{{ $statement['method'] ?? "-" }}</div>
-                                                                    <div class="td font-medium w-[31%] text-nowrap overflow-hidden">{{ $statement['description'] ?? "-" }}</div>
+                                                                    <div class="td font-medium w-[11%] capitalize">{{ $statement['method'] ?? "-" }}</div>
+                                                                    <div class="td font-medium w-[33%] text-nowrap overflow-hidden">{{ $statement['description'] ?? "-" }}</div>
                                                                 @endif
                                                                 <div class="td font-medium w-[9%]">{{ number_format($statement['bill']) ?? "-" }}</div>
                                                                 <div class="td font-medium w-[9%]">{{ number_format($statement['payment']) ?? "-" }}</div>

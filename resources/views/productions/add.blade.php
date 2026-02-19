@@ -21,7 +21,7 @@
                 <div class="block md:hidden"><i class="fas fa-cart-shopping text-xs"></i></div>
             </button>
             <button
-                id="reciveBtn"
+                id="receiveBtn"
                 type="button"
                 class="relative z-10 px-3.5 md:px-5 py-1.5 md:py-2 cursor-pointer rounded-xl transition-colors duration-300"
                 onclick="setProductionType(this, 'receive')"
@@ -81,7 +81,7 @@
                 const activeBtn = document.querySelector("#issueBtn");
                 moveHighlight(activeBtn, "issue");
             @else
-                const activeBtn = document.querySelector("#reciveBtn");
+                const activeBtn = document.querySelector("#receiveBtn");
                 moveHighlight(activeBtn, "receive");
             @endif
         };
@@ -671,7 +671,7 @@
                 const checkboxes_container = document.querySelector('.checkboxes_container');
 
                 // Cutting se sab parts
-                const partsRecivedFromCutting = selectedArticle.production
+                const partsReceivedFromCutting = selectedArticle.production
                     .filter(p => p.work.title === "Cutting")
                     .flatMap(p => p.parts);
 
@@ -686,7 +686,7 @@
                     .flatMap(p => p.parts);
 
                 // Available parts = cutting se aaye - issued - current work ke already issued
-                const availableParts = partsRecivedFromCutting.filter(p =>
+                const availableParts = partsReceivedFromCutting.filter(p =>
                     !currentWorkParts.includes(p)
                 );
 

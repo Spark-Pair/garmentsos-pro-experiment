@@ -89,7 +89,7 @@
                                                     <div class="font-medium">Total Amount : {{ number_format($item['totals']['amount']) }}</div>
                                                 </div>
                                                 <div class="px-4 py-1.5 border border-gray-700 text-center rounded-md">
-                                                    <div class="font-medium">Total Recived : {{ number_format($item['totals']['received_amount']) }}</div>
+                                                    <div class="font-medium">Total Received : {{ number_format($item['totals']['received_amount']) }}</div>
                                                 </div>
                                                 <div class="px-4 py-1.5 border border-gray-700 text-center rounded-md">
                                                     <div class="font-medium">Balance : {{ number_format($item['totals']['balance']) }}</div>

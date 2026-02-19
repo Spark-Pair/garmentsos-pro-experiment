@@ -24,12 +24,30 @@
                 'onchange' => 'runDynamicFilter()',
                 'dataFilterPath' => 'fabric',
             ],
+            "Type" => [
+                "id" => "type",
+                "type" => "select",
+                "options" => [
+                            'Issued' => ['text' => 'Issued'],
+                            'Received' => ['text' => 'Received'],
+                            'Returned' => ['text' => 'Returned'],
+                        ],
+                "onchange" => "runDynamicFilter()",
+                "dataFilterPath" => "type",
+            ],
             'Tag' => [
                 'id' => 'tag',
                 'type' => 'text',
                 'placeholder' => 'Enter tag',
                 'oninput' => 'runDynamicFilter()',
                 'dataFilterPath' => 'tag',
+            ],
+            'Remarks' => [
+                'id' => 'remarks',
+                'type' => 'text',
+                'placeholder' => 'Enter remarks',
+                'oninput' => 'runDynamicFilter()',
+                'dataFilterPath' => 'remarks',
             ],
             'Date Range' => [
                 'id' => 'date_range_start',

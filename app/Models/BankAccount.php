@@ -246,28 +246,19 @@ class BankAccount extends Model
                 'method' => $p->method ?? null,
                 'bill' => (float) ($p->amount ?? 0),
                 'payment' => 0,
-                'account' => $p->customer?->customer_name ?? null,
+                'description' => ($p->customer?->customer_name . ' | ' . $p->customer?->city?->short_title) ?? $p->remarks ?? null,
                 'created_at' => $p->created_at ?? null,
             ]);
 
             // 💵 Supplier Payments (detailed)
             $supplierPayments = collect($supplierQuery->get())->map(fn($p) => [
                 'date' => $p->date ?? null,
-                'reff_no' => $p->cheque_no ?? $p->slip_no ?? $p->transaction_id ?? $p->reff_no ?? null,
+                'reff_no' => $p->cheque_no ?? $p->slip?->slip_no ?? $p->cheque?->cheque_no ?? $p->transaction_id ?? $p->reff_no ?? null,
                 'type' => 'payment',
                 'method' => $p->method ?? null,
                 'payment' => (float) ($p->amount ?? 0),
                 'bill' => 0,
-                'account' =>
-                    ($p->bankAccount?->account_title || $p->bankAccount?->bank?->short_title)
-                        ? trim(
-                            ($p->bankAccount?->account_title ?? '') .
-                            ($p->bankAccount?->bank?->short_title
-                                ? ' | ' . $p->bankAccount->bank->short_title
-                                : ''),
-                            ' |'
-                        )
-                        : null,
+                'description' => $p->supplier?->supplier_name ?? $p->remarks ?? null,
                 'created_at' => $p->created_at ?? null,
             ]);
 

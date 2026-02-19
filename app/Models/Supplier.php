@@ -246,26 +246,69 @@ class Supplier extends Model
                 'type' => 'invoice',
                 'bill' => (float) ($i->amount ?? 0),
                 'payment' => 0,
+                'description' => $i->remarks ?? '-',
                 'created_at' => $i->created_at,
             ]);
 
             $payments = $mapQuery($paymentQuery->with('bankAccount.bank'), fn($p) => [
                 'date' => $p->date,
-                'reff_no' => $p->cheque_no ?? $p->slip_no ?? $p->transaction_id ?? $p->reff_no,
+                'reff_no' => $p->cheque_no ?? $p->slip->slip_no ?? $p->cheque->cheque_no ?? $p->transaction_id ?? $p->reff_no,
                 'type' => 'payment',
                 'method' => $p->method,
                 'payment' => (float) ($p->amount ?? 0),
                 'bill' => 0,
                 'description' =>
-                    $p->cheque_date?->format('d-M-Y, D')
-                    ?? $p->slip_date?->format('d-M-Y, D')
-                    ?? (($p->bankAccount?->account_title || $p->bankAccount?->bank?->short_title)
+                    $p->cheque_date?->format('d-M-Y')
+                    ?? (
+                        $p->slip?->customer
+                            ? trim(
+                                ($p->slip->slip_date?->format('d-M-Y') ?? '') .
+                                ($p->slip->customer->customer_name
+                                    ? ' | ' . $p->slip->customer->customer_name
+                                    : ''
+                                ) .
+                                ($p->slip->customer?->city?->short_title
+                                    ? ' | ' . $p->slip->customer->city->short_title
+                                    : ''
+                                ),
+                                ' |'
+                            )
+                            : null
+                    )
+                    ?? (
+                        $p->cheque?->customer
+                            ? trim(
+                                ($p->cheque->cheque_date?->format('d-M-Y') ?? '') .
+                                ($p->cheque->customer->customer_name
+                                    ? ' | ' . $p->cheque->customer->customer_name
+                                    : ''
+                                ) .
+                                ($p->cheque->customer?->city?->short_title
+                                    ? ' | ' . $p->cheque->customer->city->short_title
+                                    : ''
+                                ),
+                                ' |'
+                            )
+                            : null
+                    )
+                    ?? (
+                        ($p->bankAccount?->account_title || $p->bankAccount?->bank?->short_title)
                         ? trim(
-                            ($p->bankAccount?->account_title ?? '') .
-                            ($p->bankAccount?->bank?->short_title ? ' | ' . $p->bankAccount->bank->short_title : ''),
+                            (
+                                $p->method === 'Self Cheque'
+                                    ? collect(explode('|', $p->bankAccount->account_title ?? ''))->last()
+                                    : ($p->bankAccount->account_title ?? '')
+                            )
+                            .
+                            ($p->bankAccount?->bank?->short_title
+                                ? ' | ' . $p->bankAccount->bank->short_title
+                                : ''
+                            ),
                             ' |'
                         )
-                        : null),
+                        : null
+                    )
+                    ?? ($p->remarks ?? '-'),
                 'created_at' => $p->created_at,
             ]);
 

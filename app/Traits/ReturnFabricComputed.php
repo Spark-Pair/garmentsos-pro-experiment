@@ -11,7 +11,7 @@ trait ReturnFabricComputed
     {
         return [
             'id' => $this->id,
-            'type' => 'Issued',
+            'type' => 'Returned',
             'tag' => $this->tag,
             'quantity' => $this->quantity,
             'date' => $this->date->format('d-M-Y, D'),
@@ -30,6 +30,16 @@ trait ReturnFabricComputed
                         $q->where('employee_name', 'like', "%{$value}%");
                     });
                 });
+
+            case 'type':
+                if ($value === 'Issued') {
+                    return $query->whereRaw('1 = 0');
+                } elseif ($value === 'Received') {
+                    return $query->whereRaw('1 = 0');
+                } elseif ($value === 'Returned') {
+                    return $query->where('quantity', '>', 0);
+                }
+                return $query;
 
             case 'date':
                 $start = $value['start'] ?? null;

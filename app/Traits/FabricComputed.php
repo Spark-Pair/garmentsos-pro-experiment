@@ -11,7 +11,7 @@ trait FabricComputed
     {
         return [
             'id' => $this->id,
-            'type' => 'Recived',
+            'type' => 'Received',
             'tag' => $this->tag,
             'quantity' => $this->quantity,
             'date' => $this->date->format('d-M-Y, D'),
@@ -33,6 +33,16 @@ trait FabricComputed
                         $q->where('supplier_name', 'like', "%{$value}%");
                     });
                 });
+                
+            case 'type':
+                if ($value === 'Issued') {
+                    return $query->whereRaw('1 = 0');
+                } elseif ($value === 'Received') {
+                    return $query->where('quantity', '>', 0);
+                } elseif ($value === 'Returned') {
+                    return $query->whereRaw('1 = 0');
+                }
+                return $query;
 
             case 'fabric':
                 return $query->where('fabric_id', $value);

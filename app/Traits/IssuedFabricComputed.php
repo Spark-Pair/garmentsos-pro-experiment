@@ -31,6 +31,16 @@ trait IssuedFabricComputed
                     });
                 });
 
+            case 'type':
+                if ($value === 'Issued') {
+                    return $query->where('quantity', '>', 0);
+                } elseif ($value === 'Received') {
+                    return $query->whereRaw('1 = 0');
+                } elseif ($value === 'Returned') {
+                    return $query->whereRaw('1 = 0');
+                }
+                return $query;
+
             case 'date':
                 $start = $value['start'] ?? null;
                 $end   = $value['end'] ?? null;
