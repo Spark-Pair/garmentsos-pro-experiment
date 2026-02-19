@@ -3,6 +3,13 @@
 @section('content')
     @php
         $searchFields = [
+            "Id" => [
+                "id" => "id",
+                "type" => "text",
+                "placeholder" => "Enter id",
+                "oninput" => "runDynamicFilter()",
+                "dataFilterPath" => "id",
+            ],
             "Supplier Name" => [
                 "id" => "supplier_name",
                 "type" => "text",

@@ -23,6 +23,9 @@ trait ExpenseComputed
     public function scopeApplyModelFilters($query, $key, $value)
     {
         switch ($key) {
+            case 'id':
+                return $query->where('id', $value);
+
             case 'supplier_name':
                 return $query->whereHas('supplier', function ($q) use ($value) {
                     $q->where('supplier_name', 'like', "%$value%");
