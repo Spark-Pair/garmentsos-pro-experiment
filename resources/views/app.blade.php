@@ -2128,10 +2128,20 @@
             await writable.write(blob);
             await writable.close();
 
-            alert('✅ Backup saved to selected folder: ' + handle.name);
+            // alert('✅ Backup saved to selected folder: ' + handle.name);
+
+            messageBox.innerHTML = `
+                <x-alert type="success" :messages="'Backup saved to selected folder.'" />
+            `;
+            messageBoxAnimation();
         } catch (err) {
             console.error(err);
-            alert('❌ Backup cancelled or failed.');
+            // alert('❌ Backup cancelled or failed.');
+
+            messageBox.innerHTML = `
+                <x-alert type="error" :messages="'Backup failed or cancelled.'" />
+            `;
+            messageBoxAnimation();
         }
     }
 </script>
