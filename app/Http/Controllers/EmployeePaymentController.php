@@ -76,10 +76,15 @@ class EmployeePaymentController extends Controller
             'employee_id' => 'required|integer|exists:employees,id',
             'date' => 'required|date',
             'method' => 'required|string',
-            'amount' => 'required|integer',
+            'amount' => 'required|integer|min:1',
         ]);
 
-        EmployeePayment::create($request->all());
+        EmployeePayment::create([
+            'employee_id' => $request->employee_id,
+            'date' => $request->date,
+            'method' => $request->method,
+            'amount' => $request->amount,
+        ]);
 
         return redirect()->back()->with('success', 'Payment added successfully.');
     }

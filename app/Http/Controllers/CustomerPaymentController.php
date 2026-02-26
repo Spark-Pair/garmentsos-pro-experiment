@@ -31,8 +31,17 @@ class CustomerPaymentController extends Controller
             $payments = CustomerPayment::whereNotNull('customer_id')
                 // ->where('type', '!=', 'DR')
                 ->with([
-                    'cheque.voucher.supplier.bankAccounts.bank',
-                    'slip.voucher.supplier.bankAccounts.bank',
+                    'customer.city',
+                    'cheque.supplier',
+                    'cheque.voucher.supplier',
+                    'cheque.cr',
+                    'slip.supplier',
+                    'slip.voucher.supplier',
+                    'slip.cr',
+                    'program.subCategory',
+                    'bankAccount.subCategory',
+                    'paymentClearRecord',
+                    'dr',
                 ])
                 ->orderByDesc('id')
                 ->applyFilters($request);
@@ -333,7 +342,7 @@ class CustomerPaymentController extends Controller
             "date" => "required|date",
             "type" => "required|string",
             "method" => "required|string",
-            "amount" => "required|integer",
+            "amount" => "required|integer|min:1",
             "bank_id" => "nullable|integer|exists:setups,id",
             "cheque_date" => "nullable|date",
             "slip_date" => "nullable|date",
@@ -399,34 +408,42 @@ class CustomerPaymentController extends Controller
             return redirect()->back()->with('error', $validator->errors()->first());
         }
 
-        $data = $request->all();
+        $payload = $this->buildCustomerPaymentPayload($request);
+        $program = null;
 
-        DB::transaction(function () use ($data) {
-            CustomerPayment::create($data);
+        if (($payload['method'] ?? null) === 'program') {
+            if (empty($payload['program_id'])) {
+                return redirect()->back()->with('error', 'Program payment ke liye payment program select karna zaroori hai.');
+            }
 
-            if (!empty($data['program_id']) && ($data['method'] ?? null) === 'program') {
-                $program = PaymentProgram::select('id', 'amount', 'category', 'sub_category_id')
-                    ->find($data['program_id']);
+            $program = PaymentProgram::select('id', 'customer_id', 'amount', 'category', 'sub_category_id')
+                ->find($payload['program_id']);
 
-                if ($program && $program->category === 'supplier') {
-                    SupplierPayment::create(array_merge($data, [
-                        'supplier_id' => $program->sub_category_id,
-                    ]));
-                }
+            if (!$program) {
+                return redirect()->back()->with('error', 'Selected payment program does not exist.');
+            }
 
-                if ($program) {
-                    $paidAmount = (float) CustomerPayment::where('program_id', $program->id)->sum('amount');
-                    $balance = (float) $program->amount - $paidAmount;
+            if ((int) $program->customer_id !== (int) $payload['customer_id']) {
+                return redirect()->back()->with('error', 'Selected program does not belong to selected customer.');
+            }
 
-                    $status = 'Unpaid';
-                    if ($balance <= 1000 && $balance >= 0) {
-                        $status = 'Paid';
-                    } elseif ($balance < 0) {
-                        $status = 'Overpaid';
-                    }
+            $remainingBalance = $this->programRemainingBalance($program->id);
+            if ((float) $payload['amount'] > $remainingBalance) {
+                return redirect()->back()->with('error', 'Program payment amount balance se zyada nahi ho sakta.');
+            }
+        }
 
-                    PaymentProgram::where('id', $program->id)->update(['status' => $status]);
-                }
+        DB::transaction(function () use ($payload, $program) {
+            CustomerPayment::create($payload);
+
+            if ($program && $payload['method'] === 'program' && $program->category === 'supplier') {
+                SupplierPayment::create(array_merge($payload, [
+                    'supplier_id' => $program->sub_category_id,
+                ]));
+            }
+
+            if ($program) {
+                $this->syncProgramStatus($program->id);
             }
         });
 
@@ -463,8 +480,8 @@ class CustomerPaymentController extends Controller
             }
         }
 
-        $cheque_nos = CustomerPayment::where('cheque_no', "!==", $customerPayment['cheque_no'])->pluck('cheque_no')->toArray();
-        $slip_nos = CustomerPayment::where('slip_no', "!==", $customerPayment['slip_no'])->pluck('slip_no')->toArray();
+        $cheque_nos = CustomerPayment::where('cheque_no', '!=', $customerPayment['cheque_no'])->pluck('cheque_no')->toArray();
+        $slip_nos = CustomerPayment::where('slip_no', '!=', $customerPayment['slip_no'])->pluck('slip_no')->toArray();
 
         return view('customer-payments.edit', compact('customerPayment', 'banks_options'));
     }
@@ -480,10 +497,11 @@ class CustomerPaymentController extends Controller
         }
 
         $validator = Validator::make($request->all(), [
+            "customer_id" => "required|integer|exists:customers,id",
             "date" => "required|date",
             "type" => "required|string",
             "method" => "required|string",
-            "amount" => "required|integer",
+            "amount" => "required|integer|min:1",
             "bank_id" => "nullable|integer|exists:setups,id",
             "cheque_date" => "nullable|date",
             "slip_date" => "nullable|date",
@@ -553,41 +571,56 @@ class CustomerPaymentController extends Controller
             return redirect()->back()->withErrors($validator);
         }
 
-        $data = $request->all();
+        $payload = $this->buildCustomerPaymentPayload($request);
+        $oldProgramId = $customerPayment->program_id;
+        $program = null;
 
-        $customerPayment->update($data);
+        if (($payload['method'] ?? null) === 'program') {
+            if (empty($payload['program_id'])) {
+                return redirect()->back()->with('error', 'Program payment ke liye payment program select karna zaroori hai.');
+            }
 
-        if (isset($data['program_id']) && $data['program_id']) {
-            SupplierPayment::where([
-                'program_id'     => $data['program_id'],
-                'method'         => $data['method'],
-                'transaction_id' => $data['transaction_id'],
-                'bank_account_id'=> $data['bank_account_id'],
-            ])->delete();
+            $program = PaymentProgram::select('id', 'customer_id', 'amount', 'category', 'sub_category_id')
+                ->find($payload['program_id']);
 
-            $program = PaymentProgram::find($data['program_id']);
-            if ($program && $data['method'] == 'program') {
-                if ($program['category'] == 'supplier') {
-                    $data['supplier_id'] = $program->sub_category_id;
-                    SupplierPayment::create($data);
+            if (!$program) {
+                return redirect()->back()->with('error', 'Selected payment program does not exist.');
+            }
+
+            if ((int) $program->customer_id !== (int) $payload['customer_id']) {
+                return redirect()->back()->with('error', 'Selected program does not belong to selected customer.');
+            }
+
+            $remainingBalance = $this->programRemainingBalance($program->id, $customerPayment->id);
+            if ((float) $payload['amount'] > $remainingBalance) {
+                return redirect()->back()->with('error', 'Program payment amount balance se zyada nahi ho sakta.');
+            }
+        }
+
+        DB::transaction(function () use ($payload, $customerPayment, $program, $oldProgramId) {
+            $customerPayment->update($payload);
+
+            if (!empty($payload['program_id'])) {
+                SupplierPayment::where([
+                    'program_id' => $payload['program_id'],
+                    'method' => $payload['method'],
+                    'transaction_id' => $payload['transaction_id'],
+                    'bank_account_id' => $payload['bank_account_id'],
+                ])->delete();
+
+                if ($program && $payload['method'] === 'program' && $program['category'] == 'supplier') {
+                    SupplierPayment::create(array_merge($payload, [
+                        'supplier_id' => $program->sub_category_id,
+                    ]));
                 }
-            }
-        }
 
-        $currentProgram = PaymentProgram::find($request->program_id);
-
-        if (isset($currentProgram)) {
-            if ($currentProgram->balance <= 1000 && $currentProgram->balance >= 0) {
-                $currentProgram->status = 'Paid';
-                $currentProgram->save();
-            } else if ($currentProgram->balance < 0.0) {
-                $currentProgram->status = 'Overpaid';
-                $currentProgram->save();
-            } else {
-                $currentProgram->status = 'Unpaid';
-                $currentProgram->save();
+                $this->syncProgramStatus((int) $payload['program_id']);
             }
-        }
+
+            if (!empty($oldProgramId) && (int) $oldProgramId !== (int) ($payload['program_id'] ?? 0)) {
+                $this->syncProgramStatus((int) $oldProgramId);
+            }
+        });
 
         return redirect()->route('customer-payments.index')->with('success', 'Payment update successfully.');
     }
@@ -609,7 +642,7 @@ class CustomerPaymentController extends Controller
             'clear_date' => 'required|date',
             'method_select' => 'required|string',
             'bank_account_id' => 'required|integer|exists:bank_accounts,id',
-            'amount' => 'required|integer',
+            'amount' => 'required|integer|min:1',
             'reff_no' => 'nullable|string',
             'remarks' => 'nullable|string',
         ]);
@@ -618,13 +651,44 @@ class CustomerPaymentController extends Controller
             return redirect()->back()->withErrors($validator);
         }
 
-        $data = $request->all();
-        $data['method'] = $data['method_select'];
-        $data['payment_id'] = $id;
+        $payment = CustomerPayment::with('paymentClearRecord')->find($id);
+        if (!$payment) {
+            return redirect()->back()->with('error', 'Payment record not found.');
+        }
 
-        PaymentClear::create($data);
+        if (empty($payment->cheque_no) && empty($payment->slip_no)) {
+            return redirect()->back()->with('error', 'Sirf cheque/slip payments clear kiye ja sakte hain.');
+        }
+
+        $alreadyCleared = $payment->clear_date
+            ? (float) $payment->amount
+            : (float) $payment->paymentClearRecord->sum('amount');
+        $remaining = (float) $payment->amount - $alreadyCleared;
+
+        if ((float) $request->amount > $remaining) {
+            return redirect()->back()->with('error', 'Clear amount remaining outstanding se zyada nahi ho sakta.');
+        }
+
+        PaymentClear::create([
+            'payment_id' => $id,
+            'clear_date' => $request->clear_date,
+            'method' => $request->method_select,
+            'bank_account_id' => $request->bank_account_id,
+            'amount' => $request->amount,
+            'reff_no' => $request->reff_no,
+            'remarks' => $request->remarks,
+        ]);
 
         return redirect()->back()->with('success', 'Payment partial cleared successfully.');
+    }
+
+    public function transfer(Request $request, $id)
+    {
+        if (!$this->checkRole(['developer', 'owner', 'admin', 'accountant'])) {
+            return redirect(route('home'))->with('error', 'You do not have permission to access this page.');
+        }
+
+        return redirect()->back()->with('error', 'Transfer action is not implemented yet.');
     }
 
     // public function split(Request $request, CustomerPayment $payment)
@@ -851,5 +915,63 @@ class CustomerPaymentController extends Controller
                 'bank_accounts' => $bankAccountsPayload,
             ],
         ];
+    }
+
+    private function buildCustomerPaymentPayload(Request $request): array
+    {
+        return [
+            'customer_id' => $request->customer_id,
+            'date' => $request->date,
+            'type' => $request->type,
+            'method' => $request->method,
+            'amount' => $request->amount,
+            'bank_id' => $request->bank_id,
+            'cheque_no' => $request->cheque_no,
+            'slip_no' => $request->slip_no,
+            'reff_no' => $request->reff_no,
+            'transaction_id' => $request->transaction_id,
+            'cheque_date' => $request->cheque_date,
+            'slip_date' => $request->slip_date,
+            'clear_date' => $request->clear_date,
+            'bank_account_id' => $request->bank_account_id,
+            'program_id' => $request->program_id,
+            'is_return' => (bool) $request->is_return,
+            'remarks' => $request->remarks,
+        ];
+    }
+
+    private function programRemainingBalance(int $programId, ?int $excludePaymentId = null): float
+    {
+        $program = PaymentProgram::select('id', 'amount')->find($programId);
+        if (!$program) {
+            return 0;
+        }
+
+        $paidAmountQuery = CustomerPayment::where('program_id', $programId);
+        if ($excludePaymentId) {
+            $paidAmountQuery->where('id', '!=', $excludePaymentId);
+        }
+
+        $paidAmount = (float) $paidAmountQuery->sum('amount');
+
+        return max(0.0, (float) $program->amount - $paidAmount);
+    }
+
+    private function syncProgramStatus(int $programId): void
+    {
+        $program = PaymentProgram::select('id', 'amount')->find($programId);
+        if (!$program) {
+            return;
+        }
+
+        $paidAmount = (float) CustomerPayment::where('program_id', $programId)->sum('amount');
+        $balance = (float) $program->amount - $paidAmount;
+
+        $status = 'Unpaid';
+        if ($balance <= 0) {
+            $status = $balance < 0 ? 'Overpaid' : 'Paid';
+        }
+
+        PaymentProgram::where('id', $programId)->update(['status' => $status]);
     }
 }

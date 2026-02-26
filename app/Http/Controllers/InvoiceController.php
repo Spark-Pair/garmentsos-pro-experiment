@@ -318,8 +318,13 @@ class InvoiceController extends Controller
                 return redirect()->back()->withErrors($validator)->withInput();
             }
 
-            $data = $request->all();
-            $data['articles_in_invoice'] = json_decode($data['articles_in_invoice'], true);
+            $data = [
+                'invoice_no' => $request->invoice_no,
+                'order_no' => $request->order_no,
+                'date' => $request->date,
+                'netAmount' => $request->netAmount,
+                'articles_in_invoice' => json_decode($request->articles_in_invoice, true),
+            ];
 
             $orderDb = Order::where("order_no", $data["order_no"])->first();
 

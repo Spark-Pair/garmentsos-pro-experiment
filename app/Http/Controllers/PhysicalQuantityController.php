@@ -213,9 +213,9 @@ class PhysicalQuantityController extends Controller
             return redirect()->back()->withErrors($validator)->withInput();
         }
 
-        $data = $request->all();
+        $data = $validator->validated();
 
-        $article = Article::where('id', $data['article_id'])->update([
+        Article::where('id', $data['article_id'])->update([
             'pcs_per_packet' => $data['pcs_per_packet'],
             'processed_by' => $data['processed_by'],
         ]);

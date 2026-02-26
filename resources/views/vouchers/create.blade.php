@@ -719,7 +719,7 @@
                         let selectedOption = paymentSelectDom.querySelector('li.selected');
                         let selectedPayment = JSON.parse(selectedOption.getAttribute('data-option')) || '';
 
-                        console.log(selectedPayment);
+                        // console.log(selectedPayment);
 
 
                         selectedDom.value = JSON.stringify(selectedPayment);
@@ -828,7 +828,7 @@
                 let clutter = "";
                 paymentDetailsArray.forEach((paymentDetail, index) => {
                     let selected = paymentDetail.selected ? JSON.parse(paymentDetail.selected) : null;
-                    console.log(paymentDetail);
+                    // console.log(paymentDetail);
 
 
                     clutter += `

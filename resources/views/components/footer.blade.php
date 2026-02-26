@@ -160,7 +160,7 @@
                         e.preventDefault();
                         result.then(res => {
                             if (res === false) {
-                                console.log("Form submission stopped by onSubmitFunction()");
+                                // console.log("Form submission stopped by onSubmitFunction()");
                                 return;
                             }
                             form.submit(); // manually submit if allowed
@@ -171,7 +171,7 @@
                     // ✅ Handle sync version
                     if (result === false) {
                         e.preventDefault();
-                        console.log("Form submission stopped by onSubmitFunction()");
+                        // console.log("Form submission stopped by onSubmitFunction()");
                         return;
                     }
                 }

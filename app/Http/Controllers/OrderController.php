@@ -7,8 +7,6 @@ use App\Models\Customer;
 use App\Models\Order;
 use App\Models\OrderArticles;
 use App\Models\PaymentProgram;
-use App\Models\PhysicalQuantity;
-use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
@@ -95,9 +93,13 @@ class OrderController extends Controller
         $articles = [];
 
         if ($request->date) {
-            $customers = Customer::with('orders', 'payments')->whereHas('user', function ($query) {
-                $query->where('status', 'active');
-            })->where('date', '<=', $request->date)->get();
+            $customers = Customer::with('city')
+                ->whereHas('user', function ($query) {
+                    $query->where('status', 'active');
+                })
+                ->where('date', '<=', $request->date)
+                ->select('id', 'customer_name', 'city_id')
+                ->get();
 
             foreach ($customers as $customer) {
                 $customers_options[(int)$customer->id] = [
@@ -106,11 +108,16 @@ class OrderController extends Controller
                 ];
             }
 
-            $articles = Article::where('date', '<=', $request->date)->where('sales_rate', '>', 0)->whereNotNull(['category', 'fabric_type'])->orderByDesc('id')->get();
+            $articles = Article::where('date', '<=', $request->date)
+                ->where('sales_rate', '>', 0)
+                ->whereNotNull(['category', 'fabric_type'])
+                ->withSum('physicalQuantity as physical_packets', 'packets')
+                ->orderByDesc('id')
+                ->get();
 
             foreach ($articles as $article) {
-                $physical_quantity = PhysicalQuantity::where('article_id', $article->id)->sum('packets');
-                $article['physical_quantity'] = ( $physical_quantity * $article->pcs_per_packet ) - $article['sold_quantity'];
+                $physicalPackets = (float) ($article->physical_packets ?? 0);
+                $article['physical_quantity'] = ($physicalPackets * (float) $article->pcs_per_packet) - (float) $article->sold_quantity;
 
                 $article['category'] = ucfirst(str_replace('_', ' ', $article['category']));
                 $article['season'] = ucfirst(str_replace('_', ' ', $article['season']));
@@ -160,50 +167,48 @@ class OrderController extends Controller
             return redirect()->back()->withErrors($validator)->withInput();
         }
 
-        $data = $request->all();
+        DB::transaction(function () use ($request) {
+            $articles = json_decode($request->articles, true) ?? [];
 
-        $data['netAmount'] = str_replace(',', '', $data['netAmount']);
-
-        $order = Order::create($data);
-
-        $data['articles'] = json_decode($data['articles'], true);
-
-        foreach ($data['articles'] as $articleData) {
-            // $article = Article::where('id', $articleData['id'])->first();
-            // if ($article) {
-            //     $article->ordered_quantity += $articleData['ordered_quantity'];
-            //     $article->save();
-            // }
-            OrderArticles::create([
-                'order_id' => $order['id'],
-                'article_id' => $articleData['id'],
-                'description' => $articleData['description'],
-                'ordered_pcs' => $articleData['ordered_quantity'],
-            ]);
-        }
-
-        $customer = Customer::find($order['customer_id']);
-
-        if ($customer['category'] == 'cash') {
-            $lastProgram = PaymentProgram::orderBy('id','desc')->first();
-            $nextProgramNo = $lastProgram ? $lastProgram->program_no + 1 : 1;
-
-            $program = new PaymentProgram([
-                'program_no' => $nextProgramNo,
-                'date' => $order['date'],
-                'order_no' => $order['order_no'],
-                'customer_id' => $order['customer_id'],
-                'category' => 'waiting',
-                'amount' => $order['netAmount'],
+            $order = Order::create([
+                'date' => $request->date,
+                'customer_id' => $request->customer_id,
+                'discount' => $request->discount,
+                'netAmount' => str_replace(',', '', $request->netAmount),
+                'articles' => $request->articles,
+                'order_no' => $request->order_no,
             ]);
 
-            $program->save();
-        }
+            foreach ($articles as $articleData) {
+                OrderArticles::create([
+                    'order_id' => $order['id'],
+                    'article_id' => $articleData['id'],
+                    'description' => $articleData['description'] ?? null,
+                    'ordered_pcs' => $articleData['ordered_quantity'] ?? 0,
+                ]);
+            }
+
+            $customer = Customer::find($order['customer_id']);
+
+            if ($customer && $customer['category'] == 'cash') {
+                $lastProgram = PaymentProgram::orderBy('id', 'desc')->first();
+                $nextProgramNo = $lastProgram ? $lastProgram->program_no + 1 : 1;
+
+                PaymentProgram::create([
+                    'program_no' => $nextProgramNo,
+                    'date' => $order['date'],
+                    'order_no' => $order['order_no'],
+                    'customer_id' => $order['customer_id'],
+                    'category' => 'waiting',
+                    'amount' => $order['netAmount'],
+                ]);
+            }
+        });
 
         // if ($request->generateInvoiceAfterSave) {
         //     return redirect()->route('invoices.create')->with('orderNumber', $order->order_no);
         // } else {
-            return redirect()->route('orders.create')->with('success', 'Order generated successfully. Order No. : ' . $order['order_no']);
+            return redirect()->route('orders.create')->with('success', 'Order generated successfully. Order No. : ' . $request->order_no);
         // }
     }
 

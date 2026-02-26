@@ -106,10 +106,12 @@ class AttendanceController extends Controller
             'amount' => 'required|numeric',
         ]);
 
-        $data = $request->all();
-        $data['types_array'] = json_decode($data['types_array'] ?? '[]');
-
-        Salary::create($data);
+        Salary::create([
+            'month' => $request->month,
+            'employee_id' => $request->employee_id,
+            'types_array' => json_decode($request->types_array ?? '[]'),
+            'amount' => $request->amount,
+        ]);
 
         return redirect()->back()->with('success', 'Salary added successfuly.');
     }

@@ -5,11 +5,10 @@ namespace App\Http\Controllers;
 use App\Models\BankAccount;
 use App\Models\PaymentProgram;
 use App\Models\Customer;
-use App\Models\Order;
 use App\Models\Supplier;
-use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 
 class PaymentProgramController extends Controller
@@ -85,7 +84,7 @@ class PaymentProgramController extends Controller
             ->whereHas('user', function ($query) {
                 $query->where('status', 'active');
             })
-            ->select('id', 'customer_name', 'city_id', 'balance') // make sure balance is selected
+            ->select('id', 'customer_name', 'city_id')
             ->get()
             ->makeHidden('creator');
 
@@ -100,7 +99,9 @@ class PaymentProgramController extends Controller
 
         $loadTime = round(microtime(true) - $start, 3); // ⏱️ End timing
 
-        Log::info("💡 PaymentProgram create() load time: {$loadTime} seconds");
+        if (app()->isLocal()) {
+            Log::info("PaymentProgram create() load time: {$loadTime} seconds");
+        }
 
         return view('payment-programs.create', compact('customers_options', 'loadTime'));
     }
@@ -120,7 +121,7 @@ class PaymentProgramController extends Controller
             'customer_id'=> 'required|integer|exists:customers,id',
             'category'=> 'required|in:supplier,self_account,customer,waiting',
             'sub_category'=> 'nullable|integer',
-            'amount'=> 'required|numeric',
+            'amount'=> 'required|numeric|min:1',
             'remarks'=> 'nullable|string',
         ]);
 
@@ -128,50 +129,26 @@ class PaymentProgramController extends Controller
             return redirect()->back()->withErrors($validator)->withInput();
         }
 
-        $data = $request->all();
+        DB::transaction(function () use ($request) {
+            $subCategoryModel = $this->resolveSubCategoryModel($request->category, $request->sub_category);
 
-        $subCategoryModel = null;
+            $nextProgramNo = ((int) PaymentProgram::query()->lockForUpdate()->max('program_no')) + 1;
 
-        // Dynamically associate sub_category based on category
-        switch ($data['category']) {
-            case 'supplier':
-                $subCategoryModel = Supplier::find($data['sub_category']);
-                break;
+            $program = new PaymentProgram([
+                'program_no' => $nextProgramNo,
+                'date' => $request->date,
+                'customer_id' => $request->customer_id,
+                'category' => $request->category,
+                'amount' => $request->amount,
+                'remarks' => $request->remarks,
+            ]);
 
-            case 'self_account':
-                $subCategoryModel = BankAccount::find($data['sub_category']);
-                break;
-
-            case 'customer':
-                $subCategoryModel = Customer::find($data['sub_category']);
-                break;
-
-            case 'waiting':
-                $subCategoryModel = null; // No association for 'waiting'
-                break;
-        }
-
-        $lastProgram = PaymentProgram::orderBy('id', 'DESC')->first();
-        if (!$lastProgram) {
-            $lastProgram = new PaymentProgram();
-            $lastProgram->program_no = '0';
-        }
-
-        // Create payment Program with morph relationship
-        $program = new PaymentProgram([
-            'program_no' => $lastProgram->program_no + 1,
-            'date' => $data['date'],
-            'customer_id' => $data['customer_id'],
-            'category' => $data['category'],
-            'amount' => $data['amount'],
-            'remarks' => $data['remarks'],
-        ]);
-
-        if ($subCategoryModel) {
-            $subCategoryModel->paymentPrograms()->save($program);
-        } else {
-            $program->save();
-        }
+            if ($subCategoryModel) {
+                $subCategoryModel->paymentPrograms()->save($program);
+            } else {
+                $program->save();
+            }
+        });
 
         return redirect()->route('payment-programs.create')->with('success', 'Payment program added successfully!');
     }
@@ -209,46 +186,30 @@ class PaymentProgramController extends Controller
     }
     public function updateProgram(Request $request)
     {
+        if (!$this->checkRole(['developer', 'owner', 'admin', 'accountant'])) {
+            return redirect(route('home'))->with('error', 'You do not have permission to access this page.');
+        }
+
         $validator = Validator::make($request->all(), [
             'program_id' => 'required|integer|exists:payment_programs,id',
-            'category' => 'required|string',
+            'category' => 'required|in:supplier,self_account,customer,waiting',
             'sub_category' => 'nullable|integer',
             'remarks' => 'nullable|string',
-            'amount' => 'nullable|integer',
+            'amount' => 'nullable|integer|min:1',
         ]);
 
         if ($validator->fails()) {
             return redirect()->back()->withErrors($validator)->with('error', $validator->errors()->first());
         }
 
-        $data = $request->all();
+        $program = PaymentProgram::find($request->program_id);
+        $subCategoryModel = $this->resolveSubCategoryModel($request->category, $request->sub_category);
 
-        $program = PaymentProgram::find($data['program_id']);
-
-        $program->category = $data['category'];
-        $program->remarks = $data['remarks'];
-        $program->amount = $data['amount'];
-
-        $subCategoryModel = null;
-
-        switch ($data['category']) {
-            case 'supplier':
-                $subCategoryModel = Supplier::find($data['sub_category']);
-                break;
-
-            case 'self_account':
-                $subCategoryModel = BankAccount::find($data['sub_category']);
-                break;
-
-            case 'customer':
-                $subCategoryModel = Customer::find($data['sub_category']);
-                break;
-
-            case 'waiting':
-                $subCategoryModel = null; // No association for 'waiting'
-                break;
+        $program->category = $request->category;
+        $program->remarks = $request->remarks;
+        if ($request->amount !== null) {
+            $program->amount = $request->amount;
         }
-
 
         if ($subCategoryModel) {
             $subCategoryModel->paymentPrograms()->save($program);
@@ -259,19 +220,25 @@ class PaymentProgramController extends Controller
         return redirect()->route('payment-programs.index')->with('success', 'Program updated successfully.');
     }
 
-    public function markPaid($id, Request $request)
+    public function markPaid($id)
     {
         if(!$this->checkRole(['developer', 'owner', 'admin', 'accountant']))
         {
             return redirect(route('home'))->with('error', 'You do not have permission to access this page.');
         };
 
-        $program = PaymentProgram::find($id);
+        $program = PaymentProgram::findOrFail($id);
+        $paidAmount = (float) $program->customerPayments()->sum('amount');
+        $balance = (float) $program->amount - $paidAmount;
 
-        $program->status = 'Paid';
+        if ($balance > 0) {
+            return redirect()->route('payment-programs.index')->with('error', 'Program cannot be marked as paid while balance is pending.');
+        }
+
+        $program->status = $balance < 0 ? 'Overpaid' : 'Paid';
         $program->save();
 
-        return redirect()->route('payment-programs.index')->with('success', 'Program marked as paid successfully.');
+        return redirect()->route('payment-programs.index')->with('success', 'Program status updated successfully.');
     }
 
     public function CustomerSummary(Request $request)
@@ -281,7 +248,26 @@ class PaymentProgramController extends Controller
         }
 
         if ($request->ajax()) {
-            $customers = Customer::whereHas('paymentPrograms')->with('paymentPrograms')->applyFilters($request, true, true);
+            $customersQuery = Customer::whereHas('paymentPrograms')
+                ->with([
+                    'user:id,username,status,profile_picture',
+                    'city:id,title,short_title',
+                    'paymentPrograms' => fn($q) => $q
+                        ->select('id', 'customer_id', 'amount', 'status')
+                        ->withSum('customerPayments as paid_amount', 'amount'),
+                ])
+                ->applyFilters($request, false, true);
+
+            $customers = $customersQuery->get()->map(function ($customer) {
+                $customer->paymentPrograms->transform(function ($program) {
+                    $paid = (float) ($program->paid_amount ?? 0);
+                    $program->setAttribute('payment', $paid);
+                    $program->setAttribute('balance', (float) $program->amount - $paid);
+                    return $program;
+                });
+
+                return $customer->toFormattedArray();
+            });
 
             return response()->json(['data' => $customers, 'authLayout' => 'table']);
         }
@@ -296,11 +282,43 @@ class PaymentProgramController extends Controller
         }
 
         if ($request->ajax()) {
-            $suppliers = Supplier::whereHas('paymentPrograms')->with('paymentPrograms')->applyFilters($request, true, true);
+            $suppliersQuery = Supplier::whereHas('paymentPrograms')
+                ->with([
+                    'user:id,username,status,profile_picture',
+                    'paymentPrograms' => fn($q) => $q
+                        ->select('id', 'sub_category_id', 'amount', 'status')
+                        ->withSum('customerPayments as paid_amount', 'amount'),
+                ])
+                ->applyFilters($request, false, true);
+
+            $suppliers = $suppliersQuery->get()->map(function ($supplier) {
+                $supplier->paymentPrograms->transform(function ($program) {
+                    $paid = (float) ($program->paid_amount ?? 0);
+                    $program->setAttribute('payment', $paid);
+                    $program->setAttribute('balance', (float) $program->amount - $paid);
+                    return $program;
+                });
+
+                return $supplier->toFormattedArray();
+            });
 
             return response()->json(['data' => $suppliers, 'authLayout' => 'table']);
         }
 
         return view('payment-programs.supplierSummary');
+    }
+
+    private function resolveSubCategoryModel(string $category, ?int $subCategoryId): Supplier|BankAccount|Customer|null
+    {
+        if ($category === 'waiting' || !$subCategoryId) {
+            return null;
+        }
+
+        return match ($category) {
+            'supplier' => Supplier::find($subCategoryId),
+            'self_account' => BankAccount::find($subCategoryId),
+            'customer' => Customer::find($subCategoryId),
+            default => null,
+        };
     }
 }

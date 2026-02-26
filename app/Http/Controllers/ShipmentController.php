@@ -4,14 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Models\Article;
 use App\Models\Customer;
-use App\Models\Invoice;
-use App\Models\Order;
-use App\Models\PhysicalQuantity;
-use App\Models\Setup;
 use App\Models\Shipment;
 use App\Models\ShipmentArticles;
-use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 
 class ShipmentController extends Controller
@@ -60,25 +56,29 @@ class ShipmentController extends Controller
         $articles = [];
 
         if ($request->date) {
-            $customers = Customer::with('user', 'orders', 'payments', 'city')->where('date', '<=', $request->date)->get();
+            $customers = Customer::with('city')
+                ->whereHas('user', fn($query) => $query->where('status', 'active'))
+                ->where('date', '<=', $request->date)
+                ->select('id', 'customer_name', 'city_id')
+                ->get();
 
             foreach ($customers as $customer) {
-                $user = User::where('id', $customer->user_id)->first();
-                $customer['status'] = $user->status;
-
-                if ($customer->status == 'active') {
-                    $customers_options[(int)$customer->id] = [
-                        'text' => $customer->customer_name . ' | ' . $customer->city->title,
-                        'data_option' => $customer
-                    ];
-                }
+                $customers_options[(int)$customer->id] = [
+                    'text' => $customer->customer_name . ' | ' . $customer->city->title,
+                    'data_option' => $customer
+                ];
             }
 
-            $articles = Article::where('date', '<=', $request->date)->where('sales_rate', '>', 0)->whereNotNull(['category', 'fabric_type'])->orderByDesc('id')->get();
+            $articles = Article::where('date', '<=', $request->date)
+                ->where('sales_rate', '>', 0)
+                ->whereNotNull(['category', 'fabric_type'])
+                ->withSum('physicalQuantity as physical_packets', 'packets')
+                ->orderByDesc('id')
+                ->get();
 
             foreach ($articles as $article) {
-                $physical_quantity = PhysicalQuantity::where('article_id', $article->id)->sum('packets');
-                $article['physical_quantity'] = ( $physical_quantity * $article->pcs_per_packet ) - $article['sold_quantity'];
+                $physicalPackets = (float) ($article->physical_packets ?? 0);
+                $article['physical_quantity'] = ($physicalPackets * (float) $article->pcs_per_packet) - (float) $article->sold_quantity;
             }
         }
 
@@ -125,21 +125,27 @@ class ShipmentController extends Controller
             return redirect()->back()->withErrors($validator)->withInput();
         }
 
-        $data = $request->all();
+        DB::transaction(function () use ($request) {
+            $articles = json_decode($request->articles, true) ?? [];
 
-        $data['netAmount'] = str_replace(',', '', $data['netAmount']);
-        $articles = json_decode($data['articles'], true);
-
-        $shipment = Shipment::create($data);
-
-        foreach($articles as $article) {
-            ShipmentArticles::create([
-                'shipment_id' => $shipment['id'],
-                'article_id' => $article['id'],
-                'description' => $article['description'],
-                'shipment_pcs' => $article['shipment_quantity'],
+            $shipment = Shipment::create([
+                'date' => $request->date,
+                'discount' => $request->discount,
+                'netAmount' => str_replace(',', '', $request->netAmount),
+                'articles' => $request->articles,
+                'city' => $request->city,
+                'shipment_no' => $request->shipment_no,
             ]);
-        }
+
+            foreach ($articles as $article) {
+                ShipmentArticles::create([
+                    'shipment_id' => $shipment['id'],
+                    'article_id' => $article['id'],
+                    'description' => $article['description'] ?? null,
+                    'shipment_pcs' => $article['shipment_quantity'] ?? 0,
+                ]);
+            }
+        });
 
         return redirect()->route('shipments.create')->with('success', 'Shipment generated successfully.');
     }
@@ -199,24 +205,26 @@ class ShipmentController extends Controller
             return redirect()->back()->withErrors($validator)->withInput();
         }
 
-        $data = $request->all();
+        DB::transaction(function () use ($request, $shipment) {
+            $articles = json_decode($request->articles, true) ?? [];
 
-        $data['netAmount'] = str_replace(',', '', $data['netAmount']);
-        $articles = json_decode($data['articles'], true);
+            ShipmentArticles::where('shipment_id', $shipment->id)->delete();
 
-        ShipmentArticles::where('shipment_id', $shipment->id)->delete();
-
-        // Update the shipment
-        $shipment->update($data);
-
-        foreach($articles as $article) {
-            ShipmentArticles::create([
-                'shipment_id' => $shipment['id'],
-                'article_id' => $article['id'],
-                'description' => $article['description'],
-                'shipment_pcs' => $article['shipment_quantity'],
+            $shipment->update([
+                'netAmount' => str_replace(',', '', $request->netAmount),
+                'articles' => $request->articles,
+                'city' => $request->city,
             ]);
-        }
+
+            foreach ($articles as $article) {
+                ShipmentArticles::create([
+                    'shipment_id' => $shipment['id'],
+                    'article_id' => $article['id'],
+                    'description' => $article['description'] ?? null,
+                    'shipment_pcs' => $article['shipment_quantity'] ?? 0,
+                ]);
+            }
+        });
 
         return redirect()->route('shipments.index')->with('success', 'Shipment updated successfully.');
     }

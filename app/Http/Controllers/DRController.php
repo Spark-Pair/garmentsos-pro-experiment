@@ -93,9 +93,12 @@ class DRController extends Controller
             return redirect()->back()->withErrors($validator)->withInput();
         }
 
-        $data = $request->all();
-        $data['return_payments'] = json_decode($data['returnPayments'] ?? '[]');
-        $data['new_payments_data'] = json_decode($data['newPayments'] ?? '[]');
+        $data = [
+            'customer_id' => $request->customer_id,
+            'date' => $request->date,
+            'return_payments' => json_decode($request->returnPayments ?? '[]'),
+            'new_payments_data' => json_decode($request->newPayments ?? '[]'),
+        ];
 
         $returnEmpty = empty($data['return_payments']);
         $newEmpty = empty($data['new_payments_data']);

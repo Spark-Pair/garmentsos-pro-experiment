@@ -126,7 +126,17 @@ class FabricController extends Controller
             'tag' => 'required|string|max:255',
         ]);
 
-        Fabric::create($request->all());
+        Fabric::create([
+            'date' => $request->date,
+            'supplier_id' => $request->supplier_id,
+            'fabric_id' => $request->fabric_id,
+            'color' => $request->color,
+            'unit' => $request->unit,
+            'quantity' => $request->quantity,
+            'reff_no' => $request->reff_no,
+            'remarks' => $request->remarks,
+            'tag' => $request->tag,
+        ]);
 
         return redirect()->route('fabrics.create')->with('success', 'Fabric added successfully.');
     }
@@ -217,7 +227,13 @@ class FabricController extends Controller
             'remarks' => 'nullable|string|max:255',
         ]);
 
-        IssuedFabric::create($request->all());
+        IssuedFabric::create([
+            'date' => $request->date,
+            'tag' => $request->tag,
+            'worker_id' => $request->worker_id,
+            'quantity' => $request->quantity,
+            'remarks' => $request->remarks,
+        ]);
 
         return redirect()->route('fabrics.issue')->with('success', 'Fabric added successfully.');
     }
@@ -357,7 +373,13 @@ class FabricController extends Controller
             'remarks' => 'nullable|string|max:255',
         ]);
 
-        ReturnFabric::create($request->all());
+        ReturnFabric::create([
+            'worker_id' => $request->worker_id,
+            'date' => $request->date,
+            'tag' => $request->tag,
+            'quantity' => $request->quantity,
+            'remarks' => $request->remarks,
+        ]);
 
         return redirect()->route('fabrics.return')->with('success', 'Fabric added successfully.');
     }

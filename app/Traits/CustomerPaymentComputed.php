@@ -13,6 +13,7 @@ trait CustomerPaymentComputed
     public function voucherNo(): Attribute
     {
         return Attribute::get(function () {
+            static $voucherNoCache = [];
 
             // direct relations
             if ($this->cheque?->voucher) return $this->cheque->voucher->voucher_no;
@@ -23,6 +24,18 @@ trait CustomerPaymentComputed
 
             // program-based fallback
             if ($this->program_id) {
+                $cacheKey = implode('|', [
+                    $this->program_id ?? '',
+                    $this->bank_account_id ?? '',
+                    $this->transaction_id ?? '',
+                    $this->amount ?? '',
+                    optional($this->date)->format('Y-m-d') ?? '',
+                ]);
+
+                if (array_key_exists($cacheKey, $voucherNoCache)) {
+                    return $voucherNoCache[$cacheKey];
+                }
+
                 $supplierPayment = SupplierPayment::with('voucher')
                     ->where('program_id', $this->program_id)
                     ->where('bank_account_id', $this->bank_account_id)
@@ -31,7 +44,8 @@ trait CustomerPaymentComputed
                     ->whereDate('date', $this->date)
                     ->first();
 
-                return $supplierPayment?->voucher?->voucher_no ?? null;
+                $voucherNoCache[$cacheKey] = $supplierPayment?->voucher?->voucher_no ?? null;
+                return $voucherNoCache[$cacheKey];
             }
 
             return null;
@@ -124,6 +138,10 @@ trait CustomerPaymentComputed
     public function category(): Attribute
     {
         return Attribute::get(function () {
+            if (!$this->customer) {
+                return null;
+            }
+
             return $this->customer->category == 'cash' ? 'cash' : 'non-cash';
         });
     }
@@ -131,6 +149,10 @@ trait CustomerPaymentComputed
     public function issued(): Attribute
     {
         return Attribute::get(function () {
+            if ($this->d_r_id !== null) {
+                return 'DR';
+            }
+
             if ((($this->cheque || $this->slip) || in_array($this->method, ['cheque','slip']) && $this->bank_account_id) && !$this->is_return) {
                 return 'Issued';
             } elseif ($this->is_return && $this->d_r_id === null) {
@@ -138,12 +160,6 @@ trait CustomerPaymentComputed
             } else {
                 return 'Not Issued';
             }
-
-            if ($this->d_r_id !== null) {
-                return 'DR';
-            }
-
-            return null;
         });
     }
 
@@ -187,6 +203,7 @@ trait CustomerPaymentComputed
     public function maxReffSuffix(): Attribute
     {
         return Attribute::get(function () {
+            static $maxSuffixCache = [];
 
             $raw = match ($this->method) {
                 'cheque'  => $this->cheque_no,
@@ -210,6 +227,11 @@ trait CustomerPaymentComputed
                 default   => 'reff_no',
             };
 
+            $cacheKey = $column . '|' . $baseRef;
+            if (array_key_exists($cacheKey, $maxSuffixCache)) {
+                return $maxSuffixCache[$cacheKey];
+            }
+
             // only refs with same base + pipe
             $refs = $query
                 ->where($column, 'like', $baseRef . '%|%')
@@ -224,7 +246,8 @@ trait CustomerPaymentComputed
                 }
             }
 
-            return $max;
+            $maxSuffixCache[$cacheKey] = $max;
+            return $maxSuffixCache[$cacheKey];
         });
     }
 
@@ -232,7 +255,7 @@ trait CustomerPaymentComputed
     {
         return [
             'id' => $this->id,
-            'name' => $this->customer->customer_name . ' | ' . $this->customer->city->title,
+            'name' => ($this->customer?->customer_name ?? '-') . ' | ' . ($this->customer?->city?->title ?? '-'),
             'details' => [
                 'Type' => $this->type,
                 'Method' => $this->method,
@@ -411,7 +434,7 @@ trait CustomerPaymentComputed
                 $start = $value['start'] ?? null;
                 $end   = $value['end'] ?? null;
 
-                if (!$start || !$end) return $query->where('method', 'cash');
+                if (!$start || !$end) return $query;
 
 
                 return $query->where(function ($q) use ($start, $end) {

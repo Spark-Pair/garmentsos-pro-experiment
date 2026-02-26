@@ -173,7 +173,7 @@
         let authLayout = '{{ $authLayout }}';
 
         function createRow(data) {
-            console.log(data);
+            // console.log(data);
 
             return `
                 <div id="${data.id}" oncontextmenu='${data.oncontextmenu || ""}' onclick='${data.onclick || ""}'
@@ -449,7 +449,7 @@
                 data.method === "program" ? data.transaction_id :
                 data.reff_no;
 
-            console.log(item);
+            // console.log(item);
 
             let [currentRef, newRef] = generateReffNos(rawReffNo, item.has_pipe, item.max_reff_suffix);
 

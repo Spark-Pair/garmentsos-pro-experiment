@@ -52,8 +52,6 @@ const GlobalFilterManager = {
             rootAuthLayout = data.authLayout;
 
             this.renderData(data);
-            console.log(data);
-            
 
         } catch (error) {
             console.error('Error loading initial data:', error);
@@ -64,9 +62,6 @@ const GlobalFilterManager = {
 
     async applyFilters() {
         const filters = this.collectFilters();
-
-        console.log(filters);
-
 
         // If no filters, load initial data
         if (Object.keys(filters).length === 0) {
@@ -119,8 +114,6 @@ const GlobalFilterManager = {
             const value = input.value?.trim();
 
             if (value && value !== '') {
-            console.log(input);
-
                 // Use input id as filter key
                 const key = input.id || input.getAttribute('data-for');
                 filters[key] = value;

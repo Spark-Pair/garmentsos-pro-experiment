@@ -114,7 +114,15 @@ class ExpenseController extends Controller
             return redirect()->back()->with('error', $validator->errors()->first());
         }
 
-        $expense = Expense::create($request->all());
+        $expense = Expense::create([
+            'date' => $request->date,
+            'supplier_id' => $request->supplier_id,
+            'expense' => $request->expense,
+            'reff_no' => $request->reff_no,
+            'amount' => $request->amount,
+            'lot_no' => $request->lot_no,
+            'remarks' => $request->remarks,
+        ]);
 
         return redirect()->back()->with('success', 'Expense added successfully! ID: ' . $expense->id);
     }
@@ -161,10 +169,13 @@ class ExpenseController extends Controller
             return redirect()->back()->withErrors($validator)->withInput();
         }
 
-        $data = $request->all();
-
-        // Update the customer
-        $expense->update($data);
+        $expense->update([
+            'expense' => $request->expense,
+            'reff_no' => $request->reff_no,
+            'amount' => $request->amount,
+            'lot_no' => $request->lot_no,
+            'remarks' => $request->remarks,
+        ]);
 
         return redirect()->route('expenses.index')->with('success', 'Expense updated successfully.');
     }

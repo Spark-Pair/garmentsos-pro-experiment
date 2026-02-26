@@ -138,14 +138,14 @@ class BankAccount extends Model
         } else if ($this->category === 'supplier') {
             $balance = PaymentClear::where('bank_account_id', $this->id)
                 ->where('method', '!=', 'cash') // ignore cash
-                ->when($fromDate, fn($q) => $q->where('date', $includeGivenDate ? '>=' : '>', $fromDate))
-                ->when($toDate, fn($q) => $q->where('date', $includeGivenDate ? '<=' : '<', $toDate))
+                ->when($fromDate, fn($q) => $q->where('clear_date', $includeGivenDate ? '>=' : '>', $fromDate))
+                ->when($toDate, fn($q) => $q->where('clear_date', $includeGivenDate ? '<=' : '<', $toDate))
                 ->sum('amount');
         } else if ($this->category === 'customer') {
             $balance = PaymentClear::where('bank_account_id', $this->id)
                 ->where('method', '!=', 'cash') // ignore cash
-                ->when($fromDate, fn($q) => $q->where('date', $includeGivenDate ? '>=' : '>', $fromDate))
-                ->when($toDate, fn($q) => $q->where('date', $includeGivenDate ? '<=' : '<', $toDate))
+                ->when($fromDate, fn($q) => $q->where('clear_date', $includeGivenDate ? '>=' : '>', $fromDate))
+                ->when($toDate, fn($q) => $q->where('clear_date', $includeGivenDate ? '<=' : '<', $toDate))
                 ->sum('amount');
         }
 

@@ -75,8 +75,8 @@ class UserController extends Controller
             return redirect()->back()->withErrors($validator)->withInput();
         }
 
-        $data = $request->all();
-        $data['password'] = Hash::make($data['password']); // Hash the password
+        $data = $validator->validated();
+        $hashedPassword = Hash::make($data['password']); // Hash the password
 
         // Handle the image upload if present
         if ($request->hasFile('profile_picture')) {
@@ -87,7 +87,13 @@ class UserController extends Controller
             $data['profile_picture'] = $fileName; // Save the file path in the database
         }
 
-        User::create($data);
+        User::create([
+            'name' => $data['name'],
+            'username' => $data['username'],
+            'password' => $hashedPassword,
+            'role' => $data['role'],
+            'profile_picture' => $data['profile_picture'] ?? 'default_avatar.png',
+        ]);
         return redirect()->back()->with('success', 'User added successfully! You can now manage their details.'); // Redirect to dashboard
     }
 

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Cargo;
 use App\Models\Invoice;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 
 class CargoController extends Controller
@@ -14,6 +15,10 @@ class CargoController extends Controller
      */
     public function index(Request $request)
     {
+        if (!$this->checkRole(['developer', 'owner', 'manager', 'admin', 'accountant', 'guest'])) {
+            return redirect(route('home'))->with('error', 'You do not have permission to access this page.');
+        }
+
         $authLayout = $this->getAuthLayout($request->route()->getName());
 
         if ($request->ajax()) {
@@ -32,7 +37,18 @@ class CargoController extends Controller
      */
     public function create()
     {
-        $invoices = Invoice::with('customer.city')->whereNotNull('shipment_no')->get()->filter(function ($invoice) {return !$invoice->is_in_cargo;})->values();
+        if (!$this->checkRole(['developer', 'owner', 'admin', 'accountant'])) {
+            return redirect(route('home'))->with('error', 'You do not have permission to access this page.');
+        }
+
+        $invoices = Invoice::with('customer.city')
+            ->whereNotNull('shipment_no')
+            ->where(function ($query) {
+                $query->whereNull('cargo_name')
+                    ->orWhere('cargo_name', '');
+            })
+            ->get()
+            ->values();
 
         $last_cargo = [];
         $last_cargo = Cargo::orderby('id', 'desc')->first();
@@ -50,6 +66,10 @@ class CargoController extends Controller
      */
     public function store(Request $request)
     {
+        if (!$this->checkRole(['developer', 'owner', 'admin', 'accountant'])) {
+            return redirect(route('home'))->with('error', 'You do not have permission to access this page.');
+        }
+
         $validator = Validator::make($request->all(), [
             'date' => 'required|date',
             'cargo_name' => 'required|string',
@@ -61,18 +81,23 @@ class CargoController extends Controller
             return redirect()->back()->withErrors($validator)->withInput();
         }
 
-        $data = $request->all();
+        DB::transaction(function () use ($request) {
+            $invoicesArray = json_decode($request->invoices_array, true) ?? [];
+            $invoiceIds = collect($invoicesArray)->pluck('id')->filter()->values();
 
-        $invoicesArray = json_decode($data['invoices_array'], true);
-        foreach ($invoicesArray as $invoice) {
-            $invoiceModel = Invoice::find($invoice['id']);
-            if ($invoiceModel) {
-                $invoiceModel->cargo_name = $data['cargo_name'];
-                $invoiceModel->save();
+            if ($invoiceIds->isNotEmpty()) {
+                Invoice::whereIn('id', $invoiceIds)->update([
+                    'cargo_name' => $request->cargo_name,
+                ]);
             }
-        }
 
-        Cargo::create($data);
+            Cargo::create([
+                'date' => $request->date,
+                'cargo_name' => $request->cargo_name,
+                'cargo_no' => $request->cargo_no,
+                'invoices_array' => $request->invoices_array,
+            ]);
+        });
 
         return redirect()->back()->with(['success' => 'Cargo List Generated Successfuly!']);
     }

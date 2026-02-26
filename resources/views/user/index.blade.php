@@ -81,7 +81,7 @@
         let authLayout = '{{ $authLayout }}';
 
         function createRow(data) {
-            console.log(data);
+            // console.log(data);
 
             return `
             <div id="${data.id}" oncontextmenu='${data.oncontextmenu || ""}' onclick='${data.onclick || ""}'

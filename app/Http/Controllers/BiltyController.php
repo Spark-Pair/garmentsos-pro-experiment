@@ -42,9 +42,12 @@ class BiltyController extends Controller
      */
     public function store(Request $request)
     {
-        $data = $request->all();
+        $request->validate([
+            'date' => 'required|date',
+            'invoices_array' => 'required|json',
+        ]);
 
-        $invoicesArray = json_decode($data['invoices_array'], true);
+        $invoicesArray = json_decode($request->invoices_array, true);
 
         // Validate that all invoices have biltyNo
         foreach ($invoicesArray as $invoice) {
@@ -56,7 +59,7 @@ class BiltyController extends Controller
         // Create bilties for each invoice
         foreach ($invoicesArray as $invoice) {
             Bilty::create([
-                'date' => $data['date'],
+                'date' => $request->date,
                 'invoice_id' => $invoice['id'],
                 'bilty_no' => $invoice['biltyNo'],
             ]);

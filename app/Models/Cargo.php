@@ -58,16 +58,25 @@ class Cargo extends Model
 
         if (!is_array($RawInvoices)) return [];
 
-        $invoices = [];
+        $invoiceIds = collect($RawInvoices)
+            ->pluck('id')
+            ->filter()
+            ->values()
+            ->all();
 
-        foreach ($RawInvoices as $RawInvoice) {
-            $invoice = Invoice::with('customer.city')->where('id', $RawInvoice['id'])->first();
-
-            if ($invoice) {
-                $invoices[] = $invoice;
-            }
+        if (empty($invoiceIds)) {
+            return [];
         }
 
-        return $invoices;
+        $invoicesById = Invoice::with('customer.city')
+            ->whereIn('id', $invoiceIds)
+            ->get()
+            ->keyBy('id');
+
+        return collect($invoiceIds)
+            ->map(fn($id) => $invoicesById->get($id))
+            ->filter()
+            ->values()
+            ->all();
     }
 }

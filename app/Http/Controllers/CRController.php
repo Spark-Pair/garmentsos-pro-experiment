@@ -137,9 +137,14 @@ class CRController extends Controller
             return redirect()->back()->withErrors($validator)->withInput();
         }
 
-        $data = $request->all();
-        $data['return_payments'] = json_decode($data['returnPayments'] ?? '[]');
-        $data['new_payments'] = json_decode($data['newPayments'] ?? '[]');
+        $data = [
+            'date' => $request->date,
+            'voucher_no' => $request->voucher_no,
+            'voucher_id' => $request->voucher_id,
+            'c_r_no' => $request->c_r_no,
+            'return_payments' => json_decode($request->returnPayments ?? '[]'),
+            'new_payments' => json_decode($request->newPayments ?? '[]'),
+        ];
 
         if (!str_starts_with($data['c_r_no'], 'CR-')) {
             $data['c_r_no'] = 'CR-' . $data['c_r_no'];

@@ -6,7 +6,6 @@ use App\Traits\Filterable;
 use App\Traits\PaymentProgramComputed;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
 
 class PaymentProgram extends Model
@@ -25,7 +24,7 @@ class PaymentProgram extends Model
         'date' => 'date'
     ];
 
-    protected $appends = ['payments', 'balance', 'payment'];
+    protected $appends = [];
 
     protected static function booted()
     {

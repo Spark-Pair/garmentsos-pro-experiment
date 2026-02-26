@@ -79,9 +79,13 @@ class UtilityBillController extends Controller
             'due_date' => 'required|date',
         ]);
 
-        $data = $request->all();
-
-        UtilityBill::create($data);
+        UtilityBill::create([
+            'account_id' => $request->account_id,
+            'month' => $request->month,
+            'units' => $request->units,
+            'amount' => $request->amount,
+            'due_date' => $request->due_date,
+        ]);
 
         return redirect()->back()->with('success', 'Utility Bill added successfully.');
     }

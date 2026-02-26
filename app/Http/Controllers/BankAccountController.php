@@ -108,19 +108,17 @@ class BankAccountController extends Controller
             return redirect()->back()->withErrors($validator)->withInput();
         }
 
-        $data = $request->all();
-
         $subCategoryModel = null;
 
         // Dynamically associate sub_category based on category
-        if ($data['category'] === 'supplier') {
-            $subCategoryModel = Supplier::find($data['sub_category']);
-        } elseif ($data['category'] === 'customer') {
-            $subCategoryModel = Customer::find($data['sub_category']);
+        if ($request->category === 'supplier') {
+            $subCategoryModel = Supplier::find($request->sub_category);
+        } elseif ($request->category === 'customer') {
+            $subCategoryModel = Customer::find($request->sub_category);
         }
 
         // Ensure subCategoryModel is not null
-        if ($data['category'] !== 'self' && !$subCategoryModel) {
+        if ($request->category !== 'self' && !$subCategoryModel) {
             return redirect()->back()->withErrors(['sub_category' => 'Invalid sub category'])->withInput();
         }
 
@@ -128,11 +126,11 @@ class BankAccountController extends Controller
         $chqbk_serial_end = $request->input('cheque_book_serial.end');
 
         $bankAccount = new BankAccount([
-            'category' => $data['category'],
-            'bank_id' => $data['bank_id'],
-            'account_title' => $data['account_title'],
-            'date' => $data['date'],
-            'account_no' => $data['account_no'],
+            'category' => $request->category,
+            'bank_id' => $request->bank_id,
+            'account_title' => $request->account_title,
+            'date' => $request->date,
+            'account_no' => $request->account_no,
             'chqbk_serial_start' => $chqbk_serial_start,
             'chqbk_serial_end' => $chqbk_serial_end,
         ]);

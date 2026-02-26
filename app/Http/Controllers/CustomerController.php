@@ -98,8 +98,8 @@ class CustomerController extends Controller
             return redirect()->back()->withErrors($validator)->withInput();
         }
 
-        $data = $request->all();
-        $data['password'] = Hash::make($data['password']); // Hash the password
+        $data = $validator->validated();
+        $hashedPassword = Hash::make($data['password']); // Hash the password
 
         $user = User::where('username', $request->username)->first();
 
@@ -117,7 +117,7 @@ class CustomerController extends Controller
             $user = User::create([
                 'name' => $data['customer_name'],
                 'username' => $data['username'],
-                'password' => $data['password'],
+                'password' => $hashedPassword,
                 'role' => 'customer',
                 'profile_picture' => $data['image'],
             ]);
@@ -184,24 +184,21 @@ class CustomerController extends Controller
             return redirect()->back()->withErrors($validator)->withInput();
         }
 
-        $data = $request->all();
-
         $user = User::where('username', $customer->user->username)->first();
 
         if ($user) {
+            $profileImage = "default_avatar.png";
             if ($request->hasFile('image_upload')) {
                 $file = $request->file('image_upload');
                 $fileName = time() . '_' . $file->getClientOriginalName();
                 $filePath = $file->storeAs('uploads/images', $fileName, 'public'); // Store in public disk
 
-                $data['image'] = $fileName; // Save the file path in the database
-            } else {
-                $data['image'] = "default_avatar.png";
+                $profileImage = $fileName; // Save the file path in the database
             }
 
             // Update the user
             $user->update([
-                'profile_picture' => $data['image'],
+                'profile_picture' => $profileImage,
             ]);
         } else {
             return redirect()->back()->with('error', 'This user does not exist.')->withInput();
@@ -209,11 +206,11 @@ class CustomerController extends Controller
 
         // Update the customer
         $customer->update([
-            'person_name' => $data['person_name'],
-            'urdu_title' => $data['urdu_title'],
-            'phone_number' => $data['phone_number'],
-            'category' => $data['category'],
-            'address' => $data['address'],
+            'person_name' => $request->person_name,
+            'urdu_title' => $request->urdu_title,
+            'phone_number' => $request->phone_number,
+            'category' => $request->category,
+            'address' => $request->address,
         ]);
 
         return redirect()->route('customers.index')->with('success', 'Customer updated successfully.');

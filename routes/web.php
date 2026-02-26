@@ -55,7 +55,15 @@ Route::get('subscription-expired', function () {
 
 Route::group(['middleware' => ['auth', 'activeSession', 'subscriptionExpiry']], function () {
     Route::get('/backup-db', function () {
+        $allowedRoles = ['developer', 'owner'];
+        if (!in_array(auth()->user()?->role, $allowedRoles, true)) {
+            abort(403, 'You do not have permission to download database backup.');
+        }
+
         $sourcePath = database_path('database.sqlite');
+        if (!File::exists($sourcePath)) {
+            abort(404, 'Database file not found.');
+        }
 
         // Create temporary backup file (for download)
         $tempFile = storage_path('app/temp_backup_' . now()->format('Y-m-d_H-i-s') . '.sqlite');
@@ -109,7 +117,7 @@ Route::group(['middleware' => ['auth', 'activeSession', 'subscriptionExpiry']], 
     Route::resource('payment-programs', PaymentProgramController::class);
     Route::post('payment-programs.get-summary', [PaymentProgramController::class, 'getSummary'])->name('payment-programs.get-summary');
     Route::post('payment-programs.update-program', [PaymentProgramController::class, 'updateProgram'])->name('payment-programs.update-program');
-    Route::get('payment-programs/{id}/mark-paid', [PaymentProgramController::class, 'markPaid'])->name('payment-programs.mark-paid');
+    Route::post('payment-programs/{id}/mark-paid', [PaymentProgramController::class, 'markPaid'])->name('payment-programs.mark-paid');
 
     Route::resource('bank-accounts', BankAccountController::class);
     Route::post('update-bank-account-status', [BankAccountController::class, 'updateStatus'])->name('update-bank-account-status');

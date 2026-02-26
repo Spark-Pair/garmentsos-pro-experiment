@@ -280,7 +280,7 @@
 
                 // Listen for after print in the iframe's window
                 printIframe.contentWindow.onafterprint = () => {
-                    console.log("Print dialog closed");
+                    // console.log("Print dialog closed");
                 };
 
                 setTimeout(() => {

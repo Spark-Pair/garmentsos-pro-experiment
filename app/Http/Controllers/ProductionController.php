@@ -146,23 +146,29 @@ class ProductionController extends Controller
             return redirect()->back()->withErrors($validator)->withInput();
         }
 
-        $data = $request->all();
+        $data = [
+            'article_id' => $request->article_id,
+            'work_id' => $request->work_id,
+            'worker_id' => $request->worker_id,
+            'tags' => isset($request->tags) ? json_decode($request->tags) : null,
+            'materials' => isset($request->materials) ? json_decode($request->materials) : null,
+            'parts' => isset($request->parts) ? json_decode($request->parts) : null,
+            'quantity' => $request->quantity,
+            'title' => $request->title,
+            'rate' => $request->rate,
+            'amount' => $request->amount,
+            'issue_date' => $request->issue_date,
+            'receive_date' => $request->receive_date,
+        ];
         $ticket = null;
 
-        if (isset($data['ticket_name']) && $data['ticket_name'] != '-- Select Ticket --') {
-            $ticket = $data['ticket_name'];
-            $data['tags'] = isset($data['tags']) ? json_decode($data['tags']) : null;
-            $data['materials'] = isset($data['materials']) ? json_decode($data['materials']) : null;
-            $data['parts'] = isset($data['parts']) ? json_decode($data['parts']) : null;
-            $production = Production::where('ticket', $data['ticket_name'])->first();
+        if ($request->filled('ticket_name') && $request->ticket_name != '-- Select Ticket --') {
+            $ticket = $request->ticket_name;
+            $production = Production::where('ticket', $request->ticket_name)->first();
             if ($production) {
                 $production->update($data);
             }
         } else {
-            $data['tags'] = isset($data['tags']) ? json_decode($data['tags']) : null;
-            $data['materials'] = isset($data['materials']) ? json_decode($data['materials']) : null;
-            $data['parts'] = isset($data['parts']) ? json_decode($data['parts']) : null;
-
             if ($request->article_quantity) {
                 Article::where('id', $request->article_id)->update(['quantity' => $request->article_quantity]);
             }

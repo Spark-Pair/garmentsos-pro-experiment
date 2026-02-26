@@ -314,8 +314,8 @@
             document.getElementById('payment').disabled = true;
 
             if (elem.value != '') {
-                console.log(voucher);
-                console.log(elem.value);
+                // console.log(voucher);
+                // console.log(elem.value);
 
                 $.ajax({
                     url: '/cr/create',
@@ -329,7 +329,7 @@
                         'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
                     },
                     success: function(response) {
-                        console.log($(response).find('#payment').closest('.selectParent').html());
+                        // console.log($(response).find('#payment').closest('.selectParent').html());
 
                         $('#payment').closest('.selectParent').html($(response).find('#payment').closest('.selectParent').html());
                         let allPaymentsDOM = document.querySelectorAll('ul[data-for="payment"] li');

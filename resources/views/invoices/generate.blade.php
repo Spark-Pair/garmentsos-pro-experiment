@@ -383,7 +383,7 @@
 
             function generateModal(data, animate='animate', fieldsHtml=null) {
                 let tableBody = [];
-                console.log(data);
+                // console.log(data);
 
                 tableBody = generateTableBody(data);
 
@@ -947,7 +947,7 @@
                     },
                     success: function (response) {
 
-                        console.log(response);
+                        // console.log(response);
                         if (!response.error) {
                             orderedArticles = response.articles;
                             discount = response.discount ?? 0;

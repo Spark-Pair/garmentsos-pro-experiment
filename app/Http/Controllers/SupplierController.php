@@ -129,8 +129,8 @@ class SupplierController extends Controller
             return redirect()->back()->withErrors($validator)->withInput();
         }
 
-        $data = $request->all();
-        $data['password'] = Hash::make($data['password']);
+        $data = $validator->validated();
+        $hashedPassword = Hash::make($data['password']);
 
         // Create user
         $user = User::where('username', $request->username)->first();
@@ -140,7 +140,7 @@ class SupplierController extends Controller
             $user = User::create([
                 'name' => $data['supplier_name'],
                 'username' => $data['username'],
-                'password' => $data['password'],
+                'password' => $hashedPassword,
                 'role' =>'supplier',
                 'profile_picture' => $data['image'],
             ]);
@@ -245,24 +245,21 @@ class SupplierController extends Controller
             return redirect()->back()->withErrors($validator)->withInput();
         }
 
-        $data = $request->all();
-
         $user = User::where('username', $supplier->user->username)->first();
 
         if ($user) {
+            $profileImage = "default_avatar.png";
             if ($request->hasFile('image_upload')) {
                 $file = $request->file('image_upload');
                 $fileName = time() . '_' . $file->getClientOriginalName();
                 $filePath = $file->storeAs('uploads/images', $fileName, 'public'); // Store in public disk
 
-                $data['image'] = $fileName; // Save the file path in the database
-            } else {
-                $data['image'] = "default_avatar.png";
+                $profileImage = $fileName; // Save the file path in the database
             }
 
             // Update the user
             $user->update([
-                'profile_picture' => $data['image'],
+                'profile_picture' => $profileImage,
             ]);
         } else {
             return redirect()->back()->with('error', 'This user does not exist.')->withInput();
@@ -270,14 +267,14 @@ class SupplierController extends Controller
 
         // Update the customer
         $supplier->update([
-            'phone_number' => $data['phone_number'],
+            'phone_number' => $request->phone_number,
         ]);
 
         // Update worker's phone if exists
         $worker = $supplier->worker; // assuming hasOne relation
         if ($worker) {
             $worker->update([
-                'phone_number' => $data['phone_number'],
+                'phone_number' => $request->phone_number,
             ]);
         }
 
@@ -308,9 +305,7 @@ class SupplierController extends Controller
             return redirect()->back()->withErrors($validator)->withInput();
         }
 
-        $data = $request->all();
-
-        Supplier::where('id', $request->supplier_id)->update(['categories_array' => $data['categories_array']]);
+        Supplier::where('id', $request->supplier_id)->update(['categories_array' => $request->categories_array]);
 
         return redirect()->route('suppliers.index')->with('success', 'Categoies updated successfully');
     }

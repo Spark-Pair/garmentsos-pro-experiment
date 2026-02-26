@@ -83,7 +83,7 @@
         let totalPayment = 0;
 
         function createRow(data) {
-            console.log(data);
+            // console.log(data);
 
             return `
                 <div id="${data.id}"

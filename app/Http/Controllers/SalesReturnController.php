@@ -68,7 +68,7 @@ class SalesReturnController extends Controller
             return redirect()->back()->withErrors($validator)->withInput();
         }
 
-        $data = $request->all();
+        $data = $validator->validated();
 
         SalesReturn::create($data);
 

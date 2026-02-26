@@ -95,7 +95,16 @@ class EmployeeController extends Controller
             'profile_picture' => 'nullable|image|mimes:jpg,jpeg,png,gif,webp|max:2048',
         ]);
 
-        $data = $request->all();
+        $data = [
+            'category' => $request->category,
+            'type_id' => $request->type_id,
+            'employee_name' => $request->employee_name,
+            'urdu_title' => $request->urdu_title,
+            'phone_number' => $request->phone_number,
+            'joining_date' => $request->joining_date,
+            'cnic_no' => $request->cnic_no,
+            'salary' => $request->salary,
+        ];
 
         // Handle the image upload if present
         if ($request->hasFile('profile_picture')) {
@@ -159,7 +168,13 @@ class EmployeeController extends Controller
             return redirect()->back()->withErrors($validator)->withInput();
         }
 
-        $data = $request->all();
+        $data = [
+            'type_id' => $request->type_id,
+            'urdu_title' => $request->urdu_title,
+            'phone_number' => $request->phone_number,
+            'cnic_no' => $request->cnic_no,
+            'salary' => $request->salary,
+        ];
 
         if ($request->hasFile('image_upload')) {
             $file = $request->file('image_upload');

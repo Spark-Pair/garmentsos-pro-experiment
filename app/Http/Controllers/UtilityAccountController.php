@@ -78,9 +78,12 @@ class UtilityAccountController extends Controller
             'account_no' => 'required|string|max:200'
         ]);
 
-        $data = $request->all();
-
-        UtilityAccount::create($data);
+        UtilityAccount::create([
+            'bill_type_id' => $request->bill_type_id,
+            'location_id' => $request->location_id,
+            'account_title' => $request->account_title,
+            'account_no' => $request->account_no,
+        ]);
 
         return redirect()->back()->with('success', 'Utility account added successfully.');
     }

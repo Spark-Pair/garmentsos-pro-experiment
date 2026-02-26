@@ -580,7 +580,7 @@
                     let allPayments = selectedSupplier.payments;
 
                     const filteredPayments = allPayments.filter(payment => {
-                        console.log(payment);
+                        // console.log(payment);
 
                         return formatDate(payment.date, false, true) <= formatDate(dateDom.value, false, true);
                     });

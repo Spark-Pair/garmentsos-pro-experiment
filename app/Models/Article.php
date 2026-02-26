@@ -4,10 +4,9 @@ namespace App\Models;
 
 use App\Traits\ArticleComputed;
 use App\Traits\Filterable;
-use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Auth;
 
 class Article extends Model
 {
@@ -68,7 +67,7 @@ class Article extends Model
 
     public function physicalQuantity()
     {
-        return $this->hasMany(physicalQuantity::class, 'article_id');
+        return $this->hasMany(PhysicalQuantity::class, 'article_id');
     }
 
     public function production()

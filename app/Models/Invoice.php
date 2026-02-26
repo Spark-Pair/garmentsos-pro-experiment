@@ -79,21 +79,7 @@ class Invoice extends Model
 
     public function getIsInCargoAttribute()
     {
-        $cargos = Cargo::all();
-
-        foreach ($cargos as $cargo) {
-            $invoices = json_decode($cargo->invoices_array, true);
-
-            if (!is_array($invoices)) continue;
-
-            foreach ($invoices as $invoice) {
-                if (isset($invoice['id']) && $invoice['id'] == $this->id) {
-                    return true;
-                }
-            }
-        }
-
-        return false;
+        return !empty($this->cargo_name);
     }
 
     public function salesReturns() {

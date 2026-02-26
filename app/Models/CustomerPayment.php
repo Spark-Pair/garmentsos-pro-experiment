@@ -6,7 +6,6 @@ use App\Traits\CustomerPaymentComputed;
 use App\Traits\Filterable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
 
 class CustomerPayment extends Model
@@ -62,10 +61,6 @@ class CustomerPayment extends Model
             }
         });
 
-        // Always eager load the associated creator
-        static::addGlobalScope('withCreator', function (Builder $builder) {
-            $builder->with('creator');
-        });
     }
 
     public function creator()

@@ -51,7 +51,11 @@ class SetupController extends Controller
             return redirect()->back()->withErrors($validator)->withInput();
         }
         
-        Setup::create($request->all());
+        Setup::create([
+            'title' => $request->title,
+            'short_title' => $request->short_title,
+            'type' => $request->type,
+        ]);
 
         return redirect()->back()->with('success', 'Setup added successfully');
     }

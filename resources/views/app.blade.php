@@ -351,7 +351,7 @@
     <script>
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('/service-worker.js')
-            .then(reg => console.log('Service Worker registered ✔️', reg))
+            .then(() => {})
             .catch(err => console.warn('Service Worker registration failed ❌', err));
         }
     </script>
@@ -643,7 +643,7 @@
                 },
                 success: function(response) {
                     if (response.status === 'updated') {
-                        console.log("Last activity updated successfully.");
+                        // console.log("Last activity updated successfully.");
                     }
                 },
                 error: function(xhr, status, error) {
@@ -688,7 +688,7 @@
 
             // Listen to the event
             channel.bind('App\\Events\\NewNotificationEvent', function (data) {
-                console.log('📢 Notification received:', data);
+                // console.log('📢 Notification received:', data);
 
                 const dataObject = data.data;
 
@@ -719,7 +719,7 @@
             });
 
             pusher.connection.bind('connected', function() {
-                console.log('✅ Pusher connected');
+                // console.log('✅ Pusher connected');
             });
         </script>
     @endif
@@ -826,7 +826,7 @@
     //     caches.delete(name);
     //     }
     // }).then(() => {
-    //     console.log('Service Worker and Cache cleared!');
+    //     // console.log('Service Worker and Cache cleared!');
     //     window.location.reload(); // Optional: reload the page
     // });
     // }
@@ -886,7 +886,7 @@
                 },
                 success: function(response) {
                     if (response.status === 'updated') {
-                        console.log("Layout updated successfully.");
+                        // console.log("Layout updated successfully.");
                         location.reload();
                     }
                 },
@@ -917,12 +917,12 @@
         //     const scrollTop = scroller.scrollTop;
         //     const scrollHeight = scroller.scrollHeight;
         //     const clientHeight = scroller.clientHeight;
-        //     // console.log("Scrolling");
+        //     // // console.log("Scrolling");
 
         //     if (scrollTop + clientHeight >= scrollHeight - 100 && !isFetching) {
         //         isFetching = true;
         //         setTimeout(() => {
-        //             console.log("Render Next Batch");
+        //             // console.log("Render Next Batch");
 
         //             renderNextBatch();
         //             isFetching = false;
@@ -1172,7 +1172,7 @@
             },
             success: function(response) {
                 if (response.status === 'success') {
-                    console.log("Menu shortcuts updated successfully.");
+                    // console.log("Menu shortcuts updated successfully.");
                 }
             },
             error: function(xhr, status, error) {
@@ -1714,13 +1714,13 @@
 
                         checkbox.checked = !checkbox.checked;
                         printColumns[displayIndex].selected = checkbox.checked;
-                        console.log(`Column ${displayIndex} (${printColumns[displayIndex].text}) selected:`, checkbox.checked);
+                        // console.log(`Column ${displayIndex} (${printColumns[displayIndex].text}) selected:`, checkbox.checked);
                     });
 
                     // Checkbox change handler
                     checkbox.addEventListener('change', function() {
                         printColumns[displayIndex].selected = this.checked;
-                        console.log(`Column ${displayIndex} (${printColumns[displayIndex].text}) checkbox changed:`, this.checked);
+                        // console.log(`Column ${displayIndex} (${printColumns[displayIndex].text}) checkbox changed:`, this.checked);
                     });
                 }
             });
@@ -1777,13 +1777,13 @@
                     const fromIndex = Array.from(tableBody.children).indexOf(draggedRow);
                     const toIndex = Array.from(tableBody.children).indexOf(row);
 
-                    console.log(`Moving from ${fromIndex} to ${toIndex}`);
+                    // console.log(`Moving from ${fromIndex} to ${toIndex}`);
 
                     // Reorder array
                     const [movedColumn] = printColumns.splice(fromIndex, 1);
                     printColumns.splice(toIndex, 0, movedColumn);
 
-                    console.log('New order:', printColumns.map(c => c.text));
+                    // console.log('New order:', printColumns.map(c => c.text));
 
                     // Update table body only (smooth, no modal close)
                     updateTableBodyOnly();
@@ -1800,7 +1800,7 @@
                 select.addEventListener('change', function() {
                     const mergeWithIndex = this.value ? parseInt(this.value) : null;
                     printColumns[displayIndex].mergeWith = mergeWithIndex;
-                    console.log(`Column ${displayIndex} (${printColumns[displayIndex].text}) merge with:`, mergeWithIndex);
+                    // console.log(`Column ${displayIndex} (${printColumns[displayIndex].text}) merge with:`, mergeWithIndex);
                 });
             });
         }
@@ -1815,7 +1815,7 @@
                 col.selected = true;
             });
 
-            console.log('Order reset to original');
+            // console.log('Order reset to original');
 
             // Update table body only (smooth)
             updateTableBodyOnly();
@@ -1831,20 +1831,20 @@
                 checkbox.checked = select;
             });
 
-            console.log('All columns selected:', select);
+            // console.log('All columns selected:', select);
         };
 
         window.printWithSelectedColumns = function() {
             const selectedColumns = printColumns.filter(col => col.selected);
 
-            console.log('=== PRINT EXECUTION ===');
-            console.log('Total columns:', printColumns.length);
-            console.log('Selected columns:', selectedColumns.length);
-            console.log('Selected column details:', selectedColumns.map(c => ({
-                originalIndex: c.originalIndex,
-                text: c.text,
-                mergeWith: c.mergeWith
-            })));
+            // console.log('=== PRINT EXECUTION ===');
+            // console.log('Total columns:', printColumns.length);
+            // console.log('Selected columns:', selectedColumns.length);
+            // console.log('Selected column details:', selectedColumns.map(c => ({
+            //     originalIndex: c.originalIndex,
+            //     text: c.text,
+            //     mergeWith: c.mergeWith
+            // })));
 
             if (selectedColumns.length === 0) {
                 alert('Please select at least one column');
@@ -1856,7 +1856,7 @@
         };
 
         function executePrintWithColumns(selectedColumns) {
-            console.log('Executing print with', selectedColumns.length, 'columns');
+            // console.log('Executing print with', selectedColumns.length, 'columns');
 
             const preview = document.querySelector('.container-parent');
             let clone = preview.cloneNode(true);
@@ -1885,7 +1885,7 @@
                 const body = clone.querySelector('.search_container');
                 if (!header || !body) return clone.innerHTML;
 
-                console.log('Original header has', header.children.length, 'columns');
+                // console.log('Original header has', header.children.length, 'columns');
 
                 // Process merges
                 const processedColumns = [];
@@ -1922,8 +1922,8 @@
                     }
                 });
 
-                console.log('Processed to', processedColumns.length, 'columns (after merge)');
-                console.log('Processed columns:', processedColumns.map(c => c.text));
+                // console.log('Processed to', processedColumns.length, 'columns (after merge)');
+                // console.log('Processed columns:', processedColumns.map(c => c.text));
 
                 const totalColumns = processedColumns.length;
                 const columnWidth = `${(100 / totalColumns).toFixed(2)}%`;

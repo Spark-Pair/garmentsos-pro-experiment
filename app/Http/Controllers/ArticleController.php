@@ -97,9 +97,18 @@ class ArticleController extends Controller
         ]);
 
         // Prepare data for saving
-        $data = $request->all();
-
-        $data['rates_array'] = json_decode($data['rates_array']);
+        $data = [
+            'article_no' => $request->article_no,
+            'date' => $request->date,
+            'category' => $request->category,
+            'size' => $request->size,
+            'season' => $request->season,
+            'quantity' => $request->quantity,
+            'extra_pcs' => $request->extra_pcs,
+            'fabric_type' => $request->fabric_type,
+            'rates_array' => json_decode($request->rates_array),
+            'sales_rate' => $request->sales_rate,
+        ];
 
         $year = date('y');
         $seasonLetter = strtoupper(substr($data['season'], 0, 1));
@@ -191,9 +200,17 @@ class ArticleController extends Controller
         ]);
 
         // Prepare data for saving
-        $data = $request->all();
-
-        $data['rates_array'] = json_decode($data['rates_array']);
+        $data = [
+            'article_no' => $request->article_no,
+            'category' => $request->category,
+            'size' => $request->size,
+            'season' => $request->season,
+            'quantity' => $request->quantity,
+            'extra_pcs' => $request->extra_pcs,
+            'fabric_type' => $request->fabric_type,
+            'rates_array' => json_decode($request->rates_array),
+            'sales_rate' => $request->sales_rate,
+        ];
 
         // Handle the image upload if present
         if ($request->hasFile('image_upload')) {
@@ -296,10 +313,11 @@ class ArticleController extends Controller
             return redirect()->back()->withErrors($validator)->withInput();
         }
 
-        $data = $request->all();
-        $data['rates_array'] = json_decode($data['rates_array']);
-
-        Article::where('id', $request->article_id)->update(['sales_rate' => $data['sales_rate'], 'rates_array' => $data['rates_array'], 'pcs_per_packet' => $data['pcs_per_packet']]);
+        Article::where('id', $request->article_id)->update([
+            'sales_rate' => $request->sales_rate,
+            'rates_array' => json_decode($request->rates_array),
+            'pcs_per_packet' => $request->pcs_per_packet
+        ]);
 
         return redirect()->route('articles.index')->with('success', 'Rate added successfully');
     }

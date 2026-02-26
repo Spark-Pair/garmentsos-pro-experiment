@@ -467,9 +467,21 @@
         }
 
         function goToMarkPaid(program) {
-            const url = new URL("{{ route('payment-programs.mark-paid', ':id') }}", window.location.origin);
-            url.pathname = url.pathname.replace(':id', program.id);
-            window.location.href = url.toString();
+            const actionUrl = "{{ route('payment-programs.mark-paid', ':id') }}".replace(':id', program.id);
+
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = actionUrl;
+            form.style.display = 'none';
+
+            const csrfField = document.createElement('input');
+            csrfField.type = 'hidden';
+            csrfField.name = '_token';
+            csrfField.value = "{{ csrf_token() }}";
+
+            form.appendChild(csrfField);
+            document.body.appendChild(form);
+            form.submit();
         }
 
         function generateContextMenu(e) {
