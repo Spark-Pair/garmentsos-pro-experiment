@@ -10,12 +10,19 @@ trait Filterable
     {
         $filters = $request->except(['_token', 'limit', 'page']);
 
-        // Transform date range inputs (dual input fields)
-        if (isset($filters['date_range_start']) && isset($filters['date_range_end'])) {
-            $filters['date'] = [
-                'start' => $filters['date_range_start'],
-                'end' => $filters['date_range_end'],
-            ];
+        // Transform date range inputs (dual input fields) only when both values exist.
+        // If one side is missing, skip date filtering instead of creating invalid column filters.
+        if (array_key_exists('date_range_start', $filters) || array_key_exists('date_range_end', $filters)) {
+            $start = trim((string) ($filters['date_range_start'] ?? ''));
+            $end = trim((string) ($filters['date_range_end'] ?? ''));
+
+            if ($start !== '' && $end !== '') {
+                $filters['date'] = [
+                    'start' => $start,
+                    'end' => $end,
+                ];
+            }
+
             unset($filters['date_range_start'], $filters['date_range_end']);
         }
 

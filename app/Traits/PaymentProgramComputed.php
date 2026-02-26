@@ -11,8 +11,8 @@ trait PaymentProgramComputed
     {
         return Attribute::get(function () {
 
-            if ($this->category == 'supplier') return $this->subCategory->supplier_name;
-            if ($this->category == 'self_account') return $this->subCategory->account_title;
+            if ($this->category == 'supplier') return $this->subCategory?->supplier_name ?? '-';
+            if ($this->category == 'self_account') return $this->subCategory?->account_title ?? '-';
             if ($this->category == 'waiting') return $this->remarks ?? '-';
 
             return '-';
@@ -24,7 +24,7 @@ trait PaymentProgramComputed
         return [
             'id' => $this->id,
             'date' => $this->date->format('d-M-Y, D'),
-            'customer_name' => $this->customer->customer_name . ' | ' . $this->customer->city->title,
+            'customer_name' => ($this->customer?->customer_name ?? '-') . ' | ' . ($this->customer?->city?->title ?? '-'),
             'o_p_no' => $this->order_no ?? $this->program_no,
             'category' => $this->category,
             'beneficiary' => $this->beneficiary,
@@ -78,7 +78,7 @@ trait PaymentProgramComputed
                 $start = $value['start'] ?? null;
                 $end   = $value['end'] ?? null;
 
-                if (!$start || !$end) return $query->where('method', 'cash');
+                if (!$start || !$end) return $query;
 
 
                 return $query->where(function ($q) use ($start, $end) {
