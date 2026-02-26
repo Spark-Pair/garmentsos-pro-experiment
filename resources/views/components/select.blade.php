@@ -129,12 +129,23 @@
                 @endif
 
                 @foreach ($options as $optionValue => $option)
+                    @php
+                        $dataOptionAttr = null;
+                        if (isset($option['data_option'])) {
+                            $rawDataOption = $option['data_option'];
+                            if (is_array($rawDataOption) || is_object($rawDataOption)) {
+                                $dataOptionAttr = json_encode($rawDataOption, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+                            } else {
+                                $dataOptionAttr = (string) $rawDataOption;
+                            }
+                        }
+                    @endphp
                     <li
                         data-for="{{ $id }}"
                         data-value="{{ $optionValue }}"
                         onmousedown="selectThisOption(this)"
-                        @if (isset($option['data_option']))
-                            data-option="{{ $option['data_option'] }}"
+                        @if (!is_null($dataOptionAttr))
+                            data-option="{{ $dataOptionAttr }}"
                         @endif
                         class="py-2 px-3 cursor-pointer rounded-lg transition hover:bg-[var(--h-bg-color)] text-nowrap overflow-x-auto scrollbar-hidden {{ !$isDisabled && $optionValue == $resolvedValue ? 'selected' : '' }}"
                     >

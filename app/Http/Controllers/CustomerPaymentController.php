@@ -7,6 +7,7 @@ use App\Models\CustomerPayment;
 use App\Models\PaymentClear;
 use App\Models\PaymentProgram;
 use App\Models\Setup;
+use App\Models\Supplier;
 use App\Models\SupplierPayment;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -220,7 +221,10 @@ class CustomerPaymentController extends Controller
         }
 
         // --- Banks options ---
-        $banks_options = Setup::where('type', 'bank_name')->get()->mapWithKeys(function ($bank) {
+        $banks_options = Setup::where('type', 'bank_name')
+            ->select('id', 'title')
+            ->get()
+            ->mapWithKeys(function ($bank) {
             return [(int)$bank->id => [
                 'text' => $bank->title,
                 'data_option' => $bank,
@@ -231,23 +235,40 @@ class CustomerPaymentController extends Controller
 
         // --- Last record ---
         $lastRecord = CustomerPayment::latest('id')
-            ->with('customer', 'customer.paymentPrograms.subCategory.bankAccounts.bank')
+            ->with('customer:id,customer_name')
             ->whereNotNull('customer_id')
             ->first();
 
         // --- If program_id provided, load specific program and customer ---
         if (!empty($programId)) {
-            $program = PaymentProgram::with('customer', 'subCategory.bankAccounts.bank')
-                ->withPaymentDetails()
-                ->where('balance', '>', 0)
+            $program = PaymentProgram::with([
+                'customer:id,customer_name,city_id,date',
+                'customer.city:id,title',
+                'subCategory',
+                'subCategory.bankAccounts.bank:id,short_title',
+            ])
+                ->withSum('customerPayments as paid_amount', 'amount')
                 ->find($programId);
 
             if ($program && $program->customer) {
-                $program->customer['payment_programs'] = $program->toArray();
+                $programPayload = $this->formatProgramPayload($program);
+                if (($programPayload['balance'] ?? 0) <= 0) {
+                    return redirect()->route('customer-payments.create')
+                        ->with('error', 'Selected payment program is already cleared.');
+                }
+
+                $customerPayload = [
+                    'id' => $program->customer->id,
+                    'customer_name' => $program->customer->customer_name,
+                    'date' => $program->customer->date?->format('Y-m-d'),
+                    'balance' => 0,
+                    'payment_programs' => $programPayload,
+                ];
+
                 $customers_options = [
                     (int)$program->customer->id => [
                         'text' => $program->customer->customer_name . ' | ' . $program->customer->city->title,
-                        'data_option' => $program->customer,
+                        'data_option' => $customerPayload,
                     ]
                 ];
 
@@ -255,34 +276,43 @@ class CustomerPaymentController extends Controller
             }
         }
 
-        // --- Load all active customers with necessary relations ---
+        // --- Load all active customers with lightweight aggregated payload ---
         $customers = Customer::with([
-            'orders',
-            'payments',
-            'paymentPrograms' => fn($q) => $q->where('status', 'Unpaid'),
-            'paymentPrograms.subCategory.bankAccounts.bank',
-            'city'
-        ])->whereHas('user', fn($q) => $q->where('status', 'active'))
-        ->select('id', 'customer_name', 'date', 'city_id')
-        ->get();
+            'city:id,title',
+            'paymentPrograms' => fn($q) => $q
+                ->select('id', 'program_no', 'order_no', 'date', 'customer_id', 'category', 'sub_category_id', 'sub_category_type', 'amount', 'remarks', 'status')
+                ->where('status', 'Unpaid')
+                ->withSum('customerPayments as paid_amount', 'amount')
+                ->with([
+                    'subCategory',
+                    'subCategory.bankAccounts.bank:id,short_title',
+                ]),
+        ])
+            ->withSum('orders as total_order_amount', 'netAmount')
+            ->withSum(['payments as total_paid_amount' => fn($q) => $q->where('type', '!=', 'DR')], 'amount')
+            ->whereHas('user', fn($q) => $q->where('status', 'active'))
+            ->select('id', 'customer_name', 'date', 'city_id')
+            ->get();
 
-        // --- Prepare customers options and calculate totals ---
         $customers_options = $customers->mapWithKeys(function ($customer) {
-            // Total amounts
-            $customer['totalAmount'] = $customer->orders->sum(fn($order) => $order->netAmount);
-            $customer['totalPayment'] = $customer->payments->sum(fn($payment) => $payment->amount);
+            $balance = (float)($customer->total_order_amount ?? 0) - (float)($customer->total_paid_amount ?? 0);
+            $programs = $customer->paymentPrograms
+                ->map(fn($program) => $this->formatProgramPayload($program))
+                ->filter(fn($program) => ($program['balance'] ?? 0) > 0)
+                ->values()
+                ->all();
 
-            // Fix subCategory for each payment program
-            foreach ($customer->paymentPrograms as $program) {
-                $subCategory = $program->subCategory;
-                if (isset($subCategory->type) && $subCategory->type !== '"App\Models\BankAccount"') {
-                    $program->subCategory = $subCategory->bankAccounts ?? null;
-                }
-            }
+            $customerPayload = [
+                'id' => $customer->id,
+                'customer_name' => $customer->customer_name,
+                'date' => $customer->date?->format('Y-m-d'),
+                'balance' => $balance,
+                'payment_programs' => $programs,
+            ];
 
             return [(int)$customer->id => [
                 'text' => $customer->customer_name . ' | ' . $customer->city->title,
-                'data_option' => $customer,
+                'data_option' => $customerPayload,
             ]];
         })->toArray();
 
@@ -371,36 +401,34 @@ class CustomerPaymentController extends Controller
 
         $data = $request->all();
 
-        CustomerPayment::create($data);
+        DB::transaction(function () use ($data) {
+            CustomerPayment::create($data);
 
-        if (isset($data['program_id']) && $data['program_id']) {
-            $program = PaymentProgram::find($data['program_id']);
-            if ($program && $data['method'] == 'program') {
-                if ($program['category'] == 'supplier') {
-                    $data['supplier_id'] = $program->sub_category_id;
-                    SupplierPayment::create($data);
+            if (!empty($data['program_id']) && ($data['method'] ?? null) === 'program') {
+                $program = PaymentProgram::select('id', 'amount', 'category', 'sub_category_id')
+                    ->find($data['program_id']);
+
+                if ($program && $program->category === 'supplier') {
+                    SupplierPayment::create(array_merge($data, [
+                        'supplier_id' => $program->sub_category_id,
+                    ]));
                 }
-                // else if ($program['category'] == 'customer') {
-                //     $data['customer_id'] = $program->sub_category_id;
-                //     CustomerPayment::create($data);
-                // }
-            }
-        }
 
-        $currentProgram = PaymentProgram::find($request->program_id);
+                if ($program) {
+                    $paidAmount = (float) CustomerPayment::where('program_id', $program->id)->sum('amount');
+                    $balance = (float) $program->amount - $paidAmount;
 
-        if (isset($currentProgram)) {
-            if ($currentProgram->balance <= 1000 && $currentProgram->balance >= 0) {
-                $currentProgram->status = 'Paid';
-                $currentProgram->save();
-            } else if ($currentProgram->balance < 0.0) {
-                $currentProgram->status = 'Overpaid';
-                $currentProgram->save();
-            } else {
-                $currentProgram->status = 'Unpaid';
-                $currentProgram->save();
+                    $status = 'Unpaid';
+                    if ($balance <= 1000 && $balance >= 0) {
+                        $status = 'Paid';
+                    } elseif ($balance < 0) {
+                        $status = 'Overpaid';
+                    }
+
+                    PaymentProgram::where('id', $program->id)->update(['status' => $status]);
+                }
             }
-        }
+        });
 
         return redirect()->back()->with('success', 'Payment Added successfully.');
     }
@@ -778,5 +806,50 @@ class CustomerPaymentController extends Controller
         });
 
         return redirect()->back()->with('success', 'Payment split successfully.');
+    }
+
+    private function formatProgramPayload(PaymentProgram $program): array
+    {
+        $paidAmount = (float)($program->paid_amount ?? 0);
+        $balance = (float)$program->amount - $paidAmount;
+        $subCategory = $program->subCategory;
+        $bankAccounts = collect();
+
+        if ($subCategory instanceof Supplier || $subCategory instanceof Customer) {
+            $bankAccounts = $subCategory->bankAccounts ?? collect();
+        } elseif ($subCategory instanceof \App\Models\BankAccount) {
+            $bankAccounts = collect([$subCategory]);
+        }
+
+        $bankAccountsPayload = $bankAccounts
+            ->map(fn($account) => [
+                'id' => $account->id,
+                'account_title' => $account->account_title,
+                'bank' => [
+                    'short_title' => $account->bank?->short_title ?? '-',
+                ],
+            ])
+            ->values()
+            ->all();
+
+        return [
+            'id' => $program->id,
+            'program_no' => $program->program_no,
+            'order_no' => $program->order_no,
+            'date' => $program->date?->format('Y-m-d'),
+            'category' => $program->category,
+            'amount' => (float)$program->amount,
+            'payment' => $paidAmount,
+            'balance' => $balance,
+            'remarks' => $program->remarks,
+            'status' => $program->status,
+            'sub_category' => [
+                'id' => $subCategory?->id,
+                'supplier_name' => $subCategory?->supplier_name ?? null,
+                'customer_name' => $subCategory?->customer_name ?? null,
+                'account_title' => $subCategory?->account_title ?? null,
+                'bank_accounts' => $bankAccountsPayload,
+            ],
+        ];
     }
 }
