@@ -24,7 +24,7 @@ class PaymentProgram extends Model
         'date' => 'date'
     ];
 
-    protected $appends = [];
+    protected $appends = ['payments'];
 
     protected static function booted()
     {
