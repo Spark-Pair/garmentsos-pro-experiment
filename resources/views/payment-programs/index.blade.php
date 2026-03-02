@@ -99,6 +99,20 @@
                             <div class="search_container grid grid-cols-1 sm:grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 grow">
                             </div>
                         </div>
+                        <div id="calc-bottom" class="flex w-full gap-4 text-sm bg-[var(--secondary-bg-color)] py-2 rounded-lg">
+                            <div class="total-Amount flex justify-between items-center border border-gray-600 rounded-lg py-2 px-4 w-full cursor-not-allowed">
+                                <div>Total Amount - Rs.</div>
+                                <div class="text-right">0.00</div>
+                            </div>
+                            <div class="total-Payment flex justify-between items-center border border-gray-600 rounded-lg py-2 px-4 w-full cursor-not-allowed">
+                                <div>Total Payment - Rs.</div>
+                                <div class="text-right">0.00</div>
+                            </div>
+                            <div class="balance flex justify-between items-center border border-gray-600 rounded-lg py-2 px-4 w-full cursor-not-allowed">
+                                <div>Balance - Rs.</div>
+                                <div class="text-right">0.00</div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -107,6 +121,15 @@
 
     <script>
         let authLayout = 'table';
+        let totalAmountDom = document.querySelector('#calc-bottom >.total-Amount .text-right');
+        let totalPaymentDom = document.querySelector('#calc-bottom >.total-Payment .text-right');
+        let totalBalanceDom = document.querySelector('#calc-bottom >.balance .text-right');
+
+        function renderCalculation(data) {
+            totalAmountDom.innerText = formatNumbersWithDigits(data?.total_amount ?? 0, 1, 1);
+            totalPaymentDom.innerText = formatNumbersWithDigits(data?.total_payment ?? 0, 1, 1);
+            totalBalanceDom.innerText = formatNumbersWithDigits(data?.balance ?? 0, 1, 1);
+        }
 
         function createRow(data) {
             return `

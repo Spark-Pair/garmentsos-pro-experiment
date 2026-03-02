@@ -123,7 +123,7 @@
                             </a>
                         </li>
                     @endif
-                    @if (in_array(Auth::user()->role, ['developer', 'owner', 'admin']))
+                    @if (in_array(Auth::user()->role, ['developer', 'admin']))
                         <!-- rates -->
                         <li>
                             <button id="backupDB" onclick="backupDB()"

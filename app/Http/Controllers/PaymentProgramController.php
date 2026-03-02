@@ -27,7 +27,19 @@ class PaymentProgramController extends Controller
             $payment_programs = PaymentProgram::with('customer.city', 'subCategory')->withPaymentDetails()->orderByDesc('id')
                 ->applyFilters($request);
 
-            return response()->json(['data' => $payment_programs, 'authLayout' => 'table']);
+            $totalAmount = (float) $payment_programs->sum(fn($p) => (float) ($p['amount'] ?? 0));
+            $totalPayment = (float) $payment_programs->sum(fn($p) => (float) ($p['payment'] ?? 0));
+            $totalBalance = (float) $payment_programs->sum(fn($p) => (float) ($p['balance'] ?? 0));
+
+            return response()->json([
+                'data' => $payment_programs,
+                'authLayout' => 'table',
+                'calculations' => [
+                    'total_amount' => $totalAmount,
+                    'total_payment' => $totalPayment,
+                    'balance' => $totalBalance,
+                ],
+            ]);
         }
 
         // // Fetch and sort orders by date and created_at

@@ -2112,34 +2112,59 @@
 
     async function backupDB() {
         try {
-            // Ask user to select a folder
-            const handle = await window.showDirectoryPicker();
-
-            // Create a file inside that folder (client-side only)
             const fileName = 'database_backup_' + new Date().toISOString().replace(/[:.]/g, '-') + '.sqlite';
+            const canUseFolderPicker =
+                window.isSecureContext &&
+                typeof window.showDirectoryPicker === 'function';
 
-            // Download the backup from Laravel route
+            if (!canUseFolderPicker) {
+                window.location.href = '/backup-db?download=1';
+                messageBox.innerHTML = `
+                    <x-alert type="info" :messages="'Backup download started. Browser save location settings apply on this URL.'" />
+                `;
+                messageBoxAnimation();
+                return;
+            }
+
             const response = await fetch('/backup-db');
+
+            if (!response.ok) {
+                let serverMessage = `Backup request failed (${response.status})`;
+
+                try {
+                    serverMessage = await response.text();
+                    serverMessage = serverMessage.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim() || serverMessage;
+                } catch (_) {}
+
+                throw new Error(serverMessage);
+            }
+
             const blob = await response.blob();
 
-            // Save the downloaded file inside selected folder
-            const fileHandle = await handle.getFileHandle(fileName, { create: true });
-            const writable = await fileHandle.createWritable();
-            await writable.write(blob);
-            await writable.close();
+            if (blob.size < 10240) {
+                throw new Error('Backup file looks too small. Please try again.');
+            }
 
-            // alert('✅ Backup saved to selected folder: ' + handle.name);
+            if (canUseFolderPicker) {
+                const handle = await window.showDirectoryPicker();
+                const fileHandle = await handle.getFileHandle(fileName, { create: true });
+                const writable = await fileHandle.createWritable();
+                await writable.write(blob);
+                await writable.close();
 
-            messageBox.innerHTML = `
-                <x-alert type="success" :messages="'Backup saved to selected folder.'" />
-            `;
-            messageBoxAnimation();
+                messageBox.innerHTML = `
+                    <x-alert type="success" :messages="'Backup saved to selected folder.'" />
+                `;
+                messageBoxAnimation();
+                return;
+            }
         } catch (err) {
             console.error(err);
             // alert('❌ Backup cancelled or failed.');
+            const errorMessage = (err && err.message ? err.message : 'Backup failed or cancelled.').replace(/'/g, "\\'");
 
             messageBox.innerHTML = `
-                <x-alert type="error" :messages="'Backup failed or cancelled.'" />
+                <x-alert type="error" :messages="'${errorMessage}'" />
             `;
             messageBoxAnimation();
         }
