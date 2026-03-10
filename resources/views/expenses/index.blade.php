@@ -58,14 +58,15 @@
             class="show-box mx-auto w-[80%] h-[70vh] bg-[var(--secondary-bg-color)] border border-[var(--glass-border-color)]/20 rounded-xl shadow pt-8.5 relative">
             <x-form-title-bar printBtn  layout="table" title="Show Expenses" resetSortBtn />
 
-            <div class="absolute bottom-3 right-3 flex items-center gap-2 w-fll z-50">
+            <div class="absolute bottom-14 right-0 flex items-center justify-end gap-2 w-fll z-50 p-3 w-full pointer-events-none">
                 <x-section-navigation-button link="{{ route('expenses.create') }}" title="Add New Expense" icon="fa-plus" />
             </div>
 
             <div class="details h-full z-40">
                 <div class="container-parent h-full">
-                    <div class="card_container px-3 h-full flex flex-col">
-                        <div id="table-head" class="grid grid-cols-8 bg-[var(--h-bg-color)] rounded-lg font-medium py-2 hidden mt-4">
+                    <div class="card_container px-3 pb-3 h-full flex flex-col">
+                        <div id="table-head" class="grid grid-cols-9 bg-[var(--h-bg-color)] rounded-lg font-medium py-2 hidden mt-4">
+                            <div class="cursor-pointer" onclick="sortByThis(this)">Id</div>
                             <div class="cursor-pointer" onclick="sortByThis(this)">Date</div>
                             <div class="cursor-pointer col-span-2" onclick="sortByThis(this)">Supplier Name</div>
                             <div class="cursor-pointer" onclick="sortByThis(this)">Reff. No.</div>
@@ -79,6 +80,13 @@
                             <div class="search_container grid grid-cols-1 sm:grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 grow">
                             </div>
                         </div>
+                        <div id="calc-bottom" class="flex w-full gap-4 text-sm bg-[var(--secondary-bg-color)] pt-2 rounded-lg">
+                            <div
+                                class="total-Amount flex justify-between items-center border border-gray-600 rounded-lg py-2 px-4 w-full cursor-not-allowed">
+                                <div>Total Expense - Rs.</div>
+                                <div class="text-right">0.00</div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -87,13 +95,19 @@
 
     <script>
         let authLayout = 'table';
+        let totalAmountDom = document.querySelector('#calc-bottom >.total-Amount .text-right');
+
+        function renderCalculation(data) {
+            totalAmountDom.innerText = formatNumbersWithDigits(data?.total_amount ?? 0, 1, 1);
+        }
 
         function createRow(data) {
             return `
             <div id="${data.id}" oncontextmenu='${data.oncontextmenu || ""}' onclick='${data.onclick || ""}'
-                class="item row relative group grid grid-cols-8 text-center border-b border-[var(--h-bg-color)] items-center py-2 cursor-pointer hover:bg-[var(--h-secondary-bg-color)] transition-all fade-in ease-in-out"
+                class="item row relative group grid grid-cols-9 text-center border-b border-[var(--h-bg-color)] items-center py-2 cursor-pointer hover:bg-[var(--h-secondary-bg-color)] transition-all fade-in ease-in-out"
                 data-json='${JSON.stringify(data)}'>
 
+                <span>${data.id}</span>
                 <span>${data.date}</span>
                 <span class="col-span-2">${data.supplier_name}</span>
                 <span>${data.reff_no}</span>

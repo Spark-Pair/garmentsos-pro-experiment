@@ -21,10 +21,18 @@ class ExpenseController extends Controller
         }
 
         if ($request->ajax()) {
-            $shipments = Expense::orderByDesc('id')
+            $shipments = Expense::with(['supplier', 'expenseSetups'])->orderByDesc('id')
                 ->applyFilters($request);
 
-            return response()->json(['data' => $shipments, 'authLayout' => 'table']);
+            $totalAmount = (float) $shipments->sum(fn ($item) => (float) str_replace(',', '', $item['amount'] ?? 0));
+
+            return response()->json([
+                'data' => $shipments,
+                'authLayout' => 'table',
+                'calculations' => [
+                    'total_amount' => $totalAmount,
+                ],
+            ]);
         }
 
         // $expenses = Expense::with('supplier', 'expenseSetups')->get();
