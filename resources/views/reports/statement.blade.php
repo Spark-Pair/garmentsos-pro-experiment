@@ -3,7 +3,10 @@
 @section('content')
 @php
     $companyData = $client_company;
-    $statementType = Auth::user()->statement_type;
+    $statementType = Auth::user()->statement_type ?? 'general';
+    if (!in_array($statementType, ['summarized', 'detailed', 'general'], true)) {
+        $statementType = 'general';
+    }
 @endphp
     <div class="switch-btn-container flex absolute top-3 md:top-17 left-3 md:left-5 z-4">
         <div class="switch-btn relative flex border-3 border-[var(--secondary-bg-color)] bg-[var(--secondary-bg-color)] rounded-2xl overflow-hidden">
@@ -11,6 +14,10 @@
             <div id="highlight" class="absolute h-full rounded-xl bg-[var(--bg-color)] transition-all duration-300 ease-in-out z-0"></div>
 
             <!-- Buttons -->
+            <button id="generalBtn" type="button" class="relative z-10 px-3.5 md:px-5 py-1.5 md:py-2 cursor-pointer rounded-xl transition-colors duration-300" onclick="setVoucherType(this, 'general')">
+                <div class="hidden md:block">General</div>
+                <div class="block md:hidden"><i class="fas fa-layer-group text-xs"></i></div>
+            </button>
             <button id="summarizedBtn" type="button" class="relative z-10 px-3.5 md:px-5 py-1.5 md:py-2 cursor-pointer rounded-xl transition-colors duration-300" onclick="setVoucherType(this, 'summarized')">
                 <div class="hidden md:block">Summarized</div>
                 <div class="block md:hidden"><i class="fas fa-cart-shopping text-xs"></i></div>
@@ -23,7 +30,7 @@
     </div>
 
     <script>
-        let btnTypeGlobal = "summarized";
+        let btnTypeGlobal = "{{ $statementType }}";
 
         function setVoucherType(btn, btnType) {
             doHide = true;
@@ -66,7 +73,10 @@
 
         // Initialize highlight on load
         window.onload = () => {
-            @if($statementType == 'summarized')
+            @if($statementType == 'general')
+                const activeBtn = document.querySelector("#generalBtn");
+                moveHighlight(activeBtn, "general");
+            @elseif($statementType == 'summarized')
                 const activeBtn = document.querySelector("#summarizedBtn");
                 moveHighlight(activeBtn, "summarized");
             @else
@@ -238,7 +248,7 @@
                                                 <div class="tr flex justify-between w-full px-4 py-1.5 bg-[var(--primary-color)] text-white text-center">
                                                     <div class="th font-medium w-[1.5%]">#</div>
                                                     <div class="th font-medium w-[11.5%]">Date</div>
-                                                    @if($statementType == 'detailed')
+                                                    @if(in_array($statementType, ['detailed', 'general']))
                                                         <div class="th font-medium w-[12%]">Reff. No.</div>
                                                         <div class="th font-medium w-[11%]">Method</div>
                                                         <div class="th font-medium w-[33%]">Description</div>
@@ -270,7 +280,7 @@
                                                         <div class="tr flex justify-between w-full px-4 text-center gap-0.5">
                                                             <div class="td font-semibold w-[1.5%]">{{ $loop->iteration }}.</div>
                                                             <div class="td font-medium w-[11.5%]">{{ $statement['date']->format('d-M-Y') }}</div>
-                                                            @if($statementType == 'detailed')
+                                                            @if(in_array($statementType, ['detailed', 'general']))
                                                                 <div class="td font-medium w-[12%]">{{ $statement['reff_no'] }}</div>
                                                                 <div class="td font-medium w-[11%] capitalize">{{ $statement['method'] ?? "-" }}</div>
                                                                 <div class="td font-medium w-[33%] text-nowrap truncate">{{ $statement['description'] ?? "-" }}</div>
@@ -341,7 +351,7 @@
                                                     <div class="tr flex justify-between w-full px-4 py-1.5 bg-[var(--primary-color)] text-white text-center">
                                                         <div class="th font-medium w-[1.5%]">#</div>
                                                         <div class="th font-medium w-[11.5%]">Date</div>
-                                                        @if($statementType == 'detailed')
+                                                        @if(in_array($statementType, ['detailed', 'general']))
                                                             <div class="th font-medium w-[12%]">Reff. No.</div>
                                                             <div class="th font-medium w-[11%]">Method</div>
                                                             <div class="th font-medium w-[33%]">Description</div>
@@ -373,7 +383,7 @@
                                                             <div class="tr flex justify-between w-full px-4 text-center">
                                                                 <div class="td font-semibold w-[1.5%]">{{ $loop->iteration + 26 + ($pageIndex * 29) }}.</div>
                                                                 <div class="td font-medium w-[11.5%]">{{ $statement['date']->format('d-M-Y') }}</div>
-                                                                @if($statementType == 'detailed')
+                                                                @if(in_array($statementType, ['detailed', 'general']))
                                                                     <div class="td font-medium w-[12%]">{{ $statement['reff_no'] }}</div>
                                                                     <div class="td font-medium w-[11%] capitalize">{{ $statement['method'] ?? "-" }}</div>
                                                                     <div class="td font-medium w-[33%] text-nowrap overflow-hidden">{{ $statement['description'] ?? "-" }}</div>

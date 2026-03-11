@@ -541,7 +541,7 @@ class Controller extends BaseController
     public function setStatementType(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            "statement_type" => "required|in:summarized,detailed",
+            "statement_type" => "required|in:summarized,detailed,general",
         ]);
 
         if ($validator->fails()) {

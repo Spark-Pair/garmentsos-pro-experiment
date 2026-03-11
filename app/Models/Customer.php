@@ -135,8 +135,9 @@ class Customer extends Model
 
         return $formatted ? number_format($balance, 1, '.', ',') : $balance;
     }
-    public function getStatement($fromDate, $toDate, $type = 'summarized')
+    public function getStatement($fromDate, $toDate, $type = 'general')
     {
+        $type = $type ?: 'general';
         // 🧮 Opening & Closing Balances
         $openingBalance = $this->calculateBalance(null, $fromDate, false, false);
         $periodBalance  = $this->calculateBalance($fromDate, $toDate);
@@ -157,6 +158,20 @@ class Customer extends Model
             ->get();
 
         $statement = collect();
+
+        $paymentDescription = function ($p) {
+            return $p->cheque_date?->format('d-M-Y, D')
+                ?? $p->slip_date?->format('d-M-Y, D')
+                ?? (($p->bankAccount?->account_title || $p->bankAccount?->bank?->short_title)
+                    ? trim(
+                        ($p->bankAccount?->account_title ?? '') .
+                        ($p->bankAccount?->bank?->short_title
+                            ? ' | ' . $p->bankAccount->bank->short_title
+                            : ''),
+                        ' |'
+                    )
+                    : null);
+        };
 
         if ($type === 'summarized') {
             // 🔹 Group invoices by date
@@ -201,6 +216,41 @@ class Customer extends Model
                 ['date', 'asc'],
                 ['created_at', 'asc'],
             ])->values();
+        } elseif ($type === 'general') {
+            // 🔹 Detailed invoices + voucher-wise payments
+            foreach ($invoices as $i) {
+                $statement->push([
+                    'date' => $i->date,
+                    'reff_no' => $i->invoice_no,
+                    'type' => 'invoice',
+                    'bill' => (float) $i->netAmount,
+                    'payment' => 0,
+                    'created_at' => $i->created_at,
+                ]);
+            }
+
+            $paymentGroups = $payments->groupBy(function ($p) {
+                return $p->cheque_no ?? $p->slip_no ?? $p->transaction_id ?? $p->reff_no ?? $p->id;
+            });
+
+            foreach ($paymentGroups as $voucherNo => $group) {
+                $first = $group->sortBy('created_at')->first();
+                $statement->push([
+                    'date' => $first->date,
+                    'reff_no' => $voucherNo,
+                    'type' => 'payment',
+                    'method' => $first->method,
+                    'payment' => (float) $group->sum('amount'),
+                    'bill' => 0,
+                    'description' => $paymentDescription($first),
+                    'created_at' => $first->created_at,
+                ]);
+            }
+
+            $statement = $statement->sortBy([
+                ['date', 'asc'],
+                ['created_at', 'asc'],
+            ])->values();
         } else {
             // 🔹 Detailed mode
             foreach ($invoices as $i) {
@@ -222,17 +272,7 @@ class Customer extends Model
                     'method' => $p->method,
                     'payment' => (float) $p->amount,
                     'bill' => 0,
-                    'description' => $p->cheque_date?->format('d-M-Y, D')
-                                    ?? $p->slip_date?->format('d-M-Y, D')
-                                    ?? (($p->bankAccount?->account_title || $p->bankAccount?->bank?->short_title)
-                                        ? trim(
-                                            ($p->bankAccount?->account_title ?? '') .
-                                            ($p->bankAccount?->bank?->short_title
-                                                ? ' | ' . $p->bankAccount->bank->short_title
-                                                : ''),
-                                            ' |'
-                                        )
-                                        : null),
+                    'description' => $paymentDescription($p),
                     'created_at' => $p->created_at,
                 ]);
             }

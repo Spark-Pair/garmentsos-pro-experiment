@@ -42,7 +42,12 @@ class User extends Authenticatable
         'production_type',
         'daily_ledger_type',
         'c_r_type',
+        'statement_type',
         'menu_shortcuts',
+    ];
+
+    protected $attributes = [
+        'statement_type' => 'general',
     ];
 
     /**

@@ -151,8 +151,9 @@ class BankAccount extends Model
 
         return $formatted ? number_format($balance, 1, '.', ',') : $balance;
     }
-    public function getStatement($fromDate, $toDate, $type = 'summarized')
+    public function getStatement($fromDate, $toDate, $type = 'general')
     {
+        $type = $type ?: 'general';
         // 🧮 Opening & Closing Balances
         $openingBalance = $this->calculateBalance(null, $fromDate, false, false);
         $periodBalance  = $this->calculateBalance($fromDate, $toDate);
