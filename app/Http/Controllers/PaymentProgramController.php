@@ -243,10 +243,6 @@ class PaymentProgramController extends Controller
         $paidAmount = (float) $program->customerPayments()->sum('amount');
         $balance = (float) $program->amount - $paidAmount;
 
-        if ($balance > 0) {
-            return redirect()->route('payment-programs.index')->with('error', 'Program cannot be marked as paid while balance is pending.');
-        }
-
         $program->status = $balance < 0 ? 'Overpaid' : 'Paid';
         $program->save();
 
