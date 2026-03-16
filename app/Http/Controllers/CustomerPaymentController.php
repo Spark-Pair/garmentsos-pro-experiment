@@ -427,10 +427,7 @@ class CustomerPaymentController extends Controller
                 return redirect()->back()->with('error', 'Selected program does not belong to selected customer.');
             }
 
-            $remainingBalance = $this->programRemainingBalance($program->id);
-            if ((float) $payload['amount'] > $remainingBalance) {
-                return redirect()->back()->with('error', 'Program payment amount balance se zyada nahi ho sakta.');
-            }
+            // Allow any amount for program payments (no balance limit)
         }
 
         DB::transaction(function () use ($payload, $program) {
@@ -591,10 +588,7 @@ class CustomerPaymentController extends Controller
                 return redirect()->back()->with('error', 'Selected program does not belong to selected customer.');
             }
 
-            $remainingBalance = $this->programRemainingBalance($program->id, $customerPayment->id);
-            if ((float) $payload['amount'] > $remainingBalance) {
-                return redirect()->back()->with('error', 'Program payment amount balance se zyada nahi ho sakta.');
-            }
+            // Allow any amount for program payments (no balance limit)
         }
 
         DB::transaction(function () use ($payload, $customerPayment, $program, $oldProgramId) {

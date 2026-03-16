@@ -25,6 +25,7 @@
             class="bg-[var(--secondary-bg-color)] text-sm rounded-xl shadow-lg p-7 border border-[var(--h-bg-color)] pt-12 w-full mx-auto relative overflow-hidden">
             @csrf
             @method('PUT')
+            <input type="hidden" name="customer_id" value="{{ $customerPayment->customer_id }}">
             <x-form-title-bar title="Edit Customer Payment" />
 
             <div class="step space-y-4 overflow-y-auto max-h-[65vh] p-1 my-scrollbar-2">
@@ -128,10 +129,17 @@
         }
 
 
+        function safeSelect(liElem) {
+            if (liElem) {
+                selectThisOption(liElem);
+            }
+        }
+
         window.addEventListener('DOMContentLoaded', () => {
-            trackCustomerState()
-            selectThisOption(document.querySelector(`li[data-for="type"][data-value="${customerPayment.type}"]`))
-            selectThisOption(document.querySelector(`li[data-for="method"][data-value="${customerPayment.method}"]`))
+            trackCustomerState();
+            safeSelect(document.querySelector(`li[data-for="type"][data-value="${customerPayment.type}"]`));
+            // Method option may be injected after type selection (e.g., program)
+            safeSelect(document.querySelector(`li[data-for="method"][data-value="${customerPayment.method}"]`));
         });
 
         const detailsInputsContainer = document.getElementById("details-inputs-container");
@@ -179,7 +187,7 @@
                         <li data-for="payment_programs" data-value="" onmousedown="selectThisOption(this)" class="py-2 px-3 cursor-pointer rounded-lg transition hover:bg-[var(--h-bg-color)] text-nowrap overflow-x-auto scrollbar-hidden ">-- No options avalaible --</li>
                     `;
                 }
-                selectThisOption(document.querySelector(`li[data-for="payment_programs"][data-value="${customerPayment.program_id}"]`))
+                safeSelect(document.querySelector(`li[data-for="payment_programs"][data-value="${customerPayment.program_id}"]`));
             } else {
                 detailsInputsContainer.innerHTML = "";
                 methodSelectDom.closest(".selectParent").querySelector("ul li[data-value='program']")?.remove();
@@ -218,7 +226,7 @@
                     {{-- clear_date --}}
                     <x-input label="Clear Date" type="date" name="clear_date" id="clear_date" value="${formatDate(customerPayment.clear_date, false, true)}"/>
                 `;
-                selectThisOption(document.querySelector(`li[data-for="bank"][data-value="${customerPayment.bank_id}"]`))
+                safeSelect(document.querySelector(`li[data-for="bank"][data-value="${customerPayment.bank_id}"]`));
             } else if (elem.value == 'slip') {
                 detailsDom.innerHTML = `
                     {{-- customer --}}
@@ -312,7 +320,7 @@
                             `;
                         }
                     }
-                    selectThisOption(document.querySelector(`li[data-for="bank_accounts"][data-value="${customerPayment.bank_account_id}"]`))
+                    safeSelect(document.querySelector(`li[data-for="bank_accounts"][data-value="${customerPayment.bank_account_id}"]`));
                 } else {
                     detailsDom.innerHTML = '';
                 }
