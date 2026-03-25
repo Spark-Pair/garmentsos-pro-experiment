@@ -23,6 +23,7 @@ use App\Http\Controllers\PaymentProgramController;
 use App\Http\Controllers\ProductionController;
 use App\Http\Controllers\RateController;
 use App\Http\Controllers\ReportController;
+use App\Http\Controllers\PermissionReportController;
 use App\Http\Controllers\SalesReturnController;
 use App\Http\Controllers\SetupController;
 use App\Http\Controllers\ShipmentController;
@@ -112,6 +113,7 @@ Route::group(['middleware' => ['auth', 'activeSession', 'subscriptionExpiry']], 
     Route::post('update-theme', [AuthController::class, 'updateTheme']);
 
     Route::resource('setups', SetupController::class);
+    Route::get('permissions-report', [PermissionReportController::class, 'index'])->name('permissions-report');
 
     Route::resource('suppliers', SupplierController::class);
     Route::post('update-supplier-category', [SupplierController::class, 'updateSupplierCategory'])->name('update-supplier-category');

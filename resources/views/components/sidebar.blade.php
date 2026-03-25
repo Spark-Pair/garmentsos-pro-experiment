@@ -162,10 +162,16 @@
             <div class="flex flex-col space-y-2 w-full">
                 <x-mobile-menu-item href="/" title="Home" active="{{ request()->is('home') }}" />
 
-                <x-mobile-menu-item title="Users" includesDropdown :dropdown="[
-                    ['href' => route('users.index'), 'title' => 'Show Users'],
-                    ['href' => route('users.create'), 'title' => 'Add User'],
-                ]" />
+                @php
+                    $usersDropdown = [
+                        ['href' => route('users.index'), 'title' => 'Show Users'],
+                        ['href' => route('users.create'), 'title' => 'Add User'],
+                    ];
+                    if (Auth::user()->role === 'developer') {
+                        $usersDropdown[] = ['href' => route('permissions-report'), 'title' => 'Permissions Report'];
+                    }
+                @endphp
+                <x-mobile-menu-item title="Users" includesDropdown :dropdown="$usersDropdown" />
 
                 <x-mobile-menu-item title="Suppliers" includesDropdown :dropdown="[
                     ['href' => route('suppliers.index'), 'title' => 'Show Suppliers'],
@@ -241,6 +247,9 @@
                 subMenu: [
                     {name: 'Show Users', href: "/users"},
                     {name: 'Add User', href: "/users/create"},
+                    @if (Auth::user()->role === 'developer')
+                        {name: 'Permissions Report', href: "/permissions-report"},
+                    @endif
                 ],
             },
         @endif
