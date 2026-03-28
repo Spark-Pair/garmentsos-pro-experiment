@@ -873,6 +873,10 @@ function createModal(data, animate = 'animate') {
     // ✅ Escape Key to Close
     escToClose = (e) => {
         if (e.key === 'Escape') {
+            const wrappers = Array.from(document.querySelectorAll('div[id$="-wrapper"]'));
+            const lastWrapper = wrappers[wrappers.length - 1];
+            if (!lastWrapper || lastWrapper !== modalWrapper) return;
+
             const form = modalWrapper.querySelector('form');
             form.classList.add('scale-out');
             form.addEventListener('animationend', () => {
@@ -905,6 +909,10 @@ function createModal(data, animate = 'animate') {
         document.addEventListener('keydown', enterToSubmit);
     }
     document.body.appendChild(modalWrapper);
+
+    if (data.cards) {
+        setupCardKeyboardNavigation(modalWrapper, data);
+    }
 
     data.table ? renderTableBody(data.table.body) : '';
 
@@ -987,8 +995,152 @@ function returnCardsInModal(data) {
     return cardsHTML;
 }
 
+function openSubMenuAtCard(card) {
+    const subMenuDom = card.querySelector('.subMenu');
+    if (!subMenuDom) return false;
+
+    const rect = card.getBoundingClientRect();
+    subMenuDom.style.top = (rect.top + rect.height / 2) + 'px';
+    subMenuDom.style.left = (rect.right + 8) + 'px';
+
+    subMenuDom.classList.remove('hidden');
+    const links = Array.from(subMenuDom.querySelectorAll('a'));
+    links.forEach(a => a.setAttribute('tabindex', '0'));
+    links[0]?.focus();
+    return true;
+}
+
+function setupCardKeyboardNavigation(modalWrapper, data) {
+    const container = modalWrapper.querySelector(`.${data.id}CardsContainer`);
+    if (!container) return;
+
+    const getCards = () => Array.from(container.querySelectorAll('.item.card'));
+    const getVisibleCards = () => getCards().filter(c => !c.classList.contains('hidden'));
+    const cards = getCards();
+    if (!cards.length) return;
+
+    cards.forEach((card, i) => {
+        card.setAttribute('tabindex', '0');
+        card.dataset.kbIndex = String(i);
+        card.addEventListener('focus', () => {
+            modalWrapper.dataset.kbIndex = String(i);
+        });
+    });
+
+    const getColumns = () => Number(data.cards?.count) || 1;
+    const clamp = (i, list) => Math.max(0, Math.min(list.length - 1, i));
+    const focusCard = (i) => {
+        const list = getVisibleCards();
+        if (!list.length) return;
+        const idx = clamp(i, list);
+        list[idx].focus();
+        list[idx].scrollIntoView({ block: 'nearest', inline: 'nearest' });
+        modalWrapper.dataset.kbIndex = String(idx);
+    };
+
+    const closeSubMenuInWrapper = () => {
+        const openMenu = modalWrapper.querySelector('.subMenu:not(.hidden)');
+        if (openMenu) {
+            openMenu.classList.add('hidden');
+            return true;
+        }
+        return false;
+    };
+
+    modalWrapper.addEventListener('keydown', (e) => {
+        const wrappers = Array.from(document.querySelectorAll('div[id$=\"-wrapper\"]'));
+        const lastWrapper = wrappers[wrappers.length - 1];
+        if (lastWrapper && lastWrapper !== modalWrapper) return;
+
+        const openMenu = modalWrapper.querySelector('.subMenu:not(.hidden)');
+        if (openMenu) {
+            const links = Array.from(openMenu.querySelectorAll('a'));
+            const currentIndex = Math.max(0, links.indexOf(document.activeElement));
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                const next = links[Math.min(links.length - 1, currentIndex + 1)] || links[0];
+                next?.focus();
+                return;
+            }
+            if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                const prev = links[Math.max(0, currentIndex - 1)] || links[0];
+                prev?.focus();
+                return;
+            }
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                document.activeElement?.click();
+                return;
+            }
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                openMenu.classList.add('hidden');
+                return;
+            }
+        }
+
+        const tag = e.target?.tagName?.toUpperCase();
+        if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+
+        const cols = getColumns();
+        const current = Number(modalWrapper.dataset.kbIndex || 0);
+
+        if (e.key === 'ArrowRight') {
+            e.preventDefault();
+            focusCard(current + 1);
+        } else if (e.key === 'ArrowLeft') {
+            e.preventDefault();
+            focusCard(current - 1);
+        } else if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            focusCard(current + cols);
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            focusCard(current - cols);
+        } else if (e.key === 'Home') {
+            e.preventDefault();
+            focusCard(0);
+        } else if (e.key === 'End') {
+            e.preventDefault();
+            const list = getVisibleCards();
+            focusCard(list.length - 1);
+        } else if (e.key === 'Enter') {
+            e.preventDefault();
+            const list = getVisibleCards();
+            const card = list[current] || list[0];
+            if (!card) return;
+            if (openSubMenuAtCard(card)) return;
+            card.click();
+        } else if (e.key === 'Tab') {
+            e.preventDefault();
+            const list = getVisibleCards();
+            if (!list.length) return;
+            const next = e.shiftKey ? current - 1 : current + 1;
+            focusCard(next);
+        } else if (e.key === 'Escape') {
+            if (closeSubMenuInWrapper()) return;
+        }
+    });
+
+    const searchInput = modalWrapper.querySelector('#basicSearch input');
+    if (searchInput) {
+        searchInput.focus();
+        searchInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                focusCard(0);
+            }
+        });
+    } else {
+        focusCard(0);
+    }
+}
+
 function renderCardsInModal(data) {
     document.querySelector(`.${data.id}CardsContainer`).innerHTML = returnCardsInModal(data);
+    const wrapper = document.getElementById(`${data.id}-wrapper`);
+    if (wrapper) setupCardKeyboardNavigation(wrapper, data);
 }
 
 function openSubMenu(event, card) {

@@ -1155,12 +1155,12 @@ const dbInput = scope.querySelector(`.dbInput[data-for="${forId}"]`);
         }
     }
 
-    function updateMenuCustomization(moduleName, newState) {
-        if (newState == 'active' && !menu_shortcuts.includes(moduleName)) {
-            menu_shortcuts.push(moduleName); // moduleName = 'user'
-        } else {
-            menu_shortcuts = menu_shortcuts.filter(item => item !== moduleName);
-        }
+        function updateMenuCustomization(moduleName, newState) {
+            if (newState == 'active' && !menu_shortcuts.includes(moduleName)) {
+                menu_shortcuts.push(moduleName); // moduleName = 'user'
+            } else {
+                menu_shortcuts = menu_shortcuts.filter(item => item !== moduleName);
+            }
 
         renderMenuShortcuts();
         reRenderInfoInModal('.menuModalInfo', `Enabled: ${menu_shortcuts.length}/${maxShortcutsLimit}`);
@@ -1184,6 +1184,14 @@ const dbInput = scope.querySelector(`.dbInput[data-for="${forId}"]`);
             }
         });
     }
+
+    // Shift + Space => Go Home
+    document.addEventListener('keydown', (e) => {
+        if (e.shiftKey && !e.ctrlKey && !e.altKey && (e.code === 'Space' || e.key === ' ')) {
+            e.preventDefault();
+            window.location.href = "{{ route('home') }}";
+        }
+    });
 
     function formatAllAmountInputs() {
         const allAmountInputs = document.querySelectorAll('input[type="amount"]');
