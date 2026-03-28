@@ -378,6 +378,7 @@
                 name: data.name,
                 details: {
                     'Date': formatDate(data.data.date),
+                    ...(data.program_date && { 'Program Date': data.program_date }),
                     'Amount': data.details['Amount'],
                     'Type': data.details['Type'],
                     'Method': data.details['Method'],

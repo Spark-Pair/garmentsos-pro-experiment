@@ -16,6 +16,12 @@
                 'oninput' => 'runDynamicFilter()',
                 'dataFilterPath' => 'customer_name',
             ],
+            "City" => [
+                "type" => "text",
+                "id" => "city",
+                "placeholder" => "Enter city",
+                "dataFilterPath" => "city",
+            ],
             'Category' => [
                 'id' => 'category',
                 'type' => 'select',

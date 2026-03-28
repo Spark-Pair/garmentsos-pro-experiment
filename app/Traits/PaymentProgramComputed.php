@@ -48,6 +48,15 @@ trait PaymentProgramComputed
                     ->orWhereHas('city', fn($sq) => $sq->where('title', 'like', "%$value%"));
                 });
 
+            case 'city':
+                return $query->whereHas('customer.city', function ($q) use ($value) {
+                    // Nested function isliye taake 'OR' condition sirf city ke andar rahe
+                    $q->where(function($sq) use ($value) {
+                        $sq->where('title', 'like', "%{$value}%")
+                        ->orWhere('short_title', 'like', "%{$value}%");
+                    });
+                });
+
             case 'type':
                 return $query->where(function ($q) use ($value) {
                     if ($value == 'order') {

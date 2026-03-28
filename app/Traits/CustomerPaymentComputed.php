@@ -265,6 +265,7 @@ trait CustomerPaymentComputed
             'method' => $this->method,
             'data' => $this,
             'date' => $this->slip_date ? $this->slip_date->format('d-M-Y, D') : ($this->cheque_date ? $this->cheque_date->format('d-M-Y, D') : $this->date->format('d-M-Y, D')),
+            'program_date' => $this->program?->date ? $this->program?->date->format('d-M-Y, D') : null,
             'voucher_no' => $this->voucher_no ?? '-',
             'supplier_name' => $this->supplier_name,
             'reff_no' => $this->reff_no,
