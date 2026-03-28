@@ -206,10 +206,20 @@
 
         let subCategoryDom;
         let remarksInputDom;
+        let selectedSubCategoryId;
 
         function getCategoryData(value) {
-            if (value != "waiting") {
-                subCategoryDom.parentElement.parentElement.classList.remove("hidden");
+            const subCategorySearchInput = document.getElementById('subCategory');
+            const subCategoryHiddenInput = document.querySelector('input.dbInput[data-for="subCategory"]');
+            const subCategoryOptionBox = subCategoryHiddenInput?.parentElement.querySelector('ul');
+            const subCategoryWrapper = subCategorySearchInput?.closest('.form-group')?.parentElement?.closest('.form-group');
+            const subCategoryLabel = subCategoryWrapper?.querySelector('label');
+            const remarksInputDom = document.getElementById('remarks');
+
+            if (!subCategorySearchInput || !subCategoryHiddenInput || !subCategoryOptionBox || !subCategoryWrapper) return;
+
+            if (value !== "waiting") {
+                subCategoryWrapper.classList.remove("hidden");
                 remarksInputDom.parentElement.parentElement.classList.add("hidden");
 
                 $.ajax({
@@ -219,114 +229,78 @@
                         _token: "{{ csrf_token() }}",
                         category: value,
                     },
-                    success: function(response) {
-                        let clutter = `
-                            <option value='' selected>
-                                -- No option avalaible --
-                            </option>
-                        `;
+                    success: function (response) {
+                        let items = [];
+
                         switch (value) {
                             case 'self_account':
+                                subCategoryLabel.textContent = 'Self Account';
                                 if (response.length > 0) {
-                                    clutter = '';
-                                    clutter += `
-                                        <option value='' selected>
-                                            -- Select Self Account --
-                                        </option>
-                                    `;
-                                    subCategoryDom.disabled = false;
+                                    items.push(`<li data-for="subCategory" data-value="" onmousedown="selectThisOption(this)" class="py-2 px-3 cursor-pointer rounded-lg hover:bg-[var(--h-bg-color)]">-- Select Self Account --</li>`);
+                                    response.forEach(acc => {
+                                        items.push(`<li data-for="subCategory" data-value="${acc.id}" onmousedown="selectThisOption(this)" class="py-2 px-3 cursor-pointer rounded-lg hover:bg-[var(--h-bg-color)]">${acc.account_title} | ${acc.bank.short_title}</li>`);
+                                    });
+                                    subCategorySearchInput.disabled = false;
                                 } else {
-                                    subCategoryDom.disabled = true;
-                                    subCategoryFirstOptDom.textContent = '-- No options available --';
+                                    items.push(`<li class="py-2 px-3 text-gray-400">-- No options available --</li>`);
+                                    subCategorySearchInput.disabled = true;
                                 }
-
-                                response.forEach(subCat => {
-                                    clutter += `
-                                        <option value='${subCat.id}'>
-                                            ${subCat.account_title} | ${subCat.bank.short_title}
-                                        </option>
-                                    `;
-                                });
-
-                                subCategoryLabelDom.textContent = 'Self Account';
-                                subCategoryFirstOptDom.textContent = '-- Select Self Account --';
                                 break;
 
                             case 'supplier':
+                                subCategoryLabel.textContent = 'Supplier';
                                 if (response.length > 0) {
-                                    clutter = '';
-                                    clutter += `
-                                        <option value='' selected>
-                                            -- Select Supplier --
-                                        </option>
-                                    `;
-                                    subCategoryDom.disabled = false;
+                                    items.push(`<li data-for="subCategory" data-value="" onmousedown="selectThisOption(this)" class="py-2 px-3 cursor-pointer rounded-lg hover:bg-[var(--h-bg-color)]">-- Select Supplier --</li>`);
+                                    response.forEach(sup => {
+                                        items.push(`<li data-for="subCategory" data-value="${sup.id}" onmousedown="selectThisOption(this)" class="py-2 px-3 cursor-pointer rounded-lg hover:bg-[var(--h-bg-color)]">${sup.supplier_name} | Balance: ${formatNumbersWithDigits(sup.balance, 1, 1)}</li>`);
+                                    });
+                                    subCategorySearchInput.disabled = false;
                                 } else {
-                                    subCategoryDom.disabled = true;
-                                    subCategoryFirstOptDom.textContent = '-- No options available --';
+                                    items.push(`<li class="py-2 px-3 text-gray-400">-- No options available --</li>`);
+                                    subCategorySearchInput.disabled = true;
                                 }
-
-                                response.forEach(subCat => {
-                                    clutter += `
-                                        <option value='${subCat.id}'>
-                                            ${subCat.supplier_name} | Balance: ${formatNumbersWithDigits(subCat.balance, 1, 1)}
-                                        </option>
-                                    `;
-                                });
-
-                                subCategoryLabelDom.textContent = 'Supplier';
-                                subCategoryFirstOptDom.textContent = '-- Select Supplier --';
                                 break;
 
                             case 'customer':
-                                clutter = '';
-                                clutter += `
-                                    <option value='' selected>
-                                        -- Select Customer --
-                                    </option>
-                                `;
-
-                                response.forEach(subCat => {
-                                    if (subCat.id != customerSelectDom.value) {
-                                        clutter += `
-                                            <option value='${subCat.id}'>
-                                                ${subCat.customer_name} | ${subCat.city} | Baalance: ${formatNumbersWithDigits(subCat.balance, 1, 1)}
-                                            </option>
-                                        `;
-                                        subCategoryDom.disabled = false;
-                                    }
+                                subCategoryLabel.textContent = 'Customer';
+                                items.push(`<li data-for="subCategory" data-value="" onmousedown="selectThisOption(this)" class="py-2 px-3 cursor-pointer rounded-lg hover:bg-[var(--h-bg-color)]">-- Select Customer --</li>`);
+                                response.forEach(cus => {
+                                    items.push(`<li data-for="subCategory" data-value="${cus.id}" onmousedown="selectThisOption(this)" class="py-2 px-3 cursor-pointer rounded-lg hover:bg-[var(--h-bg-color)]">${cus.customer_name} | ${cus.city.title ?? cus.city} | Balance: ${formatNumbersWithDigits(cus.balance, 1, 1)}</li>`);
                                 });
-
-                                subCategoryLabelDom.textContent = 'Customer';
-                                subCategoryFirstOptDom.textContent = '-- Select Customer --';
-                                break;
-
-                            default:
+                                subCategorySearchInput.disabled = false;
                                 break;
                         }
 
-                        subCategoryDom.innerHTML = clutter;
+                        subCategoryOptionBox.innerHTML = items.join('');
+
+                        if (selectedSubCategoryId) {
+                            const selectedLi = subCategoryOptionBox.querySelector(`li[data-value="${selectedSubCategoryId}"]`);
+                            if (selectedLi) {
+                                selectThisOption(selectedLi);
+                            } else {
+                                subCategorySearchInput.value = '';
+                                subCategoryHiddenInput.value = '';
+                            }
+                        } else {
+                            subCategorySearchInput.value = '';
+                            subCategoryHiddenInput.value = '';
+                        }
+                    },
+                    error: function (xhr) {
+                        console.error("❌ Error:", xhr.responseText);
+                        subCategoryOptionBox.innerHTML = `<li class="py-2 px-3 text-red-500">Error loading options</li>`;
+                        subCategorySearchInput.disabled = true;
                     }
                 });
             } else {
-                subCategoryDom.parentElement.parentElement.classList.add("hidden");
+                subCategoryWrapper.classList.add("hidden");
                 remarksInputDom.parentElement.parentElement.classList.remove("hidden");
             }
         }
 
         function trackCategoryState(elem) {
-            let form = elem.closest('form');
-            subCategoryDom = form.querySelector('#sub_category');
-            subCategoryLabelDom = subCategoryDom.parentElement.parentElement.querySelector('label');
-            subCategoryFirstOptDom = subCategoryDom?.options?.[0];
-            customerSelectDom = form.querySelector('#customer_id');
-            remarksInputDom = form.querySelector('#remarks');
-
-            if (elem.value != "") {
-                subCategoryDom.disabled = false;
+            if (elem.value !== "") {
                 getCategoryData(elem.value);
-            } else {
-                subCategoryDom.disabled = true;
             }
         }
 
@@ -354,20 +328,16 @@
                         disabled: true,
                     },
                     {
-                        category: 'select',
-                        label: 'Category',
-                        name: 'category',
-                        id: 'category',
-                        options: [@json($categories_options)],
-                        onchange: 'trackCategoryState(this)'
+                        category: 'explicitHtml',
+                        html: `
+                            <x-select label="Category" name="category" id="category" :options="$categories_options" showDefault required onchange="trackCategoryState(this)" />
+                        `,
                     },
                     {
-                        category: 'select',
-                        label: 'Disabled',
-                        name: 'sub_category',
-                        id: 'sub_category',
-                        options: [],
-                        disabled: true,
+                        category: 'explicitHtml',
+                        html: `
+                            <x-select label="Sub Category" name="sub_category" id="subCategory" :options="[]" showDefault />
+                        `,
                     },
                     {
                         category: 'input',
@@ -403,6 +373,21 @@
             }
 
             createModal(modalData);
+
+            console.log(item);
+            
+
+            const form = document.getElementById('updateProgramModalForm');
+            const li = form.querySelector(`.optionsDropdown[data-for="category"] li[data-value="${item.category}"]`);
+
+            if (li) {
+                selectThisOption(li);
+            }
+
+            selectedSubCategoryId = item.sub_category?.id || item.data.sub_category_id || item.sub_category || '';
+            if (item.category) {
+                getCategoryData(item.category);
+            }
 
             document.getElementById('updateProgramModalForm').addEventListener('submit', function(e) {
                 e.preventDefault();

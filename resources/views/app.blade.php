@@ -979,15 +979,19 @@
 
     function selectThisOption(optionLiElem) {
         const forId = optionLiElem.dataset.for;
+        
+const scope = optionLiElem.closest('form') || document;
+const selectSearch = scope.querySelector(`#${forId}`);
+const dbInput = scope.querySelector(`.dbInput[data-for="${forId}"]`);
 
-        const selectSearch = document.getElementById(forId);
-        const dbInput = document.querySelector(`.dbInput[data-for="${forId}"]`);
+        // const selectSearch = document.getElementById(forId);
+        // const dbInput = document.querySelector(`.dbInput[data-for="${forId}"]`);
 
         selectSearch.value = optionLiElem.textContent.trim();
         dbInput.value = optionLiElem.dataset.value;
 
         // Remove 'selected' from all
-        const allOptions = document.querySelectorAll(`.optionsDropdown li[data-for="${forId}"]`);
+        const allOptions = scope.querySelectorAll(`.optionsDropdown li[data-for="${forId}"]`);
         allOptions.forEach(li => li.classList.remove('selected'));
 
         // Add 'selected' to current
