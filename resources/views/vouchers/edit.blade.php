@@ -644,7 +644,8 @@
                     })
                 }
 
-                if (elem.value === 'slip' || elem.value === 'cheque' || elem.value === 'program') {
+                // if (elem.value === 'slip' || elem.value === 'cheque' || elem.value === 'program') {
+                if (elem.value === 'slip' || elem.value === 'cheque') {
                     const type = elem.value; // 'slip' or 'cheque'
                     const key = type + '_id'; // slip_id or cheque_id
                     const inputName = key + '_name'; // slip_id_name or cheque_id_name
