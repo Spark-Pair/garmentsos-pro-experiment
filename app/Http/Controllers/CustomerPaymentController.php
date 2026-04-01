@@ -33,10 +33,10 @@ class CustomerPaymentController extends Controller
                 ->with([
                     'customer.city',
                     'cheque.supplier',
-                    'cheque.voucher.supplier',
+                    'cheque.voucher.supplier.bankAccounts.bank',
                     'cheque.cr',
                     'slip.supplier',
-                    'slip.voucher.supplier',
+                    'slip.voucher.supplier.bankAccounts.bank',
                     'slip.cr',
                     'program.subCategory',
                     'bankAccount.subCategory',
