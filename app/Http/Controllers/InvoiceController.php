@@ -22,10 +22,9 @@ class InvoiceController extends Controller
      */
     public function index(Request $request)
     {
-        if(!$this->checkRole(['developer', 'owner', 'manager', 'admin', 'accountant', 'guest']))
-        {
-            return redirect(route('home'))->with('error', 'You do not have permission to access this page.');
-        };
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'manager', 'admin', 'accountant', 'guest'])) {
+            return $resp;
+        }
 
         $authLayout = $this->getAuthLayout($request->route()->getName());
 
@@ -69,9 +68,8 @@ class InvoiceController extends Controller
      */
     public function create()
     {
-        if(!$this->checkRole(['developer', 'owner', 'admin', 'accountant']))
-        {
-            return redirect(route('home'))->with('error', 'You do not have permission to access this page.');
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin', 'accountant'])) {
+            return $resp;
         }
 
         $orderNumber = session('orderNumber');
@@ -240,9 +238,8 @@ class InvoiceController extends Controller
 
     public function store(Request $request)
     {
-        if(!$this->checkRole(['developer', 'owner', 'admin', 'accountant']))
-        {
-            return redirect(route('home'))->with('error', 'You do not have permission to access this page.');
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin', 'accountant'])) {
+            return $resp;
         }
 
         // SHIPMENT-BASED INVOICE

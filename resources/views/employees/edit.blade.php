@@ -110,51 +110,19 @@
                         placeholder="{{ asset('storage/uploads/images/' . $employee->profile_picture) }}"
                         uploadText="Preview"
                     />
-                    <script>
-                        const placeholderIcon = document.querySelector(".placeholder_icon");
-                        placeholderIcon.classList.remove("w-16", "h-16");
-                        placeholderIcon.classList.add("rounded-md", "w-full", "h-auto");
-                    </script>
                 @endif
             </div>
         </form>
     </div>
 
-    <script>
-        let employee = @json($employee);
-
-        document.addEventListener('DOMContentLoaded', function () {
-            const option = document.querySelector('li[data-value="{{ $employee->type_id }}"]');
-            if (option) {
-                selectThisOption(option);
-            }
-        });
-
-        function formatPhoneNo(input) {
-            let value = input.value.replace(/\D/g, ''); // Remove all non-numeric characters
-
-            if (value.length > 4) {
-                value = value.slice(0, 4) + '-' + value.slice(4, 11); // Insert hyphen after 4 digits
-            }
-
-            input.value = value; // Update the input field
-        }
-
-        function formatCnicNo(input) {
-            let value = input.value.replace(/\D/g, ''); // Remove all non-numeric characters
-
-            if (value.length > 5 && value.length <= 12) {
-                value = value.slice(0, 5) + '-' + value.slice(5);
-            }
-            if (value.length > 12) {
-                value = value.slice(0, 5) + '-' + value.slice(5, 12) + '-' + value.slice(12, 13);
-            }
-
-            input.value = value; // Update the input field
-        }
-
-        function validateForNextStep() {
-            return true;
-        }
-    </script>
 @endsection
+
+@push('page-scripts')
+<script defer src="{{ asset('js/pages/employees-edit.js') }}"></script>
+<script>
+        window.__employeesEdit = {
+            employee: @json($employee),
+            hasProfileImage: @json($employee->profile_picture !== 'default_avatar.png'),
+        };
+    </script>
+@endpush

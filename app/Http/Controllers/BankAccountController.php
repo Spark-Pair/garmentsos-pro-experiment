@@ -7,6 +7,7 @@ use App\Models\Customer;
 use App\Models\Setup;
 use App\Models\Supplier;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 
@@ -17,10 +18,9 @@ class BankAccountController extends Controller
      */
     public function index(Request $request)
     {
-        if(!$this->checkRole(['developer', 'owner', 'manager', 'admin', 'accountant', 'guest']))
-        {
-            return redirect(route('home'))->with('error', 'You do not have permission to access this page.');
-        };
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'manager', 'admin', 'accountant', 'guest'])) {
+            return $resp;
+        }
 
         // $bankAccounts = BankAccount::with('subCategory', 'bank')->orderBy('id', 'desc')->get();
 
@@ -48,10 +48,9 @@ class BankAccountController extends Controller
      */
     public function create()
     {
-        if(!$this->checkRole(['developer', 'owner', 'admin', 'accountant']))
-        {
-            return redirect(route('home'))->with('error', 'You do not have permission to access this page.');
-        };
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin', 'accountant'])) {
+            return $resp;
+        }
 
         $bank_options = [];
         $banks = Setup::where('type', 'bank_name')->get();
@@ -69,10 +68,9 @@ class BankAccountController extends Controller
      */
     public function store(Request $request)
     {
-        if(!$this->checkRole(['developer', 'owner', 'admin', 'accountant']))
-        {
-            return redirect(route('home'))->with('error', 'You do not have permission to access this page.');
-        };
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin', 'accountant'])) {
+            return $resp;
+        }
 
         $categoryTypeMap = [
             'supplier' => 'App\Models\Supplier',
@@ -141,6 +139,7 @@ class BankAccountController extends Controller
             $bankAccount->save(); // Self category ke liye direct save
         }
 
+        Cache::forget('category_data:self_account');
         return redirect()->route('bank-accounts.create')->with('success', 'Bank account added successfully!');
     }
 
@@ -178,10 +177,9 @@ class BankAccountController extends Controller
 
     public function updateStatus(Request $request)
     {
-        if(!$this->checkRole(['developer', 'owner', 'manager', 'admin']))
-        {
-            return redirect(route('home'))->with('error', 'You do not have permission to access this page.');
-        };
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'manager', 'admin'])) {
+            return $resp;
+        }
 
         $bankAccount = BankAccount::find($request->user_id);
 
@@ -192,15 +190,15 @@ class BankAccountController extends Controller
             $bankAccount->status = 'active';
             $bankAccount->save();
         }
+        Cache::forget('category_data:self_account');
         return redirect()->back()->with('success', 'Status has been updated successfully!');
     }
 
     public function updateSerial(BankAccount $account, Request $request)
     {
-        if(!$this->checkRole(['developer', 'owner', 'manager', 'admin']))
-        {
-            return redirect(route('home'))->with('error', 'You do not have permission to access this page.');
-        };
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'manager', 'admin'])) {
+            return $resp;
+        }
 
         $validator = Validator::make($request->all(), [
             'cheque_book_serial' => 'nullable|array',
@@ -219,6 +217,7 @@ class BankAccountController extends Controller
         $account->chqbk_serial_end = $chqbk_serial_end;
         $account->save();
 
+        Cache::forget('category_data:self_account');
         return redirect()->route('bank-accounts.index')->with('success', 'Serial updated successfully!');
     }
 }

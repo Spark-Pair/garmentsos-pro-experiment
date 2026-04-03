@@ -40,9 +40,10 @@ function createContextMenu(data) {
     if (Array.isArray(data.actions)) {
         data.actions.forEach(action => {
             if (action.id.includes('edit')) {
+                const basePath = window.location.pathname.replace(/\/+$/, '');
                 clutter += `
                     <li>
-                        <a id="${action.id}-in-context" href="${window.location.pathname}/${data.item.id}/edit"
+                        <a id="${action.id}-in-context" href="${basePath}/${data.item.id}/edit"
                             class="flex items-center w-full px-4 py-2 text-left hover:bg-[var(--h-bg-color)] rounded-md transition-all duration-300 ease-in-out cursor-pointer">
                             ${action.text}
                         </a>

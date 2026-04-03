@@ -30,14 +30,18 @@
         </div>
     </div>
 
-
-    @if ($pusherEnabled && $notification)
-        <script>
-            document.addEventListener('DOMContentLoaded', () => {
-                setTimeout(() => {
-                    showNotification('{{ $notification["title"] }}', '{{ $notification["message"] }}');
-                }, 1000);
-            })
-        </script>
-    @endif
 @endsection
+
+@if ($pusherEnabled && $notification)
+    @push('page-scripts')
+    <script defer src="{{ asset('js/pages/home.js') }}"></script>
+    <script>
+        window.__home = {
+            notification: {
+                title: @json($notification['title']),
+                message: @json($notification['message']),
+            },
+        };
+    </script>
+    @endpush
+@endif

@@ -149,10 +149,13 @@
         </div>
     </form>
 
-    <script>
-        window.usernames = @json($usernames);
-        function validateForNextStep() {
-            return true;
-        }
-    </script>
 @endsection
+
+@push('page-scripts')
+<script defer src="{{ asset('js/pages/customers-create.js') }}"></script>
+<script>
+        window.__customersCreate = {
+            usernames: @json($usernames),
+        };
+    </script>
+@endpush

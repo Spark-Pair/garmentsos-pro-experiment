@@ -9,10 +9,9 @@ use Illuminate\Support\Facades\Validator;
 class SetupController extends Controller
 {
     public function index(Request $request) {
-        if(!$this->checkRole(['developer', 'owner', 'admin', 'accountant', 'store_keeper']))
-        {
-            return redirect(route('home'))->with('error', 'You do not have permission to access this page.');
-        };
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin', 'accountant', 'store_keeper'])) {
+            return $resp;
+        }
 
         if ($request->ajax()) {
             $setups = Setup::orderByDesc('id')
@@ -25,19 +24,17 @@ class SetupController extends Controller
     }
     public function create()
     {
-        if(!$this->checkRole(['developer', 'owner', 'admin', 'accountant', 'store_keeper']))
-        {
-            return redirect(route('home'))->with('error', 'You do not have permission to access this page.');
-        };
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin', 'accountant', 'store_keeper'])) {
+            return $resp;
+        }
         
         return view('setups.add');
     }
     public function store(Request $request)
     {
-        if(!$this->checkRole(['developer', 'owner', 'admin', 'accountant', 'store_keeper']))
-        {
-            return redirect(route('home'))->with('error', 'You do not have permission to access this page.');
-        };
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin', 'accountant', 'store_keeper'])) {
+            return $resp;
+        }
         
         // Validation rules
         $validator = Validator::make($request->all(), [

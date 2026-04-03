@@ -39,7 +39,7 @@
                 class="px-4 py-2 bg-[var(--secondary-bg-color)] border text-[var(--secondary-text)] rounded-md hover:bg-[var(--bg-color)] transition-all duration-300 ease-in-out cursor-pointer">Cancel</button>
 
             <!-- Logout Form -->
-            <form id="logoutForm" method="POST" action="{{ route('logout') }}">
+            <form id="logoutForm" method="POST" action="{{ route('logout') }}" data-readonly-allow>
                 @csrf
                 <button type="submit"
                     class="px-4 py-2 bg-[var(--danger-color)] text-white rounded-md hover:bg-[var(--h-danger-color)] transition-all duration-300 ease-in-out cursor-pointer">Logout</button>
@@ -227,8 +227,24 @@
     </div>
 </div>
 </div>
+@php
+    $themeSuccessTemplate = view('components.alert', [
+        'type' => 'success',
+        'messages' => '__MESSAGE__',
+    ])->render();
+    $themeFailureTemplate = view('components.alert', [
+        'type' => 'error',
+        'messages' => 'Failed to update theme. Please try again later.',
+    ])->render();
+    $themeErrorTemplate = view('components.alert', [
+        'type' => 'error',
+        'messages' => 'An error occurred while updating the theme. Please try again later.',
+    ])->render();
+@endphp
+<script defer src="{{ asset('js/components/sidebar.js') }}"></script>
 <script>
-    const menuData = [
+    window.__sidebar = {
+        menuData: [
         @if (in_array(Auth::user()->role, ['developer', 'owner', 'admin', 'accountant']))
             {
                 id: "users",
@@ -832,253 +848,9 @@
                 ]
             },
         @endif
-    ];
-
-    const pageName = window.location.href.toLowerCase().split('/')[3];
-
-    function renderMenuShortcuts() {
-        const customMenuShortcutsDom = document.getElementById('customMenuShortcuts');
-        const filteredModules = menuData.filter(module =>
-            menu_shortcuts.includes(module.id)
-        );
-
-        let clutter = '';
-        filteredModules.forEach(shortcut => {
-            const isActive = pageName == shortcut.id.toLowerCase();
-            clutter += `
-                <div class="relative group">
-                    <!-- Main Icon Button -->
-                    <button
-                        onclick="openDropDown(event, this)"
-                        class="nav-link ${shortcut.name.toLowerCase()} ${isActive && 'active'} dropdown-trigger text-[var(--text-color)] p-3 rounded-[41.5%] group-hover:bg-[var(--h-bg-color)] transition-all duration-300 ease-in-out w-10 h-10 flex items-center justify-center cursor-pointer relative"
-                    >
-                        ${shortcut.svgIcon}
-
-                        <span
-                            class="absolute shadow-xl left-18 top-1/2 transform -translate-y-1/2 bg-[var(--h-secondary-bg-color)] border border-gray-600 text-[var(--text-color)] text-xs rounded-lg px-2 py-1 opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none text-nowrap"
-                        >
-                            ${shortcut.name}
-                        </span>
-                    </button>
-
-                    <!-- Dropdown Menu -->
-                    <div
-                        class="dropdownMenu text-sm absolute top-0 left-16 border border-gray-600 w-48 bg-[var(--h-secondary-bg-color)] text-[var(--text-color)] shadow-lg rounded-2xl transform scale-95 transition-all duration-300 ease-in-out z-50 opacity-0 scale-out hidden"
-                    >
-                        <ul class="p-2">
-                            ${shortcut.subMenu.map(item => `
-                                <li>
-                                    <a
-                                        href="${item.href}"
-                                        class="block px-4 py-2 hover:bg-[var(--h-bg-color)] rounded-lg transition-all duration-200 ease-in-out"
-                                    >
-                                        ${item.name}
-                                    </a>
-                                </li>
-                            `).join('')}
-                        </ul>
-                    </div>
-                </div>
-            `;
-        });
-        customMenuShortcutsDom.innerHTML = clutter;
-    }
-    renderMenuShortcuts();
-
-    let modalData = {
-        id: 'menuModal',
-        class: 'h-[80%] w-full',
-        cards: {name: 'Menu', count: 3, data: menuData},
-        basicSearch: true,
-        onBasicSearch: 'menuBasicSearch(this.value)',
-        info: `Enabled: ${menu_shortcuts.length}/${maxShortcutsLimit}`,
-        flex_col: true,
-    }
-
-    function generateMenuModal(){
-        menuData.forEach((item)=>{
-            item.switchBtn.active = menu_shortcuts.includes(item.id);
-        });
-        modalData.cards.data = menuData;
-        createModal(modalData)
-    }
-
-    // pressing ctrl + space to open menu modal, also don't if already opened
-    document.addEventListener('keydown', function(event) {
-        if (event.ctrlKey && event.key === ' ') {
-            event.preventDefault();
-            const existingModal = document.getElementById(modalData.id);
-            if (!existingModal) {
-                generateMenuModal();
-            }
-        }
-    });
-
-    function menuBasicSearch(searchValue) {
-        modalData.cards.data = menuData.filter((item) => item.name.toLowerCase().includes(searchValue.toLowerCase()));
-        renderCardsInModal(modalData);
-    }
-
-    document.querySelectorAll('.dropdown-toggle').forEach(button => {
-        button.addEventListener('click', () => {
-            // Close other open dropdowns
-            document.querySelectorAll('.dropdown-menu').forEach(menu => {
-                if (menu !== button.nextElementSibling) {
-                    menu.classList.add('hidden');
-                    menu.previousElementSibling.querySelector('i').classList.remove(
-                        'rotate-180');
-                }
-            });
-
-            // Toggle clicked dropdown
-            const dropdownMenu = button.nextElementSibling;
-            dropdownMenu.classList.toggle('hidden');
-            button.querySelector('i').classList.toggle('rotate-180');
-        });
-    });
-
-    function closeAllMobileMenuDropdowns() {
-        document.querySelectorAll('.dropdown-menu').forEach(menu => {
-            menu.classList.add('hidden');
-            menu.previousElementSibling.querySelector('i').classList.remove('rotate-180');
-        });
-    }
-
-    const menuToggle = document.getElementById('menuToggle');
-    const menuToggleIcon = document.querySelector('#menuToggle i');
-    const mobileMenuOverlay = document.getElementById('mobileMenuOverlay');
-    const mobileMenu = document.getElementById('mobileMenu');
-
-    menuToggle.addEventListener('click', () => {
-        toggleMobileMenu();
-    });
-
-    function toggleMobileMenu() {
-        closeAllMobileMenuDropdowns();
-
-        // Toggle between bars and xmark icons
-        menuToggleIcon.classList.toggle('fa-bars');
-        menuToggleIcon.classList.toggle('fa-xmark');
-
-        // Toggle menu visibility
-        mobileMenu.classList.toggle('-translate-y-full'); // Moves out of view
-        mobileMenu.classList.toggle('translate-y-0'); // Brings into view
-
-        mobileMenuOverlay.classList.toggle('opacity-zero');
-        mobileMenuOverlay.classList.toggle('pointer-events-none');
-    }
-
-    mobileMenuOverlay.addEventListener('mousedown', (e) => {
-        if (e.target.classList.contains("mobileMenuOverlay")) {
-            toggleMobileMenu();
-        }
-    })
-
-    const html = document.documentElement;
-    const themeIcon = document.querySelector('#themeToggle i');
-    const themeToggle = document.getElementById('themeToggle');
-    const themeToggleMobile = document.getElementById('themeToggleMobile');
-    let isLogoutModalOpened = false;
-
-    themeToggle?.addEventListener('click', () => {
-        themefunction();
-    });
-
-    themeToggleMobile?.addEventListener('click', () => {
-        themefunction();
-    });
-
-    function themefunction() {
-        changeTheme();
-
-        // Get the current theme from the HTML element
-        const currentTheme = $('html').attr('data-theme');
-
-        // Send an AJAX request to update the theme in the database
-        $.ajax({
-            url: '/update-theme', // Route to your controller
-            type: 'POST',
-            data: {
-                theme: currentTheme,
-                _token: $('meta[name="csrf-token"]').attr('content') // CSRF token
-            },
-            success: function(response) {
-                // Check if messageBox exists
-                if (messageBox) {
-                    if (response.success) {
-                        messageBox.innerHTML = `
-                            <x-alert type="success" :messages="'${response.message}'" />
-                        `;
-                        messageBoxAnimation()
-                    } else {
-                        messageBox.innerHTML = `
-                            <x-alert type="error" :messages="'Failed to update theme. Please try again later.'" />
-                        `;
-                        messageBoxAnimation()
-                    }
-                } else {
-                    console.error('Element with ID "ajax-message" not found.');
-                }
-            },
-            error: function(xhr, status, error) {
-                console.error('AJAX Error:', error);
-                if (messageBox) {
-                    messageBox.innerHTML = `
-                        <x-alert type="error" :messages="'An error occurred while updating the theme. Please try again later.'" />
-                    `;
-                    messageBoxAnimation()
-                } else {
-                    console.error('Element with ID "ajax-message" not found.');
-                }
-            }
-        });
-    }
-
-    function changeTheme() {
-        const currentTheme = html.getAttribute('data-theme');
-        const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-        html.setAttribute('data-theme', newTheme);
-
-        themeIcon?.classList.toggle('fa-sun');
-        themeIcon?.classList.toggle('fa-moon');
-    }
-
-    document.getElementById('logoutModal').addEventListener('click', (e) => {
-        if (e.target.id === 'logoutModal') {
-            closeLogoutModal();
-        }
-    });
-
-    document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') {
-            closeLogoutModal();
-        }
-    });
-
-    // Close any open dropdown when clicking anywhere else on the document
-    document.addEventListener('mousedown', function(e) {
-        // Check if the click is outside of any dropdown trigger or menu
-        if (!e.target.closest('.dropdown-trigger') && !e.target.closest('.dropdownMenu')) {
-            closeAllDropdowns();
-        }
-    });
-
-    function openLogoutModal() {
-        isLogoutModalOpened = true;
-        document.getElementById('logoutModal').classList.remove('hidden');
-        closeAllDropdowns();
-    }
-
-    function closeLogoutModal() {
-        let logoutModal = document.getElementById('logoutModal')
-        logoutModal.classList.add('fade-out');
-
-        // Wait for the animation to complete
-        logoutModal.addEventListener('animationend', () => {
-            logoutModal.classList.add('hidden'); // Add hidden class after animation ends
-            logoutModal.classList.remove('fade-out'); // Optional: Remove fade-out class to reset
-        }, {
-            once: true
-        });
-    }
+    ],
+        themeSuccessTemplate: @json($themeSuccessTemplate),
+        themeFailureTemplate: @json($themeFailureTemplate),
+        themeErrorTemplate: @json($themeErrorTemplate),
+    };
 </script>

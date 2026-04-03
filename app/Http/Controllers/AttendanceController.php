@@ -13,10 +13,9 @@ class AttendanceController extends Controller
 {
     public function create()
     {
-        if(!$this->checkRole(['developer', 'owner', 'manager', 'admin', 'accountant', 'guest']))
-        {
-            return redirect(route('home'))->with('error', 'You do not have permission to access this page.');
-        };
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'manager', 'admin', 'accountant', 'guest'])) {
+            return $resp;
+        }
 
         return view('attendances.record');
     }
@@ -26,10 +25,9 @@ class AttendanceController extends Controller
      */
     public function store(Request $request)
     {
-        if(!$this->checkRole(['developer', 'owner', 'manager', 'admin', 'accountant', 'guest']))
-        {
-            return redirect(route('home'))->with('error', 'You do not have permission to access this page.');
-        };
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'manager', 'admin', 'accountant', 'guest'])) {
+            return $resp;
+        }
 
         $attendances = collect(json_decode($request->attendances, true));
 
@@ -72,10 +70,9 @@ class AttendanceController extends Controller
 
     public function manageSalary()
     {
-        if(!$this->checkRole(['developer', 'owner', 'manager', 'admin', 'accountant', 'guest']))
-        {
-            return redirect(route('home'))->with('error', 'You do not have permission to access this page.');
-        };
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'manager', 'admin', 'accountant', 'guest'])) {
+            return $resp;
+        }
 
         $employee_options = [];
         $employees = Employee::where('status', 'active')->whereNotNull('salary')->with('type')->get();
@@ -92,10 +89,9 @@ class AttendanceController extends Controller
 
     public function manageSalaryPost(Request $request)
     {
-        if(!$this->checkRole(['developer', 'owner', 'manager', 'admin', 'accountant', 'guest']))
-        {
-            return redirect(route('home'))->with('error', 'You do not have permission to access this page.');
-        };
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'manager', 'admin', 'accountant', 'guest'])) {
+            return $resp;
+        }
 
         $request->validate([
             'month' => ['required', 'date_format:Y-m', Rule::unique('salaries')->where(function ($query) use ($request) {

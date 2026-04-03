@@ -17,8 +17,8 @@ class ShipmentController extends Controller
      */
     public function index(Request $request)
     {
-        if(!$this->checkRole(['developer', 'owner', 'manager', 'admin', 'accountant', 'guest'])) {
-            return redirect(route('home'))->with('error', 'You do not have permission to access this page.');
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'manager', 'admin', 'accountant', 'guest'])) {
+            return $resp;
         }
 
         $authLayout = $this->getAuthLayout($request->route()->getName());
@@ -47,10 +47,9 @@ class ShipmentController extends Controller
      */
     public function create(Request $request)
     {
-        if(!$this->checkRole(['developer', 'owner', 'admin', 'accountant']))
-        {
-            return redirect(route('home'))->with('error', 'You do not have permission to access this page.');
-        };
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin', 'accountant'])) {
+            return $resp;
+        }
 
         $customers_options = [];
         $articles = [];
@@ -105,10 +104,9 @@ class ShipmentController extends Controller
      */
     public function store(Request $request)
     {
-        if(!$this->checkRole(['developer', 'owner', 'admin', 'accountant']))
-        {
-            return redirect(route('home'))->with('error', 'You do not have permission to access this page.');
-        };
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin', 'accountant'])) {
+            return $resp;
+        }
 
         // return $request->all();
 
@@ -163,9 +161,9 @@ class ShipmentController extends Controller
      */
     public function edit(Shipment $shipment)
     {
-        if (!$this->checkRole(['developer', 'owner', 'admin'])) {
-            return redirect(route('home'))->with('error', 'You do not have permission to access this page.');
-        };
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin'])) {
+            return $resp;
+        }
 
         $shipment->load('articles.article');
 
@@ -190,9 +188,9 @@ class ShipmentController extends Controller
      */
     public function update(Request $request, Shipment $shipment)
     {
-        if (!$this->checkRole(['developer', 'owner', 'admin'])) {
-            return redirect(route('home'))->with('error', 'You do not have permission to access this page.');
-        };
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin'])) {
+            return $resp;
+        }
 
         $validator = Validator::make($request->all(), [
             'netAmount' => 'required|string',

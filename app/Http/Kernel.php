@@ -69,5 +69,6 @@ class Kernel extends HttpKernel
     protected $routeMiddleware = [
         'activeSession' => \App\Http\Middleware\CheckActiveSession::class,
         'subscriptionExpiry' => \App\Http\Middleware\SubscriptionExpiry::class,
+        'readonly' => \App\Http\Middleware\ReadOnlyMode::class,
     ];
 }

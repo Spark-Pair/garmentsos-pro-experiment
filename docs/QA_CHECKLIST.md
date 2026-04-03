@@ -1,0 +1,36 @@
+# QA Checklist (Quick)
+
+Use this checklist after changes to verify the app remains stable.
+
+## 1) Auth & Session
+- Login works for active users.
+- Inactive users are blocked as expected.
+- Logout works normally and in read‑only mode.
+
+## 2) Read‑Only Mode
+- Expired subscription shows warning.
+- All write actions are blocked (create/update/delete/mark paid).
+- Read‑only POST actions still work:
+  - layout toggle, report type toggles, get details, etc.
+
+## 3) Global UI
+- Sidebar renders and active nav highlights correctly.
+- Menu modal opens with `Ctrl + Space` and keyboard navigation works.
+- Home shortcut `Shift + Space` routes to home.
+
+## 4) Core CRUD Flows
+- Customers, Suppliers, Orders, Payments, Vouchers can be created and edited.
+- Select inputs show selected text in edit modals.
+- Form validation and alerts show correctly.
+
+## 5) Reports
+- Statement, Pending Payments, and Article reports load.
+- Filters apply without breaking layout.
+
+## 6) Performance
+- Only the current page’s JS is loaded.
+- No console errors on initial load.
+
+## 7) Security
+- CSRF tokens present in forms.
+- Read‑only middleware is active for web routes.

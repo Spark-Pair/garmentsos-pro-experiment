@@ -14,8 +14,8 @@ class EmployeeController extends Controller
      */
     public function index(Request $request)
     {
-        if (!$this->checkRole(['developer', 'owner', 'manager', 'admin', 'accountant', 'guest'])) {
-            return redirect(route('home'))->with('error', 'You do not have permission to access this page.');
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'manager', 'admin', 'accountant', 'guest'])) {
+            return $resp;
         }
 
         $authLayout = $this->getAuthLayout($request->route()->getName());
@@ -79,8 +79,8 @@ class EmployeeController extends Controller
      */
     public function store(Request $request)
     {
-        if (!$this->checkRole(['developer', 'owner', 'admin', 'accountant'])) {
-            return redirect(route('home'))->with('error', 'You do not have permission to access this page.');
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin', 'accountant'])) {
+            return $resp;
         }
 
         $request->validate([
@@ -150,9 +150,9 @@ class EmployeeController extends Controller
      */
     public function update(Request $request, Employee $employee)
     {
-        if (!$this->checkRole(['developer', 'owner', 'admin'])) {
-            return redirect(route('home'))->with('error', 'You do not have permission to access this page.');
-        };
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin'])) {
+            return $resp;
+        }
 
         $validator = Validator::make($request->all(), [
             'type_id' => 'required|integer|exists:setups,id',
@@ -204,10 +204,9 @@ class EmployeeController extends Controller
 
     public function updateStatus(Request $request)
     {
-        if(!$this->checkRole(['developer', 'owner', 'manager', 'admin']))
-        {
-            return redirect(route('home'))->with('error', 'You do not have permission to access this page.');
-        };
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'manager', 'admin'])) {
+            return $resp;
+        }
 
         $employee = Employee::find($request->user_id);
 

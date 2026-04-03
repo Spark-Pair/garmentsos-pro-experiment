@@ -75,30 +75,14 @@
         </div>
     </section>
 
-    <script>
-        let authLayout = 'table';
-
-        function createRow(data) {
-            return `
-            <div id="${data.id}" oncontextmenu='${data.oncontextmenu || ""}' onclick='${data.onclick || ""}'
-                class="item row relative group grid grid-cols-3 text-center border-b border-[var(--h-bg-color)] items-center py-2 cursor-pointer hover:bg-[var(--h-secondary-bg-color)] transition-all fade-in ease-in-out"
-                data-json='${JSON.stringify(data)}'>
-
-                <span class="capitalize">${data.type.replace(/_/g, ' ')}</span>
-                <span class="capitalize">${data.title.replace(/_/g, ' ')}</span>
-                <span class="uppercase">${data.short_title}</span>
-            </div>`;
-        }
-
-        const fetchedData = @json($setups);
-        let allDataArray = fetchedData.map(item => {
-            return {
-                id: item.id,
-                type: item.type,
-                title: item.title,
-                short_title: item.short_title,
-                visible: true,
-            };
-        });
-    </script>
 @endsection
+
+@push('page-scripts')
+<script defer src="{{ asset('js/pages/rates-index.js') }}"></script>
+<script>
+        window.__ratesIndex = {
+            authLayout: 'table',
+            setups: @json($setups),
+        };
+    </script>
+@endpush

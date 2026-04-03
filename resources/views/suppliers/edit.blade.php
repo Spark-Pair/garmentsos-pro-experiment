@@ -73,19 +73,18 @@
                         placeholder="{{ asset('storage/uploads/images/' . $supplier->user->profile_picture) }}"
                         uploadText="Preview"
                     />
-                    <script>
-                        const placeholderIcon = document.querySelector(".placeholder_icon");
-                        placeholderIcon.classList.remove("w-16", "h-16");
-                        placeholderIcon.classList.add("rounded-md", "w-full", "h-auto");
-                    </script>
                 @endif
             </div>
         </form>
     </div>
 
-    <script>
-        function validateForNextStep() {
-            return true;
-        }
-    </script>
 @endsection
+
+@push('page-scripts')
+<script defer src="{{ asset('js/pages/suppliers-edit.js') }}"></script>
+<script>
+        window.__suppliersEdit = {
+            supplierHasCustomImage: @json($supplier->user->profile_picture != 'default_avatar.png'),
+        };
+    </script>
+@endpush

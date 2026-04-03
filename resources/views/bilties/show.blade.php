@@ -79,34 +79,13 @@
         </div>
     </section>
 
-    <script>
-        let authLayout = 'table';
-
-        function createRow(data) {
-            return `
-            <div id="${data.id}" oncontextmenu='${data.oncontextmenu || ""}' onclick='${data.onclick || ""}'
-                class="item row relative group grid grid-cols-6 text-center border-b border-[var(--h-bg-color)] items-center py-2 cursor-pointer hover:bg-[var(--h-secondary-bg-color)] transition-all fade-in ease-in-out"
-                data-json='${JSON.stringify(data)}'>
-
-                <span>${data.date}</span>
-                <span class="col-span-2">${data.customer_name}</span>
-                <span>${data.invoice_no}</span>
-                <span>${data.cargo_name}</span>
-                <span>${data.bilty_no}</span>
-            </div>`;
-        }
-
-        // const fetchedData = [];
-        // let allDataArray = fetchedData.map(item => {
-        //     return {
-        //         id: item.id,
-        //         date: item.date,
-        //         customer_name: item.invoice.customer.customer_name + ' | ' + item.invoice.customer.city.title,
-        //         invoice_no: item.invoice.invoice_no,
-        //         cargo_name: item.invoice.cargo_name,
-        //         bilty_no: item.bilty_no + ' | ' + item.invoice.cotton_count,
-        //         visible: true,
-        //     };
-        // });
-    </script>
 @endsection
+
+@push('page-scripts')
+<script defer src="{{ asset('js/pages/bilties-show.js') }}"></script>
+<script>
+        window.__biltiesShow = {
+            authLayout: 'table',
+        };
+    </script>
+@endpush

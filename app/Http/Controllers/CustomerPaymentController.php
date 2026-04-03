@@ -21,8 +21,8 @@ class CustomerPaymentController extends Controller
      */
     public function index(Request $request)
     {
-        if (!$this->checkRole(['developer', 'owner', 'manager', 'admin', 'accountant', 'guest'])) {
-            return redirect(route('home'))->with('error', 'You do not have permission to access this page.');
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'manager', 'admin', 'accountant', 'guest'])) {
+            return $resp;
         }
 
         $authLayout = $this->getAuthLayout($request->route()->getName());
@@ -33,10 +33,10 @@ class CustomerPaymentController extends Controller
                 ->with([
                     'customer.city',
                     'cheque.supplier',
-                    'cheque.voucher.supplier',
+                    'cheque.voucher.supplier.bankAccounts.bank',
                     'cheque.cr',
                     'slip.supplier',
-                    'slip.voucher.supplier',
+                    'slip.voucher.supplier.bankAccounts.bank',
                     'slip.cr',
                     'program.subCategory',
                     'bankAccount.subCategory',
@@ -225,8 +225,8 @@ class CustomerPaymentController extends Controller
      */
     public function create(Request $request)
     {
-        if (!$this->checkRole(['developer', 'owner', 'admin', 'accountant'])) {
-            return redirect(route('home'))->with('error', 'You do not have permission to access this page.');
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin', 'accountant'])) {
+            return $resp;
         }
 
         // --- Banks options ---
@@ -247,6 +247,9 @@ class CustomerPaymentController extends Controller
             ->with('customer:id,customer_name')
             ->whereNotNull('customer_id')
             ->first();
+
+        $programPayload = null;
+        $programCustomerId = null;
 
         // --- If program_id provided, load specific program and customer ---
         if (!empty($programId)) {
@@ -281,7 +284,9 @@ class CustomerPaymentController extends Controller
                     ]
                 ];
 
-                return view("customer-payments.create", compact("customers_options", "banks_options", 'lastRecord'));
+                $programCustomerId = $program->customer->id;
+
+                return view("customer-payments.create", compact("customers_options", "banks_options", 'lastRecord', 'programPayload', 'programCustomerId'));
             }
         }
 
@@ -325,7 +330,7 @@ class CustomerPaymentController extends Controller
             ]];
         })->toArray();
 
-        return view("customer-payments.create", compact("customers_options", 'banks_options', 'lastRecord'));
+        return view("customer-payments.create", compact("customers_options", 'banks_options', 'lastRecord', 'programPayload', 'programCustomerId'));
     }
 
     /**
@@ -333,8 +338,8 @@ class CustomerPaymentController extends Controller
      */
     public function store(Request $request)
     {
-        if (!$this->checkRole(['developer', 'owner', 'admin', 'accountant'])) {
-            return redirect(route('home'))->with('error', 'You do not have permission to access this page.');
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin', 'accountant'])) {
+            return $resp;
         }
 
         $validator = Validator::make($request->all(), [
@@ -460,8 +465,8 @@ class CustomerPaymentController extends Controller
      */
     public function edit(CustomerPayment $customerPayment)
     {
-        if (!$this->checkRole(['developer', 'owner', 'admin', 'accountant'])) {
-            return redirect(route('home'))->with('error', 'You do not have permission to access this page.');
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin', 'accountant'])) {
+            return $resp;
         }
 
         $customerPayment->load('customer.paymentPrograms.subCategory.bankAccounts.bank');
@@ -489,8 +494,8 @@ class CustomerPaymentController extends Controller
      */
     public function update(Request $request, CustomerPayment $customerPayment)
     {
-        if (!$this->checkRole(['developer', 'owner', 'admin', 'accountant'])) {
-            return redirect(route('home'))->with('error', 'You do not have permission to access this page.');
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin', 'accountant'])) {
+            return $resp;
         }
 
         $validator = Validator::make($request->all(), [
@@ -628,8 +633,8 @@ class CustomerPaymentController extends Controller
     }
 
     public function clear(Request $request, $id) {
-        if (!$this->checkRole(['developer', 'owner', 'admin', 'accountant'])) {
-            return redirect(route('home'))->with('error', 'You do not have permission to access this page.');
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin', 'accountant'])) {
+            return $resp;
         }
 
         $validator = Validator::make($request->all(), [
@@ -678,8 +683,8 @@ class CustomerPaymentController extends Controller
 
     public function transfer(Request $request, $id)
     {
-        if (!$this->checkRole(['developer', 'owner', 'admin', 'accountant'])) {
-            return redirect(route('home'))->with('error', 'You do not have permission to access this page.');
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin', 'accountant'])) {
+            return $resp;
         }
 
         return redirect()->back()->with('error', 'Transfer action is not implemented yet.');

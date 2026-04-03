@@ -73,22 +73,6 @@
         $minlength = '6';
     @endphp
 
-<script>
-    function formatUsername(input) {
-        input.value = input.value.toLowerCase().replace(/[^a-z0-9]/g, '');
-    }
-
-    function validateUsername() {
-        const username = document.getElementById('username').value;
-
-        if (username.length < 6) {
-            alert('Username must be at least 6 characters long.');
-            return false;
-        }
-
-        return true;
-    }
-</script>
 @endif
 
 <div class="form-group relative {{$parentGrow ? "grow" : ""}}">

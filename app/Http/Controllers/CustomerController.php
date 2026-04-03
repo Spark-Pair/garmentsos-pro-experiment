@@ -7,6 +7,7 @@ use App\Models\Customer;
 use App\Models\Setup;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
@@ -18,8 +19,8 @@ class CustomerController extends Controller
      */
     public function index(Request $request)
     {
-        if (!$this->checkRole(['developer', 'owner', 'manager', 'admin', 'accountant', 'guest'])) {
-            return redirect(route('home'))->with('error', 'You do not have permission to access this page.');
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'manager', 'admin', 'accountant', 'guest'])) {
+            return $resp;
         }
 
         $authLayout = $this->getAuthLayout($request->route()->getName());
@@ -47,8 +48,8 @@ class CustomerController extends Controller
      */
     public function create()
     {
-        if (!$this->checkRole(['developer', 'owner', 'admin', 'accountant'])) {
-            return redirect(route('home'))->with('error', 'You do not have permission to access this page.');
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin', 'accountant'])) {
+            return $resp;
         }
 
         $cities_options = [];
@@ -67,9 +68,9 @@ class CustomerController extends Controller
      */
     public function store(Request $request)
     {
-        if (!$this->checkRole(['developer', 'owner', 'admin', 'accountant'])) {
-            return redirect(route('home'))->with('error', 'You do not have permission to access this page.');
-        };
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin', 'accountant'])) {
+            return $resp;
+        }
 
         $validator = Validator::make($request->all(), [
             'customer_name' => [
@@ -138,6 +139,7 @@ class CustomerController extends Controller
             'address' => $data['address'],
         ]);
 
+        Cache::forget('category_data:customer');
         return redirect()->route('customers.create')->with('success', 'Customer created successfully.');
     }
 
@@ -154,9 +156,9 @@ class CustomerController extends Controller
      */
     public function edit(Customer $customer)
     {
-        if (!$this->checkRole(['developer', 'owner', 'admin'])) {
-            return redirect(route('home'))->with('error', 'You do not have permission to access this page.');
-        };
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin'])) {
+            return $resp;
+        }
 
         return view('customers.edit', compact('customer'));
     }
@@ -166,9 +168,9 @@ class CustomerController extends Controller
      */
     public function update(Request $request, Customer $customer)
     {
-        if (!$this->checkRole(['developer', 'owner', 'admin'])) {
-            return redirect(route('home'))->with('error', 'You do not have permission to access this page.');
-        };
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin'])) {
+            return $resp;
+        }
 
         $validator = Validator::make($request->all(), [
             'person_name' => 'required|string|max:255',
@@ -213,6 +215,7 @@ class CustomerController extends Controller
             'address' => $request->address,
         ]);
 
+        Cache::forget('category_data:customer');
         return redirect()->route('customers.index')->with('success', 'Customer updated successfully.');
     }
 

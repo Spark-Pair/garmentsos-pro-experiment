@@ -17,8 +17,8 @@ class PhysicalQuantityController extends Controller
      */
     public function index(Request $request)
     {
-        if (!$this->checkRole(['developer', 'owner', 'manager', 'admin', 'accountant', 'guest', 'store_keeper'])) {
-            return redirect(route('home'))->with('error', 'You do not have permission to access this page.');
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'manager', 'admin', 'accountant', 'guest', 'store_keeper'])) {
+            return $resp;
         }
 
         if ($request->ajax()) {
@@ -159,10 +159,9 @@ class PhysicalQuantityController extends Controller
      */
     public function create()
     {
-        if(!$this->checkRole(['developer', 'owner', 'admin', 'accountant', 'store_keeper']))
-        {
-            return redirect(route('home'))->with('error', 'You do not have permission to access this page.');
-        };
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin', 'accountant', 'store_keeper'])) {
+            return $resp;
+        }
 
         $articles = Article::withSum('physicalQuantity', 'packets')
             // ->whereHas('production.work', function ($q) {
@@ -195,10 +194,9 @@ class PhysicalQuantityController extends Controller
      */
     public function store(Request $request)
     {
-        if(!$this->checkRole(['developer', 'owner', 'admin', 'accountant', 'store_keeper']))
-        {
-            return redirect(route('home'))->with('error', 'You do not have permission to access this page.');
-        };
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin', 'accountant', 'store_keeper'])) {
+            return $resp;
+        }
 
         $validator = Validator::make($request->all(), [
             'date' => 'required|date',
@@ -206,6 +204,7 @@ class PhysicalQuantityController extends Controller
             'processed_by' => 'required|string',
             'pcs_per_packet' => 'required|integer|min:1',
             'packets' => 'required|integer|min:1',
+            'category' => 'required|string',
         ]);
 
         if ($validator->fails())

@@ -49,17 +49,8 @@
         </div>
     </form>
 
-    <script>
-        function trackBillType(elem) {
-
-        }
-
-        function trackLocation(elem) {
-
-        }
-
-        function trackAccount(elem) {
-
-        }
-    </script>
 @endsection
+
+@push('page-scripts')
+<script defer src="{{ asset('js/pages/utility-accounts-add.js') }}"></script>
+@endpush

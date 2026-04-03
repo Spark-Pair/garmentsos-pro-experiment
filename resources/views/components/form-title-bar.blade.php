@@ -74,12 +74,12 @@
             <div class="buttons top-0 right-4.5 text-sm h-full flex items-center px-2">
                 <div class="relative group flex items-center justify-between" onclick="changeLayout()">
                     @if ($layout == 'grid')
-                        <button type="submit" class="group cursor-pointer" id="changeLayoutBtn">
+                        <button type="button" class="group cursor-pointer" id="changeLayoutBtn" data-layout="{{ $layout }}" data-change-layout-url="{{ route('change-data-layout') }}" data-layout-toggle>
                             <i class='fas fa-list-ul text-white'></i>
                             <span class="absolute shadow-xl -right-2 top-7.5 z-10 bg-[var(--h-secondary-bg-color)] border border-gray-600 text-[var(--text-color)] text-xs rounded-lg px-2.5 py-1 opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none text-nowrap">List</span>
                         </button>
                     @else
-                        <button type="submit" class="group cursor-pointer" id="changeLayoutBtn">
+                        <button type="button" class="group cursor-pointer" id="changeLayoutBtn" data-layout="{{ $layout }}" data-change-layout-url="{{ route('change-data-layout') }}" data-layout-toggle>
                             <i class='fas fa-grip text-white'></i>
                             <span class="absolute shadow-xl -right-2 top-7.5 z-10 bg-[var(--h-secondary-bg-color)] border border-gray-600 text-[var(--text-color)] text-xs rounded-lg px-2.5 py-1 opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none text-nowrap">Grid</span>
                         </button>

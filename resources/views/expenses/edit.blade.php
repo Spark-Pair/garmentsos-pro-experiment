@@ -53,40 +53,14 @@
         </form>
     </div>
 
-    <script>
-        const selectedExpense = "{{ $expense->expense }}";
+@endsection
 
-        function supplierSelected(supplier) {
-            const expenseSelect = document.getElementById('expense');
-            const selectedSupplierData = JSON.parse(supplier);
-
-            const supplierCategories = selectedSupplierData.categories;
-
-            let expenseOptions = `
-                <li data-for="expense" data-value="" onmousedown="selectThisOption(this)" class="py-2 px-3 cursor-pointer rounded-lg transition hover:bg-[var(--h-bg-color)] text-nowrap overflow-x-auto scrollbar-hidden">-- Select Expense --</li>
-            `;
-
-            supplierCategories.forEach(category => {
-                expenseOptions += `
-                    <li data-for="expense" data-value="${category.id}" onmousedown="selectThisOption(this)" class="py-2 px-3 cursor-pointer rounded-lg transition hover:bg-[var(--h-bg-color)] text-nowrap overflow-x-auto scrollbar-hidden">${category.title}</li>
-                `;
-            });
-            expenseOptions += `
-                <li data-for="expense" data-value="adjustment" onmousedown="selectThisOption(this)" class="py-2 px-3 cursor-pointer rounded-lg transition hover:bg-[var(--h-bg-color)] text-nowrap overflow-x-auto scrollbar-hidden ">Adjustment</li>
-            `;
-
-            expenseSelect.parentElement.parentElement.parentElement.querySelector('ul').innerHTML = expenseOptions;
-            expenseSelect.disabled = false;
-        }
-
-        supplierSelected(document.getElementById('supplier').value);
-
-        window.onload = function () {
-            selectThisOption(
-                document.getElementById("expense")
-                    .parentElement.parentElement.parentElement
-                    .querySelector(`ul li[data-value="${selectedExpense}"]`)
-            );
+@push('page-scripts')
+<script defer src="{{ asset('js/pages/expenses-edit.js') }}"></script>
+<script>
+        window.__expensesEdit = {
+            selectedExpense: @json($expense->expense),
+            supplierData: @json($expense->supplier),
         };
     </script>
-@endsection
+@endpush

@@ -147,16 +147,15 @@
                         @if (!is_null($dataOptionAttr))
                             data-option="{{ $dataOptionAttr }}"
                         @endif
+                        @if (isset($option['selected'])) data-auto-select="true" @endif
                         class="py-2 px-3 cursor-pointer rounded-lg transition hover:bg-[var(--h-bg-color)] text-nowrap overflow-x-auto scrollbar-hidden {{ !$isDisabled && $optionValue == $resolvedValue ? 'selected' : '' }}"
                     >
                         {{ $option['text'] }}
                     </li>
                     @if (isset($option['selected']))
-                        <script>
-                            document.addEventListener('DOMContentLoaded', function () {
-                                selectThisOption(document.querySelector('li[data-value="{{ $optionValue }}"]'));
-                            });
-                        </script>
+                        @once
+                            <script defer src="{{ asset('js/components/select-autoselect.js') }}"></script>
+                        @endonce
                     @endif
                 @endforeach
             </ul>

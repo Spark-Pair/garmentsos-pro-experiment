@@ -49,6 +49,7 @@ class AuthController extends Controller
                 if ($user->status == 'active') {
                     // Password is correct, login the user
                     Auth::login($user);
+                    $request->session()->regenerate();
 
                     UserSession::create([
                         'user_id' => $user->id,
@@ -125,7 +126,19 @@ class AuthController extends Controller
     {
         if (auth()->check()) {
             $userId = Auth::user()->id;
-            User::where('id', $userId)->update(['menu_shortcuts' => $request->menu_shortcuts]);
+            $shortcuts = $request->input('menu_shortcuts', []);
+            if (is_string($shortcuts)) {
+                $decoded = json_decode($shortcuts, true);
+                $shortcuts = is_array($decoded) ? $decoded : [];
+            }
+            if (!is_array($shortcuts)) {
+                $shortcuts = [];
+            }
+            $shortcuts = array_values(array_filter($shortcuts, fn($v) => is_string($v) && $v !== ''));
+
+            User::where('id', $userId)->update([
+                'menu_shortcuts' => json_encode($shortcuts),
+            ]);
 
             return response()->json(['status' => 'updated']);
         }

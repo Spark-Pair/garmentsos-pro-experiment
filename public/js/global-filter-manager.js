@@ -131,6 +131,7 @@ const GlobalFilterManager = {
 
         // Get data array from response
         const items = response.data || response.items || response;
+        window.allDataArray = Array.isArray(items) ? items : [];
 
         calculations = response.calculations;
         if (typeof window.renderCalculation === 'function') {
@@ -143,6 +144,8 @@ const GlobalFilterManager = {
         } else {
             console.warn('No createCard or createRow function found');
         }
+
+        document.dispatchEvent(new CustomEvent('app:data:rendered', { detail: { items: window.allDataArray } }));
 
         // Show/hide no results
         if (noItemsError) {

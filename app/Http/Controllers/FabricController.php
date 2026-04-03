@@ -19,8 +19,8 @@ class FabricController extends Controller
      */
     public function index(Request $request)
     {
-        if (!$this->checkRole(['developer', 'owner', 'manager', 'admin', 'accountant', 'guest', 'store_keeper'])) {
-            return redirect(route('home'))->with('error', 'You do not have permission to access this page.');
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'manager', 'admin', 'accountant', 'guest', 'store_keeper'])) {
+            return $resp;
         }
 
         if ($request->ajax()) {
@@ -71,8 +71,8 @@ class FabricController extends Controller
      * Show the form for creating a new resource.
      */
     public function create()
-    {if (!$this->checkRole(['developer', 'owner', 'admin', 'accountant', 'store_keeper'])) {
-            return redirect(route('home'))->with('error', 'You do not have permission to access this page.');
+    {if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin', 'accountant', 'store_keeper'])) {
+            return $resp;
         }
 
         $lastRecord = Fabric::latest()->with('supplier', 'fabric')->first();
@@ -110,8 +110,8 @@ class FabricController extends Controller
      */
     public function store(Request $request)
     {
-        if (!$this->checkRole(['developer', 'owner', 'admin', 'accountant', 'store_keeper'])) {
-            return redirect(route('home'))->with('error', 'You do not have permission to access this page.');
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin', 'accountant', 'store_keeper'])) {
+            return $resp;
         }
 
         $request->validate([
@@ -175,8 +175,8 @@ class FabricController extends Controller
 
     public function issue()
     {
-        if (!$this->checkRole(['developer', 'owner', 'admin', 'accountant', 'store_keeper'])) {
-            return redirect(route('home'))->with('error', 'You do not have permission to access this page.');
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin', 'accountant', 'store_keeper'])) {
+            return $resp;
         }
 
         $tags_options = [];
@@ -215,8 +215,8 @@ class FabricController extends Controller
     }
 
     public function issuePost(Request $request) {
-        if (!$this->checkRole(['developer', 'owner', 'admin', 'accountant', 'store_keeper'])) {
-            return redirect(route('home'))->with('error', 'You do not have permission to access this page.');
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin', 'accountant', 'store_keeper'])) {
+            return $resp;
         }
 
         $request->validate([
@@ -240,8 +240,8 @@ class FabricController extends Controller
 
     public function return(Request $request)
     {
-        if (!$this->checkRole(['developer', 'owner', 'admin', 'accountant', 'store_keeper'])) {
-            return redirect(route('home'))->with('error', 'You do not have permission to access this page.');
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin', 'accountant', 'store_keeper'])) {
+            return $resp;
         }
 
         $tags_options = [];
@@ -251,7 +251,7 @@ class FabricController extends Controller
         if ($worker_id && $date) {
             // 1️⃣ Get all fabrics issued to the worker until the given date
             $all_fabrics = IssuedFabric::where('worker_id', $worker_id)
-                ->where('date', '<=', $date)
+                ->whereDate('date', '<=', $date)
                 ->get()
                 ->groupBy('tag')
                 ->map(function ($items) {
@@ -271,6 +271,10 @@ class FabricController extends Controller
             // 3️⃣ Get all production tags for the worker & cutting work
             $allTags = Production::where('worker_id', $worker_id)
                 ->where('work_id', $cutting_id)
+                ->where(function ($q) use ($date) {
+                    $q->whereDate('issue_date', '<', $date)
+                      ->orWhereDate('receive_date', '<', $date);
+                })
                 ->pluck('tags');
 
             $mergedTags = [];
@@ -296,6 +300,7 @@ class FabricController extends Controller
 
             // 5️⃣ Get returned fabrics for the worker until date
             $returnedFabrics = ReturnFabric::where('worker_id', $worker_id)
+                ->whereDate('date', '<=', $date)
                 ->get()
                 ->groupBy('tag')
                 ->map(function ($items) {
@@ -344,6 +349,29 @@ class FabricController extends Controller
                     ];
                 }
             }
+
+            // Fallback: if no tags found, allow issued minus returned (ignore production)
+            if (empty($tags_options) && !empty($all_fabrics)) {
+                foreach ($all_fabrics as $fabric) {
+                    $tag = $fabric['tag'];
+                    $issuedQty = $fabric['quantity'];
+                    $returnQty = $returnQuantities[$tag] ?? 0;
+
+                    $remaining = $issuedQty - $returnQty;
+
+                    $fabric['remaining'] = $remaining;
+                    $fabric['issued_quantity'] = $issuedQty;
+                    $fabric['produced_quantity'] = $productionQuantities[$tag] ?? 0;
+                    $fabric['returned_quantity'] = $returnQty;
+
+                    if ($remaining > 0) {
+                        $tags_options[$tag] = [
+                            'text' => $tag,
+                            'data_option' => json_encode($fabric),
+                        ];
+                    }
+                }
+            }
         }
 
         $workers_options = [];
@@ -361,8 +389,8 @@ class FabricController extends Controller
     }
 
     public function returnPost(Request $request) {
-        if (!$this->checkRole(['developer', 'owner', 'admin', 'accountant', 'store_keeper'])) {
-            return redirect(route('home'))->with('error', 'You do not have permission to access this page.');
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin', 'accountant', 'store_keeper'])) {
+            return $resp;
         }
 
         $request->validate([

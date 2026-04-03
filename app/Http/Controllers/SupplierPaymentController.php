@@ -17,10 +17,9 @@ class SupplierPaymentController extends Controller
      */
     public function index(Request $request)
     {
-        if(!$this->checkRole(['developer', 'owner', 'manager', 'admin', 'accountant', 'guest']))
-        {
-            return redirect(route('home'))->with('error', 'You do not have permission to access this page.');
-        };
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'manager', 'admin', 'accountant', 'guest'])) {
+            return $resp;
+        }
 
         if ($request->ajax()) {
             $payments = SupplierPayment::orderByDesc('id')->applyFilters($request);

@@ -48,35 +48,8 @@
         </div>
     </section>
 
-    <script>
-        let authLayout = 'table';
-
-        function createRow(data) {
-            let total_amount = data.data.payment_programs.reduce((sum, p) => sum + Number(p.amount || 0), 0);
-            let total_payment = data.data.payment_programs.reduce((sum, p) => sum + Number(p.payment || 0), 0);
-            let total_balance = data.data.payment_programs.reduce((sum, p) => sum + Number(p.balance || 0), 0);
-
-            if (total_balance !== 0) {
-                return `
-                <div id="${data.id}" class="item row relative group grid grid-cols-4 border-b border-[var(--h-bg-color)] items-center py-2 cursor-pointer hover:bg-[var(--h-secondary-bg-color)] transition-all fade-in ease-in-out">
-                    <span>${(data.name)}</span>
-                    <span>${total_amount}</span>
-                    <span>${total_payment}</span>
-                    <span>${total_balance}</span>
-                </div>`;
-            }
-        }
-
-        // const fetchedData = [];
-        // let allDataArray = fetchedData.map((item, index) => {
-        //     return {
-        //         id: index + 1,
-        //         name: item.name,
-        //         total_amount: item.total_amount > 0 ? formatNumbersWithDigits(item.total_amount, 1, 1) : '-',
-        //         total_payment: item.total_payment > 0 ? formatNumbersWithDigits(item.total_payment, 1, 1) : '-',
-        //         balance: item.balance > 0 ? formatNumbersWithDigits(item.balance, 1, 1) : '-',
-        //         visible: true,
-        //     };
-        // });
-    </script>
 @endsection
+
+@push('page-scripts')
+<script defer src="{{ asset('js/pages/payment-programs-customer-summary.js') }}"></script>
+@endpush
