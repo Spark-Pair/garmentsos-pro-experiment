@@ -7,8 +7,7 @@
                 "id" => "account_title",
                 "type" => "text",
                 "placeholder" => "Enter account title",
-                "oninput" => "runDynamicFilter()",
-                "dataFilterPath" => "account_title",
+                                "dataFilterPath" => "account_title",
             ],
             "Category" => [
                 "id" => "category",
@@ -18,29 +17,25 @@
                             'customer' => ['text' => 'Customer'],
                             'supplier' => ['text' => 'Supplier'],
                         ],
-                "onchange" => "runDynamicFilter()",
-                "dataFilterPath" => "category",
+                                "dataFilterPath" => "category",
             ],
             "Name" => [
                 "id" => "name",
                 "type" => "text",
                 "placeholder" => "Enter name",
-                "oninput" => "runDynamicFilter()",
-                "dataFilterPath" => "name",
+                                "dataFilterPath" => "name",
             ],
             "Account No" => [
                 "id" => "account_no",
                 "type" => "text",
                 "placeholder" => "Enter account no",
-                "oninput" => "runDynamicFilter()",
-                "dataFilterPath" => "account_no",
+                                "dataFilterPath" => "account_no",
             ],
             "Bank" => [
                 "id" => "bank",
                 "type" => "select",
                 "options" => $bank_options,
-                "onchange" => "runDynamicFilter()",
-                "dataFilterPath" => "bank",
+                                "dataFilterPath" => "bank",
             ],
             'Status' => [
                 'id' => 'status',
@@ -56,8 +51,7 @@
                 "type" => "date",
                 "id2" => "date_range_end",
                 "type2" => "date",
-                "oninput" => "runDynamicFilter()",
-                "dataFilterPath" => "date",
+                                "dataFilterPath" => "date",
             ]
         ];
     @endphp
@@ -73,7 +67,6 @@
                 <x-form-title-bar printBtn title="Show Bank Accounts" changeLayoutBtn layout="{{ $authLayout }}" resetSortBtn />
 
                 <div class="absolute bottom-0 right-0 flex items-center justify-between gap-2 w-fll z-50 p-3 w-full pointer-events-none">
-                    <x-section-navigation-button direction="right" id="info" icon="fa-info" />
                     <x-section-navigation-button link="{{ route('bank-accounts.create') }}" title="Add New Account" icon="fa-plus" />
                 </div>
 

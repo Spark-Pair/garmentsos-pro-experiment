@@ -7,23 +7,20 @@
                 "id" => "supplier_name",
                 "type" => "text",
                 "placeholder" => "Enter supplier name",
-                "oninput" => "runDynamicFilter()",
-                "dataFilterPath" => "details.Supplier",
+                                "dataFilterPath" => "details.Supplier",
             ],
             "Voucher No" => [
                 "id" => "voucher_no",
                 "type" => "text",
                 "placeholder" => "Enter voucher number",
-                "oninput" => "runDynamicFilter()",
-                "dataFilterPath" => "name",
+                                "dataFilterPath" => "name",
             ],
             "Date Range" => [
                 "id" => "date_range_start",
                 "type" => "date",
                 "id2" => "date_range_end",
                 "type2" => "date",
-                "oninput" => "runDynamicFilter()",
-                "dataFilterPath" => "data.date",
+                                "dataFilterPath" => "data.date",
             ]
         ];
     @endphp
@@ -39,7 +36,6 @@
             <x-form-title-bar printBtn title="Show Vouchers" changeLayoutBtn layout="{{ $authLayout }}" resetSortBtn />
 
             <div class="absolute bottom-0 right-0 flex items-center justify-between gap-2 w-fll z-50 p-3 w-full pointer-events-none">
-                <x-section-navigation-button direction="right" id="info" icon="fa-info" />
                 <x-section-navigation-button link="{{ route('vouchers.create') }}" title="Add New Voucher" icon="fa-plus" />
             </div>
 

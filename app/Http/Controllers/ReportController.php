@@ -267,12 +267,14 @@ class ReportController extends Controller
                 ];
             });
 
+            $authLayout = $this->getAuthLayout($request->route()->getName(), 'table');
             return response()->json([
                 'data' => $data,
-                'authLayout' => 'table'
+                'authLayout' => $authLayout
             ]);
         }
 
-        return view('reports.article');
+        $authLayout = $this->getAuthLayout($request->route()->getName(), 'table');
+        return view('reports.article', compact('authLayout'));
     }
 }

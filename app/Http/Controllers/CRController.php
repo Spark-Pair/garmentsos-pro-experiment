@@ -19,15 +19,16 @@ class CRController extends Controller
     public function index(Request $request)
     {
         // $crs = CR::with('voucher.supplier')->orderBy('id', 'desc')->get()->makeHidden('creator');
+        $authLayout = $this->getAuthLayout($request->route()->getName(), 'table');
 
         if ($request->ajax()) {
             $crs = CR::orderByDesc('id')
                 ->applyFilters($request);
 
-            return response()->json(['data' => $crs, 'authLayout' => 'table']);
+            return response()->json(['data' => $crs, 'authLayout' => $authLayout]);
         }
 
-        return view('cr.index');
+        return view('cr.index', compact('authLayout'));
     }
 
     /**

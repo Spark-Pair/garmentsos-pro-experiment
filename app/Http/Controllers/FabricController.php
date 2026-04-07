@@ -22,6 +22,7 @@ class FabricController extends Controller
         if ($resp = $this->denyIfNoRole(['developer', 'owner', 'manager', 'admin', 'accountant', 'guest', 'store_keeper'])) {
             return $resp;
         }
+        $authLayout = $this->getAuthLayout($request->route()->getName(), 'table');
 
         if ($request->ajax()) {
             // Added fabric entries
@@ -52,7 +53,7 @@ class FabricController extends Controller
                 })
                 ->values();
 
-            return response()->json(['data' => $finalData, 'authLayout' => 'table']);
+            return response()->json(['data' => $finalData, 'authLayout' => $authLayout]);
         }
 
         $fabrics_options = [];
@@ -64,7 +65,7 @@ class FabricController extends Controller
 
         // return $fabrics_options;
 
-        return view('fabrics.index', compact('fabrics_options'));
+        return view('fabrics.index', compact('fabrics_options', 'authLayout'));
     }
 
     /**
@@ -272,8 +273,8 @@ class FabricController extends Controller
             $allTags = Production::where('worker_id', $worker_id)
                 ->where('work_id', $cutting_id)
                 ->where(function ($q) use ($date) {
-                    $q->whereDate('issue_date', '<', $date)
-                      ->orWhereDate('receive_date', '<', $date);
+                    $q->whereDate('issue_date', '<=', $date)
+                      ->orWhereDate('receive_date', '<=', $date);
                 })
                 ->pluck('tags');
 

@@ -147,10 +147,11 @@ const previewFileName = (event) => {
 
 function initGlobalUI() {
     document.addEventListener('focus', function(event) {
+        if (!event.isTrusted) return;
         if (event.target.matches('input[type=\"date\"]')) {
-            event.target.showPicker();
+            try { event.target.showPicker(); } catch (_) {}
         } else if (event.target.matches('input[type=\"month\"]')) {
-            event.target.showPicker();
+            try { event.target.showPicker(); } catch (_) {}
         }
     }, true);
 

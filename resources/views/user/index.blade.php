@@ -51,7 +51,6 @@
                 <x-form-title-bar title="Show Users" />
 
                 <div class="absolute bottom-0 right-0 flex items-center justify-between gap-2 w-fll z-50 p-3 w-full pointer-events-none">
-                    <x-section-navigation-button direction="right" id="info" icon="fa-info" />
                     <x-section-navigation-button link="{{ route('users.create') }}" title="Add New User" icon="fa-plus" />
                 </div>
 

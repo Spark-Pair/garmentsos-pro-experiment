@@ -7,23 +7,20 @@
                 "id" => "cargo_no",
                 "type" => "text",
                 "placeholder" => "Enter cargo no",
-                "oninput" => "runDynamicFilter()",
-                "dataFilterPath" => "cargo_no",
+                                "dataFilterPath" => "cargo_no",
             ],
             "Cargo Name" => [
                 "id" => "cargo_name",
                 "type" => "text",
                 "placeholder" => "Enter cargo name",
-                "oninput" => "runDynamicFilter()",
-                "dataFilterPath" => "cargo_name",
+                                "dataFilterPath" => "cargo_name",
             ],
             "Date Range" => [
                 "id" => "date_range_start",
                 "type" => "date",
                 "id2" => "date_range_end",
                 "type2" => "date",
-                "oninput" => "runDynamicFilter()",
-                "dataFilterPath" => "date",
+                                "dataFilterPath" => "date",
             ]
         ];
     @endphp

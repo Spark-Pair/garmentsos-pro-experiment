@@ -305,9 +305,13 @@
 
     function calculateNetAmount() {
         const totalAmount = totalOrderAmount;
-        const discount = document.getElementById('discount').value;
+        let discount = parseFloat(document.getElementById('discount').value || 0);
+        if (Number.isNaN(discount)) discount = 0;
+        discount = Math.max(0, Math.min(100, discount));
+        if (discountDOM) discountDOM.value = discount;
         const discountAmount = totalAmount - totalAmount * (discount / 100);
         netAmount = discountAmount;
+        renderFinals();
     }
 
     if (discountDOM) {
@@ -497,7 +501,7 @@
                             <div id="order-total" class="tr flex justify-between w-full px-2 gap-2 text-sm">
                                 <div class="total flex justify-between items-center border border-gray-600 rounded-lg py-2 px-4 w-full">
                                     <div class="text-nowrap">Discount - %</div>
-                                    <div class="w-1/4 text-right grow">${discountDOM.value}</div>
+                                    <div class="w-1/4 text-right grow">${discountDOM?.value || 0}</div>
                                 </div>
                                 <div
                                     class="total flex justify-between items-center border border-gray-600 rounded-lg py-2 px-4 w-full">

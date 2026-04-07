@@ -21,6 +21,7 @@ class PaymentProgramController extends Controller
         if ($resp = $this->denyIfNoRole(['developer', 'owner', 'manager', 'admin', 'accountant', 'guest'])) {
             return $resp;
         }
+        $authLayout = $this->getAuthLayout($request->route()->getName(), 'table');
 
         if ($request->ajax()) {
             $payment_programs = PaymentProgram::with('customer.city', 'subCategory')->withPaymentDetails()->orderByDesc('id')
@@ -32,7 +33,7 @@ class PaymentProgramController extends Controller
 
             return response()->json([
                 'data' => $payment_programs,
-                'authLayout' => 'table',
+                'authLayout' => $authLayout,
                 'calculations' => [
                     'total_amount' => $totalAmount,
                     'total_payment' => $totalPayment,
@@ -77,7 +78,7 @@ class PaymentProgramController extends Controller
         //     return strtotime($b['date']) - strtotime($a['date']); // date DESC
         // });
 
-        return view("payment-programs.index");
+        return view("payment-programs.index", compact('authLayout'));
     }
     /**
      * Show the form for creating a new resource.
@@ -250,6 +251,7 @@ class PaymentProgramController extends Controller
         if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin', 'accountant'])) {
             return $resp;
         }
+        $authLayout = $this->getAuthLayout($request->route()->getName(), 'table');
 
         if ($request->ajax()) {
             $customersQuery = Customer::whereHas('paymentPrograms')
@@ -273,10 +275,10 @@ class PaymentProgramController extends Controller
                 return $customer->toFormattedArray();
             });
 
-            return response()->json(['data' => $customers, 'authLayout' => 'table']);
+            return response()->json(['data' => $customers, 'authLayout' => $authLayout]);
         }
 
-        return view('payment-programs.customerSummary');
+        return view('payment-programs.customerSummary', compact('authLayout'));
     }
 
     public function SupplierSummary(Request $request)
@@ -284,6 +286,7 @@ class PaymentProgramController extends Controller
         if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin', 'accountant'])) {
             return $resp;
         }
+        $authLayout = $this->getAuthLayout($request->route()->getName(), 'table');
 
         if ($request->ajax()) {
             $suppliersQuery = Supplier::whereHas('paymentPrograms')
@@ -306,10 +309,10 @@ class PaymentProgramController extends Controller
                 return $supplier->toFormattedArray();
             });
 
-            return response()->json(['data' => $suppliers, 'authLayout' => 'table']);
+            return response()->json(['data' => $suppliers, 'authLayout' => $authLayout]);
         }
 
-        return view('payment-programs.supplierSummary');
+        return view('payment-programs.supplierSummary', compact('authLayout'));
     }
 
     private function resolveSubCategoryModel(string $category, ?int $subCategoryId): Supplier|BankAccount|Customer|null

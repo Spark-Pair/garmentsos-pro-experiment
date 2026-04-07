@@ -16,6 +16,7 @@ class UtilityAccountController extends Controller
         if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin', 'accountant', 'store_keeper'])) {
             return $resp;
         }
+        $authLayout = $this->getAuthLayout($request->route()->getName(), 'table');
 
         // $utilityAccounts = UtilityAccount::with('billType', 'location')->get();
 
@@ -23,10 +24,10 @@ class UtilityAccountController extends Controller
             $utilityAccounts = UtilityAccount::orderByDesc('id')
                 ->applyFilters($request);
 
-            return response()->json(['data' => $utilityAccounts, 'authLayout' => 'table']);
+            return response()->json(['data' => $utilityAccounts, 'authLayout' => $authLayout]);
         }
 
-        return view('utility-accounts.index');
+        return view('utility-accounts.index', compact('authLayout'));
     }
 
     /**

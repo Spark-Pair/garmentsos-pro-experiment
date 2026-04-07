@@ -16,6 +16,7 @@ class UtilityBillController extends Controller
         if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin', 'accountant', 'store_keeper'])) {
             return $resp;
         }
+        $authLayout = $this->getAuthLayout($request->route()->getName(), 'table');
 
         // $utilityBills = UtilityBill::with('account.billType', 'account.location')->get();
 
@@ -23,10 +24,10 @@ class UtilityBillController extends Controller
             $utilityBills = UtilityBill::orderByDesc('id')
                 ->applyFilters($request);
 
-            return response()->json(['data' => $utilityBills, 'authLayout' => 'table']);
+            return response()->json(['data' => $utilityBills, 'authLayout' => $authLayout]);
         }
 
-        return view('utility-bills.index');
+        return view('utility-bills.index', compact('authLayout'));
     }
 
     /**

@@ -55,7 +55,6 @@
                 <x-form-title-bar printBtn title="Show Suppliers" changeLayoutBtn layout="{{ $authLayout }}" resetSortBtn />
 
                 <div class="absolute bottom-0 right-0 flex items-center justify-between gap-2 w-fll z-50 p-3 w-full pointer-events-none">
-                    <x-section-navigation-button direction="right" id="info" icon="fa-info" />
                     <x-section-navigation-button link="{{ route('suppliers.create') }}" title="Add New Supplier" icon="fa-plus" />
                 </div>
 

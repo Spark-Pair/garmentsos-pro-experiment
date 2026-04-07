@@ -7,15 +7,13 @@
                 "id" => "order_no",
                 "type" => "text",
                 "placeholder" => "Enter order no",
-                "oninput" => "runDynamicFilter()",
-                "dataFilterPath" => "order_no",
+                                "dataFilterPath" => "order_no",
             ],
             "Customer Name" => [
                 "id" => "customer_name",
                 "type" => "text",
                 "placeholder" => "Enter customer name",
-                "oninput" => "runDynamicFilter()",
-                "dataFilterPath" => "customer_name",
+                                "dataFilterPath" => "customer_name",
             ],
             'Status' => [
                 'id' => 'status',
@@ -32,8 +30,7 @@
                 "type" => "date",
                 "id2" => "date_range_end",
                 "type2" => "date",
-                "oninput" => "runDynamicFilter()",
-                "dataFilterPath" => "date",
+                                "dataFilterPath" => "date",
             ]
         ];
     @endphp

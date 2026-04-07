@@ -361,6 +361,7 @@
     <script defer src="{{ asset('js/utils/print-columns.js') }}"></script>
     <script defer src="{{ asset('js/utils/backup.js') }}"></script>
     <script defer src="{{ asset('js/utils/modal.js') }}"></script>
+    <script defer src="{{ asset('js/components/sidebar.js') }}"></script>
     <script defer src="{{ asset('js/utils/menu-customization.js') }}"></script>
     <script defer src="{{ asset('js/utils/form-submit.js') }}"></script>
     <script defer src="{{ asset('js/utils/inputs.js') }}"></script>
@@ -394,6 +395,8 @@
             'changeLayoutUrl' => request()->route()->getActionMethod() === 'index' || request()->route()->getActionMethod() === 'summary'
                 ? route('change-data-layout')
                 : null,
+            'routeName' => request()->route() ? request()->route()->getName() : null,
+            'companyLogoBase' => url('/') . '/',
             'readonlySession' => session('readonly') ? true : false,
         ];
     @endphp

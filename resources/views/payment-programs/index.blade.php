@@ -13,8 +13,7 @@
                 'id' => 'customer_name',
                 'type' => 'text',
                 'placeholder' => 'Enter customer name',
-                'oninput' => 'runDynamicFilter()',
-                'dataFilterPath' => 'customer_name',
+                                'dataFilterPath' => 'customer_name',
             ],
             "City" => [
                 "type" => "text",
@@ -30,8 +29,7 @@
                     'self_account' => ['text' => 'Self Account'],
                     'waiting' => ['text' => 'Waiting'],
                 ],
-                'onchange' => 'runDynamicFilter()',
-                'dataFilterPath' => 'category',
+                                'dataFilterPath' => 'category',
             ],
             'Type' => [
                 'id' => 'type',
@@ -40,15 +38,13 @@
                     'order' => ['text' => 'Order'],
                     'program' => ['text' => 'Program'],
                 ],
-                'onchange' => 'runDynamicFilter()',
-                'dataFilterPath' => 'type',
+                                'dataFilterPath' => 'type',
             ],
             'Beneficiary' => [
                 'id' => 'beneficiary',
                 'type' => 'text',
                 'placeholder' => 'Enter beneficiary',
-                'oninput' => 'runDynamicFilter()',
-                'dataFilterPath' => 'beneficiary',
+                                'dataFilterPath' => 'beneficiary',
             ],
             'Status' => [
                 'id' => 'status',
@@ -58,16 +54,14 @@
                     'Unpaid' => ['text' => 'Unpaid'],
                     'Overpaid' => ['text' => 'Overpaid'],
                 ],
-                'onchange' => 'runDynamicFilter()',
-                'dataFilterPath' => 'status',
+                                'dataFilterPath' => 'status',
             ],
             'Date Range' => [
                 'id' => 'date_range_start',
                 'type' => 'date',
                 'id2' => 'date_range_end',
                 'type2' => 'date',
-                'oninput' => 'runDynamicFilter()',
-                'dataFilterPath' => 'date',
+                                'dataFilterPath' => 'date',
             ],
         ];
     @endphp
@@ -154,6 +148,7 @@
             categorySelectHtml: @json($categorySelectHtml),
             subCategorySelectHtml: @json($subCategorySelectHtml),
             csrfToken: @json(csrf_token()),
+            authLayout: @json($authLayout),
             routes: {
                 updateProgram: @json(route('payment-programs.update-program')),
                 customerPaymentsCreate: @json(route('customer-payments.create')),

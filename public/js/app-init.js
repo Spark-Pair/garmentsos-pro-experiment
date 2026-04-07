@@ -39,8 +39,16 @@
         }
 
         window.calculations = {};
+        window.allDataArray = window.allDataArray || [];
+        window.visibleData = window.visibleData || window.allDataArray;
         if (config.homeUrl) {
             window.__homeUrl = config.homeUrl;
+        }
+        if (config.routeName) {
+            window.__routeName = config.routeName;
+        }
+        if (config.companyLogoBase) {
+            window.companyLogoBase = config.companyLogoBase;
         }
         if (typeof initNavButtons === 'function') initNavButtons();
         if (typeof initHomeShortcut === 'function' && config.homeUrl) initHomeShortcut();
@@ -82,6 +90,58 @@
 
         if (typeof initAmountInputs === 'function') initAmountInputs();
         if (typeof initGlobalFormValidation === 'function') initGlobalFormValidation();
+
+        if (typeof window.trackTypeState !== 'function') window.trackTypeState = () => {};
+        if (typeof window.trackDateState !== 'function') window.trackDateState = () => {};
+        if (typeof window.trackStateOfCategoryBtn !== 'function') window.trackStateOfCategoryBtn = () => {};
+        if (typeof window.generateModal !== 'function') window.generateModal = () => {};
+        if (typeof window.renderMenuShortcuts !== 'function') window.renderMenuShortcuts = () => {};
+
+        const themeButtons = [
+            document.getElementById('themeToggle'),
+            document.getElementById('themeToggleMobile'),
+        ].filter(Boolean);
+        if (themeButtons.length) {
+            const html = document.documentElement;
+            const themeIcons = document.querySelectorAll('#themeToggle i, #themeToggleMobile i');
+            const updateIcons = () => {
+                themeIcons.forEach(icon => {
+                    icon.classList.toggle('fa-sun');
+                    icon.classList.toggle('fa-moon');
+                });
+            };
+            const persistTheme = (theme) => {
+                if (typeof $ !== 'undefined') {
+                    $.ajax({
+                        url: '/update-theme',
+                        type: 'POST',
+                        data: {
+                            theme,
+                            _token: $('meta[name="csrf-token"]').attr('content'),
+                        },
+                    });
+                } else {
+                    fetch('/update-theme', {
+                        method: 'POST',
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                        },
+                        body: `theme=${encodeURIComponent(theme)}`,
+                    }).catch(() => {});
+                }
+            };
+            themeButtons.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const current = html.getAttribute('data-theme');
+                    const next = current === 'dark' ? 'light' : 'dark';
+                    html.setAttribute('data-theme', next);
+                    updateIcons();
+                    persistTheme(next);
+                });
+            });
+        }
     }
 
     function hydrateConfigFromBody() {
@@ -102,5 +162,8 @@
         window.__appConfig = Object.assign({}, bodyConfig, window.__appConfig || {});
         initAppCommon();
         document.dispatchEvent(new CustomEvent('app:config:ready'));
+        document.addEventListener('app:data:rendered', (event) => {
+            window.visibleData = event.detail?.items || window.allDataArray || [];
+        });
     });
 })();

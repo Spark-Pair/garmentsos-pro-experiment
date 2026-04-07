@@ -12,8 +12,7 @@
                 "id" => "customer_name",
                 "type" => "text",
                 "placeholder" => "Enter customer name",
-                "oninput" => "runDynamicFilter()",
-                "dataFilterPath" => "customer_name",
+                                "dataFilterPath" => "customer_name",
             ],
             "Category" => [
                 "id" => "category",
@@ -23,29 +22,25 @@
                             'customer' => ['text' => 'Customer'],
                             'supplier' => ['text' => 'Supplier'],
                         ],
-                "onchange" => "runDynamicFilter()",
-                "dataFilterPath" => "details.Category",
+                                "dataFilterPath" => "details.Category",
             ],
             "Name" => [
                 "id" => "name",
                 "type" => "text",
                 "placeholder" => "Enter name",
-                "oninput" => "runDynamicFilter()",
-                "dataFilterPath" => "details.Name",
+                                "dataFilterPath" => "details.Name",
             ],
             "Account No" => [
                 "id" => "account_no",
                 "type" => "text",
                 "placeholder" => "Enter account no",
-                "oninput" => "runDynamicFilter()",
-                "dataFilterPath" => "accountNo",
+                                "dataFilterPath" => "accountNo",
             ],
             "Bank" => [
                 "id" => "bank",
                 "type" => "text",
                 "placeholder" => "Enter bank",
-                "oninput" => "runDynamicFilter()",
-                "dataFilterPath" => "bank",
+                                "dataFilterPath" => "bank",
             ],
             'Status' => [
                 'id' => 'status',
@@ -61,8 +56,7 @@
                 "type" => "date",
                 "id2" => "date_range_end",
                 "type2" => "date",
-                "oninput" => "runDynamicFilter()",
-                "dataFilterPath" => "date",
+                                "dataFilterPath" => "date",
             ]
         ];
     @endphp

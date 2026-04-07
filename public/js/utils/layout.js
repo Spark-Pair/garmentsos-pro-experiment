@@ -18,6 +18,7 @@ function changeLayout() {
         type: 'POST',
         data: {
             layout: currentLayout,
+            route_name: window.__routeName || null,
         },
         headers: {
             'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')

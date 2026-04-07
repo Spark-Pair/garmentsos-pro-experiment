@@ -6,7 +6,7 @@ function createModal(data, animate = 'animate') {
         inactive: ['[var(--bg-error)]', '[var(--h-bg-error)]', '[var(--border-error)]'],
     };
     const companyData = data.companyData || window.companyData || {};
-    const companyLogoBase = (window.companyLogoBase || '/').replace(/\/+$/, '/') ;
+    const companyLogoBase = (data.companyLogoBase || window.companyLogoBase || '/').replace(/\/+$/, '/') ;
 
     const contextMenu = document.getElementById('context-menu');
     if (contextMenu) {
@@ -1006,11 +1006,37 @@ function openSubMenuAtCard(card) {
     subMenuDom.style.left = (rect.right + 8) + 'px';
 
     subMenuDom.classList.remove('hidden');
+    if (card.dataset?.kbIndex) {
+        subMenuDom.dataset.kbParent = card.dataset.kbIndex;
+    }
+    subMenuDom.dataset.kbSkipClick = '1';
     const links = Array.from(subMenuDom.querySelectorAll('a'));
-    links.forEach(a => a.setAttribute('tabindex', '0'));
+    links.forEach(a => {
+        a.setAttribute('tabindex', '0');
+        a.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                e.stopPropagation();
+                a.click();
+            }
+        }, { once: true });
+    });
     links[0]?.focus();
     return true;
 }
+
+document.addEventListener('click', (e) => {
+    const openMenu = document.querySelector('.subMenu:not(.hidden)');
+    if (openMenu?.dataset?.kbSkipClick === '1') {
+        if (openMenu.contains(e.target)) {
+            openMenu.dataset.kbSkipClick = '';
+            return;
+        }
+        e.stopPropagation();
+        e.preventDefault();
+        openMenu.dataset.kbSkipClick = '';
+    }
+}, true);
 
 function setupCardKeyboardNavigation(modalWrapper, data) {
     const container = modalWrapper.querySelector(`.${data.id}CardsContainer`);
@@ -1026,6 +1052,17 @@ function setupCardKeyboardNavigation(modalWrapper, data) {
         card.dataset.kbIndex = String(i);
         card.addEventListener('focus', () => {
             modalWrapper.dataset.kbIndex = String(i);
+        });
+        card.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                e.stopPropagation();
+                if (openSubMenuAtCard(card)) {
+                    modalWrapper.dataset.kbJustOpened = '1';
+                    return;
+                }
+                card.click();
+            }
         });
     });
 
@@ -1044,6 +1081,11 @@ function setupCardKeyboardNavigation(modalWrapper, data) {
         const openMenu = modalWrapper.querySelector('.subMenu:not(.hidden)');
         if (openMenu) {
             openMenu.classList.add('hidden');
+            openMenu.dataset.kbSkipClick = '';
+            const parentIndex = openMenu.dataset?.kbParent;
+            if (parentIndex) {
+                focusCard(Number(parentIndex));
+            }
             return true;
         }
         return false;
@@ -1072,12 +1114,14 @@ function setupCardKeyboardNavigation(modalWrapper, data) {
             }
             if (e.key === 'Enter') {
                 e.preventDefault();
+                openMenu.dataset.kbSkipClick = '';
                 document.activeElement?.click();
                 return;
             }
             if (e.key === 'Escape') {
                 e.preventDefault();
                 openMenu.classList.add('hidden');
+                openMenu.dataset.kbSkipClick = '';
                 return;
             }
         }
@@ -1112,7 +1156,20 @@ function setupCardKeyboardNavigation(modalWrapper, data) {
             const list = getVisibleCards();
             const card = list[current] || list[0];
             if (!card) return;
-            if (openSubMenuAtCard(card)) return;
+            if (openSubMenuAtCard(card)) {
+                modalWrapper.dataset.kbJustOpened = '1';
+                return;
+            }
+            card.click();
+        } else if (e.key === ' ') {
+            e.preventDefault();
+            const list = getVisibleCards();
+            const card = list[current] || list[0];
+            if (!card) return;
+            if (openSubMenuAtCard(card)) {
+                modalWrapper.dataset.kbJustOpened = '1';
+                return;
+            }
             card.click();
         } else if (e.key === 'Tab') {
             e.preventDefault();
@@ -1137,6 +1194,13 @@ function setupCardKeyboardNavigation(modalWrapper, data) {
     } else {
         focusCard(0);
     }
+
+    modalWrapper.addEventListener('keyup', (e) => {
+        if (modalWrapper.dataset.kbJustOpened === '1' && (e.key === 'Enter' || e.key === ' ')) {
+            e.preventDefault();
+            modalWrapper.dataset.kbJustOpened = '';
+        }
+    });
 }
 
 function renderCardsInModal(data) {

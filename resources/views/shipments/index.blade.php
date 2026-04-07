@@ -7,16 +7,14 @@
                 "id" => "shipment_no",
                 "type" => "text",
                 "placeholder" => "Enter shipment no",
-                "oninput" => "runDynamicFilter()",
-                "dataFilterPath" => "name",
+                                "dataFilterPath" => "name",
             ],
             "Date Range" => [
                 "id" => "date_range_start",
                 "type" => "date",
                 "id2" => "date_range_end",
                 "type2" => "date",
-                "oninput" => "runDynamicFilter()",
-                "dataFilterPath" => "data.date",
+                                "dataFilterPath" => "data.date",
             ]
         ];
     @endphp

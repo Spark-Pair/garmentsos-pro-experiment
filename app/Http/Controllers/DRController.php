@@ -20,15 +20,16 @@ class DRController extends Controller
     public function index(Request $request)
     {
         // $drs = DR::with('customer.city')->orderBy('id', 'desc')->get();
+        $authLayout = $this->getAuthLayout($request->route()->getName(), 'table');
 
         if ($request->ajax()) {
             $drs = DR::orderByDesc('id')
                 ->applyFilters($request);
 
-            return response()->json(['data' => $drs, 'authLayout' => 'table']);
+            return response()->json(['data' => $drs, 'authLayout' => $authLayout]);
         }
 
-        return view('dr.index');
+        return view('dr.index', compact('authLayout'));
     }
 
     /**

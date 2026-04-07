@@ -285,7 +285,10 @@
 
     function calculateNetAmount() {
         const totalAmount = parseFloat(totalShipmentAmount);
-        const discount = document.getElementById('discount').value;
+        let discount = parseFloat(document.getElementById('discount').value || 0);
+        if (Number.isNaN(discount)) discount = 0;
+        discount = Math.max(0, Math.min(100, discount));
+        if (discountDOM) discountDOM.value = discount;
         const discountAmount = totalAmount - totalAmount * (discount / 100);
         netAmount = discountAmount;
         netAmount = new Intl.NumberFormat('en-US', {
@@ -476,7 +479,7 @@
                             <div id="shipment-total" class="tr flex justify-between w-full px-2 gap-2 text-sm">
                                 <div class="total flex justify-between items-center border border-gray-600 rounded-lg py-2 px-4 w-full">
                                     <div class="text-nowrap">Discount - %</div>
-                                    <div class="w-1/4 text-right grow">${discountDOM.value}</div>
+                                    <div class="w-1/4 text-right grow">${discountDOM?.value || 0}</div>
                                 </div>
                                 <div
                                     class="total flex justify-between items-center border border-gray-600 rounded-lg py-2 px-4 w-full">
@@ -507,7 +510,34 @@
                 date: inputElem.value,
             },
             success: function (response) {
-                articles = response.articles;
+                articles = response.articles || [];
+                selectedArticles = [];
+                totalShipmentQuantity = 0;
+                totalShipmentAmount = 0;
+                renderList();
+                calculateTotalShipmentQuantity();
+                calculateTotalShipmentAmount();
+                renderTotals();
+
+                const modal = document.getElementById('modalForm');
+                if (modal) {
+                    cardData = articles.map(item => ({
+                        id: item.id,
+                        name: item.article_no,
+                        image: item.image == 'no_image_icon.png'
+                            ? '/images/no_image_icon.png'
+                            : `/storage/uploads/images/${item.image}`,
+                        details: {
+                            Category: item.category,
+                            Season: item.season,
+                            Size: item.size,
+                        },
+                        data: item,
+                        onclick: 'generateQuantityModal(this)',
+                    }));
+                    renderCardsInModal({ id: 'modalForm', cards: { data: cardData } });
+                    document.querySelectorAll('.card .quantity-label').forEach(label => label.remove());
+                }
             },
             error: function () {
                 alert('Error submitting form');

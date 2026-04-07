@@ -54,11 +54,17 @@ function initEmployeePaymentsIndex() {
         };
 
         let infoDom = document.getElementById("info")?.querySelector("span");
+        let allDataArray = window.allDataArray || [];
 
         window.onFilter = function onFilter() {
             if (!infoDom) return;
-            infoDom.textContent = `Showing ${visibleData.length} of ${allDataArray.length} payments.`;
+            const visibleRows = window.visibleData || [];
+            infoDom.textContent = `Showing ${visibleRows.length} of ${allDataArray.length} payments.`;
         };
+
+        document.addEventListener('app:data:rendered', (event) => {
+            allDataArray = event.detail?.items || window.allDataArray || [];
+        });
 }
 
 window.initEmployeePaymentsIndex = initEmployeePaymentsIndex;

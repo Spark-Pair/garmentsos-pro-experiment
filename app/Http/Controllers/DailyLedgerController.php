@@ -51,6 +51,7 @@ class DailyLedgerController extends Controller
 
     public function index(Request $request)
     {
+        $authLayout = $this->getAuthLayout($request->route()->getName(), 'table');
         if ($request->ajax()) {
             // Get filtered deposits
             $filteredDeposits = DailyLedgerDeposit::orderByDesc('date')
@@ -126,7 +127,7 @@ class DailyLedgerController extends Controller
 
             return response()->json([
                 'data' => $finalData,
-                'authLayout' => 'table',
+                'authLayout' => $authLayout,
                 'calculations' => [
                     'opening_balance' => round($openingBalance, 2),
                     'total_deposit' => round($totalDeposit, 2),
@@ -139,7 +140,7 @@ class DailyLedgerController extends Controller
             ]);
         }
 
-        return view('daily-ledger.index');
+        return view('daily-ledger.index', compact('authLayout'));
     }
 
     /**

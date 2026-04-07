@@ -14,15 +14,16 @@ class BiltyController extends Controller
     public function index(Request $request)
     {
         // $bilties = Bilty::with('invoice.customer.city')->get();
+        $authLayout = $this->getAuthLayout($request->route()->getName(), 'table');
 
         if ($request->ajax()) {
             $orders = Bilty::with('invoice.customer.city')->orderByDesc('id')
                 ->applyFilters($request);
 
-            return response()->json(['data' => $orders, 'authLayout' => 'table']);
+            return response()->json(['data' => $orders, 'authLayout' => $authLayout]);
         }
 
-        return view('bilties.show');
+        return view('bilties.show', compact('authLayout'));
     }
 
     /**

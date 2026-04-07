@@ -7,29 +7,25 @@
                 "id" => "bill_type",
                 "type" => "text",
                 "placeholder" => "Enter bill type",
-                "oninput" => "runDynamicFilter()",
-                "dataFilterPath" => "bill_type",
+                                "dataFilterPath" => "bill_type",
             ],
             "Location" => [
                 "id" => "location",
                 "type" => "text",
                 "placeholder" => "Enter location",
-                "oninput" => "runDynamicFilter()",
-                "dataFilterPath" => "location",
+                                "dataFilterPath" => "location",
             ],
             "Account Title" => [
                 "id" => "account_title",
                 "type" => "text",
                 "placeholder" => "Enter account title",
-                "oninput" => "runDynamicFilter()",
-                "dataFilterPath" => "account_title",
+                                "dataFilterPath" => "account_title",
             ],
             "Account No." => [
                 "id" => "account_no",
                 "type" => "text",
                 "placeholder" => "Enter account no.",
-                "oninput" => "runDynamicFilter()",
-                "dataFilterPath" => "account_no",
+                                "dataFilterPath" => "account_no",
             ],
         ];
     @endphp

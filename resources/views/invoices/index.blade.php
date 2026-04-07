@@ -7,37 +7,32 @@
                 "id" => "invoice_no",
                 "type" => "text",
                 "placeholder" => "Enter invoice no.",
-                "oninput" => "runDynamicFilter()",
-                "dataFilterPath" => "invoice_no",
+                                "dataFilterPath" => "invoice_no",
             ],
             "Reff. No." => [
                 "id" => "reff_no",
                 "type" => "text",
                 "placeholder" => "Enter reff. no.",
-                "oninput" => "runDynamicFilter()",
-                "dataFilterPath" => "reff_no",
+                                "dataFilterPath" => "reff_no",
             ],
             "Customer Name" => [
                 "id" => "customer_name",
                 "type" => "text",
                 "placeholder" => "Enter customer name",
-                "oninput" => "runDynamicFilter()",
-                "dataFilterPath" => "customer_name",
+                                "dataFilterPath" => "customer_name",
             ],
             "City" => [
                 "id" => "city",
                 "type" => "text",
                 "placeholder" => "Enter city",
-                "oninput" => "runDynamicFilter()",
-                "dataFilterPath" => "city",
+                                "dataFilterPath" => "city",
             ],
             "Date Range" => [
                 "id" => "date_range_start",
                 "type" => "date",
                 "id2" => "date_range_end",
                 "type2" => "date",
-                "oninput" => "runDynamicFilter()",
-                "dataFilterPath" => "date",
+                                "dataFilterPath" => "date",
             ]
         ];
     @endphp

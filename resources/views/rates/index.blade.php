@@ -14,22 +14,19 @@
                     'staff_type' => ['text' => 'Staff Type'],
                     'worker_type' => ['text' => 'Worker Type'],
                 ],
-                "onchange" => "runDynamicFilter()",
-                "dataFilterPath" => "type",
+                                "dataFilterPath" => "type",
             ],
             "Title" => [
                 "id" => "title",
                 "type" => "text",
                 "placeholder" => "Enter title",
-                "oninput" => "runDynamicFilter()",
-                "dataFilterPath" => "title",
+                                "dataFilterPath" => "title",
             ],
             "short_title" => [
                 "id" => "short_title",
                 "type" => "text",
                 "placeholder" => "Enter short title",
-                "oninput" => "runDynamicFilter()",
-                "dataFilterPath" => "short_title",
+                                "dataFilterPath" => "short_title",
             ],
         ];
     @endphp
@@ -81,7 +78,7 @@
 <script defer src="{{ asset('js/pages/rates-index.js') }}"></script>
 <script>
         window.__ratesIndex = {
-            authLayout: 'table',
+            authLayout: @json($authLayout),
             setups: @json($setups),
         };
     </script>

@@ -7,15 +7,13 @@
                 "id" => "article_no",
                 "type" => "text",
                 "placeholder" => "Enter article no",
-                "oninput" => "runDynamicFilter()",
-                "dataFilterPath" => "article_no",
+                                "dataFilterPath" => "article_no",
             ],
             "Processed By" => [
                 "id" => "processed_by",
                 "type" => "text",
                 "placeholder" => "Enter processed by",
-                "oninput" => "runDynamicFilter()",
-                "dataFilterPath" => "processed_by",
+                                "dataFilterPath" => "processed_by",
             ],
             'Shipment' => [
                 'id' => 'shipment',
@@ -78,7 +76,7 @@
 <script defer src="{{ asset('js/pages/physical-quantities-index.js') }}"></script>
 <script>
         window.__physicalQuantitiesIndex = {
-            authLayout: 'table',
+            authLayout: @json($authLayout),
         };
     </script>
 @endpush

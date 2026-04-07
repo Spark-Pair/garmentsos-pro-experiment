@@ -7,30 +7,26 @@
                 "id" => "supplier_name",
                 "type" => "text",
                 "placeholder" => "Enter supplier name",
-                "oninput" => "runDynamicFilter()",
-                "dataFilterPath" => "supplier_name",
+                                "dataFilterPath" => "supplier_name",
             ],
             "CR No." => [
                 "id" => "c_r_no",
                 "type" => "text",
                 "placeholder" => "Enter cr no.",
-                "oninput" => "runDynamicFilter()",
-                "dataFilterPath" => "c_r_no",
+                                "dataFilterPath" => "c_r_no",
             ],
             "Voucher No." => [
                 "id" => "voucher_no",
                 "type" => "text",
                 "placeholder" => "Enter voucher no.",
-                "oninput" => "runDynamicFilter()",
-                "dataFilterPath" => "voucher_no",
+                                "dataFilterPath" => "voucher_no",
             ],
             "Date Range" => [
                 "id" => "date_range_start",
                 "type" => "date",
                 "id2" => "date_range_end",
                 "type2" => "date",
-                "oninput" => "runDynamicFilter()",
-                "dataFilterPath" => "date",
+                                "dataFilterPath" => "date",
             ]
         ];
     @endphp
@@ -77,7 +73,7 @@
 <script defer src="{{ asset('js/pages/cr-index.js') }}"></script>
 <script>
         window.__crIndex = {
-            authLayout: 'table',
+            authLayout: @json($authLayout),
         };
     </script>
 @endpush

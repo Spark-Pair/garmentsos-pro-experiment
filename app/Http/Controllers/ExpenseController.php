@@ -19,6 +19,7 @@ class ExpenseController extends Controller
         if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin', 'accountant', 'guest'])) {
             return $resp;
         }
+        $authLayout = $this->getAuthLayout($request->route()->getName(), 'table');
 
         if ($request->ajax()) {
             $shipments = Expense::with(['supplier', 'expenseSetups'])->orderByDesc('id')
@@ -28,7 +29,7 @@ class ExpenseController extends Controller
 
             return response()->json([
                 'data' => $shipments,
-                'authLayout' => 'table',
+                'authLayout' => $authLayout,
                 'calculations' => [
                     'total_amount' => $totalAmount,
                 ],
@@ -44,7 +45,7 @@ class ExpenseController extends Controller
             ])
             ->toArray();
 
-        return view('expenses.index', compact('expenseOptions'));
+        return view('expenses.index', compact('expenseOptions', 'authLayout'));
     }
 
     /**
@@ -55,6 +56,11 @@ class ExpenseController extends Controller
         if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin', 'accountant'])) {
             return $resp;
         }
+
+        $adjustmentSetup = Setup::firstOrCreate([
+            'type' => 'supplier_category',
+            'title' => 'Adjustment',
+        ]);
 
         $lastExpense = Expense::with('supplier', 'expenseSetups')->latest('id')->first();
 
@@ -79,7 +85,7 @@ class ExpenseController extends Controller
             $supplier["balance"] = 0.00;
         }
 
-        return view('expenses.add', compact('suppliers_options', 'lastExpense'));
+        return view('expenses.add', compact('suppliers_options', 'lastExpense', 'adjustmentSetup'));
     }
 
     /**
@@ -152,7 +158,12 @@ class ExpenseController extends Controller
             return $resp;
         }
 
-        return view('expenses.edit', compact('expense'));
+        $adjustmentSetup = Setup::firstOrCreate([
+            'type' => 'supplier_category',
+            'title' => 'Adjustment',
+        ]);
+
+        return view('expenses.edit', compact('expense', 'adjustmentSetup'));
     }
 
     /**

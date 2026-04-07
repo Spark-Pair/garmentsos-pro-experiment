@@ -7,23 +7,20 @@
                 "id" => "d_r_no",
                 "type" => "text",
                 "placeholder" => "Enter dr no.",
-                "oninput" => "runDynamicFilter()",
-                "dataFilterPath" => "d_r_no",
+                                "dataFilterPath" => "d_r_no",
             ],
             "Customer Name" => [
                 "id" => "customer_name",
                 "type" => "text",
                 "placeholder" => "Enter customer name",
-                "oninput" => "runDynamicFilter()",
-                "dataFilterPath" => "customer_name",
+                                "dataFilterPath" => "customer_name",
             ],
             "Date Range" => [
                 "id" => "date_range_start",
                 "type" => "date",
                 "id2" => "date_range_end",
                 "type2" => "date",
-                "oninput" => "runDynamicFilter()",
-                "dataFilterPath" => "date",
+                                "dataFilterPath" => "date",
             ]
         ];
     @endphp
@@ -68,7 +65,7 @@
 <script defer src="{{ asset('js/pages/dr-index.js') }}"></script>
 <script>
         window.__drIndex = {
-            authLayout: 'table',
+            authLayout: @json($authLayout),
         };
     </script>
 @endpush

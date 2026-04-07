@@ -1,7 +1,10 @@
 (() => {
 function initPaymentProgramsIndex() {
     const config = window.__ppIndex || {};
-    let authLayout = 'table';
+    let authLayout = config.authLayout || 'table';
+    if (authLayout) {
+        window.authLayout = authLayout;
+    }
     let totalAmountDom = document.querySelector('#calc-bottom >.total-Amount .text-right');
     let totalPaymentDom = document.querySelector('#calc-bottom >.total-Payment .text-right');
     let totalBalanceDom = document.querySelector('#calc-bottom >.balance .text-right');

@@ -49,7 +49,7 @@ const GlobalFilterManager = {
             const url = this.buildUrl({ limit: this.config.initialLoadCount });
             const data = await this.fetchData(url);
 
-            rootAuthLayout = data.authLayout;
+            rootAuthLayout = data.authLayout || window.__authLayout || window.authLayout || rootAuthLayout;
 
             this.renderData(data);
 
@@ -132,8 +132,10 @@ const GlobalFilterManager = {
         // Get data array from response
         const items = response.data || response.items || response;
         window.allDataArray = Array.isArray(items) ? items : [];
+        window.visibleData = window.allDataArray;
 
-        calculations = response.calculations;
+        rootAuthLayout = response.authLayout || window.__authLayout || window.authLayout || rootAuthLayout;
+        const calculations = response.calculations || {};
         if (typeof window.renderCalculation === 'function') {
             window.renderCalculation(calculations);
         }

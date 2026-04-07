@@ -26,3 +26,17 @@ function initGlobalFormValidation() {
         });
     });
 }
+
+window.submitModalForm = function submitModalForm(button) {
+    const form = button?.closest?.('form');
+    if (!form) return;
+
+    if (typeof validateAllInputs === 'function' && !validateAllInputs()) {
+        if (typeof showMessageBox === 'function') {
+            showMessageBox('error', 'Some fields are incorrect. Please fix them.');
+        }
+        return;
+    }
+
+    form.submit();
+}

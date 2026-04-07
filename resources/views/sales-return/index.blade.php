@@ -7,30 +7,26 @@
                 "id" => "customer",
                 "type" => "text",
                 "placeholder" => "Enter customer",
-                "oninput" => "runDynamicFilter()",
-                "dataFilterPath" => "customer",
+                                "dataFilterPath" => "customer",
             ],
             "Article No" => [
                 "id" => "article_no",
                 "type" => "text",
                 "placeholder" => "Enter article no",
-                "oninput" => "runDynamicFilter()",
-                "dataFilterPath" => "article_no",
+                                "dataFilterPath" => "article_no",
             ],
             "Invoice No" => [
                 "id" => "invoice_no",
                 "type" => "text",
                 "placeholder" => "Enter invoice no",
-                "oninput" => "runDynamicFilter()",
-                "dataFilterPath" => "invoice_no",
+                                "dataFilterPath" => "invoice_no",
             ],
             "Date Range" => [
                 "id" => "date_range_start",
                 "type" => "date",
                 "id2" => "date_range_end",
                 "type2" => "date",
-                "oninput" => "runDynamicFilter()",
-                "dataFilterPath" => "date",
+                                "dataFilterPath" => "date",
             ]
         ];
     @endphp
@@ -78,7 +74,7 @@
 <script defer src="{{ asset('js/pages/sales-return-index.js') }}"></script>
 <script>
         window.__salesReturnIndex = {
-            authLayout: 'table',
+            authLayout: @json($authLayout),
         };
     </script>
 @endpush

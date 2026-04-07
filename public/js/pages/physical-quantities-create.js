@@ -119,23 +119,30 @@
 
             document.getElementById("date").min = formatArticleDate(selectedArticle.date);
 
-            if (selectedArticle.pcs_per_packet > 0) {
+            const hasPcs = Number(selectedArticle.pcs_per_packet || 0) > 0;
+            const hasProcessedBy = !!(selectedArticle.processed_by && String(selectedArticle.processed_by).trim());
+
+            if (hasPcs) {
                 pcsPerPacketDom.readOnly = true;
                 pcsPerPacketDom.classList.remove("bg-[var(--h-bg-color)]");
                 pcsPerPacketDom.classList.add("bg-transparent");
                 pcsPerPacketDom.classList.add("cursor-not-allowed");
                 pcsPerPacketDom.value = selectedArticle.pcs_per_packet;
-                processedByDom.readOnly = true;
-                processedByDom.classList.remove("bg-[var(--h-bg-color)]");
-                processedByDom.classList.add("bg-transparent");
-                processedByDom.classList.add("cursor-not-allowed");
-                processedByDom.value = selectedArticle.processed_by;
             } else {
                 pcsPerPacketDom.readOnly = false;
                 pcsPerPacketDom.classList.add("bg-[var(--h-bg-color)]");
                 pcsPerPacketDom.classList.remove("bg-transparent");
                 pcsPerPacketDom.classList.remove("cursor-not-allowed");
                 pcsPerPacketDom.value = "";
+            }
+
+            if (hasProcessedBy) {
+                processedByDom.readOnly = true;
+                processedByDom.classList.remove("bg-[var(--h-bg-color)]");
+                processedByDom.classList.add("bg-transparent");
+                processedByDom.classList.add("cursor-not-allowed");
+                processedByDom.value = selectedArticle.processed_by;
+            } else {
                 processedByDom.readOnly = false;
                 processedByDom.classList.add("bg-[var(--h-bg-color)]");
                 processedByDom.classList.remove("bg-transparent");

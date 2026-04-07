@@ -80,10 +80,10 @@ class InvoiceController extends Controller
             $user->save();
         }
 
-        $last_Invoice = invoice::orderby('id', 'desc')->first();
+        $last_Invoice = Invoice::orderBy('id', 'desc')->first();
 
         if (!$last_Invoice) {
-            $last_Invoice = new invoice();
+            $last_Invoice = new Invoice();
             $last_Invoice->invoice_no = '00-0000';
         }
 

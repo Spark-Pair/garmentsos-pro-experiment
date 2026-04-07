@@ -19,7 +19,7 @@ function initDailyLedgerIndex() {
         `;
     }
 
-    let allDataArray = [];
+    let allDataArray = window.allDataArray || [];
     let openingBalanceDom = document.querySelector('#calc-bottom >.opening-balance .text-right');
     let totalDepositDom = document.querySelector('#calc-bottom >.total-Deposit .text-right');
     let totalUseDom = document.querySelector('#calc-bottom >.total-Payment .text-right');
@@ -28,17 +28,23 @@ function initDailyLedgerIndex() {
     let infoDom = document.getElementById('info').querySelector('span');
 
     function renderCalculation(data) {
-        openingBalanceDom.innerText = formatNumbersWithDigits(data.opening_balance, 1, 1);
-        totalDepositDom.innerText = formatNumbersWithDigits(data.total_deposit, 1, 1);
-        totalUseDom.innerText = formatNumbersWithDigits(data.total_use, 1, 1);
-        balanceDom.innerText = formatNumbersWithDigits(data.total_deposit - data.total_use, 1, 1);
-        closingBalanceDom.innerText = formatNumbersWithDigits(data.closing_balance, 1, 1);
+        const opening = Number(data.opening_balance || 0);
+        const totalDeposit = Number(data.total_deposit || 0);
+        const totalUse = Number(data.total_use || 0);
+        const closing = Number(data.closing_balance || 0);
+
+        openingBalanceDom.innerText = formatNumbersWithDigits(opening, 1, 1);
+        totalDepositDom.innerText = formatNumbersWithDigits(totalDeposit, 1, 1);
+        totalUseDom.innerText = formatNumbersWithDigits(totalUse, 1, 1);
+        balanceDom.innerText = formatNumbersWithDigits(totalDeposit - totalUse, 1, 1);
+        closingBalanceDom.innerText = formatNumbersWithDigits(closing, 1, 1);
     }
 
     window.renderCalculation = renderCalculation;
 
     window.onFilter = function() {
-        if (visibleData.length === 0) {
+        const visibleRows = window.visibleData || [];
+        if (visibleRows.length === 0) {
             infoDom.textContent = `Showing 0 of ${allDataArray.length} records.`;
 
             if (allDataArray.length > 0) {
@@ -61,7 +67,7 @@ function initDailyLedgerIndex() {
             return;
         }
 
-        let sortedVisibleData = [...visibleData].sort((a, b) => {
+        let sortedVisibleData = [...visibleRows].sort((a, b) => {
             let dateCompare = new Date(a.date) - new Date(b.date);
             if (dateCompare !== 0) return dateCompare;
             return new Date(a.created_at) - new Date(b.created_at);
@@ -96,13 +102,17 @@ function initDailyLedgerIndex() {
 
         let closingBalance = runningBalance;
 
-        infoDom.textContent = `Showing ${visibleData.length} of ${allDataArray.length} records.`;
+        infoDom.textContent = `Showing ${visibleRows.length} of ${allDataArray.length} records.`;
         openingBalanceDom.innerText = formatNumbersWithDigits(openingBalance, 1, 1);
         totalDepositDom.innerText = formatNumbersWithDigits(visibleDeposit, 1, 1);
         totalUseDom.innerText = formatNumbersWithDigits(visibleUse, 1, 1);
         balanceDom.innerText = formatNumbersWithDigits(visibleDeposit - visibleUse, 1, 1);
         closingBalanceDom.innerText = formatNumbersWithDigits(closingBalance, 1, 1);
     }
+
+    document.addEventListener('app:data:rendered', (event) => {
+        allDataArray = event.detail?.items || window.allDataArray || [];
+    });
 }
 
 window.initDailyLedgerIndex = initDailyLedgerIndex;

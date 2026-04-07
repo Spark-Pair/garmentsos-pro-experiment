@@ -139,7 +139,7 @@
                             shipmentArticles = [];
                             discount = 0;
                             allCustomers = "";
-                            allDataArray = "";
+                            allDataArray = [];
                             renderError(response.error);
                         }
                         renderList();

@@ -17,15 +17,16 @@ class SalesReturnController extends Controller
     public function index(Request $request)
     {
         // $sales_returns = SalesReturn::with('article', 'invoice.customer.city')->orderBy('id', 'desc')->get();
+        $authLayout = $this->getAuthLayout($request->route()->getName(), 'table');
 
         if ($request->ajax()) {
             $sales_returns = SalesReturn::orderByDesc('id')
                 ->applyFilters($request);
 
-            return response()->json(['data' => $sales_returns, 'authLayout' => 'table']);
+            return response()->json(['data' => $sales_returns, 'authLayout' => $authLayout]);
         }
 
-        return view('sales-return.index');
+        return view('sales-return.index', compact('authLayout'));
     }
 
     /**

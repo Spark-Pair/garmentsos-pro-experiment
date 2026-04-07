@@ -24,6 +24,7 @@ class ProductionController extends Controller
         if ($resp = $this->denyIfNoRole(['developer', 'owner', 'manager', 'admin', 'accountant', 'guest', 'store_keeper'])) {
             return $resp;
         }
+        $authLayout = $this->getAuthLayout($request->route()->getName(), 'table');
 
         // $productions = Production::with('article', 'work', 'worker')->orderby('id', 'desc')->get();
 
@@ -31,10 +32,10 @@ class ProductionController extends Controller
             $productions = Production::orderByDesc('id')
                 ->applyFilters($request);
 
-            return response()->json(['data' => $productions, 'authLayout' => 'table']);
+            return response()->json(['data' => $productions, 'authLayout' => $authLayout]);
         }
 
-        return view('productions.index');
+        return view('productions.index', compact('authLayout'));
     }
 
     /**

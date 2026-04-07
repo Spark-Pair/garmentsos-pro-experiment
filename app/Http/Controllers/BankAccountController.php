@@ -201,9 +201,9 @@ class BankAccountController extends Controller
         }
 
         $validator = Validator::make($request->all(), [
-            'cheque_book_serial' => 'nullable|array',
-            'cheque_book_serial.start' => 'nullable|numeric',
-            'cheque_book_serial.end' => 'nullable|numeric|gte:cheque_book_serial.start',
+            'cheque_book_serial' => 'required|array',
+            'cheque_book_serial.start' => 'required|integer|min:1',
+            'cheque_book_serial.end' => 'required|integer|gt:cheque_book_serial.start',
         ]);
 
         if ($validator->fails()) {

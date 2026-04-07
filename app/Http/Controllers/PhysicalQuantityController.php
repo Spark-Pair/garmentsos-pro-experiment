@@ -20,6 +20,7 @@ class PhysicalQuantityController extends Controller
         if ($resp = $this->denyIfNoRole(['developer', 'owner', 'manager', 'admin', 'accountant', 'guest', 'store_keeper'])) {
             return $resp;
         }
+        $authLayout = $this->getAuthLayout($request->route()->getName(), 'table');
 
         if ($request->ajax()) {
             $rows = PhysicalQuantity::with('article')
@@ -78,7 +79,7 @@ class PhysicalQuantityController extends Controller
 
             return response()->json([
                 'data' => $grouped,
-                'authLayout' => 'table'
+                'authLayout' => $authLayout
             ]);
         }
 
@@ -151,7 +152,7 @@ class PhysicalQuantityController extends Controller
         //     }
         // }
 
-        return view('physical-quantities.index');
+        return view('physical-quantities.index', compact('authLayout'));
     }
 
     /**

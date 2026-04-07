@@ -163,6 +163,7 @@
             voucher: @json($voucher),
             companyData: @json($client_company),
             companyLogoUrl: @json(asset('images/' . $client_company->logo)),
+            companyLogoBase: @json(asset('images')),
             selfAccounts: @json($self_accounts),
             templates: @json($voucherTemplates),
         };

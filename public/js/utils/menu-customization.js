@@ -1,4 +1,18 @@
 function switchBtnTogggle(switchBtn) {
+    if (typeof window.menu_shortcuts === 'undefined') {
+        window.menu_shortcuts = [];
+    }
+    if (!Array.isArray(window.menu_shortcuts)) {
+        try {
+            window.menu_shortcuts = JSON.parse(window.menu_shortcuts);
+        } catch (_) {
+            window.menu_shortcuts = [];
+        }
+    }
+    if (typeof window.maxShortcutsLimit === 'undefined') {
+        window.maxShortcutsLimit = 7;
+    }
+
     if (window.__appConfig?.readonlySession) {
         if (typeof showMessageBox === 'function') {
             showMessageBox('warning', 'Read-only mode is enabled. You cannot update shortcuts.');
@@ -24,6 +38,16 @@ function switchBtnTogggle(switchBtn) {
 }
 
 function updateMenuCustomization(moduleName, newState) {
+    if (typeof window.menu_shortcuts === 'undefined') {
+        window.menu_shortcuts = [];
+    }
+    if (!Array.isArray(window.menu_shortcuts)) {
+        try {
+            window.menu_shortcuts = JSON.parse(window.menu_shortcuts);
+        } catch (_) {
+            window.menu_shortcuts = [];
+        }
+    }
     if (newState == 'active' && !menu_shortcuts.includes(moduleName)) {
         menu_shortcuts.push(moduleName);
     } else {

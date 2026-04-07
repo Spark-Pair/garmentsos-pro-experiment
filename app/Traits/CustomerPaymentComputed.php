@@ -104,11 +104,15 @@ trait CustomerPaymentComputed
                     return $this->clear_date->format('d-M-Y, D');
                 }
 
-                // Otherwise check latest payment clear record
-                $last = $this->paymentClearRecord->last();
-
-                if ($last?->clear_date) {
-                    return $last->clear_date->format('d-M-Y, D');
+                // Otherwise check payment clear records
+                $clearedAmount = $this->paymentClearRecord->sum('amount');
+                if ($clearedAmount >= $this->amount) {
+                    $last = $this->paymentClearRecord
+                        ->sortByDesc('clear_date')
+                        ->first();
+                    if ($last?->clear_date) {
+                        return $last->clear_date->format('d-M-Y, D');
+                    }
                 }
 
                 // Still not cleared
@@ -353,7 +357,8 @@ trait CustomerPaymentComputed
                     $q->whereHas('cheque.supplier', fn($sq) => $sq->where('supplier_name', 'like', "%$value%"))
                     ->orWhereHas('slip.supplier', fn($sq) => $sq->where('supplier_name', 'like', "%$value%"))
                     ->orWhereHas('cheque.voucher.supplier', fn($sq) => $sq->where('supplier_name', 'like', "%$value%"))
-                    ->orWhereHas('slip.voucher.supplier', fn($sq) => $sq->where('supplier_name', 'like', "%$value%"));
+                    ->orWhereHas('slip.voucher.supplier', fn($sq) => $sq->where('supplier_name', 'like', "%$value%"))
+                    ->orWhereHas('program.subCategory', fn($sq) => $sq->where('supplier_name', 'like', "%$value%"));
                 });
 
             case 'reff_no':

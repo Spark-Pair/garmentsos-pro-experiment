@@ -61,6 +61,7 @@
         window.__expensesEdit = {
             selectedExpense: @json($expense->expense),
             supplierData: @json($expense->supplier),
+            adjustmentId: @json($adjustmentSetup?->id),
         };
     </script>
 @endpush

@@ -7,22 +7,19 @@
                 "id" => "article_no",
                 "type" => "text",
                 "placeholder" => "Enter article no.",
-                "oninput" => "runDynamicFilter()",
-                "dataFilterPath" => "article_no",
+                                "dataFilterPath" => "article_no",
             ],
             "Worker Name" => [
                 "id" => "worker_name",
                 "type" => "text",
                 "placeholder" => "Enter worker name",
-                "oninput" => "runDynamicFilter()",
-                "dataFilterPath" => "worker_name",
+                                "dataFilterPath" => "worker_name",
             ],
             "Ticket" => [
                 "id" => "ticket",
                 "type" => "text",
                 "placeholder" => "Enter ticket",
-                "oninput" => "runDynamicFilter()",
-                "dataFilterPath" => "ticket",
+                                "dataFilterPath" => "ticket",
             ],
         ];
     @endphp
@@ -67,7 +64,7 @@
 <script defer src="{{ asset('js/pages/productions-index.js') }}"></script>
 <script>
         window.__productionsIndex = {
-            authLayout: 'table',
+            authLayout: @json($authLayout),
         };
     </script>
 @endpush

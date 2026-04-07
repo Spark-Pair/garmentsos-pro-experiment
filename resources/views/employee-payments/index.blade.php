@@ -7,15 +7,13 @@
             "id" => "employee_name",
             "type" => "text",
             "placeholder" => "Enter employee name",
-            "oninput" => "runDynamicFilter()",
-            "dataFilterPath" => "employee_name",
+                        "dataFilterPath" => "employee_name",
         ],
         "Method" => [
             "id" => "method",
             "type" => "text",
             "placeholder" => "Enter method",
-            "oninput" => "runDynamicFilter()",
-            "dataFilterPath" => "method",
+                        "dataFilterPath" => "method",
         ],
         "Category" => [
             "id" => "category",
@@ -24,23 +22,20 @@
                         'staff' => ['text' => 'Staff'],
                         'worker' => ['text' => 'Worker'],
                     ],
-            "onchange" => "runDynamicFilter()",
-            "dataFilterPath" => "category",
+                        "dataFilterPath" => "category",
         ],
         "Type" => [
             "id" => "type",
             "type" => "select",
             "options" => $all_types,
-            "onchange" => "runDynamicFilter()",
-            "dataFilterPath" => "type",
+                        "dataFilterPath" => "type",
         ],
         "Date Range" => [
             "id" => "date_range_start",
             "type" => "date",
             "id2" => "date_range_end",
             "type2" => "date",
-            "oninput" => "runDynamicFilter()",
-            "dataFilterPath" => "date",
+                        "dataFilterPath" => "date",
         ]
     ];
 @endphp
@@ -55,7 +50,6 @@
             <x-form-title-bar printBtn title="Show Employee Payments" changeLayoutBtn layout="{{ $authLayout }}" />
 
             <div class="absolute bottom-0 right-0 flex items-center justify-between gap-2 w-fll z-50 p-3 w-full pointer-events-none">
-                <x-section-navigation-button direction="right" id="info" icon="fa-info" />
                 <x-section-navigation-button link="{{ route('employee-payments.create') }}" title="Add New Payment" icon="fa-plus" />
             </div>
 

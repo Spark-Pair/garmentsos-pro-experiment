@@ -168,6 +168,7 @@
             lastVoucher: @json($last_voucher),
             companyData: @json($client_company),
             companyLogoUrl: @json(asset('images/' . $client_company->logo)),
+            companyLogoBase: @json(asset('images')),
             templates: @json($voucherTemplates),
         };
     </script>

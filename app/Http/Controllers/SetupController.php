@@ -12,15 +12,16 @@ class SetupController extends Controller
         if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin', 'accountant', 'store_keeper'])) {
             return $resp;
         }
+        $authLayout = $this->getAuthLayout($request->route()->getName(), 'table');
 
         if ($request->ajax()) {
             $setups = Setup::orderByDesc('id')
                 ->applyFilters($request);
 
-            return response()->json(['data' => $setups, 'authLayout' => 'table']);
+            return response()->json(['data' => $setups, 'authLayout' => $authLayout]);
         }
 
-        return view('setups.index');
+        return view('setups.index', compact('authLayout'));
     }
     public function create()
     {

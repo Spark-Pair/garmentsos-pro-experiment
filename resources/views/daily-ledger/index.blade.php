@@ -7,8 +7,7 @@
             "id" => "description",
             "type" => "text",
             "placeholder" => "Enter description",
-            "oninput" => "runDynamicFilter()",
-            "dataFilterPath" => "description",
+                        "dataFilterPath" => "description",
         ],
         "Type" => [
             "id" => "type",
@@ -17,16 +16,14 @@
                         'deposit' => ['text' => 'Deposit'],
                         'use' => ['text' => 'Use'],
                     ],
-            "onchange" => "runDynamicFilter()",
-            "dataFilterPath" => "type",
+                        "dataFilterPath" => "type",
         ],
         "Date Range" => [
             "id" => "date_range_start",
             "type" => "date",
             "id2" => "date_range_end",
             "type2" => "date",
-            "oninput" => "runDynamicFilter()",
-            "dataFilterPath" => "date",
+                        "dataFilterPath" => "date",
         ]
     ];
 @endphp
@@ -41,7 +38,6 @@
             <x-form-title-bar printBtn layout="table" title="Show Daily Ledger" resetSortBtn />
 
             <div class="absolute bottom-14 right-0 flex items-center justify-between gap-2 w-fll z-50 p-3 w-full pointer-events-none">
-                <x-section-navigation-button direction="right" id="info" icon="fa-info" />
                 <x-section-navigation-button link="{{ route('daily-ledger.create') }}" title="New Deposit | use" icon="fa-plus" />
             </div>
 

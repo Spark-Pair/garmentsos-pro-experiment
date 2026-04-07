@@ -7,8 +7,7 @@
                 'id' => 'supplier_name',
                 'type' => 'text',
                 'placeholder' => 'Enter supplier name',
-                'oninput' => 'runDynamicFilter()',
-                'dataFilterPath' => 'supplier_name',
+                                'dataFilterPath' => 'supplier_name',
             ],
         ];
     @endphp

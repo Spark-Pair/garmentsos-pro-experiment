@@ -482,7 +482,27 @@
                 date: inputElem.value,
             },
             success: function (response) {
-                articles = response.articles;
+                articles = response.articles || [];
+
+                const modal = document.getElementById('modalForm');
+                if (modal) {
+                    cardData = articles.map(item => ({
+                        id: item.id,
+                        name: item.article_no,
+                        image: item.image == 'no_image_icon.png'
+                            ? '/images/no_image_icon.png'
+                            : `/storage/uploads/images/${item.image}`,
+                        details: {
+                            Category: item.category,
+                            Season: item.season,
+                            Size: item.size,
+                        },
+                        data: item,
+                        onclick: 'generateQuantityModal(this)',
+                    }));
+                    renderCardsInModal({ id: 'modalForm', cards: { data: cardData } });
+                    document.querySelectorAll('.card .quantity-label').forEach(label => label.remove());
+                }
             },
             error: function () {
                 alert('Error submitting form');

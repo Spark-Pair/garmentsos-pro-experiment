@@ -4,7 +4,9 @@ function initVouchersEdit() {
     const voucherType = config.voucherType;
     const voucher = config.voucher;
     const companyData = config.companyData;
-    const companyLogoUrl = config.companyLogoUrl;
+    const companyLogoUrl = config.companyLogoUrl || (config.companyLogoBase && config.companyData?.logo
+        ? `${config.companyLogoBase}/${config.companyData.logo}`
+        : '');
     const templates = config.templates || {};
     const allSelfAccounts = config.selfAccounts || [];
 

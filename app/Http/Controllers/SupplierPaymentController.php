@@ -20,14 +20,15 @@ class SupplierPaymentController extends Controller
         if ($resp = $this->denyIfNoRole(['developer', 'owner', 'manager', 'admin', 'accountant', 'guest'])) {
             return $resp;
         }
+        $authLayout = $this->getAuthLayout($request->route()->getName(), 'table');
 
         if ($request->ajax()) {
             $payments = SupplierPayment::orderByDesc('id')->applyFilters($request);
 
-            return response()->json(['data' => $payments, 'authLayout' => 'table']);
+            return response()->json(['data' => $payments, 'authLayout' => $authLayout]);
         }
 
-        return view("supplier-payments.index");
+        return view("supplier-payments.index", compact('authLayout'));
     }
 
     /**

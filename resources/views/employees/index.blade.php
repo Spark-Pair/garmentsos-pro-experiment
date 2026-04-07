@@ -7,15 +7,13 @@
                 "id" => "employee_name",
                 "type" => "text",
                 "placeholder" => "Enter employee name",
-                "oninput" => "runDynamicFilter()",
-                "dataFilterPath" => "employee_name",
+                                "dataFilterPath" => "employee_name",
             ],
             "Phone" => [
                 "id" => "phone_number",
                 "type" => "text",
                 "placeholder" => "Enter phone number",
-                "oninput" => "runDynamicFilter()",
-                "dataFilterPath" => "phone_number",
+                                "dataFilterPath" => "phone_number",
             ],
             "Category" => [
                 "id" => "category",
@@ -24,15 +22,13 @@
                             'staff' => ['text' => 'Staff'],
                             'worker' => ['text' => 'Worker'],
                         ],
-                "onchange" => "runDynamicFilter()",
-                "dataFilterPath" => "category",
+                                "dataFilterPath" => "category",
             ],
             "Type" => [
                 "id" => "type",
                 "type" => "select",
                 "options" => $all_types,
-                "onchange" => "runDynamicFilter()",
-                "dataFilterPath" => "type",
+                                "dataFilterPath" => "type",
             ]
         ];
     @endphp

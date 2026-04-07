@@ -95,7 +95,13 @@ class Controller extends BaseController
 
     public function changeDataLayout(Request $request)
     {
-        $previousRoute = app('router')->getRoutes()->match(app('request')->create(url()->previous()))->getName();
+        $previousRoute = $request->route_name;
+        if (empty($previousRoute)) {
+            $previousRoute = app('router')
+                ->getRoutes()
+                ->match(app('request')->create(url()->previous()))
+                ->getName();
+        }
 
         $authUser = Auth::user();
 

@@ -7,22 +7,19 @@
                 'id' => 'supplier_name',
                 'type' => 'text',
                 'placeholder' => 'Enter supplier name',
-                'oninput' => 'runDynamicFilter()',
-                'dataFilterPath' => 'supplier_name',
+                                'dataFilterPath' => 'supplier_name',
             ],
             'Worker Name' => [
                 'id' => 'employee_name',
                 'type' => 'text',
                 'placeholder' => 'Enter worker name',
-                'oninput' => 'runDynamicFilter()',
-                'dataFilterPath' => 'employee_name',
+                                'dataFilterPath' => 'employee_name',
             ],
             'Fabric' => [
                 'id' => 'fabric',
                 'type' => 'select',
                 'options' => $fabrics_options,
-                'onchange' => 'runDynamicFilter()',
-                'dataFilterPath' => 'fabric',
+                                'dataFilterPath' => 'fabric',
             ],
             "Type" => [
                 "id" => "type",
@@ -32,30 +29,26 @@
                             'Received' => ['text' => 'Received'],
                             'Returned' => ['text' => 'Returned'],
                         ],
-                "onchange" => "runDynamicFilter()",
-                "dataFilterPath" => "type",
+                                "dataFilterPath" => "type",
             ],
             'Tag' => [
                 'id' => 'tag',
                 'type' => 'text',
                 'placeholder' => 'Enter tag',
-                'oninput' => 'runDynamicFilter()',
-                'dataFilterPath' => 'tag',
+                                'dataFilterPath' => 'tag',
             ],
             'Remarks' => [
                 'id' => 'remarks',
                 'type' => 'text',
                 'placeholder' => 'Enter remarks',
-                'oninput' => 'runDynamicFilter()',
-                'dataFilterPath' => 'remarks',
+                                'dataFilterPath' => 'remarks',
             ],
             'Date Range' => [
                 'id' => 'date_range_start',
                 'type' => 'date',
                 'id2' => 'date_range_end',
                 'type2' => 'date',
-                'oninput' => 'runDynamicFilter()',
-                'dataFilterPath' => 'date',
+                                'dataFilterPath' => 'date',
             ],
         ];
     @endphp
@@ -108,7 +101,7 @@
 <script>
         window.__fabricsIndex = {
             currentUserRole: '{{ Auth::user()->role }}',
-            authLayout: 'table',
+            authLayout: @json($authLayout),
         };
     </script>
 @endpush

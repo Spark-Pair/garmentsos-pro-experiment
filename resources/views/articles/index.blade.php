@@ -7,44 +7,38 @@
                 "id" => "article_no",
                 "type" => "text",
                 "placeholder" => "Enter article no.",
-                "oninput" => "runDynamicFilter()",
-                "dataFilterPath" => "article_no",
+                                "dataFilterPath" => "article_no",
             ],
             "Processed By" => [
                 "id" => "processed_by",
                 "type" => "text",
                 "placeholder" => "Enter article no.",
-                "oninput" => "runDynamicFilter()",
-                "dataFilterPath" => "processed_by",
+                                "dataFilterPath" => "processed_by",
             ],
             "Category" => [
                 "id" => "category",
                 "type" => "select",
                 "options" => app('article')->categories,
-                "onchange" => "runDynamicFilter()",
-                "dataFilterPath" => "category",
+                                "dataFilterPath" => "category",
             ],
             "Season" => [
                 "id" => "season",
                 "type" => "select",
                 "options" => app('article')->seasons,
-                "onchange" => "runDynamicFilter()",
-                "dataFilterPath" => "season",
+                                "dataFilterPath" => "season",
             ],
             "Size" => [
                 "id" => "size",
                 "type" => "select",
                 "options" => app('article')->sizes,
-                "onchange" => "runDynamicFilter()",
-                "dataFilterPath" => "size",
+                                "dataFilterPath" => "size",
             ],
             "Date Range" => [
                 "id" => "date_range_start",
                 "type" => "date",
                 "id2" => "date_range_end",
                 "type2" => "date",
-                "oninput" => "runDynamicFilter()",
-                "dataFilterPath" => "date",
+                                "dataFilterPath" => "date",
             ]
         ];
     @endphp
@@ -61,7 +55,6 @@
             <x-form-title-bar printBtn title="Show Articles" changeLayoutBtn layout="{{ $authLayout }}" resetSortBtn  />
 
             <div class="absolute bottom-0 right-0 flex items-center justify-between gap-2 w-fll z-50 p-3 w-full pointer-events-none">
-                <x-section-navigation-button direction="right" id="info" icon="fa-info" />
                 <x-section-navigation-button link="{{ route('articles.create') }}" title="Add New Article" icon="fa-plus" />
             </div>
 

@@ -172,9 +172,9 @@ function initCustomerPaymentsIndex() {
                 ...(data.data.bank && { 'Bank': data.data.bank }),
                 ...(data.data.cheque_date && { 'Cheque Date': formatDate(data.data.cheque_date) }),
                 ...(data.data.slip_date && { 'Slip Date': formatDate(data.data.slip_date) }),
-                ...(data.data.clear_date && { 'Clear Date': formatDate(data.data.clear_date) }),
-                ...(data.data.clear_amount && { 'Clear Amount': formatNumbersWithDigits(data.data.clear_amount, 1, 1) }),
-                ...((data.data.method == 'cheque' || data.data.method == 'slip') && (data.data.clear_date ? { 'Clear Date': formatDate(data.data.clear_date)} : { 'Clear Date': 'Pending'} )),
+                ...(data.clear_date && data.clear_date !== 'Pending' && { 'Clear Date': data.clear_date }),
+                ...(data.cleared_amount && { 'Clear Amount': formatNumbersWithDigits(data.cleared_amount, 1, 1) }),
+                ...((data.data.method == 'cheque' || data.data.method == 'slip') && (data.clear_date ? { 'Clear Date': data.clear_date } : { 'Clear Date': 'Pending'} )),
                 ...((data.data.method == 'cheque' || data.data.method == 'slip') && { 'Issued': data.issued }),
                 'Remarks': data.data.remarks || 'No Remarks',
             },
@@ -322,17 +322,23 @@ function initCustomerPaymentsIndex() {
 
     let balanceDom = document.querySelector('#calc-bottom >.balance .text-right');
     let infoDom = document.getElementById('info').querySelector('span');
+    let allDataArray = window.allDataArray || [];
 
     window.onFilter = function() {
-        totalAmount = visibleData.reduce((sum, d) => sum + d.data.amount, 0);
-        totalPayment = visibleData.reduce((sum, d) => sum + d.data.clear_amount, 0);
+        const visibleRows = window.visibleData || [];
+        totalAmount = visibleRows.reduce((sum, d) => sum + d.data.amount, 0);
+        totalPayment = visibleRows.reduce((sum, d) => sum + d.data.clear_amount, 0);
 
-        infoDom.textContent = `Showing ${visibleData.length} of ${allDataArray.length} payments.`;
+        infoDom.textContent = `Showing ${visibleRows.length} of ${allDataArray.length} payments.`;
 
         totalAmountDom.innerText = formatNumbersWithDigits(totalAmount, 1, 1);
         totalPaymentDom.innerText = formatNumbersWithDigits(totalPayment, 1, 1);
         balanceDom.innerText = formatNumbersWithDigits(totalAmount - totalPayment, 1, 1);
     }
+
+    document.addEventListener('app:data:rendered', (event) => {
+        allDataArray = event.detail?.items || window.allDataArray || [];
+    });
 
     window.__cpHelpers = { createRow, renderCalculation };
 }

@@ -107,5 +107,10 @@
 @endsection
 
 @push('page-scripts')
+<script>
+    window.__expensesAdd = {
+        adjustmentId: @json($adjustmentSetup?->id),
+    };
+</script>
 <script defer src="{{ asset('js/pages/expenses-add.js') }}"></script>
 @endpush

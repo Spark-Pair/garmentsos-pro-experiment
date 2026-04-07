@@ -43,6 +43,7 @@ class AppServiceProvider extends ServiceProvider
                     'mlxl' => ['text' => 'MLXL'],
                     '18_20_22' => ['text' => '18-20-22'],
                     '18_20_22_24' => ['text' => '18-20-22-24'],
+                    '20_22' => ['text' => '20-22'],
                     '20_22_24' => ['text' => '20-22-24'],
                     '24_26_28' => ['text' => '24-26-28'],
                 ],

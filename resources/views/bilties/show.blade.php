@@ -7,37 +7,32 @@
                 "id" => "customer_name",
                 "type" => "text",
                 "placeholder" => "Enter customer name",
-                "oninput" => "runDynamicFilter()",
-                "dataFilterPath" => "customer_name",
+                                "dataFilterPath" => "customer_name",
             ],
             "Invoice No" => [
                 "id" => "invoice_no",
                 "type" => "text",
                 "placeholder" => "Enter invoice no",
-                "oninput" => "runDynamicFilter()",
-                "dataFilterPath" => "invoice_no",
+                                "dataFilterPath" => "invoice_no",
             ],
             "Cargo Name" => [
                 "id" => "cargo_name",
                 "type" => "text",
                 "placeholder" => "Enter cargo name",
-                "oninput" => "runDynamicFilter()",
-                "dataFilterPath" => "cargo_name",
+                                "dataFilterPath" => "cargo_name",
             ],
             "Bilty No" => [
                 "id" => "bilty_no",
                 "type" => "text",
                 "placeholder" => "Enter bilty no",
-                "oninput" => "runDynamicFilter()",
-                "dataFilterPath" => "bilty_no",
+                                "dataFilterPath" => "bilty_no",
             ],
             "Date Range" => [
                 "id" => "date_range_start",
                 "type" => "date",
                 "id2" => "date_range_end",
                 "type2" => "date",
-                "oninput" => "runDynamicFilter()",
-                "dataFilterPath" => "date",
+                                "dataFilterPath" => "date",
             ]
         ];
     @endphp
@@ -85,7 +80,7 @@
 <script defer src="{{ asset('js/pages/bilties-show.js') }}"></script>
 <script>
         window.__biltiesShow = {
-            authLayout: 'table',
+            authLayout: @json($authLayout),
         };
     </script>
 @endpush
