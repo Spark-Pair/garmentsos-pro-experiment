@@ -5,6 +5,8 @@ function createModal(data, animate = 'animate') {
         no_Image: ['[var(--bg-warning)]', '[var(--h-bg-warning)]', '[var(--border-warning)]'],
         inactive: ['[var(--bg-error)]', '[var(--h-bg-error)]', '[var(--border-error)]'],
     };
+    const companyData = data.companyData || window.companyData || {};
+    const companyLogoBase = (window.companyLogoBase || '/').replace(/\/+$/, '/') ;
 
     const contextMenu = document.getElementById('context-menu');
     if (contextMenu) {
@@ -681,7 +683,7 @@ function createModal(data, animate = 'animate') {
                                     ${companyData.logo ? `
                                         <div class="h-[3.50rem] w-[13.5rem] flex items-center justify-center gap-2.5">
                                             <img 
-                                                src="images/${companyData.logo}" 
+                                                src="${companyLogoBase}images/${companyData.logo}" 
                                                 alt="garmentsos-pro"
                                                 class="max-h-full max-w-full object-contain"
                                             />

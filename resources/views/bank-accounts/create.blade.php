@@ -126,118 +126,13 @@
         </div>
     </form>
 
-
-    <script>
-        document.getElementById('cheque_book_serial_end').addEventListener('input', () => {
-            const start = parseInt(document.getElementById('cheque_book_serial_start').value);
-            const end = parseInt(document.getElementById('cheque_book_serial_end').value);
-            const errorDiv = document.getElementById('cheque_book_serial_error');
-
-            if (end < start) {
-                errorDiv.innerText = 'End serial must be greater than or equal to start serial.';
-                errorDiv.classList.remove('hidden');
-            } else {
-                errorDiv.innerText = '';
-                errorDiv.classList.add('hidden');
-            }
-        });
-
-        let subCategoryLabelDom = document.querySelector('[for=sub_category]');
-        let accountNoLabelDom = document.querySelector('[for=account_no]');
-        let chequeBookSerialDom = document.getElementById('cheque_book_serial');
-        let remarksLabelDom = document.querySelector('[for=remarks]');
-        let subCategorySelectDom = document.getElementById('subCategory');
-        let subCategorySelectOptionsDom = subCategorySelectDom.parentElement.parentElement.parentElement.querySelector('.optionsDropdown');
-        let subCategoryFirstOptDom = subCategorySelectDom.children[0];
-        accountNoLabelDom.closest('.form-group').classList.add('hidden');
-        chequeBookSerialDom.classList.add('hidden');
-        function getCategoryData(value) {
-            if (value != "waiting") {
-                $.ajax({
-                    url: "/get-category-data",
-                    type: "POST",
-                    data: {
-                        _token: "{{ csrf_token() }}",
-                        category: value,
-                    },
-                    success: function (response) {
-                        let clutter = '';
-                        switch (value) {
-                            case 'supplier':
-                                subCategoryLabelDom.closest('.form-group').classList.remove('hidden');
-                                remarksLabelDom.closest('.form-group').classList.remove('hidden');
-                                accountNoLabelDom.closest('.form-group').classList.add('hidden');
-                                chequeBookSerialDom.classList.add('hidden');
-                                clutter += `
-                                    <li data-for="subCategory" data-value="" onmousedown="selectThisOption(this)" class="py-2 px-3 cursor-pointer rounded-lg transition hover:bg-[var(--h-bg-color)]">
-                                        -- Select Supplier --
-                                    </li>
-                                `;
-
-                                response.forEach(subCat => {
-                                    clutter += `
-                                        <li data-for="subCategory" data-value="${subCat.id}" onmousedown="selectThisOption(this)" class="py-2 px-3 cursor-pointer rounded-lg transition hover:bg-[var(--h-bg-color)] text-nowrap overflow-x-auto scrollbar-hidden">
-                                            ${subCat.supplier_name}
-                                        </li>
-                                    `;
-                                });
-
-                                subCategoryLabelDom.textContent = 'Supplier';
-                                // subCategoryFirstOptDom.textContent = '-- Select Supplier --';
-                                subCategorySelectDom.disabled = false;
-                                break;
-
-                            case 'customer':
-                                subCategoryLabelDom.closest('.form-group').classList.remove('hidden');
-                                remarksLabelDom.closest('.form-group').classList.remove('hidden');
-                                accountNoLabelDom.closest('.form-group').classList.add('hidden');
-                                chequeBookSerialDom.classList.add('hidden');
-                                clutter += `
-                                    <li data-for="subCategory" data-value="" onmousedown="selectThisOption(this)" class="py-2 px-3 cursor-pointer rounded-lg transition hover:bg-[var(--h-bg-color)]">
-                                        -- Select Customer --
-                                    </li>
-                                `;
-
-                                response.forEach(subCat => {
-                                    clutter += `
-                                        <li data-for="subCategory" data-value="${subCat.id}" onmousedown="selectThisOption(this)" class="py-2 px-3 cursor-pointer rounded-lg transition hover:bg-[var(--h-bg-color)] text-nowrap overflow-x-auto scrollbar-hidden">
-                                            ${subCat.customer_name}
-                                        </li>
-                                    `;
-                                });
-
-                                subCategoryLabelDom.textContent = 'Customer';
-                                // subCategoryFirstOptDom.textContent = '-- Select Customer --';
-                                subCategorySelectDom.disabled = false;
-                                break;
-
-                            case 'self':
-                                subCategoryLabelDom.closest('.form-group').classList.add('hidden');
-                                remarksLabelDom.closest('.form-group').classList.add('hidden');
-                                accountNoLabelDom.closest('.form-group').classList.remove('hidden');
-                                chequeBookSerialDom.classList.remove('hidden');
-                                break;
-
-                            default:
-                                subCategoryLabelDom.closest('.form-group').classList.remove('hidden');
-                                remarksLabelDom.closest('.form-group').classList.remove('hidden');
-                                accountNoLabelDom.closest('.form-group').classList.add('hidden');
-                                chequeBookSerialDom.classList.add('hidden');
-                                clutter += `
-                                    <option value=''>
-                                        -- No options available --
-                                    </option>
-                                `;
-
-                                // subCategoryFirstOptDom.textContent = '-- No Options --';
-                                subCategoryLabelDom.textContent = 'Disabled';
-                                subCategorySelectDom.disabled = true;
-                                break;
-                        }
-                        subCategorySelectOptionsDom.innerHTML = clutter;
-                    }
-                });
-            }
-        }
-    </script>
 @endsection
+
+@push('page-scripts')
+<script defer src="{{ asset('js/pages/bank-accounts-create.js') }}"></script>
+<script>
+        window.__bankAccountsCreate = {
+            csrfToken: @json(csrf_token()),
+        };
+    </script>
+@endpush

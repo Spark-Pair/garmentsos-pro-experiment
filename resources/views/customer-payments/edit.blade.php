@@ -85,6 +85,7 @@
         </form>
     </div>
 
+<<<<<<< HEAD
     <script>
         let customerPayment = @json($customerPayment);
         customerPayment.remarks = customerPayment.remarks || '';
@@ -433,4 +434,16 @@
             dateDom.focus();
         }
     </script>
+=======
+>>>>>>> 3834f954523a92002c03eff274cbb0efa0e05b31
 @endsection
+
+@push('page-scripts')
+<script defer src="{{ asset('js/pages/customer-payments-edit.js') }}"></script>
+<script>
+        window.__customerPaymentsEdit = {
+            customerPayment: @json($customerPayment),
+            banksOptions: @json($banks_options),
+        };
+    </script>
+@endpush

@@ -12,6 +12,8 @@
 @if ($includesDropdown)
     <!-- Main Icon Button -->
     <button onclick="openDropDown(event, this)"
+        data-nav-label="{{ strtolower($label) }}"
+        data-activators='@json(collect($activatorTags ?? [])->map(fn ($t) => strtolower($t))->values())'
         class="nav-link {{ strtolower($label) }} dropdown-trigger text-[var(--text-color)] p-3 rounded-[41.5%] group-hover:bg-[var(--h-bg-color)] transition-all duration-300 ease-in-out w-10 h-10 flex items-center justify-center cursor-pointer relative">
         @if ($icon)
             <i class="{{ $icon }} group-hover:text-[var(--primary-color)]"></i>
@@ -64,6 +66,8 @@
 @else
     <!-- No Dropdown, Just Link -->
     <a href="{{ $href }}" onclick="{{ $onclick }}"
+        data-nav-label="{{ strtolower($label) }}"
+        data-activators='@json(collect($activatorTags ?? [])->map(fn ($t) => strtolower($t))->values())'
         class="nav-link {{ strtolower($label) }} text-[var(--text-color)] p-3 rounded-[41.5%] hover:bg-[var(--h-bg-color)] transition-all duration-300 ease-in-out w-10 h-10 flex items-center justify-center group relative">
         @if ($icon)
             <i class="{{ $icon }} group-hover:text-[var(--primary-color)]"></i>
@@ -77,22 +81,6 @@
     </a>
 @endif
 
-<!-- Highlight Active Menu -->
-<script>
-    document.addEventListener("DOMContentLoaded", function() {
-        const url = window.location.href.toLowerCase();
-        const label = "{{ strtolower($label) }}";
-
-        if (url.includes(label)) {
-            document.querySelector(".nav-link." + label)?.classList.add("active");
-        }
-
-        @if (isset($activatorTags) && is_array($activatorTags))
-            @foreach ($activatorTags as $tag)
-                if (url.includes("{{ strtolower($tag) }}")) {
-                    document.querySelector(".nav-link.{{ strtolower($label) }}")?.classList.add("active");
-                }
-            @endforeach
-        @endif
-    });
-</script>
+@once
+    <script defer src="{{ asset('js/components/nav-link-item.js') }}"></script>
+@endonce

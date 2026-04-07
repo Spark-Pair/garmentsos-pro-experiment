@@ -55,7 +55,7 @@ Route::get('subscription-expired', function () {
     return view('subscription-expired'); // ya controller agar chahiye
 })->name('subscription-expired');
 
-Route::group(['middleware' => ['auth', 'activeSession', 'subscriptionExpiry']], function () {
+Route::group(['middleware' => ['auth', 'activeSession', 'subscriptionExpiry', 'readonly']], function () {
     Route::get('/backup-db', function () {
         try {
             $allowedRoles = ['developer', 'admin'];

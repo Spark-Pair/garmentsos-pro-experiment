@@ -61,34 +61,13 @@
         </div>
     </section>
 
-    <script>
-        let authLayout = 'table';
-
-        function createRow(data) {
-            return `
-            <div id="${data.id}" oncontextmenu='${data.oncontextmenu || ""}' onclick='${data.onclick || ""}'
-                class="item row relative group grid grid-cols-6 text-center border-b border-[var(--h-bg-color)] items-center py-2 cursor-pointer hover:bg-[var(--h-secondary-bg-color)] transition-all fade-in ease-in-out"
-                data-json='${JSON.stringify(data)}'>
-
-                <span>${data.article_no}</span>
-                <span class="col-span-2">${data.worker_name}</span>
-                <span>${data.ticket}</span>
-                <span>${data.issue_date}</span>
-                <span>${data.receive_date}</span>
-            </div>`;
-        }
-
-        // const fetchedData = [];
-        // let allDataArray = fetchedData.map(item => {
-        //     return {
-        //         id: item.id,
-        //         article_no: item.article.article_no,
-        //         worker_name: item.worker.employee_name + ' | ' + item.work.title,
-        //         ticket: item.ticket,
-        //         issue_date: item.issue_date ? formatDate(item.issue_date) : '-',
-        //         receive_date: item.receive_date ? formatDate(item.receive_date) : '-',
-        //         visible: true,
-        //     };
-        // });
-    </script>
 @endsection
+
+@push('page-scripts')
+<script defer src="{{ asset('js/pages/productions-index.js') }}"></script>
+<script>
+        window.__productionsIndex = {
+            authLayout: 'table',
+        };
+    </script>
+@endpush

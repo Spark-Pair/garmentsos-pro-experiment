@@ -166,6 +166,7 @@
         </div>
     </section>
 
+<<<<<<< HEAD
     <script>
         let totalAmount = 0;
         let totalPayment = 0;
@@ -555,4 +556,69 @@
             balanceDom.innerText = formatNumbersWithDigits(totalAmount - totalPayment, 1, 1);
         }
     </script>
+=======
+>>>>>>> 3834f954523a92002c03eff274cbb0efa0e05b31
 @endsection
+
+@push('page-scripts')
+<script defer src="{{ asset('js/pages/customer-payments-index.js') }}"></script>
+<script>
+        @php
+            $methodSelectHtml = view('components.select', [
+                'label' => 'Method',
+                'name' => 'method_select',
+                'id' => 'method_select',
+                'options' => [
+                    'online' => ['text' => 'Online'],
+                    'cash' => ['text' => 'Cash'],
+                ],
+                'required' => true,
+                'showDefault' => true,
+                'onchange' => 'trackMethodState(this)',
+            ])->render();
+
+            $bankAccountSelectHtml = view('components.select', [
+                'label' => 'Bank Account',
+                'addBtnLink' => '/bank-accounts/create',
+                'name' => 'bank_account_id',
+                'id' => 'bank_account_id',
+                'options' => [],
+                'required' => true,
+                'disabled' => true,
+                'showDefault' => true,
+            ])->render();
+
+            $amountInputHtml = view('components.input', [
+                'label' => 'Amount',
+                'name' => 'amount',
+                'id' => 'amount',
+                'type' => 'amount',
+                'placeholder' => 'Enter amount',
+                'dataValidate' => 'required|amount',
+                'oninput' => 'validateInput(this)',
+                'required' => true,
+            ])->render();
+
+            $reffInputHtml = view('components.input', [
+                'label' => 'Reff. No.',
+                'name' => 'reff_no',
+                'id' => 'reff_no',
+                'placeholder' => 'Enter reff. no.',
+                'required' => true,
+                'disabled' => true,
+            ])->render();
+        @endphp
+
+        window.__customerPaymentsIndex = {
+            companyData: @json($client_company),
+            authLayout: @json($authLayout),
+            methodSelectHtml: @json($methodSelectHtml),
+            bankAccountSelectHtml: @json($bankAccountSelectHtml),
+            amountInputHtml: @json($amountInputHtml),
+            reffNoInputHtml: @json($reffInputHtml),
+            routes: {
+                splitPayment: @json(url('customer-payments') . '/:id/split'),
+            },
+        };
+    </script>
+@endpush

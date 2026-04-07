@@ -116,6 +116,7 @@
         </div>
     </form>
 
+<<<<<<< HEAD
     <script>
         let supplierSelectDom = document.getElementById('supplier_id');
         let methodSelectDom = document.getElementById('method');
@@ -901,4 +902,57 @@
             return true;
         }
     </script>
+=======
+>>>>>>> 3834f954523a92002c03eff274cbb0efa0e05b31
 @endsection
+
+@php
+    $voucherTemplates = [
+        'selfAccountSelect' => view('components.select', [
+            'label' => '__LABEL__',
+            'name' => '__NAME__',
+            'id' => '__ID__',
+            'options' => $self_accounts_options,
+            'showDefault' => true,
+            'onchange' => '__ONCHANGE__',
+        ])->render(),
+        'emptySelect' => view('components.select', [
+            'label' => '__LABEL__',
+            'name' => '__NAME__',
+            'id' => '__ID__',
+            'options' => [],
+            'showDefault' => true,
+            'onchange' => '__ONCHANGE__',
+        ])->render(),
+        'chequeSelect' => view('components.select', [
+            'label' => '__LABEL__',
+            'name' => '__NAME__',
+            'id' => '__ID__',
+            'options' => $cheques_options,
+            'showDefault' => true,
+            'onchange' => '__ONCHANGE__',
+        ])->render(),
+        'slipSelect' => view('components.select', [
+            'label' => '__LABEL__',
+            'name' => '__NAME__',
+            'id' => '__ID__',
+            'options' => $slips_options,
+            'showDefault' => true,
+            'onchange' => '__ONCHANGE__',
+        ])->render(),
+    ];
+@endphp
+
+@push('page-scripts')
+<script defer src="{{ asset('js/pages/vouchers-edit.js') }}"></script>
+<script>
+        window.__vouchersEdit = {
+            voucherType: @json($voucherType),
+            voucher: @json($voucher),
+            companyData: @json($client_company),
+            companyLogoUrl: @json(asset('images/' . $client_company->logo)),
+            selfAccounts: @json($self_accounts),
+            templates: @json($voucherTemplates),
+        };
+    </script>
+@endpush

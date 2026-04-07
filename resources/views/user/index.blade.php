@@ -76,143 +76,16 @@
         </section>
     </div>
 
-    <script>
-        let currentUserRole = '{{ Auth::user()->role }}';
-        let authLayout = '{{ $authLayout }}';
-
-        function createRow(data) {
-            // console.log(data);
-
-            return `
-            <div id="${data.id}" oncontextmenu='${data.oncontextmenu || ""}' onclick='${data.onclick || ""}'
-                class="item row relative group grid grid-cols-5 border-b border-[var(--h-bg-color)] items-center py-2 cursor-pointer hover:bg-[var(--h-secondary-bg-color)] transition-all fade-in ease-in-out"
-                data-json='${JSON.stringify(data)}'>
-
-                <span class="text-left pl-5 col-span-2">${data.name}</span>
-                <span class="text-left pl-5">${data.username}</span>
-                <span class="text-center capitalize">${data.role}</span>
-                <span class="text-right pr-5 capitalize ${data.status === 'active' ? 'text-[var(--border-success)]' : 'text-[var(--border-error)]'}">${data.status}</span>
-            </div>`;
-        }
-
-        // const fetchedData = [];
-        // let allDataArray = fetchedData.map(item => {
-        //     return {
-        //         id: item.id,
-        //         uId: item.id,
-        //         image: item.profile_picture == 'default_avatar.png' ? '/images/default_avatar.png' : `/storage/uploads/images/${item.profile_picture}`,
-        //         name: item.name,
-        //         status: item.status,
-        //         details: {
-        //             'Username': item.username,
-        //             'Role': item.role,
-        //         },
-        //         oncontextmenu: "generateContextMenu(event)",
-        //         onclick: "generateModal(this)",
-        //         profile: true,
-        //         visible: true,
-        //     };
-        // });
-
-        // const activeUser = allDataArray.filter(user => user.status === 'active');
-
-        // let infoDom = document.getElementById('info').querySelector('span');
-        // infoDom.textContent = `Total Users: ${allDataArray.length} | Active: ${activeUser.length}`;
-
-        function generateContextMenu(e) {
-            e.preventDefault();
-            let item = e.target.closest('.item');
-            let data = JSON.parse(item.dataset.json);
-
-            let contextMenuData = {
-                data: data,
-                x: e.pageX,
-                y: e.pageY,
-                action: "{{ route('update-user-status') }}",
-            };
-
-            if (currentUserRole != data.details['Role']) {
-                contextMenuData.forceStatusBtn = true;
-            }
-
-            if ((currentUserRole == 'admin' || currentUserRole == 'developer' || currentUserRole == 'owner') && currentUserRole != data.details['Role']) {
-                contextMenuData.actions = [
-                    {id: 'reset-password', text: 'Reset Password', onclick: `generateResetPasswordModel(${JSON.stringify(data)})`},
-                ];
-            }
-
-            createContextMenu(contextMenuData);
-        }
-
-        function generateModal(item) {
-            let data = JSON.parse(item.dataset.json);
-
-            let modalData = {
-                id: 'modalForm',
-                uId: data.id,
-                status: data.status,
-                method: "POST",
-                action: "{{ route('update-user-status') }}",
-                image: data.image,
-                name: data.name,
-                details: {
-                    'Username': data.details['Username'],
-                    'Role': data.details['Role'],
-                },
-                profile: true,
-            }
-
-            if (currentUserRole != data.details['Role']) {
-                modalData.forceStatusBtn = true;
-            }
-
-            if ((currentUserRole == 'admin' || currentUserRole == 'developer' || currentUserRole == 'owner') && currentUserRole != data.details['Role']) {
-                modalData.bottomActions = [
-                    {id: 'reset-password', text: 'Reset Password', onclick: `generateResetPasswordModel(${JSON.stringify(data)})`},
-                ];
-            }
-
-            createModal(modalData);
-        }
-
-        function generateResetPasswordModel(data) {
-            let modalData = {
-                id: 'resetPasswordModalForm',
-                class: 'h-auto',
-                method: 'POST',
-                action: '{{ route("users.reset-password") }}',
-                name: 'Reset Password',
-                fields: [
-                    {
-                        category: 'input',
-                        label: 'Username',
-                        value: data.details['Username'],
-                        disabled: true,
-                    },
-                    {
-                        category: 'input',
-                        type: 'hidden',
-                        name: 'user_id',
-                        value: data.id,
-                    },
-                    {
-                        category: 'input',
-                        label: 'Password',
-                        name: 'password',
-                        id: 'password',
-                        type: 'password',
-                        placeholder: 'Enter new password',
-                        data_validate: 'required|min:4|alphanumeric|lowercase',
-                        required: true,
-                    },
-                ],
-                fieldsGridCount: '2',
-                bottomActions: [
-                    {id: 'reset-password-btn', text: 'Reset Password', type: 'submit'}
-                ]
-            }
-
-            createModal(modalData);
-        }
-    </script>
 @endsection
+
+@push('page-scripts')
+<script defer src="{{ asset('js/pages/users-index.js') }}"></script>
+<script>
+        window.__usersIndex = {
+            currentUserRole: @json(Auth::user()->role),
+            authLayout: @json($authLayout),
+            updateUserStatusUrl: @json(route('update-user-status')),
+            resetPasswordUrl: @json(route('users.reset-password')),
+        };
+    </script>
+@endpush

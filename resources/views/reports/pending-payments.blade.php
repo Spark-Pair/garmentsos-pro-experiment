@@ -108,127 +108,14 @@
         </div>
     </form>
 
-    <script>
-        function getPendingPayments() {
-            const date = document.getElementById('date').value;
-
-            $.ajax({
-                url: "{{ route('reports.pending-payments') }}",
-                type: 'GET',
-                data: {
-                    _token: "{{ csrf_token() }}",
-                    date: date,
-                },
-                success: function(response) {
-                    renderPendingPayments(response);
-                },
-                error: function(xhr, status, error) {
-                    console.error('Error fetching statement:', error);
-                }
-            });
-        }
-
-        function renderPendingPayments(response) {
-            // Parse the HTML string into a jQuery object
-            const $responseHtml = $(response);
-
-            // Find the .step2 element inside the response
-            const $previewInResponse = $responseHtml.find('.step2');
-
-            if ($previewInResponse.length) {
-                // Replace the current page's .step2 innerHTML
-                $('.step2').html($previewInResponse.html());
-            } else {
-                console.warn('.step2 not found in response HTML.');
-            }
-        }
-
-        function onClickOnPrintBtn() {
-            const preview = document.getElementById('preview-page'); // preview content
-
-            // ✅ Clone so that original DOM safe rahe
-            let clone = preview.cloneNode(true);
-
-            // ✅ Sirf direct child <hr> (pages ke beech) remove karo
-            clone.querySelectorAll(":scope > hr").forEach(hr => hr.remove());
-
-            // Agar pehle se iframe hai to usko hatao
-            let oldIframe = document.getElementById('printIframe');
-            if (oldIframe) {
-                oldIframe.remove();
-            }
-
-            // Naya iframe banao
-            let printIframe = document.createElement('iframe');
-            printIframe.id = "printIframe";
-            printIframe.style.position = "absolute";
-            printIframe.style.width = "0px";
-            printIframe.style.height = "0px";
-            printIframe.style.border = "none";
-            printIframe.style.display = "none";
-
-            document.body.appendChild(printIframe);
-
-            let printDocument = printIframe.contentDocument || printIframe.contentWindow.document;
-            printDocument.open();
-
-            // ✅ Copy styles from current page
-            const headContent = document.head.innerHTML;
-
-            printDocument.write(`
-                <html>
-                <head>
-                    <title>Print Pending Payments</title>
-                    ${headContent}
-                    <style>
-                    @page {
-                        size: A4;
-                        margin: 0.19in;
-                    }
-
-                    body {
-                        margin: 0;
-                        padding: 0;
-                        background: #fff;
-                    }
-
-                    /* ✅ Prevent half-slip breaking */
-                    @media print {
-                        .slip {
-                            page-break-inside: avoid;
-                            break-inside: avoid;
-                        }
-
-                        /* ✅ Allow multiple slips per page */
-                        .slip + hr {
-                            page-break-after: auto; /* only break if needed */
-                        }
-
-                        /* Remove weird overflow issues */
-                        #preview-page {
-                            overflow: visible !important;
-                        }
-                    }
-                    </style>
-                </head>
-                <body>
-                    ${clone.innerHTML}
-                </body>
-                </html>
-            `);
-
-            printDocument.close();
-
-            // Print jab iframe load ho jaye
-            printIframe.onload = () => {
-                printIframe.contentWindow.focus();
-                printIframe.contentWindow.print();
-            };
-        }
-
-        function validateForNextStep() {
-            getPendingPayments();
-            return true;
-        }
-    </script>
 @endsection
+
+@push('page-scripts')
+<script defer src="{{ asset('js/pages/reports-pending-payments.js') }}"></script>
+<script>
+        window.__reportsPendingPayments = {
+            pendingUrl: @json(route('reports.pending-payments')),
+            csrfToken: @json(csrf_token()),
+        };
+    </script>
+@endpush

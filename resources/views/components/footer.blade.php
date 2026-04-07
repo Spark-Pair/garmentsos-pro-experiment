@@ -54,177 +54,38 @@
             @endif
         </div>
     </div>
-    @if (request()->is('users/create') || request()->is('suppliers/create') || request()->is('employees/create') || request()->is('articles/create') || request()->is('rates/create') || request()->is('productions/create') || request()->is('articles/*/edit') || request()->is('customers/*/edit') || request()->is('suppliers/*/edit') || request()->is('orders/*/edit') || request()->is('employees/*/edit') || request()->is('customers/create') || request()->is('orders/create') || request()->is('cr/create') || request()->is('dr/create') || request()->is('shipments/create') || request()->is('shipments/*/edit') || request()->is('invoices/create') || request()->is('vouchers/create') || request()->is('vouchers/*/edit') || request()->is('cargos/create') || request()->is('reports/statement') || request()->is('reports/pending-payments') || request()->is('attendances/generate-slip'))
-        <script>
-            document.getElementById('year').textContent = new Date().getFullYear();
-
-            let currentStep = 1;
-            let noOfSteps = document.querySelector(".progress-indicators").children.length;
-
-            let isValid = false;
-
-            function nextStep(step) {
-                if (!validateForNextStep()) {
-                    return isValid; // Return final validation status
-                }
-
-                let step1Doms = document.querySelectorAll(`.step${currentStep}`);
-                let step2Doms = document.querySelectorAll(`.step${step + 1}`);
-
-                if (currentStep === noOfSteps) {
-                    return;
-                }
-
-                if (step1Doms) {
-                    step1Doms.forEach((dom) => dom.classList.add('hidden'));
-                }
-                if (step2Doms) {
-                    step2Doms.forEach((dom) => dom.classList.remove('hidden'));
-                }
-
-                document.getElementById(`step${step + 1}-indicator`).classList.remove('bg-[var(--h-bg-color)]');
-                document.getElementById(`step${step + 1}-indicator`).classList.remove('hover:bg-[var(--secondary-bg-color)]');
-                document.getElementById(`step${step + 1}-indicator`).classList.add('bg-[var(--primary-color)]');
-                document.getElementById(`step${step + 1}-indicator`).classList.add('hover:bg-[var(--h-primary-color)]');
-                if (currentStep <= step) {
-                    document.getElementById(`step${currentStep}-indicator`).classList.remove('bg-[var(--primary-color)]');
-                    document.getElementById(`step${currentStep}-indicator`).classList.remove('hover:bg-[var(--h-primary-color)]');
-                    document.getElementById(`step${currentStep}-indicator`).classList.add('bg-[var(--h-bg-color)]');
-                    document.getElementById(`step${currentStep}-indicator`).classList.add('hover:bg-[var(--secondary-bg-color)]');
-                }
-                document.getElementById('progress-bar').style.width = `${(step + 1) * (100/noOfSteps)}%`;
-
-                currentStep = step + 1;
-                updateButtons();
-            }
-
-            function prevStep(step) {
-                let step1Doms = document.querySelectorAll(`.step${step - 1}`);
-                let step2Doms = document.querySelectorAll(`.step${currentStep}`);
-
-                if (step <= 1) {
-                    return;
-                }
-
-                if (step1Doms) {
-                    step1Doms.forEach((dom) => dom.classList.remove('hidden'));
-                }
-                if (step2Doms) {
-                    step2Doms.forEach((dom) => dom.classList.add('hidden'));
-                }
-
-                document.getElementById(`step${step - 1}-indicator`).classList.add('bg-[var(--primary-color)]');
-                document.getElementById(`step${step - 1}-indicator`).classList.add('hover:bg-[var(--h-primary-color)]');
-                document.getElementById(`step${step - 1}-indicator`).classList.remove('bg-[var(--h-bg-color)]');
-                document.getElementById(`step${step - 1}-indicator`).classList.remove('hover:bg-[var(--secondary-bg-color)]');
-                document.getElementById(`step${currentStep}-indicator`).classList.remove('bg-[var(--primary-color)]');
-                document.getElementById(`step${currentStep}-indicator`).classList.remove('hover:bg-[var(--h-primary-color)]');
-                document.getElementById(`step${currentStep}-indicator`).classList.add('bg-[var(--h-bg-color)]');
-                document.getElementById(`step${currentStep}-indicator`).classList.add('hover:bg-[var(--secondary-bg-color)]');
-                document.getElementById('progress-bar').style.width = `${(step - 1) * (100/noOfSteps)}%`;
-                currentStep = step - 1;
-                updateButtons();
-            }
-
-            function gotoStep(step) {
-                if (currentStep <= step) {
-                    nextStep(step - 1);
-                } else if (currentStep > step) {
-                    prevStep(step + 1);
-                }
-            }
-
-            function updateButtons() {
-                document.getElementById('prevBtn').disabled = currentStep === 1;
-                document.getElementById('nextBtn')?.classList.toggle('hidden', currentStep === noOfSteps);
-                document.getElementById('saveBtn')?.classList.toggle('hidden', currentStep !== noOfSteps);
-                document.getElementById('printAndSaveBtn')?.classList.toggle('hidden', currentStep !== noOfSteps);
-                // document.getElementById('quickInvoiceBtn')?.classList.toggle('hidden', currentStep !== noOfSteps);
-                document.getElementById('printBtn')?.classList.toggle('hidden', currentStep !== noOfSteps);
-            }
-
-
-            document.getElementById('nextBtn')?.addEventListener('click', () => nextStep(currentStep));
-            document.getElementById('prevBtn').addEventListener('click', () => prevStep(currentStep));
-            document.getElementById('saveBtn')?.addEventListener('click', (e) => {
-                const form = document.getElementById('form');
-
-                if (!form) return;
-
-                // ✅ Step 1: If onSubmitFunction exists, call it
-                if (typeof onSubmitFunction === "function") {
-                    const result = onSubmitFunction();
-
-                    // ✅ Handle async version (Promise)
-                    if (result instanceof Promise) {
-                        e.preventDefault();
-                        result.then(res => {
-                            if (res === false) {
-                                // console.log("Form submission stopped by onSubmitFunction()");
-                                return;
-                            }
-                            form.submit(); // manually submit if allowed
-                        });
-                        return;
-                    }
-
-                    // ✅ Handle sync version
-                    if (result === false) {
-                        e.preventDefault();
-                        // console.log("Form submission stopped by onSubmitFunction()");
-                        return;
-                    }
-                }
-
-                // ✅ Step 2: If no onSubmitFunction or it didn’t block, submit form
-                form.submit();
-            });
-
-            let saveBtn = document.getElementById('saveBtn');
-            document.addEventListener("keydown", (e) => {
-                // check if control ke is pressed
-                if (e.ctrlKey && e.key === "ArrowRight") {
-                    nextStep(currentStep);
-                } else if ((e.ctrlKey && e.key === "ArrowLeft")) {
-                    prevStep(currentStep);
-                } else if (e.ctrlKey && e.key === "Enter") {
-                    if (!saveBtn.classList.contains('hidden')) {
-                        saveBtn.click();
-                    }
-                }
-            })
-        </script>
-    @endif
-    @if (!request()->is('login'))
-        <script>
-            document.addEventListener("keydown", (e) => {
-                if (e.key == 'Escape') {
-                    closeAllDropdowns();
-                }
-            })
-        </script>
-    @endif
-    @if (request()->is('login'))
-        <script>
-            const html = document.documentElement;
-            const themeIcon = document.querySelector('#themeToggle i');
-            function changeTheme() {
-                const currentTheme = html.getAttribute('data-theme');
-                const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-                html.setAttribute('data-theme', newTheme);
-
-                themeIcon?.classList.toggle('fa-sun');
-                themeIcon?.classList.toggle('fa-moon');
-            }
-
-            function setTheme(theme) {
-                document.documentElement.setAttribute('data-theme', theme);
-                document.cookie = `theme=${theme} path=/; max-age=31536000`;  // Save for 1 year
-            }
-
-            const userTheme = localStorage.getItem('theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-            setTheme(userTheme);
-        </script>
-    @endif
+    <script defer src="{{ asset('js/components/footer.js') }}"></script>
+    <script>
+        window.__footer = {
+            wizardEnabled: @json(
+                request()->is('users/create') ||
+                    request()->is('suppliers/create') ||
+                    request()->is('employees/create') ||
+                    request()->is('articles/create') ||
+                    request()->is('rates/create') ||
+                    request()->is('productions/create') ||
+                    request()->is('articles/*/edit') ||
+                    request()->is('customers/*/edit') ||
+                    request()->is('suppliers/*/edit') ||
+                    request()->is('orders/*/edit') ||
+                    request()->is('employees/*/edit') ||
+                    request()->is('customers/create') ||
+                    request()->is('orders/create') ||
+                    request()->is('cr/create') ||
+                    request()->is('dr/create') ||
+                    request()->is('shipments/create') ||
+                    request()->is('shipments/*/edit') ||
+                    request()->is('invoices/create') ||
+                    request()->is('vouchers/create') ||
+                    request()->is('vouchers/*/edit') ||
+                    request()->is('cargos/create') ||
+                    request()->is('reports/statement') ||
+                    request()->is('reports/pending-payments') ||
+                    request()->is('attendances/generate-slip')
+            ),
+            enableEscapeClose: @json(!request()->is('login')),
+            isLogin: @json(request()->is('login')),
+        };
+    </script>
 </footer>
 <!-- Footer Component End -->

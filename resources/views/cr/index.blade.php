@@ -71,36 +71,13 @@
         </div>
     </section>
 
-    <script>
-        let authLayout = 'table';
-
-        function createRow(data) {
-            return `
-            <div id="${data.id}" oncontextmenu='${data.oncontextmenu || ""}' onclick='${data.onclick || ""}'
-                class="item row relative group grid grid-cols-5 border-b border-[var(--h-bg-color)] items-center py-2 cursor-pointer hover:bg-[var(--h-secondary-bg-color)] transition-all fade-in ease-in-out"
-                data-json='${JSON.stringify(data)}'>
-
-                <span>${data.date}</span>
-                <span>${data.supplier_name}</span>
-                <span>${data.c_r_no}</span>
-                <span>${formatNumbersWithDigits(data.amount, 1, 1)}</span>
-                <span>${data.voucher_no}</span>
-            </div>`;
-        }
-
-
-        // const fetchedData = [];
-
-        // let allDataArray = fetchedData.map(item => {
-        //     return {
-        //         id: item.id,
-        //         date: item.date,
-        //         amount: item.new_payments.reduce((total, p) => total + parseInt(p.amount), 0),
-        //         c_r_no: item.c_r_no,
-        //         voucher_no: item.voucher?.voucher_no,
-        //         supplier_name: item.voucher?.supplier?.supplier_name ?? "{{ $client_company->name }}",
-        //         visible: true,
-        //     };
-        // });
-    </script>
 @endsection
+
+@push('page-scripts')
+<script defer src="{{ asset('js/pages/cr-index.js') }}"></script>
+<script>
+        window.__crIndex = {
+            authLayout: 'table',
+        };
+    </script>
+@endpush

@@ -18,10 +18,9 @@ class ArticleController extends Controller
      */
     public function index(Request $request)
     {
-        if(!$this->checkRole(['developer', 'owner', 'manager', 'admin', 'accountant', 'guest', 'store_keeper']))
-        {
-            return redirect(route('home'))->with('error', 'You do not have permission to access this page.');
-        };
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'manager', 'admin', 'accountant', 'guest', 'store_keeper'])) {
+            return $resp;
+        }
 
         // $articles = Article::with('creator')->get();
 
@@ -52,9 +51,8 @@ class ArticleController extends Controller
      */
     public function create()
     {
-        if(!$this->checkRole(['developer', 'owner', 'admin', 'accountant', 'store_keeper']))
-        {
-            return redirect(route('home'))->with('error', 'You do not have permission to access this page.');
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin', 'accountant', 'store_keeper'])) {
+            return $resp;
         }
 
         $lastRecord = Article::orderBy('id', 'desc')->first();
@@ -75,10 +73,9 @@ class ArticleController extends Controller
      */
     public function store(Request $request)
     {
-        if(!$this->checkRole(['developer', 'owner', 'admin', 'accountant', 'store_keeper']))
-        {
-            return redirect(route('home'))->with('error', 'You do not have permission to access this page.');
-        };
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin', 'accountant', 'store_keeper'])) {
+            return $resp;
+        }
 
         // return $request;
 
@@ -164,10 +161,9 @@ class ArticleController extends Controller
      */
     public function edit(Article $article)
     {
-        if(!$this->checkRole(['developer', 'owner', 'admin']))
-        {
-            return redirect(route('home'))->with('error', 'You do not have permission to access this page.');
-        };
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin'])) {
+            return $resp;
+        }
 
         if ($article->ordered_quantity != 0) {
             return redirect(route('articles.index'))->with("error", "This article can't be edited.");
@@ -181,10 +177,9 @@ class ArticleController extends Controller
      */
     public function update(Request $request, Article $article)
     {
-        if(!$this->checkRole(['developer', 'owner', 'admin']))
-        {
-            return redirect(route('home'))->with('error', 'You do not have permission to access this page.');
-        };
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin'])) {
+            return $resp;
+        }
 
         $validator = Validator::make($request->all(), [
             'article_no' => 'required|string|unique:articles,article_no,' . $article->id,
@@ -255,10 +250,9 @@ class ArticleController extends Controller
     {
         $article = Article::where('id', $request->article_id)->first();
 
-        if(!$this->checkRole(['developer', 'owner', 'admin', 'accountant', 'store_keeper']))
-        {
-            return redirect(route('home'))->with('error', 'You do not have permission to access this page.');
-        };
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin', 'accountant', 'store_keeper'])) {
+            return $resp;
+        }
 
         // Validate input first
         $validator = Validator::make($request->all(), [
@@ -297,10 +291,9 @@ class ArticleController extends Controller
 
     public function addRate(Request $request)
     {
-        if(!$this->checkRole(['developer', 'owner', 'admin', 'accountant', 'store_keeper']))
-        {
-            return redirect(route('home'))->with('error', 'You do not have permission to access this page.');
-        };
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin', 'accountant', 'store_keeper'])) {
+            return $resp;
+        }
 
         // Validate input first
         $validator = Validator::make($request->all(), [

@@ -7,6 +7,7 @@ use App\Models\Setup;
 use App\Models\Supplier;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 
@@ -17,10 +18,9 @@ class SupplierController extends Controller
      */
     public function index(Request $request)
     {
-        if(!$this->checkRole(['developer', 'owner', 'manager', 'admin', 'accountant', 'guest']))
-        {
-            return redirect(route('home'))->with('error', 'You do not have permission to access this page.');
-        };
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'manager', 'admin', 'accountant', 'guest'])) {
+            return $resp;
+        }
 
         $authLayout = $this->getAuthLayout($request->route()->getName());
 
@@ -84,10 +84,9 @@ class SupplierController extends Controller
      */
     public function create()
     {
-        if(!$this->checkRole(['developer', 'owner', 'admin', 'accountant']))
-        {
-            return redirect(route('home'))->with('error', 'You do not have permission to access this page.');
-        };
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin', 'accountant'])) {
+            return $resp;
+        }
 
         $suppliers = Supplier::with('user')->get();
         $supplier_categories = Setup::where('type','supplier_category')->get();
@@ -109,8 +108,8 @@ class SupplierController extends Controller
      */
     public function store(Request $request)
     {
-        if(!$this->checkRole(['developer', 'owner', 'admin', 'accountant'])) {
-            return redirect(route('home'))->with('error', 'You do not have permission to access this page.');
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin', 'accountant'])) {
+            return $resp;
         }
 
         $validator = Validator::make($request->all(), [
@@ -202,6 +201,7 @@ class SupplierController extends Controller
             $supplier->save();
         }
 
+        Cache::forget('category_data:supplier');
         return redirect()->route('suppliers.create')->with('success', 'Supplier created successfully.');
     }
 
@@ -218,10 +218,9 @@ class SupplierController extends Controller
      */
     public function edit(Supplier $supplier)
     {
-        if(!$this->checkRole(['developer', 'owner', 'admin']))
-        {
-            return redirect(route('home'))->with('error', 'You do not have permission to access this page.');
-        };
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin'])) {
+            return $resp;
+        }
 
         return view('suppliers.edit', compact('supplier'));
     }
@@ -230,10 +229,9 @@ class SupplierController extends Controller
      * Update the specified resource in storage.
      */
     public function update(Request $request, Supplier $supplier)
-    {if(!$this->checkRole(['developer', 'owner', 'admin']))
-        {
-            return redirect(route('home'))->with('error', 'You do not have permission to access this page.');
-        };
+    {if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin'])) {
+            return $resp;
+        }
 
         $validator = Validator::make($request->all(), [
             'phone_number' => 'required|string|max:255',
@@ -278,6 +276,7 @@ class SupplierController extends Controller
             ]);
         }
 
+        Cache::forget('category_data:supplier');
         return redirect()->route('suppliers.index')->with('success', 'Supplier updated successfully.');
     }
 
@@ -290,10 +289,9 @@ class SupplierController extends Controller
     }
     public function updateSupplierCategory(Request $request)
     {
-        if(!$this->checkRole(['developer', 'owner', 'admin', 'accountant']))
-        {
-            return redirect(route('home'))->with('error', 'You do not have permission to access this page.');
-        };
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin', 'accountant'])) {
+            return $resp;
+        }
 
         // Validate input first
         $validator = Validator::make($request->all(), [
@@ -306,6 +304,7 @@ class SupplierController extends Controller
         }
 
         Supplier::where('id', $request->supplier_id)->update(['categories_array' => $request->categories_array]);
+        Cache::forget('category_data:supplier');
 
         return redirect()->route('suppliers.index')->with('success', 'Categoies updated successfully');
     }

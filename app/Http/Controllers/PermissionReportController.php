@@ -8,8 +8,8 @@ class PermissionReportController extends Controller
 {
     public function index()
     {
-        if (!$this->checkRole(['developer'])) {
-            return redirect(route('home'))->with('error', 'You do not have permission to access this page.');
+        if ($resp = $this->denyIfNoRole(['developer'])) {
+            return $resp;
         }
 
         $roleMap = $this->buildRoleMap();

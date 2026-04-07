@@ -135,114 +135,13 @@
         </div>
     </form>
 
-    <script>
-        let categoriesArray = [];
-        window.usernames = @json($usernames);
-        let addCategoryBtnDom = document.getElementById('addCategoryBtn');
-        let categorySelectDom = document.getElementById('category_select');
-        let chipsDom = document.getElementById('chips');
-        let categoriesArrayInput = document.getElementById('categories_array');
-        let categoryErrorDom = document.getElementById('category-error');
-
-        function trackStateOfCategoryBtn(elem){
-            if (elem.value != "") {
-                addCategoryBtnDom.disabled = false;
-            } else {
-                addCategoryBtnDom.disabled = true;
-            }
-        }
-
-        addCategoryBtnDom.addEventListener('click', () => {
-            addCategory();
-        })
-
-        function addCategory() {
-            if (categoriesArray.length <= 0) {
-                chipsDom.innerHTML = '';
-            }
-
-            let selectedCategoryId = categorySelectDom.closest('.selectParent').querySelector('ul li.selected').dataset.value;  // Get category ID
-
-            let selectedCategoryName = categorySelectDom.parentElement.parentElement.parentElement.querySelector("ul li.selected").textContent.trim();  // Get category name
-
-            // Check for duplicates based on ID
-            if (categoriesArray.includes(selectedCategoryId)) {
-                console.warn('Category already exists!');
-
-                // Highlight the existing chip
-                let existingChip = Array.from(chipsDom.children).find(chip =>
-                    chip.getAttribute('data-id') === selectedCategoryId
-                );
-
-                if (existingChip) {
-                    messageBox.innerHTML = `
-                        <x-alert type="error" :messages="'This category already exists.'" />
-                    `;
-                    messageBoxAnimation();
-                    existingChip.classList.add('bg-[var(--bg-error)]', 'transition', 'duration-300');
-                    setTimeout(() => {
-                        existingChip.classList.remove('bg-[var(--bg-error)]');
-                    }, 5000);  // Remove highlight after 5 seconds
-                    categorySelectDom.value = '';  // Clear selection
-                    addCategoryBtnDom.disabled = true;  // Disable button
-                    categorySelectDom.focus();
-                }
-
-                return;  // Stop the function if duplicate is found
-            }
-
-            if (selectedCategoryId) {
-                // Create the chip element
-                let chip = document.createElement('div');
-                chip.className = 'chip border border-gray-600 text-[var(--secondary-text)] text-xs rounded-xl py-2 px-4 inline-flex items-center gap-2 fade-in';
-                chip.setAttribute('data-id', selectedCategoryId);  // Store ID in a data attribute
-                chip.innerHTML = `
-                    <div class="text tracking-wide">${selectedCategoryName}</div>
-                    <button class="delete cursor-pointer" type="button">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"
-                            class="size-3.5 stroke-[var(--secondary-text)]">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                    </button>
-                `;
-
-                // Handle chip deletion
-                chip.querySelector('.delete').onclick = () => {
-                    chip.classList.add('fade-out');
-
-                    setTimeout(() => {
-                        chip.remove();
-                        categoriesArray = categoriesArray.filter(cat => cat !== selectedCategoryId);
-
-                        if (categoriesArray.length <= 0) {
-                            chipsDom.innerHTML = `
-                                <div class="chip border border-gray-600 text-[var(--secondary-text)] text-xs rounded-xl py-2 px-4 inline-flex items-center gap-2 mx-auto">
-                                    <div class="text tracking-wide text-gray-400">Please add category</div>
-                                </div>
-                            `;
-                        }
-
-                        categoriesArrayInput.value = JSON.stringify(categoriesArray);  // Update hidden input with IDs
-                    }, 300);
-                }
-
-                if (chipsDom) {
-                    chipsDom.appendChild(chip);
-                    categoriesArray.push(selectedCategoryId);  // Store category ID in array
-                    categoriesArrayInput.value = JSON.stringify(categoriesArray);  // Update hidden input with IDs
-                    addCategoryBtnDom.disabled = true;  // Disable button
-                    selectThisOption(categorySelectDom.parentElement.parentElement.parentElement.querySelector("ul li"));
-                    categorySelectDom.focus();
-                } else {
-                    console.error('Chip container not found!');
-                }
-            } else {
-                console.warn('No category selected!');
-            }
-        }
-
-        function validateForNextStep() {
-            return true;
-        }
-    </script>
 @endsection
+
+@push('page-scripts')
+<script defer src="{{ asset('js/pages/suppliers-create.js') }}"></script>
+<script>
+        window.__suppliersCreate = {
+            usernames: @json($usernames),
+        };
+    </script>
+@endpush

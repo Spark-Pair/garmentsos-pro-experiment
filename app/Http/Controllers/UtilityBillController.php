@@ -13,10 +13,9 @@ class UtilityBillController extends Controller
      */
     public function index(Request $request)
     {
-        if(!$this->checkRole(['developer', 'owner', 'admin', 'accountant', 'store_keeper']))
-        {
-            return redirect(route('home'))->with('error', 'You do not have permission to access this page.');
-        };
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin', 'accountant', 'store_keeper'])) {
+            return $resp;
+        }
 
         // $utilityBills = UtilityBill::with('account.billType', 'account.location')->get();
 
@@ -35,10 +34,9 @@ class UtilityBillController extends Controller
      */
     public function create()
     {
-        if(!$this->checkRole(['developer', 'owner', 'admin', 'accountant', 'store_keeper']))
-        {
-            return redirect(route('home'))->with('error', 'You do not have permission to access this page.');
-        };
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin', 'accountant', 'store_keeper'])) {
+            return $resp;
+        }
 
         $bill_type_options = [];
         $location_options = [];
@@ -66,10 +64,9 @@ class UtilityBillController extends Controller
      */
     public function store(Request $request)
     {
-        if(!$this->checkRole(['developer', 'owner', 'admin', 'accountant', 'store_keeper']))
-        {
-            return redirect(route('home'))->with('error', 'You do not have permission to access this page.');
-        };
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin', 'accountant', 'store_keeper'])) {
+            return $resp;
+        }
 
         $request->validate([
             'account_id' => 'required|integer|exists:utility_accounts,id',

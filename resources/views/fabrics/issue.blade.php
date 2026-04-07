@@ -50,28 +50,8 @@
         </form>
     </div>
 
-    <script>
-        const unitInoDom = document.getElementById('unit');
-        const avalaibleStockInpDom = document.getElementById('avalaible_stock');
-        const quantityErrorDom = document.getElementById('quantity-error');
-
-        function trackTagSelect(elem) {
-            const selectedTag = JSON.parse(elem.parentElement.parentElement.parentElement.querySelector('li.selected').getAttribute('data-option') ?? '{}');
-            unitInoDom.value = selectedTag.unit;
-            avalaibleStockInpDom.value = selectedTag.avalaible_sock;
-        }
-
-        function trackQuantity(elem) {
-            const maxStock = parseInt(avalaibleStockInpDom.value || '0');
-            const currentVal = parseInt(elem.value || '0');
-
-            if (currentVal > maxStock) {
-                elem.value = maxStock;
-                quantityErrorDom.textContent = 'Maximum';
-                quantityErrorDom.classList.remove('hidden');
-            } else {
-                elem.value = currentVal;
-            }
-        }
-    </script>
 @endsection
+
+@push('page-scripts')
+<script defer src="{{ asset('js/pages/fabrics-issue.js') }}"></script>
+@endpush

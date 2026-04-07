@@ -81,86 +81,13 @@
         </div>
     </section>
 
-    <script>
-        let authLayout = '{{ $authLayout }}';
-
-        function createRow(data) {
-            return `
-                <div id="${data.id}" oncontextmenu='${data.oncontextmenu || ""}' onclick='${data.onclick || ""}'
-                    class="item row relative group grid grid-cols-5 border-b border-[var(--h-bg-color)] items-center py-2 cursor-pointer hover:bg-[var(--h-secondary-bg-color)] transition-all fade-in ease-in-out"
-                    data-json='${JSON.stringify(data)}'>
-
-                    <span class="text-center">${data.details['Date']}</span>
-                    <span class="text-center">${data.details['Category']}</span>
-                    <span class="text-center">${data.name}</span>
-                    <span class="text-center capitalize">${data.details["Method"]}</span>
-                    <span class="text-center">${data.details['Amount']}</span>
-                </div>
-            `;
-        }
-
-        // const fetchedData = [];
-        // let allDataArray = fetchedData.map(item => {
-        //     return {
-        //         id: item.id,
-        //         name: item.employee.employee_name + ' | ' + item.employee.type.title.split('|')[0].trim(),
-        //         details: {
-        //             'Category': item.employee.category,
-        //             'Method': item.method,
-        //             'Date': formatDate(item.date),
-        //             'Amount': formatNumbersWithDigits(item.amount, 1, 1),
-        //         },
-        //         date: item.date,
-        //         type: item.employee.type.title,
-        //         oncontextmenu: "generateContextMenu(event)",
-        //         onclick: "generateModal(this)",
-        //         visible: true,
-        //     };
-        // });
-
-        function generateContextMenu(e) {
-            e.preventDefault();
-            let item = e.target.closest('.item');
-            let data = JSON.parse(item.dataset.json);
-
-            let contextMenuData = {
-                item: item,
-                data: data,
-                x: e.pageX,
-                y: e.pageY,
-                actions: [
-                    // {id: 'edit-payment', text: 'Edit Payment', dataId: data.id}
-                ],
-            };
-
-            createContextMenu(contextMenuData);
-        }
-
-        function generateModal(item) {
-            let data = JSON.parse(item.dataset.json);
-
-            let modalData = {
-                id: 'modalForm',
-                class: 'h-auto',
-                name: data.name,
-                details: {
-                    'Date': data.details['Date'],
-                    'Category': data.details['Category'],
-                    'Method': data.details['Method'],
-                    'Amount': data.details['Amount'],
-                },
-                bottomActions: [
-                    // {id: 'edit-payment', text: 'Edit Payment', dataId: data.id}
-                ],
-            }
-
-            createModal(modalData);
-        }
-
-        let infoDom = document.getElementById('info').querySelector('span');
-
-        function onFilter() {
-            infoDom.textContent = `Showing ${visibleData.length} of ${allDataArray.length} payments.`;
-        }
-    </script>
 @endsection
+
+@push('page-scripts')
+<script defer src="{{ asset('js/pages/employee-payments-index.js') }}"></script>
+<script>
+        window.__employeePaymentsIndex = {
+            authLayout: @json($authLayout),
+        };
+    </script>
+@endpush

@@ -66,19 +66,13 @@
         </div>
     </section>
 
-    <script>
-        let authLayout = 'table';
-
-        function createRow(data) {
-            return `
-            <div id="${data.id}"
-                class="item row relative group grid grid-cols-3 text-center border-b border-[var(--h-bg-color)] items-center py-2 cursor-pointer hover:bg-[var(--h-secondary-bg-color)] transition-all fade-in ease-in-out"
-                data-json='${JSON.stringify(data)}'>
-
-                <span class="capitalize">${data.type.replace(/_/g, ' ')}</span>
-                <span class="capitalize">${data.title.replace(/_/g, ' ')}</span>
-                <span class="uppercase">${data.short_title ?? '-'}</span>
-            </div>`;
-        }
-    </script>
 @endsection
+
+@push('page-scripts')
+<script defer src="{{ asset('js/pages/setups-index.js') }}"></script>
+<script>
+        window.__setupsIndex = {
+            authLayout: 'table',
+        };
+    </script>
+@endpush

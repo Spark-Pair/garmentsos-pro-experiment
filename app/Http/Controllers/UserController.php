@@ -17,9 +17,8 @@ class UserController extends Controller
      */
     public function index(Request $request)
     {
-        if(!$this->checkRole(['developer', 'owner', 'manager', 'admin', 'accountant', 'guest']))
-        {
-            return redirect(route('home'))->with('error', 'You do not have permission to access this page.');
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'manager', 'admin', 'accountant', 'guest'])) {
+            return $resp;
         }
 
         $authLayout = $this->getAuthLayout($request->route()->getName());
@@ -42,9 +41,8 @@ class UserController extends Controller
      */
     public function create()
     {
-        if(!$this->checkRole(['developer', 'owner', 'manager', 'admin']))
-        {
-            return redirect(route('home'))->with('error', 'You do not have permission to access this page.');
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'manager', 'admin'])) {
+            return $resp;
         }
 
         $usernames = User::pluck('username')->toArray();
@@ -56,10 +54,9 @@ class UserController extends Controller
      */
     public function store(Request $request)
     {
-        if(!$this->checkRole(['developer', 'owner', 'manager', 'admin']))
-        {
-            return redirect(route('home'))->with('error', 'You do not have permission to access this page.');
-        };
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'manager', 'admin'])) {
+            return $resp;
+        }
 
         // Validation rules
         $validator = Validator::make($request->all(), [
@@ -131,10 +128,9 @@ class UserController extends Controller
 
     public function updateStatus(Request $request)
     {
-        if(!$this->checkRole(['developer', 'owner', 'manager', 'admin']))
-        {
-            return redirect(route('home'))->with('error', 'You do not have permission to access this page.');
-        };
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'manager', 'admin'])) {
+            return $resp;
+        }
 
         $user = User::find($request->user_id);
 
@@ -172,10 +168,9 @@ class UserController extends Controller
 
     public function resetPassword(Request $request)
     {
-        if(!$this->checkRole(['developer', 'owner', 'admin']))
-        {
-            return redirect(route('home'))->with('error', 'You do not have permission to access this page.');
-        };
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin'])) {
+            return $resp;
+        }
 
         $validator = Validator::make($request->all(), [
             'user_id' => 'required|exists:users,id',

@@ -23,26 +23,16 @@ class SubscriptionExpiry
         $expiry = Carbon::parse($expiryDate)->startOfDay();
         $today = Carbon::now()->startOfDay();
 
-        // Expired subscription → logout + show expired page
+        // Expired subscription → readonly mode (view only)
         if ($today->greaterThan($expiry)) {
+            session(['readonly' => true]);
+            session()->flash('warning', "Your $mode subscription has expired. Read-only mode is enabled. Expiry Date: " . $expiry->format('d-M-Y, D'));
+            return $next($request);
+        }
 
-            if (Auth::check()) {
-                $userId = Auth::id();
-
-                // Mark DB sessions inactive
-                UserSession::where('user_id', $userId)
-                    ->where('is_active', true)
-                    ->update(['is_active' => false, 'last_activity' => now()]);
-
-                Auth::logout();
-            }
-
-            // Clear old warnings
-            session()->forget('expiry_warning_shown');
-            session()->forget('warning');
-
-            // Redirect to dedicated route
-            return redirect()->route('subscription-expired');
+        // Clear readonly flag when subscription is valid
+        if (session('readonly')) {
+            session()->forget('readonly');
         }
 
         // Show warning 3 days before expiry (once per day)

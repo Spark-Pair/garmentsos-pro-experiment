@@ -45,58 +45,13 @@
         </form>
     </div>
 
-    <script>
-        const workerSelectDom = document.getElementById('worker');
-        const dateDom = document.getElementById('date');
-        const remainingStockInpDom = document.getElementById('remaining_stock');
-        const quantityErrorDom = document.getElementById('quantity-error');
-
-        function trackWorkerState(elem) {
-            if (elem.value === '') {
-                dateDom.disabled = true;
-                dateDom.value = '';
-            } else {
-                dateDom.disabled = false;
-            }
-        }
-
-        function trackDateState(elem) {
-            let selectedWorkerId = workerSelectDom.closest('.selectParent').querySelector('.dbInput').value;
-
-            $.ajax({
-                url: '{{ route("fabrics.return") }}',
-                method: 'GET',
-                data: {
-                    worker_id: selectedWorkerId,
-                    date: dateDom.value,
-                },
-                success: function(response) {
-                    $('#tag').closest('.selectParent').html($(response).find('#tag').closest('.selectParent').html());
-
-                },
-                error: function(xhr) {
-                    console.error(xhr.responseText);
-                }
-            });
-        }
-
-        function trackTagSelect(elem) {
-            const selectedTag = JSON.parse(elem.closest('.selectParent').querySelector('li.selected').getAttribute('data-option') ?? '{}');
-
-            remainingStockInpDom.value = selectedTag.remaining;
-        }
-
-        function trackQuantity(elem) {
-            const maxStock = parseInt(remainingStockInpDom.value || '0');
-            const currentVal = parseInt(elem.value || '0');
-
-            if (currentVal > maxStock) {
-                elem.value = maxStock;
-                quantityErrorDom.textContent = 'Maximum';
-                quantityErrorDom.classList.remove('hidden');
-            } else {
-                elem.value = currentVal;
-            }
-        }
-    </script>
 @endsection
+
+@push('page-scripts')
+<script defer src="{{ asset('js/pages/fabrics-return.js') }}"></script>
+<script>
+        window.__fabricsReturn = {
+            returnUrl: '{{ route("fabrics.return") }}',
+        };
+    </script>
+@endpush

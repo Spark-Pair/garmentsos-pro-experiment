@@ -22,6 +22,7 @@ use Illuminate\Foundation\Validation\ValidatesRequests;
 use Illuminate\Routing\Controller as BaseController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Validator;
 
 class Controller extends BaseController
@@ -56,29 +57,34 @@ class Controller extends BaseController
     {
         switch ($request->category) {
             case 'supplier':
-                $suppliers = Supplier::whereHas('user', function ($query) {
-                    $query->where('status', 'active');
-                })->select('id', 'supplier_name')->get()->makeHidden('creator', 'categories');
+                return Cache::remember('category_data:supplier', now()->addMinutes(5), function () {
+                    $suppliers = Supplier::whereHas('user', function ($query) {
+                        $query->where('status', 'active');
+                    })->select('id', 'supplier_name')->get()->makeHidden('creator', 'categories');
 
-                foreach ($suppliers as $supplier) {
-                    $supplier['balance'] = 0;
-                    $supplier['balance'] = number_format($supplier['balance'], 1, '.', ',');
-                }
+                    foreach ($suppliers as $supplier) {
+                        $supplier['balance'] = 0;
+                        $supplier['balance'] = number_format($supplier['balance'], 1, '.', ',');
+                    }
 
-                return $suppliers;
+                    return $suppliers;
+                });
                 break;
 
             case 'customer':
-                $customers = Customer::with('city:id,title')->whereHas('user', function ($query) {
-                    $query->where('status', 'active');
-                })->select('id', 'customer_name', 'city_id')->get()->makeHidden('creator');
+                return Cache::remember('category_data:customer', now()->addMinutes(5), function () {
+                    $customers = Customer::with('city:id,title')->whereHas('user', function ($query) {
+                        $query->where('status', 'active');
+                    })->select('id', 'customer_name', 'city_id')->get()->makeHidden('creator');
 
-                return $customers;
+                    return $customers;
+                });
                 break;
 
             case 'self_account':
-                $selfAccount = BankAccount::with('subCategory', 'bank')->where('category', 'self')->get();
-                return $selfAccount;
+                return Cache::remember('category_data:self_account', now()->addMinutes(5), function () {
+                    return BankAccount::with('subCategory', 'bank')->where('category', 'self')->get();
+                });
                 break;
 
             default:
@@ -135,6 +141,15 @@ class Controller extends BaseController
         }
 
         return true;
+    }
+
+    protected function denyIfNoRole(array $roles, string $message = 'You do not have permission to access this page.', string $redirectRoute = 'home')
+    {
+        if ($this->checkRole($roles)) {
+            return null;
+        }
+
+        return redirect(route($redirectRoute))->with('error', $message);
     }
 
     public function getOrderDetails(Order $order, Request $request)

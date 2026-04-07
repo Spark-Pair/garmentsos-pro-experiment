@@ -91,82 +91,13 @@
         </div>
     </section>
 
-    <script>
-        let authLayout = 'table';
-        let today = formatDate(new Date(), false, true);
-
-        function createRow(data) {
-            return `
-            <div id="${data.id}" oncontextmenu='${data.oncontextmenu || ""}' onclick='${data.onclick || ""}'
-                class="item row relative group grid grid-cols-9 border-b border-[var(--h-bg-color)] items-center py-2 cursor-pointer hover:bg-[var(--h-secondary-bg-color)] transition-all fade-in ease-in-out"
-                data-json='${JSON.stringify(data)}'>
-
-                <span class="capitalize">${data.bill_type}</span>
-                <span class="capitalize">${data.location}</span>
-                <span class="capitalize">${data.account_title}</span>
-                <span class="capitalize">${data.account_no}</span>
-                <span class="capitalize">${data.month}</span>
-                <span class="capitalize">${data.units}</span>
-                <span class="capitalize">${data.amount}</span>
-                <span class="capitalize">${data.due_date}</span>
-                <span class="capitalize">${data.status}</span>
-            </div>`;
-        }
-
-        // const fetchedData = [];
-        // let allDataArray = fetchedData.map(item => {
-        //     return {
-        //         id: item.id,
-        //         bill_type: item.account.bill_type.title,
-        //         location: item.account.location.title,
-        //         account_title: item.account.account_title,
-        //         account_no: item.account.account_no,
-        //         month: new Date(item.month + '-01').toLocaleString('en-US', {month: 'short', year: 'numeric',}).replace(' ', '-'),
-        //         units: item.units || '-' ,
-        //         amount: formatNumbersWithDigits(item.amount, 1, 1),
-        //         due_date: formatDate(item.due_date),
-        //         is_paid: item.is_paid,
-        //         status: item.is_paid ? 'Paid' : formatDate(item.due_date, false, true) < today ? 'Overdue' : formatDate(item.due_date, false, true) == today ? 'Due Today' : formatDate(item.due_date, false, true) > today ? 'Upcoming' : '-',
-        //         oncontextmenu: "generateContextMenu(event)",
-        //         visible: true,
-        //     };
-        // });
-
-        function generateContextMenu(e) {
-            e.preventDefault();
-            let item = e.target.closest('.item');
-            let data = JSON.parse(item.dataset.json);
-
-            let contextMenuData = {
-                item: item,
-                data: data,
-                x: e.pageX,
-                y: e.pageY,
-                actions: [],
-                onlyThisActions: true,
-            };
-
-            if (!data.is_paid) {
-                contextMenuData.actions.push({id: 'mark-paid', text: 'Mark Paid', onclick: `markThisPaid(${data.id})`})
-                createContextMenu(contextMenuData);
-            }
-        }
-
-        function markThisPaid(id) {
-            $.ajax({
-                url: `/utility-bills/${id}/mark-paid`,
-                type: "PUT",
-                data: {
-                    _token: "{{ csrf_token() }}",
-                    _method: "put",
-                },
-                success: function () {
-                    location.reload();
-                },
-                error: function () {
-                    alert("Failed to mark paid.");
-                }
-            });
-        }
-    </script>
 @endsection
+
+@push('page-scripts')
+<script defer src="{{ asset('js/pages/utility-bills-index.js') }}"></script>
+<script>
+        window.__utilityBillsIndex = {
+            csrfToken: @json(csrf_token()),
+        };
+    </script>
+@endpush

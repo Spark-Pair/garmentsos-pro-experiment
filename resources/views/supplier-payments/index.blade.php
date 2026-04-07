@@ -78,26 +78,8 @@
         </div>
     </section>
 
-    <script>
-        let totalAmount = 0;
-        let totalPayment = 0;
-
-        function createRow(data) {
-            // console.log(data);
-
-            return `
-                <div id="${data.id}"
-                    class="item row relative group flex justify-between border-b border-[var(--h-bg-color)] items-center py-2 cursor-pointer hover:bg-[var(--h-secondary-bg-color)] transition-all fade-in ease-in-out"
-                    data-json='${JSON.stringify(data)}'>
-
-                    <span class="text-center w-1/7">${data.date}</span>
-                    <span class="text-center grow">${data.name}</span>
-                    <span class="text-center w-1/7 capitalize">${data.method}</span>
-                    <span class="text-center w-1/7">${data.amount}</span>
-                    <span class="text-center w-1/7">${data.reff_no}</span>
-                    <span class="text-center w-1/7">${data.voucher_no}</span>
-                </div>
-            `;
-        }
-    </script>
 @endsection
+
+@push('page-scripts')
+<script defer src="{{ asset('js/pages/supplier-payments-index.js') }}"></script>
+@endpush

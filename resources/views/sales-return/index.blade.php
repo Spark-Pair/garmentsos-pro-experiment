@@ -72,37 +72,13 @@
         </div>
     </section>
 
-    <script>
-        let authLayout = 'table';
-
-        function createRow(data) {
-            return `
-            <div id="${data.id}" oncontextmenu='${data.oncontextmenu || ""}' onclick='${data.onclick || ""}'
-                class="item row relative group grid grid-cols-6 border-b border-[var(--h-bg-color)] items-center py-2 cursor-pointer hover:bg-[var(--h-secondary-bg-color)] transition-all fade-in ease-in-out"
-                data-json='${JSON.stringify(data)}'>
-
-                <span>${data.date}</span>
-                <span>${data.customer}</span>
-                <span>${data.article_no}</span>
-                <span>${data.invoice_no}</span>
-                <span>${data.quantity + ' - PCs'}</span>
-                <span>${data.amount}</span>
-            </div>`;
-        }
-
-
-        // const fetchedData = [];
-        // let allDataArray = fetchedData.map(item => {
-        //     return {
-        //         id: item.id,
-        //         date: item.date,
-        //         customer: item.invoice.customer.customer_name + ' | ' + item.invoice.customer.city.short_title,
-        //         article_no: item.article.article_no,
-        //         invoice_no: item.invoice.invoice_no,
-        //         quantity: item.quantity,
-        //         amount: formatNumbersWithDigits(item.amount, 1, 1),
-        //         visible: true,
-        //     };
-        // });
-    </script>
 @endsection
+
+@push('page-scripts')
+<script defer src="{{ asset('js/pages/sales-return-index.js') }}"></script>
+<script>
+        window.__salesReturnIndex = {
+            authLayout: 'table',
+        };
+    </script>
+@endpush

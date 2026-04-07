@@ -137,6 +137,7 @@
         </div>
     </div>
 
+<<<<<<< HEAD
     <script>
         let customerSelectDom = document.getElementById('customer_id');
         let methodSelectDom = document.getElementById('method');
@@ -532,4 +533,17 @@
             dateDom.focus();
         }
     </script>
+=======
+>>>>>>> 3834f954523a92002c03eff274cbb0efa0e05b31
 @endsection
+
+@push('page-scripts')
+<script defer src="{{ asset('js/pages/customer-payments-create.js') }}"></script>
+<script>
+        window.__customerPaymentsCreate = {
+            banksOptions: @json($banks_options),
+            programFromParam: @json($programPayload ?? null),
+            programCustomerId: @json($programCustomerId ?? null),
+        };
+    </script>
+@endpush

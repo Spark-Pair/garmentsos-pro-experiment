@@ -72,47 +72,13 @@
         </div>
     </section>
 
-    <script>
-        let authLayout = 'table';
-
-        function createRow(data) {
-            return `
-            <div id="${data.id}" oncontextmenu='${data.oncontextmenu || ""}' onclick='${data.onclick || ""}'
-                class="item row relative group flex items-center border-b border-[var(--h-bg-color)] items-center py-2 cursor-pointer hover:bg-[var(--h-secondary-bg-color)] transition-all fade-in ease-in-out"
-                data-json='${JSON.stringify(data)}'>
-
-                <span class="w-[10%]">${data.article_no}</span>
-                <span class="capitalize w-[7%]">${data.processed_by}</span>
-                <span class="w-[8%]">${data.unit}</span>
-                <span class="w-[18%]">${data.total_quantity}</span>
-                <span class="w-[12%]">${data.received_quantity}</span>
-                <span class="w-[12%]">${data.current_stock}</span>
-                <span class="w-[12%]">${data.a_category}</span>
-                <span class="w-[12%]">${data.b_category}</span>
-                <span class="w-[12%]">${data.c_category}</span>
-                <span class="w-[12%]">${data.remaining_quantity}</span>
-                <span class="w-[10%]">${data.shipment}</span>
-            </div>`;
-        }
-
-
-        // const fetchedData = [];
-        // let allDataArray = fetchedData.map(item => {
-        //     return {
-        //         id: item.id,
-        //         name: item.article.article_no,
-        //         processed_by: item.article.processed_by,
-        //         unit: item.article.pcs_per_packet,
-        //         total_quantity: `${formatNumbersWithDigits(item.article.quantity / 12, 1, 1)} - Dz. | ${item.article.quantity / item.article.pcs_per_packet}  - Pkts.`,
-        //         received_quantity: `${item.total_packets} - Pkts.`,
-        //         current_stock: `${item.current_stock} - Pkts.`,
-        //         a_category: `${item.a_category} - Pkts.`,
-        //         b_category: `${item.b_category} - Pkts.`,
-        //         c_category: `${item.c_category} - Pkts.`,
-        //         remaining_quantity: `${formatNumbersWithDigits((item.article.quantity / item.article.pcs_per_packet) - item.total_packets, 1, 1)} - Pkts.`,
-        //         shipment: item.shipment || '-',
-        //         visible: true,
-        //     };
-        // });
-    </script>
 @endsection
+
+@push('page-scripts')
+<script defer src="{{ asset('js/pages/physical-quantities-index.js') }}"></script>
+<script>
+        window.__physicalQuantitiesIndex = {
+            authLayout: 'table',
+        };
+    </script>
+@endpush

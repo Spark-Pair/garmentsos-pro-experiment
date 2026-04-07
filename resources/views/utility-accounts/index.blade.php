@@ -69,33 +69,8 @@
         </div>
     </section>
 
-    <script>
-        let authLayout = 'table';
-
-        function createRow(data) {
-            return `
-            <div id="${data.id}" oncontextmenu='${data.oncontextmenu || ""}' onclick='${data.onclick || ""}'
-                class="item row relative group grid grid-cols-4 border-b border-[var(--h-bg-color)] items-center py-2 cursor-pointer hover:bg-[var(--h-secondary-bg-color)] transition-all fade-in ease-in-out"
-                data-json='${JSON.stringify(data)}'>
-
-                <span class="capitalize">${data.bill_type}</span>
-                <span class="capitalize">${data.location}</span>
-                <span class="capitalize">${data.account_title}</span>
-                <span class="capitalize">${data.account_no}</span>
-            </div>`;
-        }
-
-
-        // const fetchedData = [];
-        // let allDataArray = fetchedData.map(item => {
-        //     return {
-        //         id: item.id,
-        //         bill_type: item.bill_type.title,
-        //         location: item.location.title,
-        //         account_title: item.account_title,
-        //         account_no: item.account_no,
-        //         visible: true,
-        //     };
-        // });
-    </script>
 @endsection
+
+@push('page-scripts')
+<script defer src="{{ asset('js/pages/utility-accounts-index.js') }}"></script>
+@endpush

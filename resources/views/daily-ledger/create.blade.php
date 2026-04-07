@@ -41,122 +41,93 @@
             <div id="highlight" class="absolute h-full rounded-xl bg-[var(--bg-color)] transition-all duration-300 ease-in-out z-0"></div>
 
             <!-- Buttons -->
-            <button id="depositBtn" type="button" class="relative z-10 px-3.5 md:px-5 py-1.5 md:py-2 cursor-pointer rounded-xl transition-colors duration-300" onclick="setVoucherType(this, 'deposit')">
+            <button id="depositBtn" type="button" class="relative z-10 px-3.5 md:px-5 py-1.5 md:py-2 cursor-pointer rounded-xl transition-colors duration-300">
                 <div class="hidden md:block">Deposit</div>
                 <div class="block md:hidden"><i class="fas fa-cart-shopping text-xs"></i></div>
             </button>
-            <button id="useBtn" type="button" class="relative z-10 px-3.5 md:px-5 py-1.5 md:py-2 cursor-pointer rounded-xl transition-colors duration-300" onclick="setVoucherType(this, 'use')">
+            <button id="useBtn" type="button" class="relative z-10 px-3.5 md:px-5 py-1.5 md:py-2 cursor-pointer rounded-xl transition-colors duration-300">
                 <div class="hidden md:block">Use</div>
                 <div class="block md:hidden"><i class="fas fa-box-open text-xs"></i></div>
             </button>
         </div>
     </div>
 
-    <script>
-        let btnTypeGlobal = "deposit";
+    <div class="max-w-3xl mx-auto mt-10">
+        <x-search-header heading="Daily Ledger" link linkText="Show Ledger" linkHref="{{ route('daily-ledger.index') }}" />
+    </div>
 
-        function setVoucherType(btn, btnType) {
-            doHide = true;
-            // check if its already selected
-            if (btnTypeGlobal == btnType) {
-                return;
-            }
+    <div class="row max-w-3xl mx-auto flex gap-4 mt-2">
+        @if ($dailyLedgerType === 'deposit')
+            <form id="form" action="{{ route('daily-ledger.store') }}" method="post"
+                class="bg-[var(--secondary-bg-color)] text-sm rounded-xl shadow-lg p-8 border border-[var(--glass-border-color)]/20 pt-14 grow relative overflow-hidden">
+                @csrf
+                <x-form-title-bar title="Daily Ledger Deposit" />
 
-            $.ajax({
-                url: "/set-daily-ledger-type",
-                type: "POST",
-                data: {
-                    _token: "{{ csrf_token() }}",
-                    daily_ledger_type: btnType
-                },
-                success: function () {
-                    location.reload();
-                },
-                error: function () {
-                    alert("Failed to update daily ledger type.");
-                    $(btn).prop("disabled", false);
-                }
-            });
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <x-input label="Date" name="date" id="date" type="date" validateMax max="{{ now()->toDateString() }}" required value="{{ now()->toDateString() }}" />
 
-            moveHighlight(btn, btnType);
-        }
+                    <x-select
+                        label="Method"
+                        name="method"
+                        id="method"
+                        :options="$method_options"
+                        required
+                        showDefault
+                    />
 
-        function moveHighlight(btn, btnType) {
-            const highlight = document.getElementById("highlight");
-            const rect = btn.getBoundingClientRect();
+                    <x-input label="Amount" name="amount" id="amount" type="amount" placeholder="Enter amount" required dataValidate="required|amount" />
 
-            const parentRect = btn.parentElement.getBoundingClientRect();
+                    <x-input label="Reff. No" name="reff_no" id="reff_no" placeholder="Enter reference no (optional)" />
+                </div>
 
-            // Move and resize the highlight
-            highlight.style.width = `${rect.width}px`;
-            highlight.style.left = `${rect.left - parentRect.left - 3}px`;
+                <div class="w-full flex justify-end mt-4">
+                    <button type="submit"
+                        class="px-6 py-1 bg-[var(--bg-success)] border border-[var(--bg-success)] text-[var(--text-success)] font-medium text-nowrap rounded-lg hover:bg-[var(--h-bg-success)] transition-all 0.3s ease-in-out cursor-pointer">
+                        <i class='fas fa-save mr-1'></i> Save Deposit
+                    </button>
+                </div>
+            </form>
+        @else
+            <form id="form" action="{{ route('daily-ledger.store') }}" method="post"
+                class="bg-[var(--secondary-bg-color)] text-sm rounded-xl shadow-lg p-8 border border-[var(--glass-border-color)]/20 pt-14 grow relative overflow-hidden">
+                @csrf
+                <x-form-title-bar title="Daily Ledger Use" />
 
-            btnTypeGlobal = btnType;
-        }
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <x-input label="Date" name="date" id="date" type="date" validateMax max="{{ now()->toDateString() }}" required value="{{ now()->toDateString() }}" />
 
-        // Initialize highlight on load
-        window.onload = () => {
-            @if($dailyLedgerType == 'deposit')
-                const activeBtn = document.querySelector("#depositBtn");
-                moveHighlight(activeBtn, "deposit");
-            @else
-                const activeBtn = document.querySelector("#useBtn");
-                moveHighlight(activeBtn, "use");
-            @endif
+                    <x-select
+                        label="Case"
+                        name="case"
+                        id="case"
+                        :options="$case_options"
+                        required
+                        showDefault
+                    />
+
+                    <x-input label="Amount" name="amount" id="amount" type="amount" placeholder="Enter amount" required dataValidate="required|amount" />
+
+                    <x-input label="Remarks" name="remarks" id="remarks" placeholder="Enter remarks (optional)" />
+                </div>
+
+                <div class="w-full flex justify-end mt-4">
+                    <button type="submit"
+                        class="px-6 py-1 bg-[var(--bg-success)] border border-[var(--bg-success)] text-[var(--text-success)] font-medium text-nowrap rounded-lg hover:bg-[var(--h-bg-success)] transition-all 0.3s ease-in-out cursor-pointer">
+                        <i class='fas fa-save mr-1'></i> Save Use
+                    </button>
+                </div>
+            </form>
+        @endif
+    </div>
+
+@endsection
+
+@push('page-scripts')
+<script defer src="{{ asset('js/pages/daily-ledger-create.js') }}"></script>
+<script>
+        window.__dailyLedgerCreate = {
+            dailyLedgerType: @json($dailyLedgerType),
+            csrfToken: @json(csrf_token()),
         };
     </script>
-
-    <!-- Main Content -->
-    <!-- header -->
-    <div class="mb-5 max-w-3xl mx-auto">
-        <x-search-header heading="{{ ucfirst($dailyLedgerType) }}" link linkText="Show Daily Ledger" linkHref="{{ route('daily-ledger.index') }}" />
-    </div>
-
-    <div class="row max-w-3xl mx-auto flex gap-4">
-        <!-- Form -->
-        <form id="form" action="{{ route('daily-ledger.store') }}" method="post" enctype="multipart/form-data"
-            class="bg-[var(--secondary-bg-color)] text-sm rounded-xl shadow-lg p-8 border border-[var(--glass-border-color)]/20 pt-14 grow relative overflow-hidden">
-            @csrf
-            <x-form-title-bar title="Daily Ledger {{ ucfirst($dailyLedgerType) }}" />
-            <!-- Step: Basic Information -->
-            <div class="step space-y-4">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div class="col-span-full">
-                        <!-- balance -->
-                        <x-input label="Balance" value="{{ number_format($balance, 1) }}" disabled />
-                    </div>
-
-                    <!-- date -->
-                    <x-input label="Date" name="date" id="date" type="date" validateMin min="2024-01-01" validateMax max="{{ now()->toDateString() }}" required />
-
-                    @if ($dailyLedgerType === 'deposit')
-                        {{-- method --}}
-                        <x-select label="Method" name="method" id="method" :options="$method_options" required showDefault/>
-
-                        <!-- amount -->
-                        <x-input label="Amount" id="amount" name="amount" type="amount" placeholder="Enter amount" required dataValidate="required|amount" />
-
-                        <!-- reff_no -->
-                        <x-input label="Reff. No." name="reff_no" id="reff_no" placeholder="Enter reff no" dataValidate="friendly" />
-                    @else
-                        {{-- case --}}
-                        <x-select label="Case" name="case" id="case" :options="$case_options" required showDefault/>
-
-                        <!-- amount -->
-                        <x-input label="Amount" id="amount" name="amount" type="amount" placeholder="Enter amount" required dataValidate="required|amount" />
-
-                        <!-- remarks -->
-                        <x-input label="Remarks" name="remarks" id="remarks" placeholder="Enter remarks" dataValidate="friendly" />
-                    @endif
-                </div>
-            </div>
-
-            <div class="w-full flex justify-end mt-4">
-                <button type="submit"
-                    class="px-6 py-1 bg-[var(--bg-success)] border border-[var(--bg-success)] text-[var(--text-success)] font-medium text-nowrap rounded-lg hover:bg-[var(--h-bg-success)] transition-all 0.3s ease-in-out cursor-pointer">
-                    <i class='fas fa-save mr-1'></i> Save
-                </button>
-            </div>
-        </form>
-    </div>
-@endsection
+@endpush

@@ -74,113 +74,13 @@
         </div>
     </form>
 
-    <script>
-        let dateInpDom = document.getElementById('date');
-        let customerSelect = document.getElementById('customer_id');
-        let categorySelectDom = document.getElementById('category');
-        let amountInpDom = document.getElementById('amount');
-        customerSelect.disabled = true;
-        categorySelectDom.disabled = true;
-
-        function trackDateState(dateInputElem) {
-            customerSelect.disabled = false;
-        }
-
-        function trackCustomerState(elem) {
-            if (elem.value) {
-                categorySelectDom.disabled = false;
-            } else {
-                categorySelectDom.disabled = true;
-            }
-        }
-
-        let subCategoryLabelDom = document.querySelector('[for=sub_category]');
-        let subCategorySelectDom = document.getElementById('subCategory');
-        let subCategoryFirstOptDom = subCategorySelectDom.children[0];
-
-        let remarksInputDom = document.getElementById('remarks');
-        remarksInputDom.parentElement.parentElement.classList.add("hidden");
-
-        function getCategoryData(value) {
-            const subCategorySearchInput = document.getElementById('subCategory');
-            const subCategoryHiddenInput = document.querySelector('input.dbInput[data-for="subCategory"]');
-            const subCategoryOptionBox = subCategoryHiddenInput.parentElement.querySelector('ul');
-            const subCategoryWrapper = subCategorySearchInput.closest('.form-group').parentElement.closest('.form-group');
-            const subCategoryLabel = subCategoryWrapper.querySelector('label');
-
-            if (value !== "waiting") {
-                subCategoryWrapper.classList.remove("hidden");
-                remarksInputDom.parentElement.parentElement.classList.add("hidden");
-
-                $.ajax({
-                    url: "/get-category-data",
-                    type: "POST",
-                    data: {
-                        _token: "{{ csrf_token() }}",
-                        category: value,
-                    },
-                    success: function (response) {
-                        let items = [];
-
-                        switch (value) {
-                            case 'self_account':
-                                subCategoryLabel.textContent = 'Self Account';
-                                if (response.length > 0) {
-                                    items.push(`<li data-for="subCategory" data-value="" onmousedown="selectThisOption(this)" class="py-2 px-3 cursor-pointer rounded-lg hover:bg-[var(--h-bg-color)]">-- Select Self Account --</li>`);
-                                    response.forEach(acc => {
-                                        items.push(`<li data-for="subCategory" data-value="${acc.id}" onmousedown="selectThisOption(this)" class="py-2 px-3 cursor-pointer rounded-lg hover:bg-[var(--h-bg-color)]">${acc.account_title} | ${acc.bank.short_title}</li>`);
-                                    });
-                                    subCategorySearchInput.disabled = false;
-                                } else {
-                                    items.push(`<li class="py-2 px-3 text-gray-400">-- No options available --</li>`);
-                                    subCategorySearchInput.disabled = true;
-                                }
-                                break;
-
-                            case 'supplier':
-                                subCategoryLabel.textContent = 'Supplier';
-                                if (response.length > 0) {
-                                    items.push(`<li data-for="subCategory" data-value="" onmousedown="selectThisOption(this)" class="py-2 px-3 cursor-pointer rounded-lg hover:bg-[var(--h-bg-color)]">-- Select Supplier --</li>`);
-                                    response.forEach(sup => {
-                                        items.push(`<li data-for="subCategory" data-value="${sup.id}" onmousedown="selectThisOption(this)" class="py-2 px-3 cursor-pointer rounded-lg hover:bg-[var(--h-bg-color)]">${sup.supplier_name} | Balance: ${formatNumbersWithDigits(sup.balance, 1, 1)}</li>`);
-                                    });
-                                    subCategorySearchInput.disabled = false;
-                                } else {
-                                    items.push(`<li class="py-2 px-3 text-gray-400">-- No options available --</li>`);
-                                    subCategorySearchInput.disabled = true;
-                                }
-                                break;
-
-                            case 'customer':
-                                subCategoryLabel.textContent = 'Customer';
-                                items.push(`<li data-for="subCategory" data-value="" onmousedown="selectThisOption(this)" class="py-2 px-3 cursor-pointer rounded-lg hover:bg-[var(--h-bg-color)]">-- Select Customer --</li>`);
-                                response.forEach(cus => {
-                                    if (cus.id != customerSelect.value) {
-                                        items.push(`<li data-for="subCategory" data-value="${cus.id}" onmousedown="selectThisOption(this)" class="py-2 px-3 cursor-pointer rounded-lg hover:bg-[var(--h-bg-color)]">${cus.customer_name} | ${cus.city.title} | Balance: ${formatNumbersWithDigits(cus.balance, 1, 1)}</li>`);
-                                    }
-                                });
-                                subCategorySearchInput.disabled = false;
-                                break;
-                        }
-
-                        // ✅ Inject options in the box
-                        subCategoryOptionBox.innerHTML = items.join('');
-
-                        // ✅ Clear previous selection
-                        subCategorySearchInput.value = '';
-                        subCategoryHiddenInput.value = '';
-                    },
-                    error: function (xhr) {
-                        console.error("❌ Error:", xhr.responseText);
-                        subCategoryOptionBox.innerHTML = `<li class="py-2 px-3 text-red-500">Error loading options</li>`;
-                        subCategorySearchInput.disabled = true;
-                    }
-                });
-            } else {
-                // Show remarks input instead of dropdown
-                subCategoryWrapper.classList.add("hidden");
-                remarksInputDom.parentElement.parentElement.classList.remove("hidden");
-            }
-        }
-    </script>
 @endsection
+
+@push('page-scripts')
+<script defer src="{{ asset('js/pages/payment-programs-create.js') }}"></script>
+<script>
+        window.__paymentProgramsCreate = {
+            csrfToken: "{{ csrf_token() }}",
+        };
+    </script>
+@endpush

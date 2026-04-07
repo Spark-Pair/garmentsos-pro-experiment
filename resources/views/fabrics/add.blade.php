@@ -137,38 +137,8 @@
         </div>
     </div>
 
-    <script>
-        function generateTagNo() {
-            const supplierSelect = document.getElementById('supplier_id');
-            const fabricSelect = document.getElementById('fabric_id');
-            const colorSelect = document.getElementById('color');
-            const unitSelect = document.getElementById('unit');
-            const tagInput = document.getElementById('tag');
-
-            const selectedSupplier = JSON.parse(supplierSelect.parentElement.parentElement.parentElement.querySelector('li.selected').getAttribute('data-option') ?? '{}');
-            const selectedFabric = JSON.parse(fabricSelect.parentElement.parentElement.parentElement.querySelector('li.selected').getAttribute('data-option') ?? '{}');
-            const selectedColor = colorSelect.parentElement.parentElement.parentElement.querySelector('li.selected').getAttribute('data-option') ?? '';
-
-            // Generate supplier code
-            const supplierName = selectedSupplier.supplier_name ?? '';
-            const supplierCode = supplierName
-                .split(' ')
-                .map(word => word.slice(0, 3).toUpperCase())
-                .join('.');
-            // Generate unit code
-            const unitCode = (unitSelect.value ?? '').charAt(0).toUpperCase();
-
-            // Get color title
-            const colorTitle = selectedColor.toUpperCase() ?? '';
-
-            // Get fabric title
-            const fabricTitle = selectedFabric.title ?? '';
-
-            // Combine all to form tag no
-            const tagNo = `${supplierCode}-${unitCode}-${colorTitle}-${fabricTitle}`;
-
-            // Output or assign to input
-            tagInput.value = tagNo;
-        }
-    </script>
 @endsection
+
+@push('page-scripts')
+<script defer src="{{ asset('js/pages/fabrics-add.js') }}"></script>
+@endpush

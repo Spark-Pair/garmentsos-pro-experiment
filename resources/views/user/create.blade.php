@@ -60,10 +60,14 @@
                 uploadText="Upload Profile Picture" />
         </div>
     </form>
-    <script>
-        window.usernames = @json($usernames);
-        function validateForNextStep() {
-            return true;
-        }
-    </script>
+
 @endsection
+
+@push('page-scripts')
+<script defer src="{{ asset('js/pages/users-create.js') }}"></script>
+<script>
+        window.__usersCreate = {
+            usernames: @json($usernames),
+        };
+    </script>
+@endpush
