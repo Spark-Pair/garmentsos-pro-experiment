@@ -175,7 +175,7 @@ function initCustomerPaymentsIndex() {
                 ...(data.clear_date && data.clear_date !== 'Pending' && { 'Clear Date': data.clear_date }),
                 ...(data.cleared_amount && { 'Clear Amount': formatNumbersWithDigits(data.cleared_amount, 1, 1) }),
                 ...((data.data.method == 'cheque' || data.data.method == 'slip') && (data.clear_date ? { 'Clear Date': data.clear_date } : { 'Clear Date': 'Pending'} )),
-                ...((data.data.method == 'cheque' || data.data.method == 'slip') && { 'Issued': data.issued }),
+                ...((data.data.method == 'cheque' || data.data.method == 'slip' || data.data.method == 'program') && { 'Issued': data.issued }),
                 'Remarks': data.data.remarks || 'No Remarks',
             },
             bottomActions: [
@@ -321,7 +321,7 @@ function initCustomerPaymentsIndex() {
     }
 
     let balanceDom = document.querySelector('#calc-bottom >.balance .text-right');
-    let infoDom = document.getElementById('info').querySelector('span');
+    let infoDom = document.getElementById('info')?.querySelector('span') || null;
     let allDataArray = window.allDataArray || [];
 
     window.onFilter = function() {
@@ -329,7 +329,9 @@ function initCustomerPaymentsIndex() {
         totalAmount = visibleRows.reduce((sum, d) => sum + d.data.amount, 0);
         totalPayment = visibleRows.reduce((sum, d) => sum + d.data.clear_amount, 0);
 
-        infoDom.textContent = `Showing ${visibleRows.length} of ${allDataArray.length} payments.`;
+        if (infoDom) {
+            infoDom.textContent = `Showing ${visibleRows.length} of ${allDataArray.length} payments.`;
+        }
 
         totalAmountDom.innerText = formatNumbersWithDigits(totalAmount, 1, 1);
         totalPaymentDom.innerText = formatNumbersWithDigits(totalPayment, 1, 1);

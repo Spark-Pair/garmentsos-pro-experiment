@@ -510,11 +510,13 @@ function createModal(data, animate = 'animate') {
             `;
 
             invoiceBottom = '';
+            const prevBalance = Number((previewData.previous_balance ?? 0).toString().replace(/,/g, '')) || 0;
+            const totalPaymentVal = Number((previewData.total_payment ?? 0).toString().replace(/,/g, '')) || 0;
             if (previewData.supplier) {
                 invoiceBottom += `
                     <div class="total flex justify-between items-center border border-gray-600 rounded-lg py-2 px-4 w-full">
                         <div class="text-nowrap">Previous Balance - Rs</div>
-                        <div class="w-1/4 text-right grow">${formatNumbersWithDigits(previewData.previous_balance, 1, 1)}</div>
+                        <div class="w-1/4 text-right grow">${formatNumbersWithDigits(prevBalance, 1, 1)}</div>
                     </div>
                 `;
             }
@@ -522,7 +524,7 @@ function createModal(data, animate = 'animate') {
             invoiceBottom += `
                 <div class="total flex justify-between items-center border border-gray-600 rounded-lg py-2 px-4 w-full">
                     <div class="text-nowrap">Total Payment - Rs</div>
-                    <div class="w-1/4 text-right grow">${formatNumbersWithDigits(previewData.total_payment, 1, 1)}</div>
+                    <div class="w-1/4 text-right grow">${formatNumbersWithDigits(totalPaymentVal, 1, 1)}</div>
                 </div>
             `;
 
@@ -530,7 +532,7 @@ function createModal(data, animate = 'animate') {
                 invoiceBottom += `
                     <div class="total flex justify-between items-center border border-gray-600 rounded-lg py-2 px-4 w-full">
                         <div class="text-nowrap">Current Balance - Rs</div>
-                        <div class="w-1/4 text-right grow">${formatNumbersWithDigits(previewData.previous_balance - previewData.total_payment, 1, 1)}</div>
+                        <div class="w-1/4 text-right grow">${formatNumbersWithDigits(prevBalance - totalPaymentVal, 1, 1)}</div>
                     </div>
                 `;
             }

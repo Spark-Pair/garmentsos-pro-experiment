@@ -6,20 +6,21 @@
         window.createRow = function createRow(data) {
             return `
             <div id="${data.id}" oncontextmenu='${data.oncontextmenu || ""}' onclick='${data.onclick || ""}'
-                class="item row relative group flex items-center border-b border-[var(--h-bg-color)] items-center py-2 cursor-pointer hover:bg-[var(--h-secondary-bg-color)] transition-all fade-in ease-in-out"
+                class="item row relative group grid grid-cols-[10%_8%_6%_10%_10%_10%_9%_6%_6%_6%_10%_9%] border-b border-[var(--h-bg-color)] items-center py-2 cursor-pointer hover:bg-[var(--h-secondary-bg-color)] transition-all fade-in ease-in-out"
                 data-json='${JSON.stringify(data)}'>
 
-                <span class="w-[10%]">${data.article_no}</span>
-                <span class="capitalize w-[7%]">${data.processed_by}</span>
-                <span class="w-[8%]">${data.unit}</span>
-                <span class="w-[18%]">${data.total_quantity}</span>
-                <span class="w-[12%]">${data.received_quantity}</span>
-                <span class="w-[12%]">${data.current_stock}</span>
-                <span class="w-[12%]">${data.a_category}</span>
-                <span class="w-[12%]">${data.b_category}</span>
-                <span class="w-[12%]">${data.c_category}</span>
-                <span class="w-[12%]">${data.remaining_quantity}</span>
-                <span class="w-[10%]">${data.shipment}</span>
+                <span>${data.article_no}</span>
+                <span class="capitalize">${data.processed_by}</span>
+                <span>${data.unit}</span>
+                <span>${data.total_quantity}</span>
+                <span>${data.received_quantity}</span>
+                <span>${data.current_stock}</span>
+                <span>${data.invoiced_quantity}</span>
+                <span>${data.a_category}</span>
+                <span>${data.b_category}</span>
+                <span>${data.c_category}</span>
+                <span>${data.remaining_quantity}</span>
+                <span>${data.shipment}</span>
             </div>`;
         };
     }

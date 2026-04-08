@@ -12,6 +12,13 @@
             // "value2" => now()->toDateString(),
             "dataFilterPath" => "date",
         ],
+        "Created Date Range" => [
+            "id" => "created_range_start",
+            "type" => "date",
+            "id2" => "created_range_end",
+            "type2" => "date",
+            "dataFilterPath" => "created_at",
+        ],
         "Customer Name" => [
             "type" => "text",
             "id" => "customer_name",

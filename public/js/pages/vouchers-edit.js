@@ -82,7 +82,8 @@ function initVouchersEdit() {
         if (supplierSelectDom && supplierSelectDom.value != '') {
             selectedSupplier = voucher.supplier;
             methodSelectDom.disabled = false;
-            balanceDom.value = formatNumbersWithDigits(selectedSupplier.balance, 1, 1);
+            const initialBalance = selectedSupplier.balance_at_date ?? selectedSupplier.balance ?? 0;
+            balanceDom.value = formatNumbersWithDigits(initialBalance, 1, 1);
             selectedSupplierData = selectedSupplier;
         } else {
             methodSelectDom.disabled = true;
@@ -716,7 +717,7 @@ function initVouchersEdit() {
                         <div class="w-[7%]">${index+1}</div>
                         ${accountCol}
                         <div class="w-1/5 capitalize">${paymentDetail.method}</div>
-                        <div class="w-1/3 capitalize">${selected?.customer ? `${selected.customer.customer_name} | ${selected.customer.city?.title ?? '-'}` : paymentDetail?.cheque ? `${paymentDetail.cheque.customer?.customer_name ?? '-'} | ${paymentDetail.cheque.customer?.city?.title ?? '-'}` : paymentDetail?.slip ? `${paymentDetail.slip.customer?.customer_name ?? '-'} | ${paymentDetail.slip.customer?.city?.title ?? '-'}` : paymentDetail?.bank_account?.account_title ?? paymentDetail?.bank_account_id_name ?? '-'}</div>
+                        <div class="w-1/3 capitalize">${selected?.customer ? `${selected.customer.customer_name} | ${selected.customer.city?.title ?? '-'}` : selected?.program?.customer ? `${selected.program.customer.customer_name} | ${selected.program.customer.city?.title ?? '-'}` : selected?.account_title ? `${selected.account_title} | ${selected.bank?.short_title ?? '-'}` : paymentDetail?.cheque ? `${paymentDetail.cheque.customer?.customer_name ?? '-'} | ${paymentDetail.cheque.customer?.city?.title ?? '-'}` : paymentDetail?.slip ? `${paymentDetail.slip.customer?.customer_name ?? '-'} | ${paymentDetail.slip.customer?.city?.title ?? '-'}` : paymentDetail?.self_account?.account_title ?? paymentDetail?.bank_account?.account_title ?? paymentDetail?.bank_account_id_name ?? paymentDetail?.self_account_id_name ?? '-'}</div>
                         <div class="w-1/5 capitalize">${selected?.slip_no ?? selected?.cheque_no ?? selected?.reff_no ?? selected?.transaction_id ?? paymentDetail?.cheque?.cheque_no ?? paymentDetail.cheque_no ?? paymentDetail.reff_no ?? paymentDetail?.slip?.slip_no ?? paymentDetail.slip_no ?? paymentDetail.transaction_id ?? '-'}</div>
                         <div class="w-1/6 capitalize">${selected?.remarks ?? (paymentDetail.remarks !== '' && paymentDetail.remarks) !== null ? paymentDetail.remarks : '-' ?? '-'}</div>
                         <div class="w-[15%]">${formatNumbersWithDigits(paymentDetail.amount, 1, 1)}</div>
@@ -757,25 +758,28 @@ function initVouchersEdit() {
                     </div>`
                 : '';
 
+            const rawBalance = selectedSupplier?.balance_at_date ?? selectedSupplier?.balance ?? 0;
+            const supplierBalance = Number(rawBalance.toString().replace(/,/g, '')) || 0;
+            const safeTotalPayment = Number((totalPayment ?? 0).toString().replace(/,/g, '')) || 0;
             const totalsSection = isSupplier
                 ? `
                     <div class="total flex justify-between items-center border border-gray-600 rounded-lg py-2 px-4 w-full">
                         <div class="text-nowrap">Previous Balance - Rs</div>
-                        <div class="w-1/4 text-right grow">${formatNumbersWithDigits(selectedSupplier.balance, 1, 1)}</div>
+                        <div class="w-1/4 text-right grow">${formatNumbersWithDigits(supplierBalance, 1, 1)}</div>
                     </div>
                     <div class="total flex justify-between items-center border border-gray-600 rounded-lg py-2 px-4 w-full">
                         <div class="text-nowrap">Total Payment - Rs</div>
-                        <div class="w-1/4 text-right grow">${formatNumbersWithDigits(totalPayment, 1, 1)}</div>
+                        <div class="w-1/4 text-right grow">${formatNumbersWithDigits(safeTotalPayment, 1, 1)}</div>
                     </div>
                     <div class="total flex justify-between items-center border border-gray-600 rounded-lg py-2 px-4 w-full">
                         <div class="text-nowrap">Current Balance - Rs</div>
-                        <div class="w-1/4 text-right grow">${formatNumbersWithDigits(selectedSupplier.balance - totalPayment, 1, 1)}</div>
+                        <div class="w-1/4 text-right grow">${formatNumbersWithDigits(supplierBalance - safeTotalPayment, 1, 1)}</div>
                     </div>
                 `
                 : `
                     <div class="total flex justify-between items-center border border-gray-600 rounded-lg py-2 px-4 w-full">
                         <div class="text-nowrap">Total Payment - Rs</div>
-                        <div class="w-1/4 text-right grow">${formatNumbersWithDigits(totalPayment, 1, 1)}</div>
+                        <div class="w-1/4 text-right grow">${formatNumbersWithDigits(safeTotalPayment, 1, 1)}</div>
                     </div>
                 `;
 

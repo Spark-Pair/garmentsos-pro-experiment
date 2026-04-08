@@ -134,6 +134,28 @@ function initVouchersCreate() {
         renderList();
 
         if (elem.value != '') {
+            if (selectedSupplier?.id) {
+                $.ajax({
+                    url: '/vouchers/create',
+                    type: 'GET',
+                    data: {
+                        supplier_id: selectedSupplier.id,
+                        date: dateDom.value,
+                    },
+                    headers: {
+                        'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                    },
+                    success: function(response) {
+                        if (typeof response.supplier_balance_at_date !== 'undefined') {
+                            selectedSupplier.balance_at_date = response.supplier_balance_at_date;
+                            balanceDom.value = formatNumbersWithDigits(response.supplier_balance_at_date, 1, 1);
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        console.error(error);
+                    }
+                });
+            }
             gotoStep(2);
         }
     }
@@ -564,6 +586,10 @@ function initVouchersCreate() {
                     },
                     success: function(response) {
                         payments_options = response.payments_options;
+                        if (typeof response.supplier_balance_at_date !== 'undefined') {
+                            selectedSupplier.balance_at_date = response.supplier_balance_at_date;
+                            balanceDom.value = formatNumbersWithDigits(response.supplier_balance_at_date, 1, 1);
+                        }
                         renderOptions()
                         hideLoader();
                     },
@@ -753,25 +779,28 @@ function initVouchersCreate() {
                     </div>`
                 : '';
 
+            const rawBalance = selectedSupplier?.balance_at_date ?? selectedSupplier?.balance ?? 0;
+            const supplierBalance = Number(rawBalance.toString().replace(/,/g, '')) || 0;
+            const safeTotalPayment = Number((totalPayment ?? 0).toString().replace(/,/g, '')) || 0;
             const totalsSection = isSupplier
                 ? `
                     <div class="total flex justify-between items-center border border-gray-600 rounded-lg py-2 px-4 w-full">
                         <div class="text-nowrap">Previous Balance - Rs</div>
-                        <div class="w-1/4 text-right grow">${formatNumbersWithDigits(selectedSupplier.balance, 1, 1)}</div>
+                        <div class="w-1/4 text-right grow">${formatNumbersWithDigits(supplierBalance, 1, 1)}</div>
                     </div>
                     <div class="total flex justify-between items-center border border-gray-600 rounded-lg py-2 px-4 w-full">
                         <div class="text-nowrap">Total Payment - Rs</div>
-                        <div class="w-1/4 text-right grow">${formatNumbersWithDigits(totalPayment, 1, 1)}</div>
+                        <div class="w-1/4 text-right grow">${formatNumbersWithDigits(safeTotalPayment, 1, 1)}</div>
                     </div>
                     <div class="total flex justify-between items-center border border-gray-600 rounded-lg py-2 px-4 w-full">
                         <div class="text-nowrap">Current Balance - Rs</div>
-                        <div class="w-1/4 text-right grow">${formatNumbersWithDigits(selectedSupplier.balance - totalPayment, 1, 1)}</div>
+                        <div class="w-1/4 text-right grow">${formatNumbersWithDigits(supplierBalance - safeTotalPayment, 1, 1)}</div>
                     </div>
                 `
                 : `
                     <div class="total flex justify-between items-center border border-gray-600 rounded-lg py-2 px-4 w-full">
                         <div class="text-nowrap">Total Payment - Rs</div>
-                        <div class="w-1/4 text-right grow">${formatNumbersWithDigits(totalPayment, 1, 1)}</div>
+                        <div class="w-1/4 text-right grow">${formatNumbersWithDigits(safeTotalPayment, 1, 1)}</div>
                     </div>
                 `;
 

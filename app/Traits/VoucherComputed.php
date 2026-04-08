@@ -9,6 +9,16 @@ trait VoucherComputed
 {
     public function toFormattedArray()
     {
+        static $balanceCache = [];
+        $previousBalance = 0;
+        if ($this->supplier && $this->date) {
+            $cacheKey = $this->supplier->id . '|' . $this->date->format('Y-m-d');
+            if (!array_key_exists($cacheKey, $balanceCache)) {
+                $balanceCache[$cacheKey] = $this->supplier->calculateBalance(null, $this->date, false, true);
+            }
+            $previousBalance = $balanceCache[$cacheKey];
+        }
+
         return [
             'id' => $this->id,
             'name' => $this->voucher_no,
@@ -18,6 +28,7 @@ trait VoucherComputed
                 'Amount' => $this->payments->sum('amount'),
             ],
             'total_payment' => $this->payments->sum('amount'),
+            'previous_balance' => $previousBalance,
             'data' => $this,
             'oncontextmenu' => "generateContextMenu(event)",
             'onclick' => "generateModal(this)",

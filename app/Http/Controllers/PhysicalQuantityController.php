@@ -6,6 +6,7 @@ use App\Models\Article;
 use App\Models\PhysicalQuantity;
 use App\Models\Shipment;
 use App\Models\ShipmentArticles;
+use App\Models\InvoiceArticles;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
@@ -27,6 +28,13 @@ class PhysicalQuantityController extends Controller
                 ->orderByDesc('id')
                 ->applyFilters($request, false) // 👈 important
                 ->get();
+
+            $articleIds = $rows->pluck('article_id')->unique()->values();
+            $invoicedMap = InvoiceArticles::query()
+                ->whereIn('article_id', $articleIds)
+                ->selectRaw('article_id, COALESCE(SUM(invoice_pcs), 0) as total_pcs')
+                ->groupBy('article_id')
+                ->pluck('total_pcs', 'article_id');
 
             $grouped = $rows
                 ->groupBy('article_id')
@@ -58,18 +66,24 @@ class PhysicalQuantityController extends Controller
                         }
                     }
 
+                    $invoicePcs = (float) ($invoicedMap[$model->article_id] ?? 0);
+                    $invoicePkts = $model->article->pcs_per_packet
+                        ? ($invoicePcs / $model->article->pcs_per_packet)
+                        : 0;
+
                     return [
                         'article_id'        => $model->article_id,
                         'article_no'        => $model->article->article_no,
                         'processed_by'      => $model->article->processed_by,
                         'unit'              => $model->article->pcs_per_packet,
-                        'total_quantity'    => floor($packets * $model->article->pcs_per_packet / 12) . ' - Dz. | ' . $packets . ' - Pkts.',
+                        'total_quantity'    => floor(($model->article->quantity + $model->article->extra_pcs) / 12) . ' - Dz. | ' . (($model->article->quantity + $model->article->extra_pcs) / $model->article->pcs_per_packet) . ' - Pkts.',
                         'received_quantity' => $packets . ' - Pkts.',
                         'current_stock'     => ($packets - ($model->article->sold_quantity / $model->article->pcs_per_packet)) . ' - Pkts.',
+                        'invoiced_quantity' => $invoicePkts . ' - Pkts.',
                         'a_category'        => $items->where('category', 'a')->sum('packets') . ' - Pkts.',
                         'b_category'        => $items->where('category', 'b')->sum('packets') . ' - Pkts.',
-                        'c_category'        => ($model->article->quantity / $model->article->pcs_per_packet - $packets) . ' - Pkts.',
-                        'remaining_quantity'=> $items->where('category', 'c')->sum('packets') . ' - Pkts.',
+                        'c_category'        => $items->where('category', 'c')->sum('packets') . ' - Pkts.',
+                        'remaining_quantity'=> (($model->article->quantity + $model->article->extra_pcs) / $model->article->pcs_per_packet - $packets) . ' - Pkts.',
                         'shipment'          => ucfirst($shipment) ?? '-',
                         'onclick'           => "generateModal(this)",
                         'oncontextmenu'     => "generateContextMenu(event)",
@@ -183,9 +197,7 @@ class PhysicalQuantityController extends Controller
             $article['size']    = ucfirst(str_replace('_', '-', $article['size']));
         }
 
-        $articles = $articles->filter(function ($article) {
-            return $article['physical_quantity'] < $article->quantity;
-        });
+        // Allow receiving extra quantity beyond ordered quantity
 
         return view('physical-quantities.create', compact('articles'));
     }

@@ -640,11 +640,15 @@ class CustomerPaymentController extends Controller
         $validator = Validator::make($request->all(), [
             'clear_date' => 'required|date',
             'method_select' => 'required|string',
-            'bank_account_id' => 'required|integer|exists:bank_accounts,id',
+            'bank_account_id' => 'nullable|integer|exists:bank_accounts,id',
             'amount' => 'required|integer|min:1',
             'reff_no' => 'nullable|string',
             'remarks' => 'nullable|string',
         ]);
+
+        $validator->sometimes('bank_account_id', 'required|integer|exists:bank_accounts,id', function ($input) {
+            return isset($input->method_select) && $input->method_select !== 'cash';
+        });
 
         if ($validator->fails()) {
             return redirect()->back()->withErrors($validator);
@@ -659,14 +663,18 @@ class CustomerPaymentController extends Controller
             return redirect()->back()->with('error', 'Sirf cheque/slip payments clear kiye ja sakte hain.');
         }
 
-        $alreadyCleared = $payment->clear_date
-            ? (float) $payment->amount
-            : (float) $payment->paymentClearRecord->sum('amount');
+        $alreadyCleared = (float) $payment->paymentClearRecord->sum('amount');
         $remaining = (float) $payment->amount - $alreadyCleared;
+
+        if ($remaining <= 0) {
+            return redirect()->back()->with('error', 'Payment already fully cleared.');
+        }
 
         if ((float) $request->amount > $remaining) {
             return redirect()->back()->with('error', 'Clear amount remaining outstanding se zyada nahi ho sakta.');
         }
+
+        $reffNo = $request->reff_no ?: '-';
 
         PaymentClear::create([
             'payment_id' => $id,
@@ -674,9 +682,15 @@ class CustomerPaymentController extends Controller
             'method' => $request->method_select,
             'bank_account_id' => $request->bank_account_id,
             'amount' => $request->amount,
-            'reff_no' => $request->reff_no,
+            'reff_no' => $reffNo,
             'remarks' => $request->remarks,
         ]);
+
+        $totalCleared = (float) $payment->paymentClearRecord()->sum('amount');
+        if ($totalCleared >= (float) $payment->amount) {
+            $payment->clear_date = $request->clear_date;
+            $payment->save();
+        }
 
         return redirect()->back()->with('success', 'Payment partial cleared successfully.');
     }

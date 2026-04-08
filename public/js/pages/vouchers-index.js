@@ -143,6 +143,7 @@ function initVouchersIndex() {
         let data = JSON.parse(item.dataset.json);
 
         data.data.total_payment = data.total_payment;
+        data.data.previous_balance = data.previous_balance;
 
         let modalData = {
             id: 'modalForm',

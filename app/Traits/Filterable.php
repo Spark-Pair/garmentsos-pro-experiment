@@ -12,18 +12,25 @@ trait Filterable
 
         // Transform date range inputs (dual input fields) only when both values exist.
         // If one side is missing, skip date filtering instead of creating invalid column filters.
-        if (array_key_exists('date_range_start', $filters) || array_key_exists('date_range_end', $filters)) {
-            $start = trim((string) ($filters['date_range_start'] ?? ''));
-            $end = trim((string) ($filters['date_range_end'] ?? ''));
+        $rangeMap = [
+            'date' => ['date_range_start', 'date_range_end'],
+            'created_at' => ['created_range_start', 'created_range_end'],
+        ];
 
-            if ($start !== '' && $end !== '') {
-                $filters['date'] = [
-                    'start' => $start,
-                    'end' => $end,
-                ];
+        foreach ($rangeMap as $field => [$startKey, $endKey]) {
+            if (array_key_exists($startKey, $filters) || array_key_exists($endKey, $filters)) {
+                $start = trim((string) ($filters[$startKey] ?? ''));
+                $end = trim((string) ($filters[$endKey] ?? ''));
+
+                if ($start !== '' && $end !== '') {
+                    $filters[$field] = [
+                        'start' => $start,
+                        'end' => $end,
+                    ];
+                }
+
+                unset($filters[$startKey], $filters[$endKey]);
             }
-
-            unset($filters['date_range_start'], $filters['date_range_end']);
         }
 
         $limit = $request->get('limit');

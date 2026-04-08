@@ -15,6 +15,11 @@ trait CustomerPaymentComputed
         return Attribute::get(function () {
             static $voucherNoCache = [];
 
+            // For heavy issued filtering, skip expensive program voucher lookup
+            if (request()->has('issued') && $this->method === 'program') {
+                return null;
+            }
+
             // direct relations
             if ($this->cheque?->voucher) return $this->cheque->voucher->voucher_no;
             if ($this->slip?->voucher)   return $this->slip->voucher->voucher_no;
@@ -98,8 +103,7 @@ trait CustomerPaymentComputed
         return Attribute::get(function () {
             // Show clearance only when cheque OR slip exists
             if ($this->cheque_no !== null || $this->slip_no !== null) {
-
-                // Prefer direct clear_date
+                // Prefer direct clear_date (set only when fully cleared)
                 if ($this->clear_date) {
                     return $this->clear_date->format('d-M-Y, D');
                 }
@@ -128,14 +132,16 @@ trait CustomerPaymentComputed
     {
         return Attribute::get(function () {
             if ($this->cheque_no !== null || $this->slip_no !== null) {
+                $sum = $this->paymentClearRecord->sum('amount');
+                if ($sum > 0) {
+                    return $sum;
+                }
                 if ($this->clear_date !== null) {
                     return $this->amount;
-                } else {
-                    return $this->paymentClearRecord->sum('amount');
                 }
-            } else {
-                return null;
+                return 0;
             }
+            return null;
         });
     }
 
@@ -157,10 +163,45 @@ trait CustomerPaymentComputed
                 return 'DR';
             }
 
-            if ((($this->cheque || $this->slip) || in_array($this->method, ['cheque','slip']) && $this->bank_account_id) && !$this->is_return) {
-                return 'Issued';
-            } elseif ($this->is_return && $this->d_r_id === null) {
+            if (in_array($this->method, ['cash', 'adjustment'])) {
+                return null;
+            }
+
+            if ($this->is_return && $this->d_r_id === null) {
                 return 'Return';
+            }
+
+            $issuedByVoucher = false;
+            $issuedByChequeOrSlip = false;
+
+            if ($this->cheque || $this->slip) {
+                $issuedByChequeOrSlip = true;
+            } elseif ($this->method === 'program' && $this->program_id) {
+                static $programIssuedCache = [];
+                $cacheKey = implode('|', [
+                    $this->program_id ?? '',
+                    $this->bank_account_id ?? '',
+                    $this->transaction_id ?? '',
+                    $this->amount ?? '',
+                    optional($this->date)->format('Y-m-d') ?? '',
+                ]);
+                if (array_key_exists($cacheKey, $programIssuedCache)) {
+                    $issuedByVoucher = $programIssuedCache[$cacheKey];
+                } else {
+                    $issuedByVoucher = SupplierPayment::query()
+                        ->where('program_id', $this->program_id)
+                        ->where('bank_account_id', $this->bank_account_id)
+                        ->where('transaction_id', $this->transaction_id)
+                        ->where('amount', $this->amount)
+                        ->whereDate('date', $this->date)
+                        ->whereNotNull('voucher_id')
+                        ->exists();
+                    $programIssuedCache[$cacheKey] = $issuedByVoucher;
+                }
+            }
+
+            if (($issuedByChequeOrSlip || $issuedByVoucher) && !$this->is_return) {
+                return 'Issued';
             } else {
                 return 'Not Issued';
             }
@@ -395,35 +436,90 @@ trait CustomerPaymentComputed
                 });
 
             case 'issued':
-                return $query->where(function($q) use ($value) {
-                    if ($value == 'Issued') {
-                        $q->where(function($sq) {
-                            // PHP Logic: (($this->cheque || $this->slip) || in_array($this->method, ['cheque','slip']) && $this->bank_account_id)
-                            $sq->whereHas('cheque')
-                            ->orWhereHas('slip')
-                            ->orWhere(function($ssq) {
-                                $ssq->whereIn('method', ['cheque', 'slip'])
-                                    ->whereNotNull('bank_account_id');
-                            });
-                        })->where('is_return', 0);
-                    }
-                    elseif ($value == 'Return') {
-                        // PHP Logic: $this->is_return && $this->d_r_id === null
-                        $q->where('is_return', 1)->whereNull('d_r_id');
-                    }
-                    elseif ($value == 'DR') {
-                        // PHP Logic: $this->d_r_id !== null
-                        $q->whereNotNull('d_r_id');
-                    }
-                    elseif ($value == 'Not Issued') {
-                        // Not Issued wo hai jo upar ki kisi condition mein na aata ho
+                $issuedValueRaw = strtolower(trim((string) $value));
+                // Support "Issued:1" or any suffix from UI/state
+                $issuedValue = explode(':', $issuedValueRaw, 2)[0];
+                return $query->where(function($q) use ($issuedValue) {
+                    if ($issuedValue === 'issued') {
                         $q->where('is_return', 0)
-                        ->whereDoesntHave('cheque')
-                        ->whereDoesntHave('slip')
-                        ->where(function($sq) {
-                            $sq->whereNotIn('method', ['cheque', 'slip'])
-                                ->orWhereNull('bank_account_id');
-                        });
+                          ->whereNull('d_r_id')
+                          ->whereNotIn('method', ['cash', 'adjustment'])
+                          ->where(function($sq) {
+                              $sq->whereExists(function ($sub) {
+                                  $sub->selectRaw(1)
+                                      ->from('supplier_payments')
+                                      ->whereColumn('supplier_payments.cheque_id', 'customer_payments.id')
+                                      ->where(function ($q) {
+                                          $q->whereNotNull('supplier_payments.voucher_id');
+                                      });
+                              })
+                              ->orWhereExists(function ($sub) {
+                                  $sub->selectRaw(1)
+                                      ->from('supplier_payments')
+                                      ->whereColumn('supplier_payments.slip_id', 'customer_payments.id')
+                                      ->where(function ($q) {
+                                          $q->whereNotNull('supplier_payments.voucher_id');
+                                      });
+                              })
+                              ->orWhereExists(function ($sub) {
+                                  $sub->selectRaw(1)
+                                      ->from('supplier_payments')
+                                      ->whereColumn('supplier_payments.program_id', 'customer_payments.program_id')
+                                      ->where(function ($q) {
+                                          $q->whereColumn('supplier_payments.transaction_id', 'customer_payments.transaction_id')
+                                            ->orWhereNull('customer_payments.transaction_id');
+                                      })
+                                      ->where(function ($q) {
+                                          $q->whereNotNull('supplier_payments.voucher_id');
+                                      });
+                              });
+                          });
+                    }
+                    elseif ($issuedValue === 'return') {
+                        $q->where('is_return', 1)
+                          ->whereNull('d_r_id')
+                          ->whereNotIn('method', ['cash', 'adjustment']);
+                    }
+                    elseif ($issuedValue === 'dr') {
+                        $q->whereNotNull('d_r_id')
+                          ->whereNotIn('method', ['cash', 'adjustment']);
+                    }
+                    elseif ($issuedValue === 'not issued' || $issuedValue === 'not_issued') {
+                        $q->where('is_return', 0)
+                          ->whereNull('d_r_id')
+                          ->whereNotIn('method', ['cash', 'adjustment'])
+                          ->where(function($sq) {
+                              $sq->whereNotExists(function ($sub) {
+                                  $sub->selectRaw(1)
+                                      ->from('supplier_payments')
+                                      ->whereColumn('supplier_payments.cheque_id', 'customer_payments.id');
+                              })
+                              ->whereNotExists(function ($sub) {
+                                  $sub->selectRaw(1)
+                                      ->from('supplier_payments')
+                                      ->whereColumn('supplier_payments.slip_id', 'customer_payments.id');
+                              })
+                              ->whereNotExists(function ($sub) {
+                                  $sub->selectRaw(1)
+                                      ->from('supplier_payments')
+                                      ->whereColumn('supplier_payments.program_id', 'customer_payments.program_id')
+                                      ->where(function ($q) {
+                                          $q->whereColumn('supplier_payments.transaction_id', 'customer_payments.transaction_id')
+                                            ->orWhereNull('customer_payments.transaction_id');
+                                      })
+                                      ->where(function ($q) {
+                                          $q->whereNotNull('supplier_payments.voucher_id');
+                                      });
+                              })
+                              ->where(function ($ssq) {
+                                  $ssq->whereNotIn('method', ['cheque', 'slip', 'program'])
+                                      ->orWhereNull('bank_account_id');
+                              });
+                          });
+                    }
+                    else {
+                        // Unknown filter value should not return all records
+                        $q->whereRaw('1=0');
                     }
                 });
 
@@ -462,6 +558,14 @@ trait CustomerPaymentComputed
                         ->whereBetween('date', [$start.' 00:00:00', $end.' 23:59:59']);
                     });
                 });
+
+            case 'created_at':
+                $start = $value['start'] ?? null;
+                $end   = $value['end'] ?? null;
+
+                if (!$start || !$end) return $query;
+
+                return $query->whereBetween('created_at', [$start.' 00:00:00', $end.' 23:59:59']);
 
             default:
                 return $query->where($key, 'like', "%$value%");

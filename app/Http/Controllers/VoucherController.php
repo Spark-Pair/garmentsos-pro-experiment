@@ -88,6 +88,14 @@ class VoucherController extends Controller
             $paymentMethod = $request->payment_method;
             $date = $request->date . ' 00:00:00';
             $payments_options = [];
+            $supplierBalanceAtDate = 0;
+
+            if ($supplier_id && $request->date) {
+                $supplier = Supplier::find($supplier_id);
+                if ($supplier) {
+                    $supplierBalanceAtDate = $supplier->calculateBalance(null, $request->date, false, true);
+                }
+            }
 
             if ($paymentMethod == 'cheque') {
                 $cheques = CustomerPayment::whereNotNull('cheque_no')
@@ -181,7 +189,10 @@ class VoucherController extends Controller
                 })->values()->toArray();
             }
 
-            return response()->json(['payments_options' => $payments_options]);
+            return response()->json([
+                'payments_options' => $payments_options,
+                'supplier_balance_at_date' => $supplierBalanceAtDate,
+            ]);
         }
 
         $voucherType = auth()->user()->voucher_type;
@@ -434,6 +445,10 @@ class VoucherController extends Controller
             'payments.bankAccount.bank',
             'payments.selfAccount.bank',
         ]);
+
+        if ($voucher->supplier && $voucher->date) {
+            $voucher->supplier->balance_at_date = $voucher->supplier->calculateBalance(null, $voucher->date, false, true);
+        }
 
         $cheques = CustomerPayment::whereNotNull('cheque_no')->with('customer.city')->whereDoesntHave('cheque')->whereNull('bank_account_id')->get();
         $cheques_options = [];

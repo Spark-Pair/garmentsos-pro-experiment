@@ -82,7 +82,7 @@
 
             articleIdInputDOM.value = selectedArticle.id;
             let value = `${selectedArticle.article_no} | ${selectedArticle.season} | ${selectedArticle.size} | ${selectedArticle.category} | ${formatNumbersDigitLess(
-                selectedArticle.quantity
+                (selectedArticle.quantity + selectedArticle.extra_pcs)
             )} (pcs) | Rs. ${formatNumbersWithDigits(selectedArticle.sales_rate, 1, 1)}`;
             articleSelectInputDOM.value = value;
 
@@ -150,11 +150,7 @@
                 processedByDom.value = "";
             }
 
-            remainingqQuantityDom.innerText = new Intl.NumberFormat("en-US").format(
-                pcsPerPacketDom.value > 0 && parseInt(totalPhysicalQuantityDom.textContent) > 0
-                    ? selectedArticle.quantity - parseInt(totalPhysicalQuantityDom.textContent)
-                    : selectedArticle.quantity
-            );
+            updateRemainingQuantity();
         };
 
         document.getElementById("pcs_per_packet").addEventListener("input", () => {
@@ -202,13 +198,17 @@
         const totalQtyDom = document.querySelector(".total-qty");
         const totalQtyErrorDom = document.getElementById("total-qty-error");
 
-        function trackArticleQuantity() {
-            if (
-                selectedArticle &&
-                totalQuantity + parseInt(totalPhysicalQuantityDom.textContent) > selectedArticle.quantity
-            ) {
+        function updateRemainingQuantity() {
+            if (!selectedArticle) return;
+
+            const currentPhysical = parseInt(totalPhysicalQuantityDom.textContent || "0");
+            const remaining = (selectedArticle.quantity + selectedArticle.extra_pcs) - (currentPhysical + totalQuantity);
+
+            remainingqQuantityDom.innerText = new Intl.NumberFormat("en-US").format(remaining);
+
+            if (remaining < 0) {
                 totalQtyDom.classList.add("border-[var(--border-error)]");
-                totalQtyErrorDom.innerText = `Quantity exceeds the available stock (${selectedArticle.quantity} pcs)`;
+                totalQtyErrorDom.innerText = `Extra quantity: ${Math.abs(remaining)} pcs`;
                 totalQtyErrorDom.classList.remove("hidden");
             } else {
                 totalQtyDom.classList.remove("border-[var(--border-error)]");
@@ -216,6 +216,10 @@
                 totalQtyErrorDom.classList.add("hidden");
                 totalQtyErrorDom.innerText = "";
             }
+        }
+
+        function trackArticleQuantity() {
+            updateRemainingQuantity();
         }
 
         window.validateForNextStep = function validateForNextStep() {
