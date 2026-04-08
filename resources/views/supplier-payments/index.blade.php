@@ -60,12 +60,14 @@
                 <div class="container-parent h-full">
                     <div class="card_container px-3 h-full flex flex-col">
                         <div id="table-head" class="flex justify-between bg-[var(--h-bg-color)] rounded-lg font-medium py-2 hidden mt-4 pr-1">
-                            <div class="text-center w-1/7 cursor-pointer" onclick="sortByThis(this)">Date</div>
-                            <div class="text-center grow cursor-pointer" onclick="sortByThis(this)">Supplier Name</div>
-                            <div class="text-center w-1/7 cursor-pointer" onclick="sortByThis(this)">Method</div>
-                            <div class="text-center w-1/7 cursor-pointer" onclick="sortByThis(this)">Amount</div>
-                            <div class="text-center w-1/7 cursor-pointer" onclick="sortByThis(this)">Reff No.</div>
-                            <div class="text-center w-1/7 cursor-pointer" onclick="sortByThis(this)">Voucher No.</div>
+                            <div class="text-center w-1/8 cursor-pointer" onclick="sortByThis(this)">Date</div>
+                            <div class="text-center w-1/6 cursor-pointer" onclick="sortByThis(this)">Supplier Name</div>
+                            <div class="text-center w-1/8 cursor-pointer" onclick="sortByThis(this)">Method</div>
+                            <div class="text-center w-1/8 cursor-pointer" onclick="sortByThis(this)">Amount</div>
+                            <div class="text-center w-1/6 cursor-pointer" onclick="sortByThis(this)">Customer/Self Acc.</div>
+                            <div class="text-center w-1/8 cursor-pointer" onclick="sortByThis(this)">Source</div>
+                            <div class="text-center w-1/8 cursor-pointer" onclick="sortByThis(this)">Reff No.</div>
+                            <div class="text-center w-1/8 cursor-pointer" onclick="sortByThis(this)">Voucher No.</div>
                         </div>
                         <p id="noItemsError" style="display: none" class="text-sm text-[var(--border-error)] mt-3">No items found</p>
                         <div class="overflow-y-auto grow my-scrollbar-2">

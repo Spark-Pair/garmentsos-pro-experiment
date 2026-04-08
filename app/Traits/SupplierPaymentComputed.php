@@ -27,6 +27,34 @@ trait SupplierPaymentComputed
 
     public function toFormattedArray()
     {
+        $sourceName = '-';
+        $sourceType = '-';
+        $method = strtolower((string) $this->method);
+
+        if ($this->selfAccount) {
+            $sourceName = $this->selfAccount->account_title ?? '-';
+            $sourceType = 'Self Account';
+        } elseif (in_array($method, ['self cheque', 'self_cheque', 'selfcheque']) && $this->bankAccount) {
+            $sourceName = $this->bankAccount->account_title ?? '-';
+            $sourceType = 'Self Account';
+        } elseif ($this->cheque?->customer) {
+            $sourceName = $this->cheque->customer->customer_name ?? '-';
+            $sourceType = 'Customer';
+        } elseif ($this->slip?->customer) {
+            $sourceName = $this->slip->customer->customer_name ?? '-';
+            $sourceType = 'Customer';
+        } elseif ($this->program?->customer) {
+            $sourceName = $this->program->customer->customer_name ?? '-';
+            $sourceType = 'Customer';
+        } elseif ($this->bankAccount) {
+            $sourceName = $this->bankAccount->account_title ?? '-';
+            $sourceType = 'Self Account';
+        }
+
+        $program = $this->program;
+        $cr = $this->cr;
+        $dr = $this->cheque?->dr ?? $this->slip?->dr;
+
         return [
             'id' => $this->id,
             'name' => $this->supplier->supplier_name ?? app('client_company')->name,
@@ -34,7 +62,20 @@ trait SupplierPaymentComputed
             'date' => $this->slip_date ? $this->slip_date->format('d-M-Y, D') : ($this->cheque_date ? $this->cheque_date->format('d-M-Y, D') : $this->date->format('d-M-Y, D')),
             'amount' => number_format($this->amount, 1),
             'reff_no' => $this->new_reff_no,
-            'voucher_no' => $this->voucher->voucher_no ?? $this->CR->c_r_no ?? '-',
+            'voucher_no' => $this->voucher->voucher_no ?? $this->cr?->c_r_no ?? '-',
+            'source_name' => $sourceName,
+            'source_type' => $sourceType,
+            'program_no' => $program?->program_no,
+            'program_order_no' => $program?->order_no,
+            'program_date' => $program?->date ? $program->date->format('d-M-Y, D') : null,
+            'program_customer' => $program?->customer?->customer_name ?? null,
+            'cr_no' => $cr?->c_r_no,
+            'cr_date' => $cr?->date ? $cr->date->format('d-M-Y, D') : null,
+            'dr_no' => $dr?->d_r_no,
+            'dr_date' => $dr?->date ? $dr->date->format('d-M-Y, D') : null,
+            'data' => $this,
+            'oncontextmenu' => "generateContextMenu(event)",
+            'onclick' => "generateModal(this)",
         ];
     }
 
