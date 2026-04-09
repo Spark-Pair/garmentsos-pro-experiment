@@ -521,159 +521,195 @@
             }
 
             function generateInvoice() {
-                let totalPcs = 0;
-                let totalPackets = 0;
                 const customerData = selectedCustomersArray[0];
                 invoiceNo = generateInvoiceNo();
-                invoiceDate = getInvoiceDate();
+                invoiceDate = new Date();
                 cottonCount = customerData?.cotton_count || 1;
-                let totalAmountOfThisInvoice = 0;
+
                 if (shipmentArticles.length > 0) {
-                    previewDom.innerHTML = `
-                        <div id="invoice" class="invoice flex flex-col h-full">
-                            <div id="invoice-banner" class="invoice-banner w-full flex justify-between items-center pl-5 pr-8">
-                                <div class="left">
-                                    <div class="invoice-logo">
-                                        <img src="${companyLogoBase}/${companyData.logo}" alt="garmentsos-pro"
-                                            class="w-[12rem]" />
-                                        <div class='mt-1'>${companyData.phone_number}</div>
-                                    </div>
-                                </div>
-                                <div class="left">
-                                    <div class="invoice-logo">
-                                        <h1 class="text-2xl font-medium text-[var(--h-primary-color)]">Sales Invoice</h1>
-                                        <div class="space-y-1 mt-1">
-                                            <div class="text-right leading-none ${cottonCount == 0 ? "" : ""} ">Cotton: ${cottonCount}</div>
-                                            <div class="text-right leading-none">Shipment No.: ${shipmentNoDom.value}</div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <hr class="w-full my-3 border-black">
-                            <div id="invoice-header" class="invoice-header w-full flex justify-between px-5">
-                                <div class="left w-50 space-y-1">
-                                    <div class="invoice-customer text-lg leading-none capitalize font-medium text-nowrap">M/s: ${customerData.customer_name}</div>
-                                    <div class="invoice-person text-md text-lg leading-none">${customerData.urdu_title}</div>
-                                    <div class="invoice-address text-md leading-none">${customerData.address}, ${customerData.city}</div>
-                                    <div class="invoice-phone text-md leading-none">${customerData.phone_number}</div>
-                                </div>
-                                <div class="right my-auto pr-3 text-sm text-black space-y-1.5">
-                                    <div class="invoice-date leading-none">Date: ${invoiceDate}</div>
-                                    <div class="invoice-number leading-none capitalize font-medium">Invoice No.: ${invoiceNo}</div>
-                                    <input type="hidden" name="invoice_no" value="${invoiceNo}">
-                                    <div class="invoice-copy leading-none">Invoice Copy: Customer</div>
-                                    <div class="invoice-copy leading-none">Document: Sales Invoice</div>
-                                </div>
-                            </div>
-                            <hr class="w-full my-3 border-black">
-                            <div id="invoice-body" class="invoice-body w-[95%] grow mx-auto">
-                                <div class="invoice-table w-full">
-                                    <div class="table w-full border border-black rounded-lg pb-2.5 overflow-hidden">
-                                        <div class="thead w-full">
-                                            <div class="tr flex justify-between w-full px-4 py-1.5 bg-[var(--primary-color)] text-white">
-                                                <div class="th text-sm font-medium w-[7%]">S.No</div>
-                                                <div class="th text-sm font-medium w-[10%]">Article</div>
-                                                <div class="th text-sm font-medium w-[10%]">Packets</div>
-                                                <div class="th text-sm font-medium w-[10%]">Pcs.</div>
-                                                <div class="th text-sm font-medium grow">Description</div>
-                                                <div class="th text-sm font-medium w-[10%]">Pcs/Pkt.</div>
-                                                <div class="th text-sm font-medium w-[11%]">Rate/Pc.</div>
-                                                <div class="th text-sm font-medium w-[11%]">Amount</div>
-                                            </div>
-                                        </div>
-                                        <div id="tbody" class="tbody w-full">
-                                            ${shipmentArticles
-                                                .map((articles, index) => {
-                                                    const hrClass = index === 0 ? "mb-2.5" : "my-2.5";
-                                                    totalAmountOfThisInvoice +=
-                                                        parseInt(articles.article.sales_rate) *
-                                                        (articles.shipment_pcs * cottonCount);
-                                                    totalPcs += articles.shipment_pcs * cottonCount;
-                                                    totalPackets +=
-                                                        (articles.shipment_pcs / articles.article.pcs_per_packet) *
-                                                        cottonCount;
-                                                    return `
-                                                    <div>
-                                                        <hr class="w-full ${hrClass} border-black">
-                                                        <div class="tr flex justify-between w-full px-4">
-                                                            <div class="td text-sm font-semibold w-[7%]">${index + 1}.</div>
-                                                            <div class="td text-sm font-semibold w-[10%]">${articles.article.article_no}</div>
-                                                            <div class="td text-sm font-semibold w-[10%]">${
-                                                                (articles.shipment_pcs / articles.article.pcs_per_packet) *
-                                                                cottonCount
-                                                            }</div>
-                                                            <div class="td text-sm font-semibold w-[10%]">${
-                                                                articles.shipment_pcs * cottonCount
-                                                            }</div>
-                                                            <div class="td text-sm font-semibold grow">${articles.description}</div>
-                                                            <div class="td text-sm font-semibold w-[10%]">${formatNumbersDigitLess(
-                                                                articles.article.pcs_per_packet
-                                                            )}</div>
-                                                            <div class="td text-sm font-semibold w-[11%]">${formatNumbersWithDigits(
-                                                                articles.article.sales_rate,
-                                                                2,
-                                                                2
-                                                            )}</div>
-                                                            <div class="td text-sm font-semibold w-[11%]">${formatNumbersWithDigits(
-                                                                parseInt(articles.article.sales_rate) *
-                                                                    (articles.shipment_pcs * cottonCount),
-                                                                1,
-                                                                1
-                                                            )}</div>
-                                                        </div>
-                                                    </div>
-                                                `;
-                                                })
-                                                .join("")}
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <hr class="w-full my-3 border-black">
-                            <div class="flex flex-col space-y-2">
-                                <div id="invoice-total" class="tr flex justify-between w-full px-2 gap-2 text-sm">
-                                    <div class="total flex justify-between items-center border border-black rounded-lg py-1.5 px-4 w-full">
-                                        <div class="text-nowrap">Total Quantity</div>
-                                        <div class="w-1/2 text-right grow">${totalPcs} | ${totalPackets}</div>
-                                    </div>
-                                    <div class="total flex justify-between items-center border border-black rounded-lg py-1.5 px-4 w-full">
-                                        <div class="text-nowrap">Gross Amount</div>
-                                        <div class="w-1/2 text-right grow">${formatNumbersWithDigits(
-                                            totalAmountOfThisInvoice,
-                                            1,
-                                            1
-                                        )}</div>
-                                    </div>
-                                </div>
-                                <div id="invoice-total" class="tr flex justify-between w-full px-2 gap-2 text-sm">
-                                    <div class="total flex justify-between items-center border border-black rounded-lg py-1.5 px-4 w-full">
-                                        <div class="text-nowrap">Discount</div>
-                                        <div class="w-1/2 text-right grow">${formatNumbersDigitLess(discount)}</div>
-                                    </div>
-                                    <div
-                                        class="total flex justify-between items-center border border-black rounded-lg py-1.5 px-4 w-full">
-                                        <div class="text-nowrap">Net Amount</div>
-                                        <div class="w-1/2 text-right grow">${formatNumbersWithDigits(
-                                            totalAmountOfThisInvoice -
-                                                (totalAmountOfThisInvoice / 100) * discount,
-                                            1,
-                                            1
-                                        )}</div>
-                                    </div>
-                                </div>
-                            </div>
-                            <hr class="w-full my-3 border-black">
-                            <div class="tfooter flex w-full text-sm px-4 justify-between text-black">
-                                <P class="leading-none">Powered by SparkPair</P>
-                                <p class="leading-none text-sm">&copy; 2025 SparkPair | +92 316 5825495</p>
-                            </div>
-                        </div>
-                    `;
+                    const normalizedCustomer = {
+                        ...customerData,
+                        city: typeof customerData?.city === 'string'
+                            ? { title: customerData.city }
+                            : (customerData?.city || { title: '' }),
+                    };
+
+                    const previewData = {
+                        customer: normalizedCustomer,
+                        date: invoiceDate,
+                        invoice_no: invoiceNo,
+                        shipment_no: shipmentNoDom.value,
+                        cotton_count: cottonCount,
+                        discount: discount || 0,
+                        invoice_articles: shipmentArticles.map((article) => ({
+                            article: article.article,
+                            description: article.description,
+                            shipment_pcs: article.shipment_pcs,
+                            invoice_pcs: article.shipment_pcs * cottonCount,
+                        })),
+                    };
+
+                    previewDom.innerHTML = [
+                        buildInvoicePreviewLikeModal(previewData, 'Customer'),
+                        buildInvoicePreviewLikeModal(previewData, 'Office'),
+                    ].join('');
                 } else {
                     previewDom.innerHTML = `
                         <h1 class="text-[var(--border-error)] font-medium text-center mt-5">No Preview avalaible.</h1>
                     `;
                 }
+            }
+
+            function buildInvoicePreviewLikeModal(previewData, copyLabel = 'Customer') {
+                const cotton = previewData.cotton_count || 0;
+                const discountVal = Number(previewData.discount || 0);
+                const articles = Array.isArray(previewData.invoice_articles)
+                    ? previewData.invoice_articles
+                    : [];
+
+                let totalAmount = 0;
+                let totalPcs = 0;
+                let totalPackets = 0;
+
+                const invoiceTableHeader = `
+                    <div class="th text-sm font-medium">S.No</div>
+                    <div class="th text-sm font-medium">Article</div>
+                    <div class="th text-sm font-medium col-span-2">Description</div>
+                    <div class="th text-sm font-medium">Unit</div>
+                    <div class="th text-sm font-medium">Packets</div>
+                    <div class="th text-sm font-medium">Pcs.</div>
+                    <div class="th text-sm font-medium">Rate/Pc.</div>
+                    <div class="th text-sm font-medium">Amount</div>
+                `;
+
+                const invoiceTableBody = `
+                    ${articles.map((orderedArticle, index) => {
+                        const article = orderedArticle.article || {};
+                        const salesRate = Number(article.sales_rate || 0);
+                        const qty = orderedArticle.invoice_pcs ?? orderedArticle.shipment_pcs ?? 0;
+                        const total = salesRate * qty;
+                        const hrClass = index === 0 ? "mb-2.5" : "my-2.5";
+
+                        totalAmount += total;
+                        totalPcs += qty;
+                        totalPackets += article?.pcs_per_packet ? Math.floor(qty / article.pcs_per_packet) : 0;
+
+                        return `
+                            <div>
+                                <hr class="w-full ${hrClass} border-black">
+                                <div class="tr grid grid-cols-9 justify-between w-full px-4 gap-0.5">
+                                    <div class="td text-sm font-semibold truncate">${index + 1}.</div>
+                                    <div class="td text-sm font-semibold truncate">${article.article_no ?? ''}</div>
+                                    <div class="td text-sm font-semibold col-span-2 truncate capitalize">${orderedArticle.description ?? ''}</div>
+                                    <div class="td text-sm font-semibold truncate">${article?.pcs_per_packet ?? 0}</div>
+                                    <div class="td text-sm font-semibold truncate">${article?.pcs_per_packet ? Math.floor(qty / article.pcs_per_packet) : 0}</div>
+                                    <div class="td text-sm font-semibold truncate">${qty}</div>
+                                    <div class="td text-sm font-semibold truncate">${formatNumbersWithDigits(salesRate, 1, 1)}</div>
+                                    <div class="td text-sm font-semibold truncate">${formatNumbersWithDigits(total, 1, 1)}</div>
+                                </div>
+                            </div>
+                        `;
+                    }).join('')}
+                `;
+
+                const discountAmount = discountVal ? (totalAmount * discountVal) / 100 : 0;
+                const netAmount = previewData.netAmount ?? (totalAmount - discountAmount);
+
+                const invoiceBottom = `
+                    <div class="total flex justify-between items-center border border-black rounded-lg py-1.5 px-4 w-full">
+                        <div class="text-nowrap">Total Quantity</div>
+                        <div class="w-1/4 text-right grow">${formatNumbersDigitLess(totalPcs)} | ${formatNumbersDigitLess(totalPackets)}</div>
+                    </div>
+                    <div class="total flex justify-between items-center border border-black rounded-lg py-1.5 px-4 w-full">
+                        <div class="text-nowrap">Gross Amount</div>
+                        <div class="w-1/4 text-right grow">${formatNumbersWithDigits(totalAmount, 1, 1)}</div>
+                    </div>
+                    <div class="total flex justify-between items-center border border-black rounded-lg py-1.5 px-4 w-full">
+                        <div class="text-nowrap">Discount - %${discountVal}</div>
+                        <div class="w-1/4 text-right grow">${formatNumbersWithDigits(discountAmount, 1, 1)}</div>
+                    </div>
+                    <div class="total flex justify-between items-center border border-black rounded-lg py-1.5 px-4 w-full">
+                        <div class="text-nowrap">Net Amount</div>
+                        <div class="w-1/4 text-right grow">${formatNumbersWithDigits(netAmount, 1, 1)}</div>
+                    </div>
+                `;
+
+                return `
+                    <div id="preview-container" class="h-auto mx-auto relative flex flex-col">
+                        <div id="preview" class="preview w-[208mm] h-[302mm] overflow-hidden flex flex-col">
+                            <div class="flex flex-col h-full">
+                                <div id="banner" class="banner w-full flex justify-between items-center px-5">
+                                    <div class="left">
+                                        <div class="logo flex flex-col">
+                                            <div class="flex items-center gap-3">
+                                                ${companyData.logo ? `
+                                                    <div class="h-[3.50rem] w-[13.5rem] flex items-center justify-center gap-2.5">
+                                                        <img
+                                                            src="${companyLogoBase}/${companyData.logo}"
+                                                            alt="garmentsos-pro"
+                                                            class="max-h-full max-w-full object-contain"
+                                                        />
+                                                        ${companyData.logo_text ? `
+                                                            <h1 class="text-lg font-bold tracking-wide">${companyData.logo_text}</h1>
+                                                        ` : ''}
+                                                    </div>
+                                                ` : ''}
+                                            </div>
+                                            ${companyData.phone_number ? `
+                                                <div class="mt-2 text-sm text-gray-600">${companyData.phone_number}</div>
+                                            ` : ''}
+                                        </div>
+                                    </div>
+                                    <div class="right">
+                                        <div class="logo text-right">
+                                            <h1 class="text-2xl font-medium text-[var(--h-primary-color)]">Sales Invoice</h1>
+                                            <div class="mt-1 text-right ${cotton === 0 ? 'hidden' : ''}">Cotton: ${cotton}</div>
+                                            ${previewData.shipment_no ? `<div class="mt-1 text-right">Shipment No.: ${previewData.shipment_no}</div>` : ''}
+                                        </div>
+                                    </div>
+                                </div>
+                                <hr class="w-full my-3 border-black">
+                                <div id="header" class="header w-full flex justify-between px-5">
+                                    <div class="left w-50 space-y-1">
+                                        <div class="customer text-lg leading-none capitalize font-medium text-nowrap">M/s: ${previewData.customer.customer_name}</div>
+                                        <div class="person text-md text-lg leading-none">${previewData.customer.urdu_title ?? ''}</div>
+                                        <div class="address text-md leading-none">${previewData.customer.address ?? ''}, ${previewData.customer.city?.title ?? ''}</div>
+                                        <div class="phone text-md leading-none">${previewData.customer.phone_number ?? ''}</div>
+                                    </div>
+                                    <div class="right w-50 my-auto text-right text-sm text-black space-y-1.5">
+                                        <div class="date leading-none">Date: ${formatDate(previewData.date)}</div>
+                                        <div class="number leading-none capitalize font-medium">invoice No.: ${previewData.invoice_no}</div>
+                                        <div class="preview-copy leading-none capitalize">invoice Copy: ${copyLabel}</div>
+                                        <div class="copy leading-none">Document: Sales Invoice</div>
+                                    </div>
+                                </div>
+                                <hr class="w-full my-3 border-black">
+                                <div class="body w-full px-5 grow mx-auto">
+                                    <div class="table w-full">
+                                        <div class="table w-full border border-black rounded-lg pb-2.5 overflow-hidden">
+                                            <div class="thead w-full">
+                                                <div class="tr grid grid-cols-9 w-full px-4 py-1.5 bg-[var(--primary-color)] text-white">
+                                                    ${invoiceTableHeader}
+                                                </div>
+                                            </div>
+                                            <div id="tbody" class="tbody w-full">
+                                                ${invoiceTableBody}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="grid grid-cols-2 gap-2 px-5">
+                                    ${invoiceBottom}
+                                </div>
+                                <hr class="w-full my-3 border-black">
+                                <div class="tfooter flex w-full text-sm px-4 justify-between text-black">
+                                    <p class="leading-none">Powered by SparkPair</p>
+                                    <p class="leading-none text-sm">&copy; 2025 SparkPair | +92 316 5825495</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
             }
 
             window.validateForNextStep = function validateForNextStep() {
@@ -686,8 +722,23 @@
                 const printAndSaveBtn = document.getElementById("printAndSaveBtn");
                 if (!printAndSaveBtn) return;
                 printAndSaveBtn.addEventListener("click", function () {
+                    const form = document.getElementById("form");
+                    if (!form) return;
                     document.getElementById("printAfterSave").value = 1;
-                    document.getElementById("form").submit();
+
+                    if (typeof validateForNextStep === "function") {
+                        const result = validateForNextStep();
+                        if (result instanceof Promise) {
+                            result.then(res => {
+                                if (res === false) return;
+                                form.submit();
+                            });
+                            return;
+                        }
+                        if (result === false) return;
+                    }
+
+                    form.submit();
                 });
             }
 
@@ -960,150 +1011,192 @@
             }
 
             function generateInvoice() {
-                let totalPcs = 0;
-                let totalPackets = 0;
                 invoiceNo = generateInvoiceNo();
-                invoiceDate = getInvoiceDate();
+                invoiceDate = new Date();
 
                 if (orderedArticles.length > 0) {
-                    previewDom.innerHTML = `
-                        <div id="invoice" class="invoice flex flex-col h-full">
-                            <div id="invoice-banner" class="invoice-banner w-full flex justify-between items-center pl-5 pr-8">
-                                <div class="left">
-                                    <div class="invoice-logo">
-                                        <img src="${companyLogoBase}/${companyData.logo}" alt="garmentsos-pro"
-                                            class="w-[12rem]" />
-                                        <div class='mt-1'>${companyData.phone_number}</div>
-                                    </div>
-                                </div>
-                                <div class="left">
-                                    <div class="invoice-logo">
-                                        <h1 class="text-2xl font-medium text-[var(--h-primary-color)]">Sales Invoice</h1>
-                                        <div class="space-y-1 mt-1">
-                                            <div class="text-right leading-none">Order No.: ${orderNoDom.value}</div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <hr class="w-full my-3 border-black">
-                            <div id="invoice-header" class="invoice-header w-full flex justify-between px-5">
-                                <div class="left w-50 space-y-1">
-                                    <div class="invoice-customer text-lg leading-none capitalize font-medium text-nowrap">M/s: ${customerData.customer_name}</div>
-                                    <div class="invoice-person text-md text-lg leading-none">${customerData.urdu_title}</div>
-                                    <div class="invoice-address text-md leading-none">${customerData.address}, ${customerData.city}</div>
-                                    <div class="invoice-phone text-md leading-none">${customerData.phone_number}</div>
-                                </div>
-                                <div class="right my-auto pr-3 text-sm text-black space-y-1.5">
-                                    <div class="invoice-date leading-none">Date: ${invoiceDate}</div>
-                                    <div class="invoice-number leading-none capitalize font-medium">Invoice No.: ${invoiceNo}</div>
-                                    <input type="hidden" name="invoice_no" value="${invoiceNo}">
-                                    <div class="invoice-copy leading-none">Invoice Copy: Customer</div>
-                                    <div class="invoice-copy leading-none">Document: Sales Invoice</div>
-                                </div>
-                            </div>
-                            <hr class="w-full my-3 border-black">
-                            <div id="invoice-body" class="invoice-body w-[95%] grow mx-auto">
-                                <div class="invoice-table w-full">
-                                    <div class="table w-full border border-black rounded-lg pb-2.5 overflow-hidden">
-                                        <div class="thead w-full">
-                                            <div class="tr flex justify-between w-full px-4 py-1.5 bg-[var(--primary-color)] text-white">
-                                                <div class="th text-sm font-medium w-[7%]">S.No</div>
-                                                <div class="th text-sm font-medium w-[10%]">Article</div>
-                                                <div class="th text-sm font-medium w-[10%]">Packets</div>
-                                                <div class="th text-sm font-medium w-[10%]">Pcs.</div>
-                                                <div class="th text-sm font-medium grow">Description</div>
-                                                <div class="th text-sm font-medium w-[10%]">Pcs/Pkt.</div>
-                                                <div class="th text-sm font-medium w-[11%]">Rate/Pc.</div>
-                                                <div class="th text-sm font-medium w-[11%]">Amount</div>
-                                            </div>
-                                        </div>
-                                        <div id="tbody" class="tbody w-full">
-                                            ${orderedArticles
-                                                .map((articles, index) => {
-                                                    const hrClass = index === 0 ? "mb-2.5" : "my-2.5";
-                                                    totalPcs += articles.ordered_quantity;
-                                                    totalPackets +=
-                                                        articles.ordered_quantity / articles.article.pcs_per_packet;
+                    const normalizedCustomer = {
+                        ...customerData,
+                        city: typeof customerData?.city === 'string'
+                            ? { title: customerData.city }
+                            : (customerData?.city || { title: '' }),
+                    };
 
-                                                    return `
-                                                    <div>
-                                                        <hr class="w-full ${hrClass} border-black">
-                                                        <div class="tr flex justify-between w-full px-4">
-                                                            <div class="td text-sm font-semibold w-[7%]">${index + 1}.</div>
-                                                            <div class="td text-sm font-semibold w-[10%]">${articles.article.article_no}</div>
-                                                            <div class="td text-sm font-semibold w-[10%]">${
-                                                                articles.ordered_quantity /
-                                                                articles.article.pcs_per_packet
-                                                            }</div>
-                                                            <div class="td text-sm font-semibold w-[10%]">${articles.ordered_quantity}</div>
-                                                            <div class="td text-sm font-semibold grow">${articles.description}</div>
-                                                            <div class="td text-sm font-semibold w-[10%]">${formatNumbersDigitLess(
-                                                                articles.article.pcs_per_packet
-                                                            )}</div>
-                                                            <div class="td text-sm font-semibold w-[11%]">${formatNumbersWithDigits(
-                                                                articles.article.sales_rate,
-                                                                2,
-                                                                2
-                                                            )}</div>
-                                                            <div class="td text-sm font-semibold w-[11%]">${formatNumbersWithDigits(
-                                                                parseInt(articles.article.sales_rate) *
-                                                                    articles.ordered_quantity,
-                                                                1,
-                                                                1
-                                                            )}</div>
-                                                        </div>
-                                                    </div>
-                                                `;
-                                                })
-                                                .join("")}
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <hr class="w-full my-3 border-black">
-                            <div class="flex flex-col space-y-2">
-                                <div id="invoice-total" class="tr flex justify-between w-full px-2 gap-2 text-sm">
-                                    <div class="total flex justify-between items-center border border-black rounded-lg py-1.5 px-4 w-full">
-                                        <div class="text-nowrap">Total Quantity - Pcs</div>
-                                        <div class="w-1/2 text-right grow">${totalPcs} | ${totalPackets}</div>
-                                    </div>
-                                    <div class="total flex justify-between items-center border border-black rounded-lg py-1.5 px-4 w-full">
-                                        <div class="text-nowrap">Gross Amount</div>
-                                        <div class="w-1/2 text-right grow">${formatNumbersWithDigits(
-                                            totalAmount,
-                                            1,
-                                            1
-                                        )}</div>
-                                    </div>
-                                </div>
-                                <div id="invoice-total" class="tr flex justify-between w-full px-2 gap-2 text-sm">
-                                    <div class="total flex justify-between items-center border border-black rounded-lg py-1.5 px-4 w-full">
-                                        <div class="text-nowrap">Discount</div>
-                                        <div class="w-1/2 text-right grow">${formatNumbersDigitLess(discount)}</div>
-                                    </div>
-                                    <div
-                                        class="total flex justify-between items-center border border-black rounded-lg py-1.5 px-4 w-full">
-                                        <div class="text-nowrap">Net Amount</div>
-                                        <div class="w-1/2 text-right grow">${formatNumbersWithDigits(
-                                            netAmount,
-                                            1,
-                                            1
-                                        )}</div>
-                                    </div>
-                                </div>
-                            </div>
-                            <hr class="w-full my-3 border-black">
-                            <div class="tfooter flex w-full text-sm px-4 justify-between text-black">
-                                <P class="leading-none">Powered by SparkPair</P>
-                                <p class="leading-none text-sm">&copy; 2025 SparkPair | +92 316 5825495</p>
-                            </div>
-                        </div>
-                    `;
+                    const previewData = {
+                        customer: normalizedCustomer,
+                        date: invoiceDate,
+                        invoice_no: invoiceNo,
+                        order_no: orderNoDom.value,
+                        cotton_count: 0,
+                        discount: discount || 0,
+                        netAmount: netAmount || null,
+                        invoice_articles: orderedArticles.map((article) => ({
+                            article: article.article,
+                            description: article.description,
+                            ordered_pcs: article.ordered_quantity,
+                            invoice_pcs: article.ordered_quantity,
+                        })),
+                    };
+
+                    previewDom.innerHTML = [
+                        buildOrderInvoicePreviewLikeModal(previewData, 'Customer'),
+                        buildOrderInvoicePreviewLikeModal(previewData, 'Office'),
+                    ].join('');
                 } else {
                     previewDom.innerHTML = `
                         <h1 class="text-[var(--border-error)] font-medium text-center mt-5">No Preview avalaible.</h1>
                     `;
                 }
+            }
+
+            function buildOrderInvoicePreviewLikeModal(previewData, copyLabel = 'Customer') {
+                const discountVal = Number(previewData.discount || 0);
+                const articles = Array.isArray(previewData.invoice_articles)
+                    ? previewData.invoice_articles
+                    : [];
+
+                let totalAmountCalc = 0;
+                let totalPcsCalc = 0;
+                let totalPacketsCalc = 0;
+
+                const invoiceTableHeader = `
+                    <div class="th text-sm font-medium">S.No</div>
+                    <div class="th text-sm font-medium">Article</div>
+                    <div class="th text-sm font-medium col-span-2">Description</div>
+                    <div class="th text-sm font-medium">Unit</div>
+                    <div class="th text-sm font-medium">Packets</div>
+                    <div class="th text-sm font-medium">Pcs.</div>
+                    <div class="th text-sm font-medium">Rate/Pc.</div>
+                    <div class="th text-sm font-medium">Amount</div>
+                `;
+
+                const invoiceTableBody = `
+                    ${articles.map((orderedArticle, index) => {
+                        const article = orderedArticle.article || {};
+                        const salesRate = Number(article.sales_rate || 0);
+                        const qty = orderedArticle.invoice_pcs ?? orderedArticle.ordered_pcs ?? 0;
+                        const total = salesRate * qty;
+                        const hrClass = index === 0 ? "mb-2.5" : "my-2.5";
+
+                        totalAmountCalc += total;
+                        totalPcsCalc += qty;
+                        totalPacketsCalc += article?.pcs_per_packet ? Math.floor(qty / article.pcs_per_packet) : 0;
+
+                        return `
+                            <div>
+                                <hr class="w-full ${hrClass} border-black">
+                                <div class="tr grid grid-cols-9 justify-between w-full px-4 gap-0.5">
+                                    <div class="td text-sm font-semibold truncate">${index + 1}.</div>
+                                    <div class="td text-sm font-semibold truncate">${article.article_no ?? ''}</div>
+                                    <div class="td text-sm font-semibold col-span-2 truncate capitalize">${orderedArticle.description ?? ''}</div>
+                                    <div class="td text-sm font-semibold truncate">${article?.pcs_per_packet ?? 0}</div>
+                                    <div class="td text-sm font-semibold truncate">${article?.pcs_per_packet ? Math.floor(qty / article.pcs_per_packet) : 0}</div>
+                                    <div class="td text-sm font-semibold truncate">${qty}</div>
+                                    <div class="td text-sm font-semibold truncate">${formatNumbersWithDigits(salesRate, 1, 1)}</div>
+                                    <div class="td text-sm font-semibold truncate">${formatNumbersWithDigits(total, 1, 1)}</div>
+                                </div>
+                            </div>
+                        `;
+                    }).join('')}
+                `;
+
+                const discountAmount = discountVal ? (totalAmountCalc * discountVal) / 100 : 0;
+                const netAmountCalc = previewData.netAmount ?? (totalAmountCalc - discountAmount);
+
+                const invoiceBottom = `
+                    <div class="total flex justify-between items-center border border-black rounded-lg py-1.5 px-4 w-full">
+                        <div class="text-nowrap">Total Quantity</div>
+                        <div class="w-1/4 text-right grow">${formatNumbersDigitLess(totalPcsCalc)} | ${formatNumbersDigitLess(totalPacketsCalc)}</div>
+                    </div>
+                    <div class="total flex justify-between items-center border border-black rounded-lg py-1.5 px-4 w-full">
+                        <div class="text-nowrap">Gross Amount</div>
+                        <div class="w-1/4 text-right grow">${formatNumbersWithDigits(totalAmountCalc, 1, 1)}</div>
+                    </div>
+                    <div class="total flex justify-between items-center border border-black rounded-lg py-1.5 px-4 w-full">
+                        <div class="text-nowrap">Discount - %${discountVal}</div>
+                        <div class="w-1/4 text-right grow">${formatNumbersWithDigits(discountAmount, 1, 1)}</div>
+                    </div>
+                    <div class="total flex justify-between items-center border border-black rounded-lg py-1.5 px-4 w-full">
+                        <div class="text-nowrap">Net Amount</div>
+                        <div class="w-1/4 text-right grow">${formatNumbersWithDigits(netAmountCalc, 1, 1)}</div>
+                    </div>
+                `;
+
+                return `
+                    <div id="preview-container" class="h-auto mx-auto relative flex flex-col">
+                        <div id="preview" class="preview w-[208mm] h-[302mm] overflow-hidden flex flex-col">
+                            <div class="flex flex-col h-full">
+                                <div id="banner" class="banner w-full flex justify-between items-center px-5">
+                                    <div class="left">
+                                        <div class="logo flex flex-col">
+                                            <div class="flex items-center gap-3">
+                                                ${companyData.logo ? `
+                                                    <div class="h-[3.50rem] w-[13.5rem] flex items-center justify-center gap-2.5">
+                                                        <img
+                                                            src="${companyLogoBase}/${companyData.logo}"
+                                                            alt="garmentsos-pro"
+                                                            class="max-h-full max-w-full object-contain"
+                                                        />
+                                                        ${companyData.logo_text ? `
+                                                            <h1 class="text-lg font-bold tracking-wide">${companyData.logo_text}</h1>
+                                                        ` : ''}
+                                                    </div>
+                                                ` : ''}
+                                            </div>
+                                            ${companyData.phone_number ? `
+                                                <div class="mt-2 text-sm text-gray-600">${companyData.phone_number}</div>
+                                            ` : ''}
+                                        </div>
+                                    </div>
+                                    <div class="right">
+                                        <div class="logo text-right">
+                                            <h1 class="text-2xl font-medium text-[var(--h-primary-color)]">Sales Invoice</h1>
+                                            ${previewData.order_no ? `<div class="mt-1 text-right">Order No.: ${previewData.order_no}</div>` : ''}
+                                        </div>
+                                    </div>
+                                </div>
+                                <hr class="w-full my-3 border-black">
+                                <div id="header" class="header w-full flex justify-between px-5">
+                                    <div class="left w-50 space-y-1">
+                                        <div class="customer text-lg leading-none capitalize font-medium text-nowrap">M/s: ${previewData.customer.customer_name}</div>
+                                        <div class="person text-md text-lg leading-none">${previewData.customer.urdu_title ?? ''}</div>
+                                        <div class="address text-md leading-none">${previewData.customer.address ?? ''}, ${previewData.customer.city?.title ?? ''}</div>
+                                        <div class="phone text-md leading-none">${previewData.customer.phone_number ?? ''}</div>
+                                    </div>
+                                    <div class="right w-50 my-auto text-right text-sm text-black space-y-1.5">
+                                        <div class="date leading-none">Date: ${formatDate(previewData.date)}</div>
+                                        <div class="number leading-none capitalize font-medium">invoice No.: ${previewData.invoice_no}</div>
+                                        <div class="preview-copy leading-none capitalize">invoice Copy: ${copyLabel}</div>
+                                        <div class="copy leading-none">Document: Sales Invoice</div>
+                                    </div>
+                                </div>
+                                <hr class="w-full my-3 border-black">
+                                <div class="body w-full px-5 grow mx-auto">
+                                    <div class="table w-full">
+                                        <div class="table w-full border border-black rounded-lg pb-2.5 overflow-hidden">
+                                            <div class="thead w-full">
+                                                <div class="tr grid grid-cols-9 w-full px-4 py-1.5 bg-[var(--primary-color)] text-white">
+                                                    ${invoiceTableHeader}
+                                                </div>
+                                            </div>
+                                            <div id="tbody" class="tbody w-full">
+                                                ${invoiceTableBody}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="grid grid-cols-2 gap-2 px-5">
+                                    ${invoiceBottom}
+                                </div>
+                                <hr class="w-full my-3 border-black">
+                                <div class="tfooter flex w-full text-sm px-4 justify-between text-black">
+                                    <p class="leading-none">Powered by SparkPair</p>
+                                    <p class="leading-none text-sm">&copy; 2025 SparkPair | +92 316 5825495</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
             }
 
             window.validateForNextStep = function validateForNextStep() {
@@ -1119,7 +1212,9 @@
                 printBtn.addEventListener("click", (e) => {
                     e.preventDefault();
                     closeAllDropdowns();
-                    const preview = document.getElementById("preview-container");
+                    generateInvoice();
+                    const previewRoot = document.getElementById("preview");
+                    const preview = previewRoot || document.getElementById("preview-container");
 
                     let oldIframe = document.getElementById("printIframe");
                     if (oldIframe) {
@@ -1162,8 +1257,7 @@
                                 </style>
                             </head>
                             <body>
-                                <div class="preview-container">${preview.innerHTML}</div>
-                                <div id="preview-container" class="preview-container">${preview.innerHTML}</div>
+                                ${preview ? preview.innerHTML : ''}
                             </body>
                         </html>
                     `);

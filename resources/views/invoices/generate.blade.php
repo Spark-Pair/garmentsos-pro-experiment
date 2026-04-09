@@ -235,7 +235,7 @@
 @endsection
 
 @push('page-scripts')
-<script defer src="{{ asset('js/pages/invoices-generate.js') }}"></script>
+<script defer src="{{ asset('js/pages/invoices-generate.js') }}?v={{ @filemtime(public_path('js/pages/invoices-generate.js')) }}"></script>
 <script>
         window.__invoicesGenerate = {
             invoiceType: @json($invoiceType),

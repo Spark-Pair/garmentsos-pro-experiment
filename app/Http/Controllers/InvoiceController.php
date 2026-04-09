@@ -400,7 +400,7 @@ class InvoiceController extends Controller
             return redirect()->route('invoices.create')->with('error', 'No invoices to print.');
         }
 
-        $invoices = Invoice::with(["customer.city", 'shipment.articles.article'])->whereIn('invoice_no', $invoiceNumbers)->get();
+        $invoices = Invoice::with(["customer.city", 'invoiceArticles.article', 'shipment', 'order'])->whereIn('invoice_no', $invoiceNumbers)->get();
 
         return view("invoices.print", compact("invoices"));
     }
