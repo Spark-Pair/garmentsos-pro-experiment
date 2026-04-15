@@ -132,36 +132,57 @@ class UserController extends Controller
             return $resp;
         }
 
-        $user = User::find($request->user_id);
+        $targetUser = User::find($request->user_id);
+        if (!$targetUser) {
+            return redirect()->back()->with('error', 'User not found.');
+        }
+
+        $authUser = Auth::user();
+        $authRole = $authUser->role;
+        $targetRole = $targetUser->role;
+
+        // Nobody can deactivate themselves.
+        if ($targetUser->id === $authUser->id && $request->status == 'active') {
+            return redirect()->back()->with('error', 'Oops! You cannot deactivate yourself.');
+        }
+
+        // Guard critical roles from deactivation:
+        // - owner cannot deactivate developer or self
+        // - admin cannot deactivate owner, developer, or self
+        if ($request->status == 'active') {
+            if ($authRole === 'owner' && $targetRole === 'developer') {
+                return redirect()->back()->with('error', 'Owner cannot deactivate developer.');
+            }
+
+            if ($authRole === 'admin' && in_array($targetRole, ['owner', 'developer'], true)) {
+                return redirect()->back()->with('error', 'Admin cannot deactivate owner or developer.');
+            }
+        }
 
         if ($request->status == 'active') {
-            if ($user->id != Auth::id()) {
-                $user->status = 'in_active';
-                $user->save();
+            $targetUser->status = 'in_active';
+            $targetUser->save();
 
-                $userSession = UserSession::where('user_id', $user->id)->latest()->first();
-                if ($userSession) {
-                    $userSession->delete();
-                }
+            $userSession = UserSession::where('user_id', $targetUser->id)->latest()->first();
+            if ($userSession) {
+                $userSession->delete();
+            }
 
-                if (app('pusher.enabled')) {
-                    try {
-                        event(new NewNotificationEvent([
-                            'title' => 'Your Account Has Been Deactivated',
-                            'message' => 'Your account is now inactive. Please contact admin for details.',
-                            'id' => $user->id,
-                            'type' => 'user_inactivated' // ✅ easy condition check
-                        ]));
-                    } catch (\Exception $e) {
-                        return redirect()->back()->with('warning', "Status updated, but the user can't be logged out.");
-                    }
+            if (app('pusher.enabled')) {
+                try {
+                    event(new NewNotificationEvent([
+                        'title' => 'Your Account Has Been Deactivated',
+                        'message' => 'Your account is now inactive. Please contact admin for details.',
+                        'id' => $targetUser->id,
+                        'type' => 'user_inactivated' // ✅ easy condition check
+                    ]));
+                } catch (\Exception $e) {
+                    return redirect()->back()->with('warning', "Status updated, but the user can't be logged out.");
                 }
-            } else {
-                return redirect()->back()->with('error', 'Oops! You cannot deactivate yourself.');
             }
         } else {
-            $user->status = 'active';
-            $user->save();
+            $targetUser->status = 'active';
+            $targetUser->save();
         }
         return redirect()->back()->with('success', 'Status has been updated successfully!');
     }

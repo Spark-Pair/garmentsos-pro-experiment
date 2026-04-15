@@ -1,6 +1,7 @@
 (() => {
     function initUsersIndex(config) {
         const currentUserRole = config?.currentUserRole;
+        const currentUserId = Number(config?.currentUserId || 0);
         const authLayout = config?.authLayout;
         const updateUserStatusUrl = config?.updateUserStatusUrl;
         const resetPasswordUrl = config?.resetPasswordUrl;
@@ -22,6 +23,27 @@
             </div>`;
         }
 
+        function canChangeUserStatus(data) {
+            const targetRole = data?.details?.Role;
+            const targetUserId = Number(data?.id || 0);
+
+            if (!targetRole || !targetUserId) return false;
+
+            // Nobody can deactivate self
+            if (targetUserId === currentUserId) return false;
+
+            if (currentUserRole === 'admin') {
+                return targetRole !== 'owner' && targetRole !== 'developer';
+            }
+
+            if (currentUserRole === 'owner') {
+                return targetRole !== 'developer';
+            }
+
+            // Preserve existing behavior for other roles
+            return currentUserRole !== targetRole;
+        }
+
         window.generateContextMenu = function(e) {
             e.preventDefault();
             let item = e.target.closest('.item');
@@ -34,7 +56,7 @@
                 action: updateUserStatusUrl,
             };
 
-            if (currentUserRole != data.details['Role']) {
+            if (canChangeUserStatus(data)) {
                 contextMenuData.forceStatusBtn = true;
             }
 
@@ -65,7 +87,7 @@
                 profile: true,
             }
 
-            if (currentUserRole != data.details['Role']) {
+            if (canChangeUserStatus(data)) {
                 modalData.forceStatusBtn = true;
             }
 

@@ -82,6 +82,7 @@
 <script>
         window.__usersIndex = {
             currentUserRole: @json(Auth::user()->role),
+            currentUserId: @json(Auth::id()),
             authLayout: @json($authLayout),
             updateUserStatusUrl: @json(route('update-user-status')),
             resetPasswordUrl: @json(route('users.reset-password')),
