@@ -11,7 +11,15 @@ class NewNotificationEvent implements ShouldBroadcast
 
     public function __construct($data)
     {
-        $this->data = $data;
+        $payload = is_array($data) ? $data : [];
+
+        $this->data = array_merge([
+            'type' => 'info',
+            'title' => '',
+            'message' => '',
+            'id' => null,
+            'timestamp' => now()->toIso8601String(),
+        ], $payload);
     }
 
     public function broadcastOn()

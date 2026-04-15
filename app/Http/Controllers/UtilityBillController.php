@@ -88,38 +88,6 @@ class UtilityBillController extends Controller
         return redirect()->back()->with('success', 'Utility Bill added successfully.');
     }
 
-    /**
-     * Display the specified resource.
-     */
-    public function show(UtilityBill $utility)
-    {
-        //
-    }
-
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(UtilityBill $utility)
-    {
-        //
-    }
-
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, UtilityBill $utility)
-    {
-        //
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(UtilityBill $utility)
-    {
-        //
-    }
-
     public function markPaid(Request $request, UtilityBill $utilityBill)
     {
         if(!$this->checkRole(['developer', 'owner', 'admin', 'accountant']))
@@ -130,6 +98,9 @@ class UtilityBillController extends Controller
         $utilityBill->is_paid = true;
         $utilityBill->save();
 
-        return response()->json(['success', 'message' => 'Bill marked as paid successfully.']);
+        return response()->json([
+            'success' => true,
+            'message' => 'Bill marked as paid successfully.',
+        ]);
     }
 }

@@ -7,6 +7,7 @@ function createModal(data, animate = 'animate') {
     };
     const companyData = data.companyData || window.companyData || {};
     const companyLogoBase = (data.companyLogoBase || window.companyLogoBase || '/').replace(/\/+$/, '/') ;
+    const explicitMaxWidth = (data.class || '').includes('max-w-');
 
     const contextMenu = document.getElementById('context-menu');
     if (contextMenu) {
@@ -24,7 +25,7 @@ function createModal(data, animate = 'animate') {
     let clutter = `
         <form id="${data.id}" method="${data.method ?? 'POST'}" action="${data.action}" enctype="multipart/form-data" class="w-full h-full flex flex-col space-y-4 relative items-center justify-center ${animate == 'animate' ? 'scale-in' : ''} ${data.class}">
             <input type="hidden" name="_token" value="${document.querySelector('meta[name=\'csrf-token\']')?.content}">
-            <div class="${data.class} ${data.preview ? `bg-white text-black ${data.preview.size == "A5" ? "w-[148mm]" : "max-w-4xl"} h-[35rem] py-0` : 'bg-[var(--secondary-bg-color)]'} ${data.cards ? 'h-[40rem] max-w-6xl' : 'max-w-2xl'} rounded-2xl shadow-lg w-full p-6 flex relative">
+            <div class="${data.class} ${data.preview ? `bg-white text-black ${data.preview.size == "A5" ? "w-[148mm]" : "max-w-4xl"} h-[35rem] py-0` : 'bg-[var(--secondary-bg-color)]'} ${data.cards ? 'h-[40rem] max-w-6xl' : (explicitMaxWidth ? '' : 'max-w-2xl')} rounded-2xl shadow-lg w-full p-6 flex relative">
                 <div id="modal-close" onclick="closeModal('${data.id}')"
                     class="absolute top-0 -right-4 translate-x-full bg-[var(--secondary-bg-color)] rounded-2xl shadow-lg w-auto p-3 text-sm transition-all duration-300 ease-in-out hover:scale-[0.95] cursor-pointer">
                     <button type="button"

@@ -147,8 +147,12 @@ function initVouchersCreate() {
                     },
                     success: function(response) {
                         if (typeof response.supplier_balance_at_date !== 'undefined') {
-                            selectedSupplier.balance_at_date = response.supplier_balance_at_date;
-                            balanceDom.value = formatNumbersWithDigits(response.supplier_balance_at_date, 1, 1);
+                            if (selectedSupplier) {
+                                selectedSupplier.balance_at_date = response.supplier_balance_at_date;
+                            }
+                            if (balanceDom) {
+                                balanceDom.value = formatNumbersWithDigits(response.supplier_balance_at_date, 1, 1);
+                            }
                         }
                     },
                     error: function(xhr, status, error) {
@@ -587,8 +591,12 @@ function initVouchersCreate() {
                     success: function(response) {
                         payments_options = response.payments_options;
                         if (typeof response.supplier_balance_at_date !== 'undefined') {
-                            selectedSupplier.balance_at_date = response.supplier_balance_at_date;
-                            balanceDom.value = formatNumbersWithDigits(response.supplier_balance_at_date, 1, 1);
+                            if (selectedSupplier) {
+                                selectedSupplier.balance_at_date = response.supplier_balance_at_date;
+                            }
+                            if (balanceDom) {
+                                balanceDom.value = formatNumbersWithDigits(response.supplier_balance_at_date, 1, 1);
+                            }
                         }
                         renderOptions()
                         hideLoader();

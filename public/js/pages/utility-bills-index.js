@@ -51,11 +51,16 @@ function initUtilityBillsIndex() {
                 _token: csrfToken,
                 _method: "put",
             },
-            success: function () {
-                location.reload();
+            success: function (response) {
+                if (response?.success) {
+                    location.reload();
+                    return;
+                }
+
+                alert(response?.message || "Failed to mark paid.");
             },
-            error: function () {
-                alert("Failed to mark paid.");
+            error: function (xhr) {
+                alert(xhr?.responseJSON?.message || "Failed to mark paid.");
             }
         });
     }

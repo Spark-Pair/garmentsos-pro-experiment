@@ -15,6 +15,10 @@
 
         <!-- Step 1: Basic Information -->
         <div id="step1" class="space-y-4 ">
+            <div class="rounded-lg border border-[var(--h-bg-color)] bg-[var(--bg-color)]/40 px-4 py-3 text-xs leading-5 text-[var(--secondary-text)]">
+                `Short Title` poori app mein globally unique hoti hai.
+                Yani agar `KHI`, `UBL`, ya koi aur short title ek dafa save ho gayi, to woh dobara kisi bhi doosre type mein use nahi ho sakti.
+            </div>
             <div class="grid grid-cols-1 md:grid-cols-1 gap-4">
                 <!-- type -->
                 <x-select
@@ -42,17 +46,23 @@
                     placeholder="Enter Title"
                     required
                     capitalized
+                    data-setup-title
                 />
 
                 <!-- title -->
                 <x-input
-                    label="Short Title"
+                    label="Short Title / Global Key"
                     name="short_title"
                     id="short_title"
                     type="text"
                     placeholder="Enter Short Title"
                     uppercased
+                    maxlength="20"
+                    data-setup-short-title
                 />
+                <div class="-mt-2 text-xs text-[var(--secondary-text)]">
+                    Example: `KHI`, `LHR`, `MBL`. Duplicate short titles allow nahi hongi, chahe type kuch bhi ho.
+                </div>
 
                 <!-- login Button -->
                 <button type="submit"
@@ -63,3 +73,88 @@
         </div>
     </form>
 @endsection
+
+@push('page-scripts')
+    <script>
+        (() => {
+            const existingShortTitles = @json($existingShortTitles ?? []);
+            const titlesByType = @json($titlesByType ?? []);
+
+            function setFieldError(input, message) {
+                const errorEl = document.getElementById(`${input.name}-error`);
+                if (!errorEl) return;
+
+                if (message) {
+                    input.classList.add('border-[var(--border-error)]');
+                    errorEl.classList.remove('hidden');
+                    errorEl.textContent = message;
+                    return;
+                }
+
+                input.classList.remove('border-[var(--border-error)]');
+                errorEl.classList.add('hidden');
+                errorEl.textContent = '';
+            }
+
+            function validateSetupTitle() {
+                const typeInput = document.querySelector('input.dbInput[name="type"]');
+                const titleInput = document.querySelector('[data-setup-title]');
+                if (!typeInput || !titleInput) return true;
+
+                const selectedType = String(typeInput.value || '').trim();
+                const titleValue = String(titleInput.value || '').trim().toLowerCase();
+
+                if (!selectedType || !titleValue) {
+                    setFieldError(titleInput, '');
+                    return true;
+                }
+
+                const existingTitles = Array.isArray(titlesByType[selectedType]) ? titlesByType[selectedType] : [];
+                const hasDuplicate = existingTitles.includes(titleValue);
+
+                setFieldError(titleInput, hasDuplicate ? 'Is type mein yeh title pehle se mojood hai.' : '');
+                return !hasDuplicate;
+            }
+
+            function validateSetupShortTitle() {
+                const shortTitleInput = document.querySelector('[data-setup-short-title]');
+                if (!shortTitleInput) return true;
+
+                const shortTitleValue = String(shortTitleInput.value || '').trim().toUpperCase();
+                if (!shortTitleValue) {
+                    setFieldError(shortTitleInput, '');
+                    return true;
+                }
+
+                const hasDuplicate = existingShortTitles.includes(shortTitleValue);
+                setFieldError(shortTitleInput, hasDuplicate ? 'Yeh short title pehle se system mein use ho raha hai.' : '');
+                return !hasDuplicate;
+            }
+
+            document.addEventListener('DOMContentLoaded', () => {
+                const typeInput = document.querySelector('input.dbInput[name="type"]');
+                const titleInput = document.querySelector('[data-setup-title]');
+                const shortTitleInput = document.querySelector('[data-setup-short-title]');
+                const form = document.getElementById('add-setups-form');
+
+                titleInput?.addEventListener('input', validateSetupTitle);
+                titleInput?.addEventListener('blur', validateSetupTitle);
+                shortTitleInput?.addEventListener('input', validateSetupShortTitle);
+                shortTitleInput?.addEventListener('blur', validateSetupShortTitle);
+                typeInput?.addEventListener('change', validateSetupTitle);
+
+                form?.addEventListener('submit', (event) => {
+                    const titleValid = validateSetupTitle();
+                    const shortTitleValid = validateSetupShortTitle();
+
+                    if (!titleValid || !shortTitleValid) {
+                        event.preventDefault();
+                        if (typeof showMessageBox === 'function') {
+                            showMessageBox('error', 'Duplicate setup values ko pehle theek karein.');
+                        }
+                    }
+                });
+            });
+        })();
+    </script>
+@endpush

@@ -6,6 +6,7 @@
 /storage/*.key
 /storage/app
 /vendor
+/bootstrap/cache/*.php
 .env
 .env.backup
 .env.production

@@ -51,7 +51,7 @@
                 'type' => 'select',
                 'options' => [
                     'Paid' => ['text' => 'Paid'],
-                    'Unpaid' => ['text' => 'Unpaid'],
+                    'Unpaid' => ['text' => 'Unpaid', 'selected' => true],
                     'Overpaid' => ['text' => 'Overpaid'],
                 ],
                                 'dataFilterPath' => 'status',

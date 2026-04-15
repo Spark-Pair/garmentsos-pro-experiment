@@ -25,7 +25,7 @@
             "short_title" => [
                 "id" => "short_title",
                 "type" => "text",
-                "placeholder" => "Enter short title",
+                "placeholder" => "Enter short title / global key",
                                 "dataFilterPath" => "short_title",
             ],
         ];
@@ -34,10 +34,16 @@
         <x-search-header heading="Setups" :search_fields=$searchFields/>
     </div>
 
+    <div class="w-[80%] mx-auto mt-3">
+        <div class="rounded-lg border border-[var(--h-bg-color)] bg-[var(--secondary-bg-color)] px-4 py-3 text-xs leading-5 text-[var(--secondary-text)]">
+            `Short Title` yahan sirf display value nahi hai. Yeh poori app mein globally unique key ki tarah use hoti hai, is liye same short title kisi doosre setup type mein dobara use nahi ho sakti.
+        </div>
+    </div>
+
     <!-- Main Content -->
     <section class="text-center mx-auto ">
         <div
-            class="show-box mx-auto w-[80%] h-[70vh] bg-[var(--secondary-bg-color)] border border-[var(--glass-border-color)]/20 rounded-xl shadow pt-8.5 relative">
+            class="show-box mx-auto w-[80%] h-[70vh] bg-[var(--secondary-bg-color)] border border-[var(--glass-border-color)]/20 rounded-xl shadow pt-8.5 relative mt-3">
             <x-form-title-bar printBtn title="Show Setups" resetSortBtn />
 
             <div class="absolute bottom-3 right-3 flex items-center gap-2 w-fll z-50">
@@ -50,7 +56,7 @@
                         <div id="table-head" class="grid grid-cols-3 bg-[var(--h-bg-color)] rounded-lg font-medium py-2 hidden mt-4">
                             <div class="cursor-pointer" onclick="sortByThis(this)">Type</div>
                             <div class="cursor-pointer" onclick="sortByThis(this)">Title</div>
-                            <div class="cursor-pointer" onclick="sortByThis(this)">Short Title</div>
+                            <div class="cursor-pointer" onclick="sortByThis(this)">Short Title / Global Key</div>
                         </div>
                         <p id="noItemsError" style="display: none" class="text-sm text-[var(--border-error)] mt-3">No items found</p>
                         <div class="overflow-y-auto grow my-scrollbar-2">

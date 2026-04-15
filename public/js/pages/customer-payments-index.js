@@ -154,10 +154,21 @@ function initCustomerPaymentsIndex() {
 
     window.generateModal = function(item) {
         let data = JSON.parse(item.dataset.json);
+        const clearDetails = Array.isArray(data.clear_details) ? data.clear_details : [];
+
+        const clearTableBody = clearDetails.map((row, index) => ([
+            { data: index + 1, class: 'w-[5%]' },
+            { data: row.date || '-', class: 'w-[16%]' },
+            { data: row.method || '-', class: 'w-[12%] capitalize' },
+            { data: ((row.account_title || '-') + ' | ' + (row.bank || '-')).trim(), class: 'w-[28%]' },
+            { data: formatNumbersWithDigits(row.amount || 0, 1, 1), class: 'w-[12%]' },
+            { data: row.reff_no || '-', class: 'w-[12%]' },
+            { data: row.remarks || '-', class: 'grow' },
+        ]));
 
         let modalData = {
             id: 'modalForm',
-            class: 'h-auto',
+            class: clearTableBody.length > 0 ? 'h-auto max-w-5xl' : 'h-auto',
             name: data.name,
             details: {
                 'Date': formatDate(data.data.date),
@@ -178,6 +189,22 @@ function initCustomerPaymentsIndex() {
                 ...((data.data.method == 'cheque' || data.data.method == 'slip' || data.data.method == 'program') && { 'Issued': data.issued }),
                 'Remarks': data.data.remarks || 'No Remarks',
             },
+            ...(clearTableBody.length > 0 ? {
+                table: {
+                    name: 'Clear Records',
+                    headers: [
+                        { label: '#', class: 'w-[5%]' },
+                        { label: 'Date', class: 'w-[16%]' },
+                        { label: 'Method', class: 'w-[12%]' },
+                        { label: 'Acc. Title', class: 'w-[28%]' },
+                        { label: 'Amount', class: 'w-[12%]' },
+                        { label: 'Reff. No.', class: 'w-[12%]' },
+                        { label: 'Remarks', class: 'grow' },
+                    ],
+                    body: clearTableBody,
+                    scrollable: true,
+                }
+            } : {}),
             bottomActions: [
                 {id: 'edit-payment', text: 'Edit Payment', dataId: data.id}
             ],

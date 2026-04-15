@@ -19,8 +19,21 @@ trait CRComputed
             return null;
         };
 
-        $allIds = $returnPayments->map(fn($p) => $getVal($p, 'payment_id') ?? $getVal($p, 'id'))
-            ->merge($newPayments->map(fn($p) => $getVal($p, 'payment_id') ?? $getVal($p, 'id')))
+        $resolvePaymentId = function ($p, string $type = 'New') use ($getVal) {
+            $rawMethod = (string) ($getVal($p, 'method') ?? '');
+            $normalizedMethod = trim(preg_replace('/\s*\|\s*CR$/i', '', $rawMethod));
+
+            if ($type === 'Return') {
+                return $getVal($p, 'id') ?? $getVal($p, 'payment_id');
+            }
+
+            return $getVal($p, 'payment_id')
+                ?? $getVal($p, 'id')
+                ?? (strcasecmp($normalizedMethod, 'Payment Program') === 0 ? $getVal($p, 'data_value') : null);
+        };
+
+        $allIds = $returnPayments->map(fn($p) => $resolvePaymentId($p, 'Return'))
+            ->merge($newPayments->map(fn($p) => $resolvePaymentId($p, 'New')))
             ->filter()
             ->unique()
             ->values();
@@ -45,20 +58,28 @@ trait CRComputed
                 ->get()
                 ->keyBy('id');
 
-        $mapPayment = function ($item, string $type) use ($paymentsMap, $bankAccounts, $getVal) {
-            $id = $getVal($item, 'payment_id') ?? $getVal($item, 'id');
+        $mapPayment = function ($item, string $type) use ($paymentsMap, $bankAccounts, $getVal, $resolvePaymentId) {
+            $rawMethod = (string) ($getVal($item, 'method') ?? '');
+            $normalizedMethod = trim(preg_replace('/\s*\|\s*CR$/i', '', $rawMethod));
+            $id = $resolvePaymentId($item, $type);
             $sp = $id ? $paymentsMap->get($id) : null;
             $bankAccId = $getVal($item, 'bank_account_id');
-            $bankAcc = $sp?->bankAccount ?: ($bankAccId ? $bankAccounts->get($bankAccId) : null);
+            $bankAcc = ($bankAccId ? $bankAccounts->get($bankAccId) : null)
+                ?: $sp?->bankAccount
+                ?: $sp?->selfAccount;
 
-            $beneficiary = $bankAcc?->subCategory?->supplier_name
+            $beneficiary = $sp?->program?->customer?->customer_name
+                ?? $sp?->cheque?->customer?->customer_name
+                ?? $sp?->slip?->customer?->customer_name
+                ?? $getVal($item, 'customer_name')
+                ?? $bankAcc?->subCategory?->supplier_name
                 ?? $bankAcc?->subCategory?->customer_name
                 ?? 'Self Account';
 
             return [
                 'type' => $type,
                 'date' => $sp?->date?->format('d-M-Y, D') ?? $getVal($item, 'date'),
-                'method' => $sp?->method ?? ($getVal($item, 'method') ?? '-'),
+                'method' => trim(preg_replace('/\s*\|\s*CR$/i', '', (string) ($sp?->method ?? $rawMethod))) ?: '-',
                 'amount' => $sp?->amount ?? ($getVal($item, 'amount') ?? 0),
                 'reff' => $sp?->new_reff_no ?? $getVal($item, 'reff_no') ?? $getVal($item, 'data_value') ?? '-',
                 'beneficiary' => $beneficiary ?? '-',

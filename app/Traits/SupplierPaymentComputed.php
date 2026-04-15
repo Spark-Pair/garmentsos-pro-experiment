@@ -7,6 +7,19 @@ use Illuminate\Database\Eloquent\Casts\Attribute;
 
 trait SupplierPaymentComputed
 {
+    protected function formatSupplierClearRecord($record)
+    {
+        return [
+            'date' => $record?->clear_date?->format('d-M-Y, D') ?? '-',
+            'method' => $record?->method ? ucfirst($record->method) : '-',
+            'account_title' => $record?->bankAccount?->account_title ?? '-',
+            'bank' => $record?->bankAccount?->bank?->short_title ?? '-',
+            'amount' => (float) ($record?->amount ?? 0),
+            'reff_no' => $record?->reff_no ?? '-',
+            'remarks' => $record?->remarks ?: '-',
+        ];
+    }
+
     /**
      * Voucher number computation
      */
@@ -54,6 +67,46 @@ trait SupplierPaymentComputed
         $program = $this->program;
         $cr = $this->cr;
         $dr = $this->cheque?->dr ?? $this->slip?->dr;
+        $clearDetails = collect();
+
+        if ($this->cheque?->paymentClearRecord) {
+            $clearDetails = $this->cheque->paymentClearRecord
+                ->sortBy('clear_date')
+                ->map(fn($record) => $this->formatSupplierClearRecord($record))
+                ->values();
+        } elseif ($this->slip?->paymentClearRecord) {
+            $clearDetails = $this->slip->paymentClearRecord
+                ->sortBy('clear_date')
+                ->map(fn($record) => $this->formatSupplierClearRecord($record))
+                ->values();
+        } elseif ($this->program_id) {
+            $matchingCustomerPayments = $program?->customerPayments
+                ?->filter(function ($payment) {
+                    if ((int) $payment->program_id !== (int) $this->program_id) {
+                        return false;
+                    }
+
+                    if ($this->transaction_id && $payment->transaction_id !== $this->transaction_id) {
+                        return false;
+                    }
+
+                    if ($this->bank_account_id && (int) $payment->bank_account_id !== (int) $this->bank_account_id) {
+                        return false;
+                    }
+
+                    if ((float) $payment->amount !== (float) $this->amount) {
+                        return false;
+                    }
+
+                    return optional($payment->date)->format('Y-m-d') === optional($this->date)->format('Y-m-d');
+                }) ?? collect();
+
+            $clearDetails = $matchingCustomerPayments
+                ->flatMap(fn($payment) => $payment->paymentClearRecord ?? collect())
+                ->sortBy('clear_date')
+                ->map(fn($record) => $this->formatSupplierClearRecord($record))
+                ->values();
+        }
 
         return [
             'id' => $this->id,
@@ -73,6 +126,7 @@ trait SupplierPaymentComputed
             'cr_date' => $cr?->date ? $cr->date->format('d-M-Y, D') : null,
             'dr_no' => $dr?->d_r_no,
             'dr_date' => $dr?->date ? $dr->date->format('d-M-Y, D') : null,
+            'clear_details' => $clearDetails,
             'data' => $this,
             'oncontextmenu' => "generateContextMenu(event)",
             'onclick' => "generateModal(this)",

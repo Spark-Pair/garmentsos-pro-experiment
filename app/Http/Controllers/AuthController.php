@@ -35,18 +35,14 @@ class AuthController extends Controller
 
             // Check if user exists and if the password matches the hash
             if ($user && Hash::check($request->password, $user->password)) {
-
-                $existingSession = UserSession::where('user_id', $user->id)
-                    ->where('is_active', true)
-                    ->where('last_activity', '>=', now()->subMinutes(60)) // optional timeout
-                    ->first();
-
-                if ($existingSession) {
-                    // return back with error message
-                    return redirect('/login')->with('error', 'Already logged in on another device.');
-                }
-
                 if ($user->status == 'active') {
+                    UserSession::where('user_id', $user->id)
+                        ->where('is_active', true)
+                        ->update([
+                            'is_active' => false,
+                            'last_activity' => now(),
+                        ]);
+
                     // Password is correct, login the user
                     Auth::login($user);
                     $request->session()->regenerate();
@@ -55,9 +51,10 @@ class AuthController extends Controller
                         'user_id' => $user->id,
                         'session_token' => session()->getId(),
                         'last_activity' => now(),
+                        'is_active' => true,
                     ]);
 
-                    return redirect(route('home'))->with('success', 'Welcome back! You have successfully logged in.'); // Redirect to home
+                    return redirect(route('home'))->with('success', 'Welcome back! You have successfully logged in. Previous active sessions were signed out.'); // Redirect to home
                 } else {
                     return redirect('/login')->with('error', 'Your account is currently inactive. Please reach out to the administrator for assistance.')
                         ->withInput($request->only('username'));

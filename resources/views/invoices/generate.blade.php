@@ -12,52 +12,37 @@
                 "id" => "customer_name",
                 "type" => "text",
                 "placeholder" => "Enter customer name",
-                                "dataFilterPath" => "customer_name",
+                "dataFilterPath" => "customer_name",
+            ],
+            "Urdu Title" => [
+                "id" => "urdu_title",
+                "type" => "text",
+                "placeholder" => "Enter Urdu title",
+                "dataFilterPath" => "urdu_title",
+            ],
+            "City" => [
+                "id" => "city",
+                "type" => "text",
+                "placeholder" => "Enter city",
+                "dataFilterPath" => "city.title",
             ],
             "Category" => [
                 "id" => "category",
                 "type" => "select",
                 "options" => [
-                            'self' => ['text' => 'Self'],
-                            'customer' => ['text' => 'Customer'],
-                            'supplier' => ['text' => 'Supplier'],
-                        ],
-                                "dataFilterPath" => "details.Category",
-            ],
-            "Name" => [
-                "id" => "name",
-                "type" => "text",
-                "placeholder" => "Enter name",
-                                "dataFilterPath" => "details.Name",
-            ],
-            "Account No" => [
-                "id" => "account_no",
-                "type" => "text",
-                "placeholder" => "Enter account no",
-                                "dataFilterPath" => "accountNo",
-            ],
-            "Bank" => [
-                "id" => "bank",
-                "type" => "text",
-                "placeholder" => "Enter bank",
-                                "dataFilterPath" => "bank",
-            ],
-            'Status' => [
-                'id' => 'status',
-                'type' => 'select',
-                'options' => [
-                    'active' => ['text' => 'Active'],
-                    'in_active' => ['text' => 'In Active'],
+                    'whole_sale' => ['text' => 'Whole Sale'],
+                    'shopkeeper' => ['text' => 'Shopkeeper'],
+                    'person' => ['text' => 'Person'],
+                    'garments' => ['text' => 'Garments'],
                 ],
-                'dataFilterPath' => 'status',
+                "dataFilterPath" => "category",
             ],
-            "Date Range" => [
-                "id" => "date_range_start",
-                "type" => "date",
-                "id2" => "date_range_end",
-                "type2" => "date",
-                                "dataFilterPath" => "date",
-            ]
+            "Phone Number" => [
+                "id" => "phone_number",
+                "type" => "text",
+                "placeholder" => "Enter phone number",
+                "dataFilterPath" => "phone_number",
+            ],
         ];
     @endphp
 

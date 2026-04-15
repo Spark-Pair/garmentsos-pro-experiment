@@ -25,8 +25,10 @@
             </div>`;
         }
 
-        let infoDom = document.getElementById('info').querySelector('span');
+        const infoRoot = document.getElementById('info');
+        const infoDom = infoRoot?.querySelector('span') || null;
         function updateInfo(items = []) {
+            if (!infoDom) return;
             const activeAccounts = items.filter(account => account.status === 'active');
             infoDom.textContent = `Total Bank Account: ${items.length} | Active: ${activeAccounts.length}`;
         }

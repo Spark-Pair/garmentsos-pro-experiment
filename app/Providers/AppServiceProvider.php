@@ -19,7 +19,17 @@ class AppServiceProvider extends ServiceProvider
 
         // Singleton for Pusher flag
         app()->singleton('pusher.enabled', function () {
-            return config('client_company.pusher_enabled');
+            return (bool) config('client_company.pusher_enabled')
+                && filled(config('broadcasting.connections.pusher.key'))
+                && filled(data_get(config('broadcasting.connections.pusher.options'), 'cluster'));
+        });
+
+        app()->singleton('pusher.frontend', function () {
+            return [
+                'enabled' => app('pusher.enabled'),
+                'key' => (string) config('broadcasting.connections.pusher.key', ''),
+                'cluster' => (string) data_get(config('broadcasting.connections.pusher.options'), 'cluster', ''),
+            ];
         });
 
         app()->singleton('article', function () {
@@ -98,5 +108,6 @@ class AppServiceProvider extends ServiceProvider
 
         // Share Pusher enabled flag
         View::share('pusherEnabled', app('pusher.enabled'));
+        View::share('pusherFrontend', app('pusher.frontend'));
     }
 }

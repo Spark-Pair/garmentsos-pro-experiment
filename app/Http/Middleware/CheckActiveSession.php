@@ -25,8 +25,15 @@ class CheckActiveSession
 
             // If no active session is found, log the user out
             if (!$userSession) {
+                UserSession::where('user_id', Auth::id())
+                    ->where('session_token', $sessionToken)
+                    ->update([
+                        'is_active' => false,
+                        'last_activity' => now(),
+                    ]);
+
                 Auth::logout();
-                return redirect(route('login'))->with('error', 'Session has expired or is not active.');
+                return redirect(route('login'))->with('error', 'Your session ended because it expired or a newer login replaced it.');
             }
         }
 

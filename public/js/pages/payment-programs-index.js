@@ -2,6 +2,8 @@
 function initPaymentProgramsIndex() {
     const config = window.__ppIndex || {};
     let authLayout = config.authLayout || 'table';
+    const previousClearAllSearchFields =
+        typeof window.clearAllSearchFields === 'function' ? window.clearAllSearchFields : null;
     if (authLayout) {
         window.authLayout = authLayout;
     }
@@ -399,6 +401,17 @@ function initPaymentProgramsIndex() {
     window.createRow = createRow;
     window.renderCalculation = renderCalculation;
     window.__ppHelpers = { renderCalculation, createRow, fetchedData };
+
+    window.clearAllSearchFields = function clearPaymentProgramFilters() {
+        if (typeof previousClearAllSearchFields === 'function') {
+            previousClearAllSearchFields();
+        }
+
+        const statusSelected = document.querySelector('ul[data-for="status"] li[data-value="Unpaid"]');
+        if (statusSelected) {
+            selectThisOption(statusSelected);
+        }
+    };
 }
 
 window.initPaymentProgramsIndex = initPaymentProgramsIndex;

@@ -175,7 +175,8 @@ class CRController extends Controller
         foreach ($data['new_payments'] as $payment) {
             if ($payment->method == 'Payment Program') {
                 SupplierPayment::find($payment->data_value)
-                    ->update(['method' => $payment->method . ' | CR']);
+                    ?->update(['method' => $payment->method . ' | CR']);
+                $payment->payment_id = (int) $payment->data_value;
             } else {
                 $columnMap = [
                     'Self Cheque' => 'cheque_no',
@@ -193,7 +194,7 @@ class CRController extends Controller
                     'date'             => $data['date'],
                     'method'           => $payment->method . ' | CR',
                     'amount'           => $payment->amount,
-                    'bank_account_id'  => $payment->bank_account_id || null,
+                    'bank_account_id'  => $payment->bank_account_id ?? null,
                     'voucher_id'       => null,
                     'c_r_id'           => $cr->id, // 👈 ab yahan id set ho jaegi
                     $columnMap[$payment->method] => $payment->data_value,

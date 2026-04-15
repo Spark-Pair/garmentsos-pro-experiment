@@ -555,8 +555,32 @@
     function initOrdersEdit(data) {
         order = data?.order || null;
         companyData = data?.companyData || null;
+        customerData = order?.customer || null;
+
+        if (order?.articles?.length) {
+            selectedArticles = order.articles.map(item => ({
+                ...item,
+                ...(item.article || {}),
+                id: item.article_id ?? item.id,
+                ordered_pcs: Number(item.ordered_pcs || 0),
+                sales_rate: Number(item.article?.sales_rate ?? item.sales_rate ?? 0),
+                pcs_per_packet: Number(item.article?.pcs_per_packet ?? item.pcs_per_packet ?? 0),
+                article_no: item.article?.article_no ?? item.article_no ?? '-',
+            }));
+
+            generateDescription();
+            calculateTotalOrderedQuantity();
+            calculateTotalOrderAmount();
+            netAmount = Number(order.netAmount || 0);
+            renderList();
+            renderFinals();
+            generateOrder();
+        }
+
         getDataByDate();
-        renderList();
+        if (!selectedArticles.length) {
+            renderList();
+        }
     }
 
     window.initOrdersEdit = initOrdersEdit;

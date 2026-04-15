@@ -84,6 +84,76 @@
             let ogMaxCottonCount = 0;
             let allCustomers = [];
             let maxCottonCount = 0;
+            const previousClearAllSearchFields =
+                typeof window.clearAllSearchFields === "function"
+                    ? window.clearAllSearchFields
+                    : null;
+
+            function getValueByPath(source, path) {
+                return String(
+                    path.split(".").reduce((acc, key) => acc?.[key], source) ?? ""
+                ).toLowerCase();
+            }
+
+            function getModalFilterInputs() {
+                const modal = document.getElementById("modalForm");
+                if (!modal) return [];
+
+                return Array.from(modal.querySelectorAll("[data-filter-path]"));
+            }
+
+            function applyCustomerFiltersFromModal() {
+                if (!allCustomers.length) return;
+
+                const filterInputs = getModalFilterInputs();
+                if (!filterInputs.length) return;
+
+                const filteredCustomers = allCustomers.filter((customer) => {
+                    return filterInputs.every((input) => {
+                        const path = input.getAttribute("data-filter-path");
+                        const rawValue = String(input.value ?? "").trim().toLowerCase();
+
+                        if (!path || rawValue === "") return true;
+
+                        return getValueByPath(customer, path).includes(rawValue);
+                    });
+                });
+
+                renderTableBody(generateTableBody(filteredCustomers));
+                document.getElementById("total-count").value = filteredCustomers.length;
+                updateSelectedCount();
+                addListeners();
+                updateCustomerRowsState();
+            }
+
+            function bindModalFilterEvents() {
+                const filterInputs = getModalFilterInputs();
+                if (!filterInputs.length) return;
+
+                filterInputs.forEach((input) => {
+                    const eventType =
+                        input.tagName === "SELECT" || input.type === "date" ? "change" : "input";
+
+                    input.addEventListener(eventType, applyCustomerFiltersFromModal);
+                });
+            }
+
+            window.clearAllSearchFields = function clearAllShipmentCustomerSearchFields() {
+                const filterInputs = getModalFilterInputs();
+
+                if (filterInputs.length) {
+                    filterInputs.forEach((field) => {
+                        field.value = "";
+                    });
+
+                    applyCustomerFiltersFromModal();
+                    return;
+                }
+
+                if (typeof previousClearAllSearchFields === "function") {
+                    previousClearAllSearchFields();
+                }
+            };
 
             shipmentNoDom.addEventListener("keydown", (e) => {
                 if (e.key === "Enter") {
@@ -196,6 +266,7 @@
                 };
 
                 createModal(modalData, animate);
+                bindModalFilterEvents();
             }
 
             function generateTableBody(data) {

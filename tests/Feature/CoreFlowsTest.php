@@ -107,7 +107,7 @@ class CoreFlowsTest extends TestCase
         $this->assertSame('Paid', $program->fresh()->status);
     }
 
-    public function test_program_payment_cannot_exceed_remaining_balance(): void
+    public function test_program_payment_can_exceed_remaining_balance_and_mark_program_overpaid(): void
     {
         $user = $this->actingDeveloper();
 
@@ -164,7 +164,17 @@ class CoreFlowsTest extends TestCase
             'program_id' => $program->id,
         ]);
 
-        $response->assertSessionHas('error', 'Program payment amount balance se zyada nahi ho sakta.');
+        $response->assertSessionHas('success', 'Payment Added successfully.');
+        $this->assertDatabaseHas('customer_payments', [
+            'customer_id' => $customer->id,
+            'program_id' => $program->id,
+            'amount' => 200,
+        ]);
+
+        $markPaidResponse = $this->post(route('payment-programs.mark-paid', $program->id));
+
+        $markPaidResponse->assertRedirect(route('payment-programs.index'));
+        $this->assertSame('Overpaid', $program->fresh()->status);
     }
 
     public function test_clear_amount_cannot_exceed_outstanding_amount(): void

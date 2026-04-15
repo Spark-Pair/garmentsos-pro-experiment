@@ -1,5 +1,31 @@
+@php
+    $preferredTheme = Auth::check()
+        ? Auth::user()->theme
+        : (request()->cookie('theme')
+            ?? (isset($_COOKIE['theme']) ? $_COOKIE['theme'] : (str_contains($_SERVER['HTTP_USER_AGENT'] ?? '', 'Dark') ? 'dark' : 'light')));
+
+    $appConfig = [
+        'authenticated' => Auth::check(),
+        'homeUrl' => route('home'),
+        'menuShortcuts' => Auth::check() ? (json_decode(Auth::user()->menu_shortcuts, true) ?? []) : [],
+        'maxShortcutsLimit' => 7,
+        'pusherEnabled' => $pusherEnabled,
+        'pusherKey' => $pusherFrontend['key'] ?? null,
+        'pusherCluster' => $pusherFrontend['cluster'] ?? null,
+        'authUserId' => Auth::check() ? Auth::user()->id : null,
+        'routeIsLogin' => request()->is('login'),
+        'routeIsSubscriptionExpired' => request()->is('subscription-expired'),
+        'routeIsOrdersCreate' => request()->is('orders/create'),
+        'changeLayoutUrl' => request()->route()?->getActionMethod() === 'index' || request()->route()?->getActionMethod() === 'summary'
+            ? route('change-data-layout')
+            : null,
+        'routeName' => request()->route()?->getName(),
+        'companyLogoBase' => url('/') . '/',
+        'readonlySession' => (bool) session('readonly'),
+    ];
+@endphp
 <!DOCTYPE html>
-<html lang="en" data-theme="{{ Auth::check() ? Auth::user()->theme : (isset($_COOKIE['theme']) ? $_COOKIE['theme'] : (request()->cookie('theme') ?? (strpos($_SERVER['HTTP_USER_AGENT'], 'Dark') !== false ? 'dark' : 'light'))) }}">
+<html lang="en" data-theme="{{ $preferredTheme }}">
 
 <head>
     <meta charset="UTF-8" />
@@ -379,27 +405,6 @@
     <script defer src="{{ asset('js/components/modal.js') }}"></script>
     <script defer src="{{ asset('js/components/context-menu.js') }}"></script>
     <script defer src="{{ asset('js/global-filter-manager.js') }}"></script>
-    @php
-        $appConfig = [
-            'authenticated' => Auth::check(),
-            'homeUrl' => route('home'),
-            'menuShortcuts' => Auth::check() ? (json_decode(Auth::user()->menu_shortcuts, true) ?? []) : [],
-            'maxShortcutsLimit' => 7,
-            'pusherEnabled' => $pusherEnabled,
-            'pusherKey' => 'c99f4e2f9df04cc306f4',
-            'pusherCluster' => 'ap2',
-            'authUserId' => Auth::check() ? Auth::user()->id : null,
-            'routeIsLogin' => request()->is('login'),
-            'routeIsSubscriptionExpired' => request()->is('subscription-expired'),
-            'routeIsOrdersCreate' => request()->is('orders/create'),
-            'changeLayoutUrl' => request()->route()->getActionMethod() === 'index' || request()->route()->getActionMethod() === 'summary'
-                ? route('change-data-layout')
-                : null,
-            'routeName' => request()->route() ? request()->route()->getName() : null,
-            'companyLogoBase' => url('/') . '/',
-            'readonlySession' => session('readonly') ? true : false,
-        ];
-    @endphp
 </head>
 
 <body class="bg-[var(--secondary-bg-color)] text-[var(--text-color)] text-sm min-h-screen flex flex-col md:flex-row items-center justify-center fade-in" cz-shortcut-listen="true" data-app-config='@json($appConfig)'>

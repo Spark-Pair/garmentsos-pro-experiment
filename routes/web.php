@@ -106,7 +106,7 @@ Route::group(['middleware' => ['auth', 'activeSession', 'subscriptionExpiry', 'r
 
     Route::get('home', [Controller::class, 'home'])->name('home');
 
-    Route::resource('users', UserController::class);
+    Route::resource('users', UserController::class)->only(['index', 'create', 'store']);
     Route::post('update-user-status', [UserController::class, 'updateStatus'])->name('update-user-status');
     Route::post('users.reset-password', [UserController::class, 'resetPassword'])->name('users.reset-password');
 
@@ -135,7 +135,6 @@ Route::group(['middleware' => ['auth', 'activeSession', 'subscriptionExpiry', 'r
 
     Route::resource('customer-payments', CustomerPaymentController::class);
     Route::post('customer-payments/{id}/clear', [CustomerPaymentController::class, 'clear'])->name('customer-payments.clear');
-    Route::post('customer-payments/{id}/transfer', [CustomerPaymentController::class, 'transfer'])->name('customer-payments.transfer');
     Route::post('customer-payments/{payment}/split', [CustomerPaymentController::class, 'split'])->name('customer-payments.split');
 
     Route::resource('supplier-payments', SupplierPaymentController::class);
@@ -192,8 +191,8 @@ Route::group(['middleware' => ['auth', 'activeSession', 'subscriptionExpiry', 'r
     Route::get('attendances/generate-slip', [AttendanceController::class, 'generateSlip'])->name('attendances.generate-slip');
     Route::post('attendances/generate-slip', [AttendanceController::class, 'generateSlipPost'])->name('attendances.generate-slip-post');
 
-    Route::resource('utility-bills', UtilityBillController::class);
-    Route::put('utility-bills/{utilityBill}/mark-paid', [UtilityBillController::class, 'markPaid']);
+    Route::resource('utility-bills', UtilityBillController::class)->only(['index', 'create', 'store']);
+    Route::put('utility-bills/{utilityBill}/mark-paid', [UtilityBillController::class, 'markPaid'])->name('utility-bills.mark-paid');
 
     Route::resource('utility-accounts', UtilityAccountController::class);
 

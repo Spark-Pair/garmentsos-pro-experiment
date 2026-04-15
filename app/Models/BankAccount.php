@@ -109,7 +109,10 @@ class BankAccount extends Model
         if ($this->category === 'self') {
             // Self category: existing logic
             $customerPayments = CustomerPayment::where('bank_account_id', $this->id);
-            $supplierPayments = SupplierPayment::where('bank_account_id', $this->id)->whereNotNull('voucher_id');
+            // Keep self-account balance in sync with the statement view by
+            // counting every supplier payment linked to this bank account,
+            // including CR entries that may not have a voucher_id.
+            $supplierPayments = SupplierPayment::where('bank_account_id', $this->id);
 
             // Apply date filters
             if ($fromDate && $toDate) {

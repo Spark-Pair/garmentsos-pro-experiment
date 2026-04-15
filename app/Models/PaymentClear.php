@@ -51,4 +51,14 @@ class PaymentClear extends Model
     {
         return $this->belongsTo(User::class, 'creator_id', 'id');
     }
+
+    public function bankAccount()
+    {
+        return $this->belongsTo(BankAccount::class, 'bank_account_id');
+    }
+
+    public function customerPayment()
+    {
+        return $this->belongsTo(CustomerPayment::class, 'payment_id');
+    }
 }

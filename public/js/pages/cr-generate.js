@@ -224,10 +224,16 @@
         window.addPayment = function addPayment() {
             let currentValue = amountDOM.value.replace(/[^0-9.]/g, "");
             if (currentValue > 0) {
+                const selectedOption = JSON.parse(
+                    document.querySelector('ul[data-for="payment"] li.selected').dataset.option || "{}"
+                );
+                const selectedBankAccountId =
+                    methodSelectDOM.value === "Self Cheque"
+                        ? selectedOption.id ?? null
+                        : selectedOption.bank_account_id ?? null;
+
                 addedPaymentsArray.push({
-                    bank_account_id: JSON.parse(
-                        document.querySelector('ul[data-for="payment"] li.selected').dataset.option || "{}"
-                    ).id,
+                    bank_account_id: selectedBankAccountId,
                     data_value: document
                         .querySelector('ul[data-for="payment"] li.selected')
                         .getAttribute("data-value"),

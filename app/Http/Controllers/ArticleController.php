@@ -139,7 +139,11 @@ class ArticleController extends Controller
 
         if ($article->sales_rate > 0 && $article->category != null && $article->fabric_type != null && app('pusher.enabled')) {
             try {
-                event(new NewNotificationEvent(['title' => 'New Article Added.', 'message' => 'Your articles feed has been updated. Please check.']));
+                event(new NewNotificationEvent([
+                    'type' => 'success',
+                    'title' => 'New Article Added.',
+                    'message' => 'Your articles feed has been updated. Please check.',
+                ]));
             } catch (\Exception $e) {
                 //
             }

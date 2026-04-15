@@ -40,7 +40,8 @@ class CustomerPaymentController extends Controller
                     'slip.cr',
                     'program.subCategory',
                     'bankAccount.subCategory',
-                    'paymentClearRecord',
+                    'paymentClearRecord.bankAccount.bank',
+                    'paymentClearRecord.creator',
                     'dr',
                 ])
                 ->orderByDesc('id')
@@ -693,15 +694,6 @@ class CustomerPaymentController extends Controller
         }
 
         return redirect()->back()->with('success', 'Payment partial cleared successfully.');
-    }
-
-    public function transfer(Request $request, $id)
-    {
-        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin', 'accountant'])) {
-            return $resp;
-        }
-
-        return redirect()->back()->with('error', 'Transfer action is not implemented yet.');
     }
 
     // public function split(Request $request, CustomerPayment $payment)

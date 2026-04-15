@@ -7,6 +7,19 @@ use Illuminate\Database\Eloquent\Casts\Attribute;
 
 trait CustomerPaymentComputed
 {
+    protected function formatClearRecord($record)
+    {
+        return [
+            'date' => $record?->clear_date?->format('d-M-Y, D') ?? '-',
+            'method' => $record?->method ? ucfirst($record->method) : '-',
+            'account_title' => $record?->bankAccount?->account_title ?? '-',
+            'bank' => $record?->bankAccount?->bank?->short_title ?? '-',
+            'amount' => (float) ($record?->amount ?? 0),
+            'reff_no' => $record?->reff_no ?? '-',
+            'remarks' => $record?->remarks ?: '-',
+        ];
+    }
+
     /**
      * Voucher number computation
      */
@@ -298,6 +311,13 @@ trait CustomerPaymentComputed
 
     public function toFormattedArray()
     {
+        $clearDetails = $this->paymentClearRecord
+            ? $this->paymentClearRecord
+                ->sortBy('clear_date')
+                ->map(fn($record) => $this->formatClearRecord($record))
+                ->values()
+            : collect();
+
         return [
             'id' => $this->id,
             'name' => ($this->customer?->customer_name ?? '-') . ' | ' . ($this->customer?->city?->title ?? '-'),
@@ -317,6 +337,7 @@ trait CustomerPaymentComputed
             'beneficiary' => $this->beneficiary,
             'clear_date' => $this->clearance_date,
             'cleared_amount' => $this->cleared_amount,
+            'clear_details' => $clearDetails,
             'category' => $this->category,
             'issued' => $this->issued,
             'status' => $this->status,

@@ -163,10 +163,10 @@ class UserController extends Controller
             $targetUser->status = 'in_active';
             $targetUser->save();
 
-            $userSession = UserSession::where('user_id', $targetUser->id)->latest()->first();
-            if ($userSession) {
-                $userSession->delete();
-            }
+            UserSession::where('user_id', $targetUser->id)->update([
+                'is_active' => false,
+                'last_activity' => now(),
+            ]);
 
             if (app('pusher.enabled')) {
                 try {
@@ -207,10 +207,10 @@ class UserController extends Controller
         $user->password = Hash::make($request->password);
         $user->save();
 
-        $userSession = UserSession::where('user_id', $user->id)->latest()->first();
-        if ($userSession) {
-            $userSession->delete();
-        }
+        UserSession::where('user_id', $user->id)->update([
+            'is_active' => false,
+            'last_activity' => now(),
+        ]);
 
         if (app('pusher.enabled')) {
             try {

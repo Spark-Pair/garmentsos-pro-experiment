@@ -23,7 +23,17 @@ class SupplierPaymentController extends Controller
         $authLayout = $this->getAuthLayout($request->route()->getName(), 'table');
 
         if ($request->ajax()) {
-            $payments = SupplierPayment::orderByDesc('id')->applyFilters($request);
+            $payments = SupplierPayment::with([
+                'bankAccount.bank',
+                'selfAccount.bank',
+                'cheque.paymentClearRecord.bankAccount.bank',
+                'slip.paymentClearRecord.bankAccount.bank',
+                'program.customerPayments.paymentClearRecord.bankAccount.bank',
+                'program.customerPayments.bankAccount.bank',
+                'program.customer.city',
+                'cheque.customer.city',
+                'slip.customer.city',
+            ])->orderByDesc('id')->applyFilters($request);
 
             return response()->json(['data' => $payments, 'authLayout' => $authLayout]);
         }
