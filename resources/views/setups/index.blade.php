@@ -34,12 +34,6 @@
         <x-search-header heading="Setups" :search_fields=$searchFields/>
     </div>
 
-    <div class="w-[80%] mx-auto mt-3">
-        <div class="rounded-lg border border-[var(--h-bg-color)] bg-[var(--secondary-bg-color)] px-4 py-3 text-xs leading-5 text-[var(--secondary-text)]">
-            `Short Title` yahan sirf display value nahi hai. Yeh poori app mein globally unique key ki tarah use hoti hai, is liye same short title kisi doosre setup type mein dobara use nahi ho sakti.
-        </div>
-    </div>
-
     <!-- Main Content -->
     <section class="text-center mx-auto ">
         <div
