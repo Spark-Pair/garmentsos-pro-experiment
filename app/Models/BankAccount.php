@@ -68,6 +68,11 @@ class BankAccount extends Model
         return $this->hasOne(BankAccount::class, 'id');
     }
 
+    public function statementAdjustments()
+    {
+        return $this->morphMany(StatementAdjustment::class, 'adjustable');
+    }
+
     public function getAvailableChequesAttribute()
     {
         if ($this->category !== 'self') {
@@ -106,6 +111,7 @@ class BankAccount extends Model
     public function calculateBalance($fromDate = null, $toDate = null, $formatted = false, $includeGivenDate = true)
     {
         $balance = 0;
+        $adjustmentsQuery = $this->statementAdjustments();
         if ($this->category === 'self') {
             // Self category: existing logic
             $customerPayments = CustomerPayment::where('bank_account_id', $this->id);
@@ -119,37 +125,54 @@ class BankAccount extends Model
                 if ($includeGivenDate) {
                     $customerPayments->whereBetween('date', [$fromDate, $toDate]);
                     $supplierPayments->whereBetween('date', [$fromDate, $toDate]);
+                    $adjustmentsQuery->whereBetween('date', [$fromDate, $toDate]);
                 } else {
                     $customerPayments->where('date', '>', $fromDate)->where('date', '<', $toDate);
                     $supplierPayments->where('date', '>', $fromDate)->where('date', '<', $toDate);
+                    $adjustmentsQuery->where('date', '>', $fromDate)->where('date', '<', $toDate);
                 }
             } elseif ($fromDate) {
                 $operator = $includeGivenDate ? '>=' : '>';
                 $customerPayments->where('date', $operator, $fromDate);
                 $supplierPayments->where('date', $operator, $fromDate);
+                $adjustmentsQuery->where('date', $operator, $fromDate);
             } elseif ($toDate) {
                 $operator = $includeGivenDate ? '<=' : '<';
                 $customerPayments->where('date', $operator, $toDate);
                 $supplierPayments->where('date', $operator, $toDate);
+                $adjustmentsQuery->where('date', $operator, $toDate);
             }
 
             $totalPayments = $customerPayments->sum('amount') ?? 0;
             $totalPays = $supplierPayments->sum('amount') ?? 0;
+            $adjustmentsNet = (float) $adjustmentsQuery->get()->sum(fn($adjustment) => (float) $adjustment->net_amount);
 
-            $balance = $totalPayments - $totalPays;
+            $balance = ($totalPayments - $totalPays) + $adjustmentsNet;
 
         } else if ($this->category === 'supplier') {
-            $balance = PaymentClear::where('bank_account_id', $this->id)
+            $clearBalance = PaymentClear::where('bank_account_id', $this->id)
                 ->where('method', '!=', 'cash') // ignore cash
                 ->when($fromDate, fn($q) => $q->where('clear_date', $includeGivenDate ? '>=' : '>', $fromDate))
                 ->when($toDate, fn($q) => $q->where('clear_date', $includeGivenDate ? '<=' : '<', $toDate))
                 ->sum('amount');
+            $adjustmentsNet = (float) $adjustmentsQuery
+                ->when($fromDate, fn($q) => $q->where('date', $includeGivenDate ? '>=' : '>', $fromDate))
+                ->when($toDate, fn($q) => $q->where('date', $includeGivenDate ? '<=' : '<', $toDate))
+                ->get()
+                ->sum(fn($adjustment) => (float) $adjustment->net_amount);
+            $balance = $clearBalance + $adjustmentsNet;
         } else if ($this->category === 'customer') {
-            $balance = PaymentClear::where('bank_account_id', $this->id)
+            $clearBalance = PaymentClear::where('bank_account_id', $this->id)
                 ->where('method', '!=', 'cash') // ignore cash
                 ->when($fromDate, fn($q) => $q->where('clear_date', $includeGivenDate ? '>=' : '>', $fromDate))
                 ->when($toDate, fn($q) => $q->where('clear_date', $includeGivenDate ? '<=' : '<', $toDate))
                 ->sum('amount');
+            $adjustmentsNet = (float) $adjustmentsQuery
+                ->when($fromDate, fn($q) => $q->where('date', $includeGivenDate ? '>=' : '>', $fromDate))
+                ->when($toDate, fn($q) => $q->where('date', $includeGivenDate ? '<=' : '<', $toDate))
+                ->get()
+                ->sum(fn($adjustment) => (float) $adjustment->net_amount);
+            $balance = $clearBalance + $adjustmentsNet;
         }
 
         return $formatted ? number_format($balance, 1, '.', ',') : $balance;
@@ -169,6 +192,24 @@ class BankAccount extends Model
         $supplierQuery = SupplierPayment::where('bank_account_id', $this->id)
             ->whereBetween('date', [$fromDate, $toDate])
             ->with('bankAccount.bank');
+        $adjustments = $this->statementAdjustments()
+            ->whereBetween('date', [$fromDate, $toDate])
+            ->get();
+        $formatAdjustment = function ($adjustment, $forSummary = false) {
+            $isPlus = $adjustment->direction === 'plus';
+            $label = $adjustment->entry_type === 'opening_balance' ? 'Opening Balance' : 'Adjustment';
+
+            return [
+                'date' => $forSummary ? Carbon::parse($adjustment->date)->toDateString() : $adjustment->date,
+                'reff_no' => ($adjustment->entry_type === 'opening_balance' ? 'OB' : 'ADJ') . '-' . $adjustment->id,
+                'type' => $isPlus ? 'invoice' : 'payment',
+                'method' => $label,
+                'bill' => $isPlus ? (float) $adjustment->amount : 0,
+                'payment' => $isPlus ? 0 : (float) $adjustment->amount,
+                'description' => $adjustment->remarks ?: $label,
+                'created_at' => $adjustment->created_at,
+            ];
+        };
 
         if ($type === 'summarized') {
             // 🧾 Customer Payments (inflow)
@@ -188,10 +229,12 @@ class BankAccount extends Model
                 'payment' => (float) ($p->amount ?? 0),
                 'created_at' => $p->created_at,
             ]);
+            $adjustmentRows = $adjustments->map(fn($adjustment) => $formatAdjustment($adjustment, true));
 
             // 📅 Merge & group by date
             $statement = $customerPayments
                 ->merge($supplierPayments)
+                ->merge($adjustmentRows)
                 ->groupBy('date')
                 ->flatMap(function ($rows, $date) {
                     // 🔹 Sort by created_at within each date
@@ -265,10 +308,12 @@ class BankAccount extends Model
                 'description' => $p->supplier?->supplier_name ?? $p->remarks ?? null,
                 'created_at' => $p->created_at ?? null,
             ]);
+            $adjustmentRows = $adjustments->map(fn($adjustment) => $formatAdjustment($adjustment));
 
             // 📅 Merge & sort (date → created_at)
             $statement = $customerPayments
                 ->merge($supplierPayments)
+                ->merge($adjustmentRows)
                 ->sortBy([
                     ['date', 'asc'],
                     ['created_at', 'asc'],

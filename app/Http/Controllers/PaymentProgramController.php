@@ -24,9 +24,8 @@ class PaymentProgramController extends Controller
         $authLayout = $this->getAuthLayout($request->route()->getName(), 'table');
 
         if ($request->ajax()) {
-            $statusFilter = trim((string) $request->get('status', ''));
-            if ($statusFilter === '') {
-                $request->merge(['status' => 'Unpaid']);
+            if ($request->get('status') === '__all__') {
+                $request->merge(['status' => '']);
             }
 
             $payment_programs = PaymentProgram::with('customer.city', 'subCategory')->withPaymentDetails()->orderByDesc('id')

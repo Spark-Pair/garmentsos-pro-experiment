@@ -27,6 +27,7 @@ use App\Http\Controllers\PermissionReportController;
 use App\Http\Controllers\SalesReturnController;
 use App\Http\Controllers\SetupController;
 use App\Http\Controllers\ShipmentController;
+use App\Http\Controllers\StatementAdjustmentController;
 use App\Http\Controllers\SupplierController;
 use App\Http\Controllers\SupplierPaymentController;
 use App\Http\Controllers\UserController;
@@ -183,6 +184,7 @@ Route::group(['middleware' => ['auth', 'activeSession', 'subscriptionExpiry', 'r
 
     Route::resource('sales-returns', SalesReturnController::class);
     Route::post('sales-returns/get-details', [SalesReturnController::class, 'getDetails'])->name('sales-returns.get-details');
+    Route::resource('statement-adjustments', StatementAdjustmentController::class)->only(['create', 'store']);
 
     Route::get('attendances/create', [AttendanceController::class, 'create'])->name('attendances.create');
     Route::post('attendances/store', [AttendanceController::class, 'store'])->name('attendances.store');

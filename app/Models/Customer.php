@@ -91,6 +91,11 @@ class Customer extends Model
         return $this->hasMany(Invoice::class, 'customer_id');
     }
 
+    public function statementAdjustments()
+    {
+        return $this->morphMany(StatementAdjustment::class, 'adjustable');
+    }
+
     public function getBalanceAttribute()
     {
         return $this->calculateBalance();
@@ -99,6 +104,7 @@ class Customer extends Model
     {
         $invoicesQuery = $this->invoices()->whereNotNull('shipment_no');
         $paymentsQuery = $this->payments()->where('type', '!=', 'DR');
+        $adjustmentsQuery = $this->statementAdjustments();
 
         // Normalize dates to start/end of day
         if ($fromDate) {
@@ -113,25 +119,32 @@ class Customer extends Model
             if ($includeGivenDate) {
                 $invoicesQuery->whereBetween('date', [$from, $to]);
                 $paymentsQuery->whereBetween('date', [$from, $to]);
+                $adjustmentsQuery->whereBetween('date', [$from, $to]);
             } else {
                 $invoicesQuery->where('date', '>', $from)->where('date', '<', $to);
                 $paymentsQuery->where('date', '>', $from)->where('date', '<', $to);
+                $adjustmentsQuery->where('date', '>', $from)->where('date', '<', $to);
             }
         } elseif (isset($from)) {
             $operator = $includeGivenDate ? '>=' : '>';
             $invoicesQuery->where('date', $operator, $from);
             $paymentsQuery->where('date', $operator, $from);
+            $adjustmentsQuery->where('date', $operator, $from);
         } elseif (isset($to)) {
             $operator = $includeGivenDate ? '<=' : '<';
             $invoicesQuery->where('date', $operator, $to);
             $paymentsQuery->where('date', $operator, $to);
+            $adjustmentsQuery->where('date', $operator, $to);
         }
 
         // Calculate totals
         $totalInvoices = $invoicesQuery->sum('netAmount') ?? 0;
         $totalPayments = $paymentsQuery->sum('amount') ?? 0;
+        $adjustmentsNet = (float) $adjustmentsQuery
+            ->get()
+            ->sum(fn($adjustment) => (float) $adjustment->net_amount);
 
-        $balance = $totalInvoices - $totalPayments;
+        $balance = ($totalInvoices - $totalPayments) + $adjustmentsNet;
 
         return $formatted ? number_format($balance, 1, '.', ',') : $balance;
     }
@@ -156,8 +169,26 @@ class Customer extends Model
             ->where('type', '!=', 'DR')
             ->whereBetween('date', [$from, $to])
             ->get();
+        $adjustments = $this->statementAdjustments()
+            ->whereBetween('date', [$from, $to])
+            ->get();
 
         $statement = collect();
+        $formatAdjustment = function ($adjustment) {
+            $isPlus = $adjustment->direction === 'plus';
+            $label = $adjustment->entry_type === 'opening_balance' ? 'Opening Balance' : 'Adjustment';
+
+            return [
+                'date' => $adjustment->date,
+                'reff_no' => ($adjustment->entry_type === 'opening_balance' ? 'OB' : 'ADJ') . '-' . $adjustment->id,
+                'type' => $isPlus ? 'invoice' : 'payment',
+                'method' => $label,
+                'bill' => $isPlus ? (float) $adjustment->amount : 0,
+                'payment' => $isPlus ? 0 : (float) $adjustment->amount,
+                'description' => $adjustment->remarks ?: $label,
+                'created_at' => $adjustment->created_at,
+            ];
+        };
 
         $paymentDescription = function ($p) {
             return $p->cheque_date?->format('d-M-Y, D')
@@ -178,17 +209,23 @@ class Customer extends Model
             $invoiceGrouped = $invoices->groupBy(fn($i) => Carbon::parse($i->date)->toDateString());
             // 🔹 Group payments by date
             $paymentGrouped = $payments->groupBy(fn($p) => Carbon::parse($p->date)->toDateString());
+            $adjustmentGrouped = $adjustments->groupBy(fn($a) => Carbon::parse($a->date)->toDateString());
 
             // 🔹 Get all unique dates
-            $allDates = $invoiceGrouped->keys()->merge($paymentGrouped->keys())->unique()->sort();
+            $allDates = $invoiceGrouped->keys()->merge($paymentGrouped->keys())->merge($adjustmentGrouped->keys())->unique()->sort();
 
             foreach ($allDates as $date) {
                 $bill = isset($invoiceGrouped[$date]) ? $invoiceGrouped[$date]->sum(fn($i) => (float) $i->netAmount) : 0;
                 $payment = isset($paymentGrouped[$date]) ? $paymentGrouped[$date]->sum(fn($p) => (float) $p->amount) : 0;
+                $dayAdjustments = $adjustments->filter(fn($adjustment) => Carbon::parse($adjustment->date)->toDateString() === $date);
+                $adjustmentBill = $dayAdjustments->where('direction', 'plus')->sum('amount');
+                $adjustmentPayment = $dayAdjustments->where('direction', 'minus')->sum('amount');
+                $bill += $adjustmentBill;
+                $payment += $adjustmentPayment;
 
                 // Add payment first if exists
                 if ($payment > 0) {
-                    $firstPayment = $paymentGrouped[$date]->sortBy('created_at')->first();
+                    $firstPayment = $paymentGrouped[$date]->sortBy('created_at')->first() ?? $dayAdjustments->where('direction', 'minus')->sortBy('created_at')->first();
                     $statement->push([
                         'type' => 'payment',
                         'date' => Carbon::parse($date),
@@ -200,7 +237,7 @@ class Customer extends Model
 
                 // Add invoice
                 if ($bill > 0) {
-                    $firstInvoice = $invoiceGrouped[$date]->sortBy('created_at')->first();
+                    $firstInvoice = $invoiceGrouped[$date]->sortBy('created_at')->first() ?? $dayAdjustments->where('direction', 'plus')->sortBy('created_at')->first();
                     $statement->push([
                         'type' => 'invoice',
                         'date' => Carbon::parse($date),
@@ -247,6 +284,10 @@ class Customer extends Model
                 ]);
             }
 
+            foreach ($adjustments as $adjustment) {
+                $statement->push($formatAdjustment($adjustment));
+            }
+
             $statement = $statement->sortBy([
                 ['date', 'asc'],
                 ['created_at', 'asc'],
@@ -275,6 +316,10 @@ class Customer extends Model
                     'description' => $paymentDescription($p),
                     'created_at' => $p->created_at,
                 ]);
+            }
+
+            foreach ($adjustments as $adjustment) {
+                $statement->push($formatAdjustment($adjustment));
             }
 
             // Sort by date then created_at

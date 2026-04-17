@@ -70,9 +70,13 @@ class SalesReturnController extends Controller
 
         $data = $validator->validated();
 
-        SalesReturn::create($data);
-
-        Article::find($data['article_id'])->decrement('sold_quantity', $data['quantity']);
+        SalesReturn::create([
+            'article_id' => $data['article_id'],
+            'invoice_id' => $data['invoice_id'],
+            'date' => $data['date'],
+            'quantity' => $data['quantity'],
+            'amount' => $data['amount'],
+        ]);
 
         CustomerPayment::create([
             'customer_id' => $data['customer_id'],
@@ -120,9 +124,28 @@ class SalesReturnController extends Controller
     public function getDetails(Request $request)
     {
         if ($request->customer_id && $request->getArticles) {
-            return Article::where('sold_quantity', '>', 0)
-                ->select(['id', 'article_no'])
-                ->get();
+            $customer = Customer::find($request->customer_id);
+
+            if (!$customer) {
+                return collect();
+            }
+
+            return $customer->invoices()
+                ->with('invoiceArticles.article')
+                ->get()
+                ->flatMap(fn($invoice) => $invoice->invoiceArticles)
+                ->filter(fn($invoiceArticle) => (int) ($invoiceArticle->invoice_pcs ?? 0) > 0 && $invoiceArticle->article)
+                ->groupBy('article_id')
+                ->map(function ($group) {
+                    $first = $group->first();
+
+                    return [
+                        'id' => $first->article_id,
+                        'article_no' => $first->article?->article_no ?? '-',
+                    ];
+                })
+                ->sortBy('article_no')
+                ->values();
         }
 
         if ($request->customer_id && $request->article_id && $request->getInvoices) {
@@ -132,15 +155,11 @@ class SalesReturnController extends Controller
                 return collect();
             }
 
-            // Load all invoices with relations in one go
             $invoices = $customer->invoices()
-                ->with(['order', 'shipment'])
+                ->with(['order', 'shipment', 'invoiceArticles'])
                 ->get();
 
-            // Collect all article IDs from invoices (only requested one)
             $articleId = (int) $request->article_id;
-
-            // Load article once (not in every loop)
             $article = Article::find($articleId);
 
             if (!$article) {
@@ -151,19 +170,18 @@ class SalesReturnController extends Controller
 
             return $invoices
                 ->filter(function ($invoice) use ($articleId) {
-                    return collect($invoice->articles_in_invoice)
-                        ->pluck('id')
+                    return $invoice->invoiceArticles
+                        ->pluck('article_id')
                         ->contains($articleId);
                 })
                 ->map(function ($invoice) use ($articleId, $salesRate) {
-                    // Keep only the requested article
-                    $articles_in_invoice = collect($invoice->articles_in_invoice)
-                        ->filter(fn($article) => (int) $article['id'] === $articleId)
+                    $articles_in_invoice = $invoice->invoiceArticles
+                        ->filter(fn($article) => (int) $article->article_id === $articleId)
                         ->values();
 
                     $articles = $articles_in_invoice->map(fn($article_in_invoice) => [
-                        'id' => $article_in_invoice['id'],
-                        'invoice_quantity' => $article_in_invoice['invoice_quantity'],
+                        'id' => (int) $article_in_invoice->article_id,
+                        'invoice_quantity' => (int) ($article_in_invoice->invoice_pcs ?? 0),
                         'sales_rate' => $salesRate,
                     ])->all();
 

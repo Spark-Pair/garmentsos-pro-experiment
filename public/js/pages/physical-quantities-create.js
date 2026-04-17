@@ -44,6 +44,9 @@
             cardData = [];
             let data = Object.values(articles);
 
+            console.log(data);
+            
+
             if (data.length > 0) {
                 cardData.push(
                     ...data.map((item) => {

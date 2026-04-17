@@ -52,10 +52,12 @@
             <div class="details h-full z-40">
                 <div class="container-parent h-full">
                     <div class="card_container px-3 h-full flex flex-col">
-                        <div id="table-head" class="grid grid-cols-4 bg-[var(--h-bg-color)] rounded-lg font-medium py-2 hidden mt-4">
+                        <div id="table-head" class="grid grid-cols-6 bg-[var(--h-bg-color)] rounded-lg font-medium py-2 hidden mt-4">
+                            <div class="text-center cursor-pointer" onclick="sortByThis(this)">Date</div>
                             <div class="text-center cursor-pointer" onclick="sortByThis(this)">Order No.</div>
                             <div class="text-center cursor-pointer" onclick="sortByThis(this)">Customer</div>
-                            <div class="text-center cursor-pointer" onclick="sortByThis(this)">Date</div>
+                            <div class="text-center cursor-pointer" onclick="sortByThis(this)">Net Amount</div>
+                            <div class="text-center cursor-pointer" onclick="sortByThis(this)">Balance Order</div>
                             <div class="text-center cursor-pointer" onclick="sortByThis(this)">Status</div>
                         </div>
                         <p id="noItemsError" style="display: none" class="text-sm text-[var(--border-error)] mt-3">No items found</p>

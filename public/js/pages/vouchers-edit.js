@@ -357,7 +357,7 @@ function initVouchersEdit() {
                     html: buildSelfAccountSelect({
                         id: 'bank_account_id',
                         name: 'bank_account_id',
-                        label: 'Self Account',
+                        label: isSelfAccount ? 'From Account' : 'Self Account',
                         onchange: 'setSelectedAccount(this)'
                     }),
                 },
@@ -383,7 +383,7 @@ function initVouchersEdit() {
                         html: buildSelfAccountSelect({
                             id: 'self_account_id',
                             name: 'self_account_id',
-                            label: 'Self Account',
+                            label: 'To Account',
                             onchange: 'updateSelectedAccount(this)'
                         }),
                     },

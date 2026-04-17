@@ -103,10 +103,10 @@
                 <div class="flex justify-between items-center bg-[var(--h-bg-color)] rounded-lg py-2 px-4 mb-4">
                     <div class="w-[5%]">S.No</div>
                     @if ($voucherType == 'self_account')
-                        <div class="w-1/3">Account Title</div>
+                        <div class="w-1/3">To Account</div>
                     @endif
                     <div class="w-1/5">Method</div>
-                    <div class="w-1/3">Customer/Self Acc.</div>
+                    <div class="w-1/3">{{ $voucherType == 'self_account' ? 'From Account / Beneficiary' : 'Customer/Self Acc.' }}</div>
                     <div class="w-1/5">Reff. No.</div>
                     <div class="w-1/6">Remarks</div>
                     <div class="w-[15%]">Amount</div>

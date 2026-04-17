@@ -39,7 +39,11 @@ trait ArticleComputed
                     });
                 });
 
-            return $dispatchedFromOrders + $shipmentSold;
+            $salesReturnQuantity = method_exists($this, 'salesReturns')
+                ? $this->salesReturns()->sum('quantity')
+                : 0;
+
+            return max(0, ($dispatchedFromOrders + $shipmentSold) - $salesReturnQuantity);
         });
     }
 

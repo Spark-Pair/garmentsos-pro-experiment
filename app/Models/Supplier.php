@@ -79,6 +79,11 @@ class Supplier extends Model
         return $this->hasMany(SupplierPayment::class, 'supplier_id');
     }
 
+    public function statementAdjustments()
+    {
+        return $this->morphMany(StatementAdjustment::class, 'adjustable');
+    }
+
     public function getCategoriesAttribute() {
         $ids = json_decode($this->categories_array, true);
         return is_array($ids) ? Setup::whereIn('id', $ids)->get() : [];
@@ -113,6 +118,7 @@ class Supplier extends Model
                 'Program',
                 'Adjustment',
             ]);
+        $adjustmentsQuery = $this->statementAdjustments();
 
         $productionQuery = null;
         if ($this->worker) {
@@ -131,22 +137,26 @@ class Supplier extends Model
         if ($fromDate && $toDate) {
             $expenseQuery->whereBetween('date', [$fromDate, $toDate]);
             $paymentsQuery->whereBetween('date', [$fromDate, $toDate]);
+            $adjustmentsQuery->whereBetween('date', [$fromDate, $toDate]);
             if ($productionQuery) $productionQuery->whereBetween('receive_date', [$fromDate, $toDate]);
         } elseif ($fromDate) {
             $expenseQuery->where('date', '>=', $fromDate);
             $paymentsQuery->where('date', '>=', $fromDate);
+            $adjustmentsQuery->where('date', '>=', $fromDate);
             if ($productionQuery) $productionQuery->where('receive_date', '>=', $fromDate);
         } elseif ($toDate) {
             $expenseQuery->where('date', '<=', $toDate);
             $paymentsQuery->where('date', '<=', $toDate);
+            $adjustmentsQuery->where('date', '<=', $toDate);
             if ($productionQuery) $productionQuery->where('receive_date', '<=', $toDate);
         }
 
         $totalExpense = $expenseQuery->sum('amount') ?? 0;
         $totalPayments = $paymentsQuery->sum('amount') ?? 0;
         $totalProduction = $productionQuery ? $productionQuery->sum('amount') : 0;
+        $adjustmentsNet = (float) $adjustmentsQuery->get()->sum(fn($adjustment) => (float) $adjustment->net_amount);
 
-        $balance = ($totalExpense + $totalProduction) - $totalPayments;
+        $balance = (($totalExpense + $totalProduction) - $totalPayments) + $adjustmentsNet;
 
         return $formatted ? number_format($balance, 1, '.', ',') : $balance;
     }
@@ -171,6 +181,7 @@ class Supplier extends Model
         $voucherQuery = Voucher::with('payments')
             ->where('supplier_id', $this->id)
             ->whereBetween('date', [$start, $end]);
+        $adjustmentsQuery = $this->statementAdjustments()->whereBetween('date', [$start, $end]);
         $productionQuery = $this->worker
             ? $this->worker->productions()->whereBetween('receive_date', [$start, $end])
             : null;
@@ -238,6 +249,21 @@ class Supplier extends Model
                 )
                 ?? ($p->remarks ?? '-');
         };
+        $formatDetailedAdjustment = function ($adjustment) {
+            $isPlus = $adjustment->direction === 'plus';
+            $label = $adjustment->entry_type === 'opening_balance' ? 'Opening Balance' : 'Adjustment';
+
+            return [
+                'date' => $adjustment->date,
+                'reff_no' => ($adjustment->entry_type === 'opening_balance' ? 'OB' : 'ADJ') . '-' . $adjustment->id,
+                'type' => $isPlus ? 'invoice' : 'payment',
+                'method' => $label,
+                'bill' => $isPlus ? (float) $adjustment->amount : 0,
+                'payment' => $isPlus ? 0 : (float) $adjustment->amount,
+                'description' => $adjustment->remarks ?: $label,
+                'created_at' => $adjustment->created_at,
+            ];
+        };
 
         if ($type === 'summarized') {
             $expenses = $mapQuery($expenseQuery, fn($i) => [
@@ -263,9 +289,17 @@ class Supplier extends Model
                 'payment' => 0,
                 'created_at' => $pr->created_at,
             ]);
+            $adjustments = $mapQuery($adjustmentsQuery, fn($adjustment) => [
+                'type' => $adjustment->direction === 'plus' ? 'invoice' : 'payment',
+                'date' => Carbon::parse($adjustment->date)->toDateString(),
+                'bill' => $adjustment->direction === 'plus' ? (float) $adjustment->amount : 0,
+                'payment' => $adjustment->direction === 'minus' ? (float) $adjustment->amount : 0,
+                'created_at' => $adjustment->created_at,
+            ]);
 
             $statement = $expenses
                 ->merge($productions)
+                ->merge($adjustments)
                 ->merge($payments)
                 ->groupBy('date')
                 ->flatMap(function ($rows, $date) {
@@ -333,10 +367,12 @@ class Supplier extends Model
                 'payment' => 0,
                 'created_at' => $pr->created_at,
             ]);
+            $adjustments = $mapQuery($adjustmentsQuery, $formatDetailedAdjustment);
 
             $statement = $expenses
                 ->merge($payments)
                 ->merge($productions)
+                ->merge($adjustments)
                 ->sortBy($makeSortKey)
                 ->values();
         } else {
@@ -369,10 +405,12 @@ class Supplier extends Model
                 'payment' => 0,
                 'created_at' => $pr->created_at,
             ]);
+            $adjustments = $mapQuery($adjustmentsQuery, $formatDetailedAdjustment);
 
             $statement = $expenses
                 ->merge($payments)
                 ->merge($productions)
+                ->merge($adjustments)
                 ->sortBy($makeSortKey)
                 ->values();
         }

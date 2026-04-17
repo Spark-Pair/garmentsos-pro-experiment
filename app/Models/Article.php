@@ -89,4 +89,9 @@ class Article extends Model
     {
         return $this->hasMany(InvoiceArticles::class, 'article_id');
     }
+
+    public function salesReturns()
+    {
+        return $this->hasMany(SalesReturn::class, 'article_id');
+    }
 }

@@ -2,6 +2,7 @@
 function initPaymentProgramsIndex() {
     const config = window.__ppIndex || {};
     let authLayout = config.authLayout || 'table';
+    let hasAppliedDefaultStatus = false;
     const previousClearAllSearchFields =
         typeof window.clearAllSearchFields === 'function' ? window.clearAllSearchFields : null;
     if (authLayout) {
@@ -411,7 +412,23 @@ function initPaymentProgramsIndex() {
         if (statusSelected) {
             selectThisOption(statusSelected);
         }
+
+        if (typeof window.applyFilters === 'function') {
+            window.applyFilters();
+        }
     };
+
+    setTimeout(() => {
+        const hasQueryFilters = window.location.search.length > 1;
+        const statusInput = document.querySelector('input.dbInput[data-for="status"]');
+
+        if (!hasQueryFilters && statusInput && statusInput.value === 'Unpaid' && !hasAppliedDefaultStatus) {
+            hasAppliedDefaultStatus = true;
+            if (typeof window.applyFilters === 'function') {
+                window.applyFilters();
+            }
+        }
+    }, 0);
 }
 
 window.initPaymentProgramsIndex = initPaymentProgramsIndex;

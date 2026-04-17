@@ -9,12 +9,30 @@ trait OrderComputed
 {
     public function toFormattedArray()
     {
+        $customerName = trim(($this->customer?->customer_name ?? '-') . ' | ' . ($this->customer?->city?->title ?? '-'), ' |');
+        $remainingOrder = $this->articles
+            ? $this->articles->sum(function ($article) {
+                $ordered = (int) ($article->ordered_pcs ?? 0);
+                $dispatched = (int) ($article->dispatched_pcs ?? 0);
+
+                return max(0, $ordered - $dispatched);
+            })
+            : 0;
+
         return [
             'id' => $this->id,
             'name' => $this->order_no,
+            'order_no' => $this->order_no,
+            'date' => $this->date?->format('d-M-Y, D'),
+            'customer_name' => $customerName,
+            'net_amount' => (float) ($this->netAmount ?? 0),
+            'balance_order' => $remainingOrder,
             'details' => [
-                'Customer' => $this->customer->customer_name . ' | ' . $this->customer->city->title,
-                'Date' => $this->date->format('d-M-Y, D'),
+                'Date' => $this->date?->format('d-M-Y, D'),
+                'Order No' => $this->order_no,
+                'Customer' => $customerName,
+                'Net Amount' => number_format((float) ($this->netAmount ?? 0), 1),
+                'Balance Order' => number_format($remainingOrder) . ' Pcs',
             ],
             'status' => $this->status,
             'data' => $this,

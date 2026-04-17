@@ -50,6 +50,7 @@
                 'id' => 'status',
                 'type' => 'select',
                 'options' => [
+                    '__all__' => ['text' => 'All Statuses'],
                     'Paid' => ['text' => 'Paid'],
                     'Unpaid' => ['text' => 'Unpaid', 'selected' => true],
                     'Overpaid' => ['text' => 'Overpaid'],

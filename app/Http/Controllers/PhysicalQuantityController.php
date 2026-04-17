@@ -185,7 +185,7 @@ class PhysicalQuantityController extends Controller
             ->orderByDesc('id')
             ->get();
 
-        foreach ($articles as $article) {
+        $articles = $articles->filter(function ($article) {
             $physical_quantity = $article['physical_quantity_sum_packets'];
 
             $article['physical_quantity'] = $physical_quantity
@@ -193,12 +193,15 @@ class PhysicalQuantityController extends Controller
                 : 0;
 
             $article['category'] = ucfirst(str_replace('_', ' ', $article['category']));
-            $article['season']  = ucfirst(str_replace('_', ' ', $article['season']));
-            $article['size']    = ucfirst(str_replace('_', '-', $article['size']));
-        }
+            $article['season']   = ucfirst(str_replace('_', ' ', $article['season']));
+            $article['size']     = ucfirst(str_replace('_', '-', $article['size']));
 
-        // Allow receiving extra quantity beyond ordered quantity
+            $totalOrdered  = $article->quantity + $article->extra_pcs;
+            $remaining     = $totalOrdered - $article['physical_quantity'];
 
+            return $remaining > 0;
+        })->values();
+        
         return view('physical-quantities.create', compact('articles'));
     }
 

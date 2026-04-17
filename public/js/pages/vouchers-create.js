@@ -208,7 +208,12 @@ function initVouchersCreate() {
     }
 
     window.updateSelectedAccount = function(elem) {
-        let hiddenAccountInSelfAccount = elem.closest('form').querySelector(`ul[data-for="bank_account_id"]`);
+        const form = elem.closest('form');
+        const bankAccountInput = form?.querySelector('input.dbInput[name="bank_account_id"]');
+        const bankAccountFor = bankAccountInput?.dataset.for;
+        let hiddenAccountInSelfAccount = bankAccountFor ? form.querySelector(`ul[data-for="${bankAccountFor}"]`) : null;
+        if (!hiddenAccountInSelfAccount) return;
+
         hiddenAccountInSelfAccount.querySelectorAll('li').forEach(li => {
             if (li.style.display == 'none') {
                 li.style.display = 'block';
@@ -218,7 +223,7 @@ function initVouchersCreate() {
         let selectedOption = elem.nextElementSibling.querySelector('li.selected');
         let selectedAccount = JSON.parse(selectedOption.getAttribute('data-option')) || '';
 
-        let selectedAccountInBankAccount = elem.closest('form').querySelector(`ul[data-for="bank_account_id"] li[data-value="${selectedAccount.id}"]`);
+        let selectedAccountInBankAccount = form.querySelector(`ul[data-for="${bankAccountFor}"] li[data-value="${selectedAccount.id}"]`);
 
         if (selectedAccountInBankAccount) {
             selectedAccountInBankAccount.style.display = 'none';
@@ -387,7 +392,7 @@ function initVouchersCreate() {
                     html: buildSelfAccountSelect({
                         id: 'self_cheque_id',
                         name: 'bank_account_id',
-                        label: 'Self Account',
+                        label: isSelfAccount ? 'From Account' : 'Self Account',
                         onchange: 'setSelectedAccount(this)'
                     }),
                 },
@@ -413,7 +418,7 @@ function initVouchersCreate() {
                         html: buildSelfAccountSelect({
                             id: 'self_account_id',
                             name: 'self_account_id',
-                            label: 'Self Account',
+                            label: 'To Account',
                             onchange: 'updateSelectedAccount(this)'
                         }),
                     },
@@ -567,7 +572,8 @@ function initVouchersCreate() {
             createModal(modalData);
 
             let amountInpDom = document.getElementById('amount');
-            selectedDom = document.getElementById('selected');
+            const modalForm = document.getElementById('modalForm');
+            selectedDom = document.getElementById('selected') || modalForm?.querySelector('input[name="selected"]');
 
             let allSelfAccounts = [];
 
@@ -575,7 +581,7 @@ function initVouchersCreate() {
                 return new Date(account.date) <= new Date(dateDom.value);
             });
 
-            if (elem.value !== 'cash' && elem.value !== 'adjustment') {
+            if (['cheque', 'slip', 'program', 'purchase_return'].includes(elem.value)) {
                 showLoader();
                 $.ajax({
                     url: '/vouchers/create',
@@ -608,12 +614,21 @@ function initVouchersCreate() {
 
                 function renderOptions() {
                     let ULDOM = document.querySelector(`ul[data-for="${elem.value}_id"]`);
-                    document.querySelector(`input[data-for="${elem.value}_id"]`).addEventListener('change', () => {
+                    const triggerInput = document.querySelector(`input[data-for="${elem.value}_id"]`);
+                    if (!ULDOM || !triggerInput) {
+                        return;
+                    }
+
+                    triggerInput.addEventListener('change', () => {
                         let selectedOption = ULDOM.querySelector('li.selected');
+                        if (!selectedOption || !selectedDom) return;
                         let selectedPayment = JSON.parse(selectedOption.getAttribute('data-option')) || '';
 
                         selectedDom.value = JSON.stringify(selectedPayment);
-                        document.querySelector('input[name="amount"]').value = selectedPayment.amount;
+                        const amountInput = modalForm?.querySelector('input[name="amount"]');
+                        if (amountInput) {
+                            amountInput.value = selectedPayment.amount;
+                        }
                     })
 
                     if (payments_options.length > 0) {

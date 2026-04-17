@@ -734,6 +734,7 @@
                     {name: 'Article', href: "/reports/article"},
                     {name: 'Statement', href: "/reports/statement"},
                     {name: 'Pending Payments', href: "/reports/pending-payments"},
+                    {name: 'Balance Entries', href: "/statement-adjustments/create"},
                 ]
             },
         @endif

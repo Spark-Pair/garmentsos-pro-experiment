@@ -11,12 +11,14 @@
     window.createRow = function createRow(data) {
         return `
             <div id="${data.id}" oncontextmenu='${data.oncontextmenu || ""}' onclick='${data.onclick || ""}'
-                class="item row relative group grid grid-cols-4 border-b border-[var(--h-bg-color)] items-center py-2 cursor-pointer hover:bg-[var(--h-secondary-bg-color)] transition-all fade-in ease-in-out"
+                class="item row relative group grid grid-cols-6 border-b border-[var(--h-bg-color)] items-center py-2 cursor-pointer hover:bg-[var(--h-secondary-bg-color)] transition-all fade-in ease-in-out"
                 data-json='${JSON.stringify(data)}'>
 
-                <span class="text-center">${data.name}</span>
-                <span class="text-center">${data.details["Customer"]}</span>
-                <span class="text-center">${data.details['Date']}</span>
+                <span class="text-center">${data.date ?? data.details['Date'] ?? '-'}</span>
+                <span class="text-center">${data.order_no ?? data.name ?? '-'}</span>
+                <span class="text-center">${data.customer_name ?? data.details["Customer"] ?? '-'}</span>
+                <span class="text-center">${formatNumbersWithDigits(data.net_amount ?? 0, 1, 1)}</span>
+                <span class="text-center">${formatNumbersWithDigits(data.balance_order ?? 0, 0, 0)} Pcs</span>
                 <span class="text-center capitalize">${data.status}</span>
             </div>`;
     };

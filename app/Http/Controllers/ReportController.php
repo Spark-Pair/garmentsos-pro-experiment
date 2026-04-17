@@ -90,7 +90,7 @@ class ReportController extends Controller
         }
 
         if ($category === 'bank_account') {
-            $bank_accounts = BankAccount::where('status', 'active')->get();
+            $bank_accounts = BankAccount::with('bank')->where('status', 'active')->get();
             return response()->json($bank_accounts);
         }
 

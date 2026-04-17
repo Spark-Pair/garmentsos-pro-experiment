@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Nette\Schema\Expect;
 
 class VoucherController extends Controller
@@ -247,6 +248,7 @@ class VoucherController extends Controller
         }
 
         $validator = Validator::make($request->all(), [
+            "voucher_no" => "required|string|unique:vouchers,voucher_no",
             "supplier_id" => "nullable|integer|exists:suppliers,id",
             "date" => "required|date",
             "program_id" => "nullable|exists:payment_programs,id",
@@ -257,14 +259,15 @@ class VoucherController extends Controller
             return redirect()->back()->withErrors($validator);
         }
 
-        DB::transaction(function () use ($request) {
+        $paymentDetailsArray = json_decode($request->payment_details_array, true) ?? [];
+        $this->assertVoucherPaymentsAreUnique($paymentDetailsArray);
+
+        DB::transaction(function () use ($request, $paymentDetailsArray) {
             $voucher = Voucher::create([
                 'voucher_no' => $request->voucher_no,
                 'supplier_id' => $request->supplier_id,
                 'date' => $request->date,
             ]);
-
-            $paymentDetailsArray = json_decode($request->payment_details_array, true) ?? [];
 
             foreach ($paymentDetailsArray as $paymentDetails) {
                 if (isset($paymentDetails['self_account_id'])) {
@@ -518,6 +521,7 @@ class VoucherController extends Controller
         }
 
         $requestPayments = json_decode($request->payment_details_array, true);
+        $this->assertVoucherPaymentsAreUnique($requestPayments ?? [], $voucher);
 
         // return $requestPayments;
 
@@ -626,5 +630,105 @@ class VoucherController extends Controller
     public function destroy(Voucher $voucher)
     {
         //
+    }
+
+    private function assertVoucherPaymentsAreUnique(array $paymentDetailsArray, ?Voucher $currentVoucher = null): void
+    {
+        $seen = [
+            'cheque_id' => [],
+            'slip_id' => [],
+            'program_payment_id' => [],
+            'expense_id' => [],
+            'cheque_no' => [],
+        ];
+
+        $currentVoucherId = $currentVoucher?->id;
+
+        foreach ($paymentDetailsArray as $index => $paymentDetails) {
+            $rowNumber = $index + 1;
+            $method = $this->normalizeVoucherPaymentMethod($paymentDetails['method'] ?? '');
+
+            foreach (['cheque_id', 'slip_id', 'expense_id'] as $key) {
+                $value = (int) ($paymentDetails[$key] ?? 0);
+                if ($value <= 0) {
+                    continue;
+                }
+
+                if (isset($seen[$key][$value])) {
+                    throw ValidationException::withMessages([
+                        'payment_details_array' => "Payment row {$rowNumber} mein duplicate selection allowed nahi hai.",
+                    ]);
+                }
+
+                $seen[$key][$value] = true;
+            }
+
+            if ($method === 'program') {
+                $paymentId = (int) ($paymentDetails['payment_id'] ?? $paymentDetails['id'] ?? 0);
+                if ($paymentId > 0) {
+                    if (isset($seen['program_payment_id'][$paymentId])) {
+                        throw ValidationException::withMessages([
+                            'payment_details_array' => "Payment row {$rowNumber} mein same program payment dobara select hui hai.",
+                        ]);
+                    }
+
+                    $seen['program_payment_id'][$paymentId] = true;
+
+                    $programPayment = SupplierPayment::find($paymentId);
+                    if (!$programPayment || ($programPayment->voucher_id && $programPayment->voucher_id !== $currentVoucherId)) {
+                        throw ValidationException::withMessages([
+                            'payment_details_array' => "Payment row {$rowNumber} wali program payment pehle se kisi aur voucher ke saath linked hai.",
+                        ]);
+                    }
+                }
+            }
+
+            if ($method === 'selfcheque') {
+                $chequeNo = trim((string) ($paymentDetails['cheque_no'] ?? ''));
+                if ($chequeNo !== '') {
+                    if (isset($seen['cheque_no'][$chequeNo])) {
+                        throw ValidationException::withMessages([
+                            'payment_details_array' => "Payment row {$rowNumber} mein same self cheque number dobara use hua hai.",
+                        ]);
+                    }
+
+                    $seen['cheque_no'][$chequeNo] = true;
+
+                    $chequeExists = SupplierPayment::query()
+                        ->where('cheque_no', $chequeNo)
+                        ->when($currentVoucherId, fn($q) => $q->where('voucher_id', '!=', $currentVoucherId))
+                        ->exists();
+
+                    if ($chequeExists) {
+                        throw ValidationException::withMessages([
+                            'payment_details_array' => "Self cheque no. {$chequeNo} pehle se use ho chuka hai.",
+                        ]);
+                    }
+                }
+            }
+
+            foreach (['cheque_id', 'slip_id'] as $paymentKey) {
+                $paymentId = (int) ($paymentDetails[$paymentKey] ?? 0);
+                if ($paymentId <= 0) {
+                    continue;
+                }
+
+                $linkedExists = SupplierPayment::query()
+                    ->where($paymentKey, $paymentId)
+                    ->when($currentVoucherId, fn($q) => $q->where('voucher_id', '!=', $currentVoucherId))
+                    ->exists();
+
+                if ($linkedExists) {
+                    throw ValidationException::withMessages([
+                        'payment_details_array' => "Payment row {$rowNumber} wali selected " . str_replace('_', ' ', $paymentKey) . " pehle se kisi aur supplier payment mein use ho chuki hai.",
+                    ]);
+                }
+            }
+        }
+    }
+
+    private function normalizeVoucherPaymentMethod(?string $method): string
+    {
+        return strtolower(str_replace([' ', '_', '.'], '', (string) $method));
     }
 }
