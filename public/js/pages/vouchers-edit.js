@@ -722,7 +722,9 @@ function initVouchersEdit() {
                         <div class="w-1/6 capitalize">${selected?.remarks ?? (paymentDetail.remarks !== '' && paymentDetail.remarks) !== null ? paymentDetail.remarks : '-' ?? '-'}</div>
                         <div class="w-[15%]">${formatNumbersWithDigits(paymentDetail.amount, 1, 1)}</div>
                         <div class="w-[10%] text-center">
-                            <button onclick="deselectThisPayment(${index})" type="button" class="text-[var(--danger-color)] text-xs px-2 py-1 rounded-lg hover:text-[var(--h-danger-color)] transition-all duration-300 ease-in-out cursor-pointer">
+                            <button onclick="deselectThisPayment(${index})" type="button" 
+                                class="text-[var(--danger-color)] text-xs px-2 py-1 rounded-lg transition-all duration-300 ease-in-out
+                                ${paymentDetailsArray.length === 1 ? 'opacity-50 cursor-not-allowed pointer-events-none' : 'hover:text-[var(--h-danger-color)] cursor-pointer'}">
                                 <i class="fas fa-trash"></i>
                             </button>
                         </div>

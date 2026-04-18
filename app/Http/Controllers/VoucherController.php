@@ -256,7 +256,7 @@ class VoucherController extends Controller
         ]);
 
         if ($validator->fails()) {
-            return redirect()->back()->withErrors($validator);
+            return redirect()->back()->withErrors($validator)->with('error', $validator->errors()->first());
         }
 
         $paymentDetailsArray = json_decode($request->payment_details_array, true) ?? [];
@@ -534,21 +534,21 @@ class VoucherController extends Controller
 
             foreach ($existingPayments as $old) {
                 // Detach or update related CustomerPayment
-                if ($old->method === "Cheque" && $old->cheque_id) {
+                if (($old->method === "Cheque" || $old->method === "cheque") && $old->cheque_id) {
                     CustomerPayment::where('id', $old->cheque_id)->update([
                         'bank_account_id' => null,
                         'is_return' => false,
                     ]);
                 }
 
-                if ($old->method === "Slip" && $old->slip_id) {
+                if (($old->method === "Slip" || $old->method === "slip") && $old->slip_id) {
                     CustomerPayment::where('id', $old->slip_id)->update([
                         'bank_account_id' => null,
                         'is_return' => false,
                     ]);
                 }
 
-                if ($voucher->supplier_id === null && in_array($old->method, ["Cash", "Adjustment", "Self Cheque", "ATM"]) && !empty($old->self_account_id)) {
+                if ($voucher->supplier_id === null && in_array($old->method, ["Cash", "cash", "Adjustment", "Self Cheque", "ATM"]) && !empty($old->self_account_id)) {
                     CustomerPayment::where([
                         'date' => $old->date,
                         'type' => 'self_account_deposit',
@@ -602,6 +602,14 @@ class VoucherController extends Controller
 
                     if (in_array($pd['method'], ['Cash', 'Adjustment'])) {
                         CustomerPayment::create($cpBase);
+                    }
+
+                    if ($pd['method'] === "Cheque") {
+                        CustomerPayment::where('id', $pd['cheque_id'])->update(['is_return' => false, 'bank_account_id' => $pd['self_account_id']]);
+                    }
+
+                    if ($pd['method'] === "Slip") {
+                        CustomerPayment::where('id', $pd['slip_id'])->update(['is_return' => false, 'bank_account_id' => $pd['self_account_id']]);
                     }
 
                     if ($pd['method'] === "Self Cheque") {
@@ -715,6 +723,7 @@ class VoucherController extends Controller
 
                 $linkedExists = SupplierPayment::query()
                     ->where($paymentKey, $paymentId)
+                    ->where('is_return', false) 
                     ->when($currentVoucherId, fn($q) => $q->where('voucher_id', '!=', $currentVoucherId))
                     ->exists();
 
