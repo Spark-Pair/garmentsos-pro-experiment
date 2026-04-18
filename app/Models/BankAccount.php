@@ -9,20 +9,21 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class BankAccount extends Model
 {
     use HasFactory;
-
     use Filterable, BankAccountComputed;
 
-    protected $fillable = ['category', 'sub_category', 'bank_id', 'account_title', 'date', 'remarks', 'account_no', 'chqbk_serial_start', 'chqbk_serial_end', 'status'];
+    protected $fillable = [
+        'category', 'sub_category', 'bank_id', 'account_title',
+        'date', 'remarks', 'account_no', 'chqbk_serial_start',
+        'chqbk_serial_end', 'status'
+    ];
 
     protected $hidden = [
-        'bank_id',
-        'creator_id',
-        'created_at',
-        'updated_at',
+        'bank_id', 'creator_id', 'created_at', 'updated_at',
     ];
 
     protected $casts = [
@@ -31,20 +32,26 @@ class BankAccount extends Model
 
     protected $appends = ['balance', 'available_cheques'];
 
+    // ─────────────────────────────────────────
+    // Booted
+    // ─────────────────────────────────────────
+
     protected static function booted()
     {
-        // Automatically set creator_id when creating a new Article
         static::creating(function ($thisModel) {
             if (Auth::check()) {
                 $thisModel->creator_id = Auth::id();
             }
         });
 
-        // Always eager load the associated creator
         static::addGlobalScope('withCreator', function (Builder $builder) {
             $builder->with('creator');
         });
     }
+
+    // ─────────────────────────────────────────
+    // Relations
+    // ─────────────────────────────────────────
 
     public function creator()
     {
@@ -55,14 +62,17 @@ class BankAccount extends Model
     {
         return $this->morphTo();
     }
+
     public function bank()
     {
         return $this->belongsTo(Setup::class, 'bank_id')->where('type', 'bank_name');
     }
+
     public function paymentPrograms()
     {
         return $this->morphMany(PaymentProgram::class, 'sub_category');
     }
+
     public function bankAccounts()
     {
         return $this->hasOne(BankAccount::class, 'id');
@@ -73,34 +83,24 @@ class BankAccount extends Model
         return $this->morphMany(StatementAdjustment::class, 'adjustable');
     }
 
+    // ─────────────────────────────────────────
+    // Attributes
+    // ─────────────────────────────────────────
+
     public function getAvailableChequesAttribute()
     {
-        if ($this->category !== 'self') {
-            return null;
-        }
+        if ($this->category !== 'self') return null;
 
-        // Ensure serial start and end are valid numbers
         $start = (int) $this->chqbk_serial_start;
-        $end = (int) $this->chqbk_serial_end;
+        $end   = (int) $this->chqbk_serial_end;
 
-        if ($start <= 0 || $end <= 0 || $end < $start) {
-            // Invalid or missing serials → return empty array
-            return [];
-        }
+        if ($start <= 0 || $end <= 0 || $end < $start) return [];
 
-        // Get all the used cheques for this bank account
         $usedCheques = SupplierPayment::where('bank_account_id', $this->id)
             ->pluck('cheque_no')
             ->toArray();
 
-        // Generate full range of cheque numbers
-        $fullRange = range($start, $end);
-
-        // Filter out the used ones
-        $available = array_diff($fullRange, $usedCheques);
-
-        // Return available cheque numbers
-        return array_values($available);
+        return array_values(array_diff(range($start, $end), $usedCheques));
     }
 
     public function getBalanceAttribute()
@@ -108,238 +108,285 @@ class BankAccount extends Model
         return $this->calculateBalance();
     }
 
+    // ─────────────────────────────────────────
+    // calculateBalance
+    // ─────────────────────────────────────────
+
     public function calculateBalance($fromDate = null, $toDate = null, $formatted = false, $includeGivenDate = true)
     {
         $balance = 0;
-        $adjustmentsQuery = $this->statementAdjustments();
+
         if ($this->category === 'self') {
-            // Self category: existing logic
-            $customerPayments = CustomerPayment::where('bank_account_id', $this->id);
-            // Keep self-account balance in sync with the statement view by
-            // counting every supplier payment linked to this bank account,
-            // including CR entries that may not have a voucher_id.
+            // --- Normal CustomerPayments (no cheque_no, no slip_no) — filter by own date ---
+            $normalPayments = CustomerPayment::where('bank_account_id', $this->id)
+                ->whereNull('cheque_no')
+                ->whereNull('slip_no');
+            $this->applyDateFilter($normalPayments, 'date', $fromDate, $toDate, $includeGivenDate);
+
+            // --- Cheque CustomerPayments — filter by voucher date ---
+            $chequePayments = CustomerPayment::where('bank_account_id', $this->id)
+                ->whereNotNull('cheque_no')
+                ->whereHas('cheque.voucher', function ($q) use ($fromDate, $toDate, $includeGivenDate) {
+                    $this->applyDateFilter($q, 'date', $fromDate, $toDate, $includeGivenDate);
+                });
+
+            // --- Slip CustomerPayments — filter by voucher date ---
+            $slipPayments = CustomerPayment::where('bank_account_id', $this->id)
+                ->whereNotNull('slip_no')
+                ->whereHas('slip.voucher', function ($q) use ($fromDate, $toDate, $includeGivenDate) {
+                    $this->applyDateFilter($q, 'date', $fromDate, $toDate, $includeGivenDate);
+                });
+
+            // --- SupplierPayments — filter by own date ---
             $supplierPayments = SupplierPayment::where('bank_account_id', $this->id);
+            $this->applyDateFilter($supplierPayments, 'date', $fromDate, $toDate, $includeGivenDate);
 
-            // Apply date filters
-            if ($fromDate && $toDate) {
-                if ($includeGivenDate) {
-                    $customerPayments->whereBetween('date', [$fromDate, $toDate]);
-                    $supplierPayments->whereBetween('date', [$fromDate, $toDate]);
-                    $adjustmentsQuery->whereBetween('date', [$fromDate, $toDate]);
-                } else {
-                    $customerPayments->where('date', '>', $fromDate)->where('date', '<', $toDate);
-                    $supplierPayments->where('date', '>', $fromDate)->where('date', '<', $toDate);
-                    $adjustmentsQuery->where('date', '>', $fromDate)->where('date', '<', $toDate);
-                }
-            } elseif ($fromDate) {
-                $operator = $includeGivenDate ? '>=' : '>';
-                $customerPayments->where('date', $operator, $fromDate);
-                $supplierPayments->where('date', $operator, $fromDate);
-                $adjustmentsQuery->where('date', $operator, $fromDate);
-            } elseif ($toDate) {
-                $operator = $includeGivenDate ? '<=' : '<';
-                $customerPayments->where('date', $operator, $toDate);
-                $supplierPayments->where('date', $operator, $toDate);
-                $adjustmentsQuery->where('date', $operator, $toDate);
-            }
+            // --- Adjustments ---
+            $adjustmentsQuery = $this->statementAdjustments();
+            $this->applyDateFilter($adjustmentsQuery, 'date', $fromDate, $toDate, $includeGivenDate);
 
-            $totalPayments = $customerPayments->sum('amount') ?? 0;
-            $totalPays = $supplierPayments->sum('amount') ?? 0;
-            $adjustmentsNet = (float) $adjustmentsQuery->get()->sum(fn($adjustment) => (float) $adjustment->net_amount);
+            $totalInflow  = $normalPayments->sum('amount')
+                          + $chequePayments->sum('amount')
+                          + $slipPayments->sum('amount');
 
-            $balance = ($totalPayments - $totalPays) + $adjustmentsNet;
+            $totalOutflow = $supplierPayments->sum('amount');
 
-        } else if ($this->category === 'supplier') {
+            $adjustmentsNet = (float) $adjustmentsQuery->get()
+                ->sum(fn($adj) => (float) $adj->net_amount);
+
+            $balance = ($totalInflow - $totalOutflow) + $adjustmentsNet;
+
+        } elseif (in_array($this->category, ['supplier', 'customer'])) {
+
             $clearBalance = PaymentClear::where('bank_account_id', $this->id)
-                ->where('method', '!=', 'cash') // ignore cash
-                ->when($fromDate, fn($q) => $q->where('clear_date', $includeGivenDate ? '>=' : '>', $fromDate))
-                ->when($toDate, fn($q) => $q->where('clear_date', $includeGivenDate ? '<=' : '<', $toDate))
-                ->sum('amount');
-            $adjustmentsNet = (float) $adjustmentsQuery
-                ->when($fromDate, fn($q) => $q->where('date', $includeGivenDate ? '>=' : '>', $fromDate))
-                ->when($toDate, fn($q) => $q->where('date', $includeGivenDate ? '<=' : '<', $toDate))
-                ->get()
-                ->sum(fn($adjustment) => (float) $adjustment->net_amount);
-            $balance = $clearBalance + $adjustmentsNet;
-        } else if ($this->category === 'customer') {
-            $clearBalance = PaymentClear::where('bank_account_id', $this->id)
-                ->where('method', '!=', 'cash') // ignore cash
-                ->when($fromDate, fn($q) => $q->where('clear_date', $includeGivenDate ? '>=' : '>', $fromDate))
-                ->when($toDate, fn($q) => $q->where('clear_date', $includeGivenDate ? '<=' : '<', $toDate))
-                ->sum('amount');
-            $adjustmentsNet = (float) $adjustmentsQuery
-                ->when($fromDate, fn($q) => $q->where('date', $includeGivenDate ? '>=' : '>', $fromDate))
-                ->when($toDate, fn($q) => $q->where('date', $includeGivenDate ? '<=' : '<', $toDate))
-                ->get()
-                ->sum(fn($adjustment) => (float) $adjustment->net_amount);
-            $balance = $clearBalance + $adjustmentsNet;
+                ->where('method', '!=', 'cash');
+            $this->applyDateFilter($clearBalance, 'clear_date', $fromDate, $toDate, $includeGivenDate);
+
+            $adjustmentsQuery = $this->statementAdjustments();
+            $this->applyDateFilter($adjustmentsQuery, 'date', $fromDate, $toDate, $includeGivenDate);
+
+            $adjustmentsNet = (float) $adjustmentsQuery->get()
+                ->sum(fn($adj) => (float) $adj->net_amount);
+
+            $balance = $clearBalance->sum('amount') + $adjustmentsNet;
         }
 
         return $formatted ? number_format($balance, 1, '.', ',') : $balance;
     }
+
+    // ─────────────────────────────────────────
+    // getStatement
+    // ─────────────────────────────────────────
+
     public function getStatement($fromDate, $toDate, $type = 'general')
     {
         $type = $type ?: 'general';
-        // 🧮 Opening & Closing Balances
+
+        $from = Carbon::parse($fromDate)->toDateString();
+        $to   = Carbon::parse($toDate)->toDateString();
+
+        // Opening & Closing Balances
         $openingBalance = $this->calculateBalance(null, $fromDate, false, false);
         $periodBalance  = $this->calculateBalance($fromDate, $toDate);
         $closingBalance = $openingBalance + $periodBalance;
 
-        // --- Shared Queries ---
+        // ── CustomerPayments query ──
+        // Normal: apni date se, Cheque/Slip: voucher date se filter
         $customerQuery = CustomerPayment::where('bank_account_id', $this->id)
-            ->whereBetween('date', [$fromDate, $toDate]);
+            ->where(function ($q) use ($from, $to) {
+                // Normal (no cheque, no slip)
+                $q->where(function ($q) use ($from, $to) {
+                    $q->whereNull('cheque_no')
+                      ->whereNull('slip_no')
+                      ->whereBetween(DB::raw('DATE(date)'), [$from, $to]);
+                })
+                // Cheque — voucher date
+                ->orWhere(function ($q) use ($from, $to) {
+                    $q->whereNotNull('cheque_no')
+                      ->whereHas('cheque.voucher', fn($q) =>
+                          $q->whereBetween(DB::raw('DATE(date)'), [$from, $to])
+                      );
+                })
+                // Slip — voucher date
+                ->orWhere(function ($q) use ($from, $to) {
+                    $q->whereNotNull('slip_no')
+                      ->whereHas('slip.voucher', fn($q) =>
+                          $q->whereBetween(DB::raw('DATE(date)'), [$from, $to])
+                      );
+                });
+            })
+            ->with([
+                'cheque.voucher',
+                'slip.voucher',
+                'customer.city',
+            ]);
 
+        // ── SupplierPayments query ──
         $supplierQuery = SupplierPayment::where('bank_account_id', $this->id)
-            ->whereBetween('date', [$fromDate, $toDate])
-            ->with('bankAccount.bank');
+            ->whereBetween(DB::raw('DATE(date)'), [$from, $to])
+            ->with('bankAccount.bank', 'cheque', 'slip');
+
+        // ── Adjustments ──
         $adjustments = $this->statementAdjustments()
-            ->whereBetween('date', [$fromDate, $toDate])
+            ->whereBetween(DB::raw('DATE(date)'), [$from, $to])
             ->get();
+
         $formatAdjustment = function ($adjustment, $forSummary = false) {
             $isPlus = $adjustment->direction === 'plus';
-            $label = $adjustment->entry_type === 'opening_balance' ? 'Opening Balance' : 'Adjustment';
-
+            $label  = $adjustment->entry_type === 'opening_balance' ? 'Opening Balance' : 'Adjustment';
             return [
-                'date' => $forSummary ? Carbon::parse($adjustment->date)->toDateString() : $adjustment->date,
-                'reff_no' => ($adjustment->entry_type === 'opening_balance' ? 'OB' : 'ADJ') . '-' . $adjustment->id,
-                'type' => $isPlus ? 'invoice' : 'payment',
-                'method' => $label,
-                'bill' => $isPlus ? (float) $adjustment->amount : 0,
-                'payment' => $isPlus ? 0 : (float) $adjustment->amount,
+                'date'        => $forSummary
+                    ? Carbon::parse($adjustment->date)->toDateString()
+                    : $adjustment->date,
+                'reff_no'     => ($adjustment->entry_type === 'opening_balance' ? 'OB' : 'ADJ') . '-' . $adjustment->id,
+                'type'        => $isPlus ? 'invoice' : 'payment',
+                'method'      => $label,
+                'bill'        => $isPlus ? (float) $adjustment->amount : 0,
+                'payment'     => $isPlus ? 0 : (float) $adjustment->amount,
                 'description' => $adjustment->remarks ?: $label,
-                'created_at' => $adjustment->created_at,
+                'created_at'  => $adjustment->created_at,
             ];
         };
 
+        // Helper: effective date for a CustomerPayment
+        $effectiveDate = fn($p) => $p->cheque_no
+            ? ($p->cheque?->voucher?->date ?? $p->date)
+            : ($p->slip_no
+                ? ($p->slip?->voucher?->date ?? $p->date)
+                : $p->date);
+
+        // ─────────────────────────────────────
+        // SUMMARIZED
+        // ─────────────────────────────────────
         if ($type === 'summarized') {
-            // 🧾 Customer Payments (inflow)
+
             $customerPayments = collect($customerQuery->get())->map(fn($p) => [
-                'type' => 'invoice',
-                'date' => Carbon::parse($p->date)->toDateString(), // normalize date
-                'bill' => (float) ($p->amount ?? 0),
-                'payment' => 0,
+                'type'       => 'invoice',
+                'date'       => Carbon::parse($effectiveDate($p))->toDateString(),
+                'bill'       => (float) ($p->amount ?? 0),
+                'payment'    => 0,
                 'created_at' => $p->created_at,
             ]);
 
-            // 💵 Supplier Payments (outflow)
             $supplierPayments = collect($supplierQuery->get())->map(fn($p) => [
-                'type' => 'payment',
-                'date' => Carbon::parse($p->date)->toDateString(), // normalize date
-                'bill' => 0,
-                'payment' => (float) ($p->amount ?? 0),
+                'type'       => 'payment',
+                'date'       => Carbon::parse($p->date)->toDateString(),
+                'bill'       => 0,
+                'payment'    => (float) ($p->amount ?? 0),
                 'created_at' => $p->created_at,
             ]);
-            $adjustmentRows = $adjustments->map(fn($adjustment) => $formatAdjustment($adjustment, true));
 
-            // 📅 Merge & group by date
+            $adjustmentRows = $adjustments->map(fn($adj) => $formatAdjustment($adj, true));
+
             $statement = $customerPayments
                 ->merge($supplierPayments)
                 ->merge($adjustmentRows)
                 ->groupBy('date')
                 ->flatMap(function ($rows, $date) {
-                    // 🔹 Sort by created_at within each date
-                    $rows = $rows->sortBy('created_at');
-
-                    $billSum = (float) $rows->sum('bill');
+                    $rows       = $rows->sortBy('created_at');
+                    $billSum    = (float) $rows->sum('bill');
                     $paymentSum = (float) $rows->sum('payment');
+                    $results    = [];
 
-                    $results = [];
-
-                    // ✅ If that date has payments — find earliest created_at among them
                     if ($paymentSum > 0) {
-                        $firstPaymentCreatedAt = $rows
-                            ->where('type', 'payment')
-                            ->min('created_at');
-
                         $results[] = [
-                            'type' => 'payment',
-                            'date' => Carbon::parse($date),
-                            'bill' => 0,
-                            'payment' => $paymentSum,
-                            'created_at' => $firstPaymentCreatedAt,
+                            'type'       => 'payment',
+                            'date'       => Carbon::parse($date),
+                            'bill'       => 0,
+                            'payment'    => $paymentSum,
+                            'created_at' => $rows->where('type', 'payment')->min('created_at'),
                         ];
                     }
 
-                    // ✅ If that date has invoices — find earliest created_at among them
                     if ($billSum > 0) {
-                        $firstInvoiceCreatedAt = $rows
-                            ->where('type', 'invoice')
-                            ->min('created_at');
-
                         $results[] = [
-                            'type' => 'invoice',
-                            'date' => Carbon::parse($date),
-                            'bill' => $billSum,
-                            'payment' => 0,
-                            'created_at' => $firstInvoiceCreatedAt,
+                            'type'       => 'invoice',
+                            'date'       => Carbon::parse($date),
+                            'bill'       => $billSum,
+                            'payment'    => 0,
+                            'created_at' => $rows->where('type', 'invoice')->min('created_at'),
                         ];
                     }
 
                     return collect($results)->sortBy('created_at')->values();
                 })
-                ->sortBy([
-                    ['date', 'asc'],
-                    ['created_at', 'asc'],
-                ])
+                ->sortBy([['date', 'asc'], ['created_at', 'asc']])
                 ->values();
-        }
 
-        else {
-            // 🧾 Customer Payments (detailed)
+        // ─────────────────────────────────────
+        // GENERAL (detailed)
+        // ─────────────────────────────────────
+        } else {
+
             $customerPayments = collect($customerQuery->get())->map(fn($p) => [
-                'date' => $p->date ?? null,
-                'reff_no' => $p->cheque_no ?? $p->slip_no ?? $p->transaction_id ?? $p->reff_no ?? null,
-                'type' => 'invoice',
-                'method' => $p->method ?? null,
-                'bill' => (float) ($p->amount ?? 0),
-                'payment' => 0,
+                'date'        => $effectiveDate($p),
+                'reff_no'     => $p->cheque_no ?? $p->slip_no ?? $p->transaction_id ?? $p->reff_no ?? null,
+                'type'        => 'invoice',
+                'method'      => $p->method ?? null,
+                'bill'        => (float) ($p->amount ?? 0),
+                'payment'     => 0,
                 'description' => ($p->customer?->customer_name . ' | ' . $p->customer?->city?->short_title) ?? $p->remarks ?? null,
-                'created_at' => $p->created_at ?? null,
+                'created_at'  => $p->created_at ?? null,
             ]);
 
-            // 💵 Supplier Payments (detailed)
             $supplierPayments = collect($supplierQuery->get())->map(fn($p) => [
-                'date' => $p->date ?? null,
-                'reff_no' => $p->cheque_no ?? $p->slip?->slip_no ?? $p->cheque?->cheque_no ?? $p->transaction_id ?? $p->reff_no ?? null,
-                'type' => 'payment',
-                'method' => $p->method ?? null,
-                'payment' => (float) ($p->amount ?? 0),
-                'bill' => 0,
+                'date'        => $p->date ?? null,
+                'reff_no'     => $p->cheque_no ?? $p->slip?->slip_no ?? $p->cheque?->cheque_no ?? $p->transaction_id ?? $p->reff_no ?? null,
+                'type'        => 'payment',
+                'method'      => $p->method ?? null,
+                'payment'     => (float) ($p->amount ?? 0),
+                'bill'        => 0,
                 'description' => $p->supplier?->supplier_name ?? $p->remarks ?? null,
-                'created_at' => $p->created_at ?? null,
+                'created_at'  => $p->created_at ?? null,
             ]);
-            $adjustmentRows = $adjustments->map(fn($adjustment) => $formatAdjustment($adjustment));
 
-            // 📅 Merge & sort (date → created_at)
+            $adjustmentRows = $adjustments->map(fn($adj) => $formatAdjustment($adj));
+
             $statement = $customerPayments
                 ->merge($supplierPayments)
                 ->merge($adjustmentRows)
-                ->sortBy([
-                    ['date', 'asc'],
-                    ['created_at', 'asc'],
-                ])
+                ->sortBy([['date', 'asc'], ['created_at', 'asc']])
                 ->values();
         }
 
-        // 🧮 Totals
-        $billTotal = $statement->sum('bill');
+        $billTotal    = $statement->sum('bill');
         $paymentTotal = $statement->sum('payment');
 
-        $totals = [
-            'bill' => $billTotal,
-            'payment' => $paymentTotal,
-            'balance' => $billTotal - $paymentTotal,
-        ];
-
-        // 🧩 Final Response
         return [
-            'date' => Carbon::parse($fromDate)->format('d-M-Y') . ' - ' . Carbon::parse($toDate)->format('d-M-Y'),
-            'name' => "{$this->account_title} | {$this->bank->short_title}",
+            'date'            => Carbon::parse($fromDate)->format('d-M-Y') . ' - ' . Carbon::parse($toDate)->format('d-M-Y'),
+            'name'            => "{$this->account_title} | {$this->bank->short_title}",
             'opening_balance' => $openingBalance,
             'closing_balance' => $closingBalance,
-            'statements' => $statement,
-            'totals' => $totals,
+            'statements'      => $statement,
+            'totals'          => [
+                'bill'    => $billTotal,
+                'payment' => $paymentTotal,
+                'balance' => $billTotal - $paymentTotal,
+            ],
             'category' => 'account',
         ];
+    }
+
+    // ─────────────────────────────────────────
+    // Private Helpers
+    // ─────────────────────────────────────────
+
+    private function applyDateFilter($query, string $column, $fromDate, $toDate, bool $includeGivenDate): void
+    {
+        $from = $fromDate ? Carbon::parse($fromDate)->toDateString() : null;
+        $to   = $toDate   ? Carbon::parse($toDate)->toDateString()   : null;
+
+        if ($from && $to) {
+            if ($includeGivenDate) {
+                $query->whereBetween(DB::raw("DATE($column)"), [$from, $to]);
+            } else {
+                $query->where(DB::raw("DATE($column)"), '>', $from)
+                      ->where(DB::raw("DATE($column)"), '<', $to);
+            }
+        } elseif ($from) {
+            $query->where(DB::raw("DATE($column)"), $includeGivenDate ? '>=' : '>', $from);
+        } elseif ($to) {
+            $query->where(DB::raw("DATE($column)"), $includeGivenDate ? '<=' : '<', $to);
+        }
     }
 }
