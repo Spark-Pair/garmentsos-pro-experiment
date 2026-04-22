@@ -16,14 +16,26 @@ class ExpenseController extends Controller
      */
     public function index(Request $request)
     {
-        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin', 'accountant', 'guest'])) {
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin', 'accountant', 'guest', 'supplier'])) {
             return $resp;
         }
         $authLayout = $this->getAuthLayout($request->route()->getName(), 'table');
 
         if ($request->ajax()) {
-            $shipments = Expense::with(['supplier', 'expenseSetups'])->orderByDesc('id')
-                ->applyFilters($request);
+            $expensesQuery = Expense::with(['supplier', 'expenseSetups'])->orderByDesc('id');
+
+            if ($this->isSupplierRole()) {
+                $supplier = $this->currentSupplier();
+                if (!$supplier) {
+                    return response()->json([
+                        'status' => 'error',
+                        'message' => 'Supplier account not linked with this user.',
+                    ], 403);
+                }
+                $expensesQuery->where('supplier_id', $supplier->id);
+            }
+
+            $shipments = $expensesQuery->applyFilters($request);
 
             $totalAmount = (float) $shipments->sum(fn ($item) => (float) str_replace(',', '', $item['amount'] ?? 0));
 

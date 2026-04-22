@@ -29,6 +29,36 @@ class Controller extends BaseController
 {
     use AuthorizesRequests, ValidatesRequests;
 
+    protected function isCustomerRole(): bool
+    {
+        return Auth::user()?->role === 'customer';
+    }
+
+    protected function isSupplierRole(): bool
+    {
+        return Auth::user()?->role === 'supplier';
+    }
+
+    protected function currentCustomer(): ?Customer
+    {
+        $userId = Auth::id();
+        if (!$userId) {
+            return null;
+        }
+
+        return Customer::where('user_id', $userId)->first();
+    }
+
+    protected function currentSupplier(): ?Supplier
+    {
+        $userId = Auth::id();
+        if (!$userId) {
+            return null;
+        }
+
+        return Supplier::where('user_id', $userId)->first();
+    }
+
     public function home() {
         $today = Carbon::today();
         $fiveDaysLater = Carbon::today()->addDays(5);

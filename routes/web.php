@@ -185,6 +185,7 @@ Route::group(['middleware' => ['auth', 'activeSession', 'subscriptionExpiry', 'r
     Route::resource('sales-returns', SalesReturnController::class);
     Route::post('sales-returns/get-details', [SalesReturnController::class, 'getDetails'])->name('sales-returns.get-details');
     Route::resource('statement-adjustments', StatementAdjustmentController::class)->only(['create', 'store']);
+    Route::post('statement-adjustments/first-transaction-date', [StatementAdjustmentController::class, 'firstTransactionDate'])->name('statement-adjustments.first-transaction-date');
 
     Route::get('attendances/create', [AttendanceController::class, 'create'])->name('attendances.create');
     Route::post('attendances/store', [AttendanceController::class, 'store'])->name('attendances.store');

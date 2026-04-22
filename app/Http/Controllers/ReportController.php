@@ -18,12 +18,32 @@ class ReportController extends Controller
 {
     public function statement(Request $request)
     {
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'manager', 'admin', 'accountant', 'guest', 'store_keeper', 'customer', 'supplier'])) {
+            return $resp;
+        }
+
         if (!empty($request)) {
             $type = $request->type;
             $category = $request->category;
             $id = $request->id;
             $dateFrom = $request->date_from;
             $dateTo = $request->date_to;
+
+            if ($this->isCustomerRole()) {
+                $customer = $this->currentCustomer();
+                if (!$customer) {
+                    return response()->json(['error' => 'Customer account not linked with this user.'], 403);
+                }
+                $category = 'customer';
+                $id = $customer->id;
+            } elseif ($this->isSupplierRole()) {
+                $supplier = $this->currentSupplier();
+                if (!$supplier) {
+                    return response()->json(['error' => 'Supplier account not linked with this user.'], 403);
+                }
+                $category = 'supplier';
+                $id = $supplier->id;
+            }
 
 
             if ($request->withData) {
@@ -69,10 +89,41 @@ class ReportController extends Controller
     // fucntion get names based on category
     public function getNames(Request $request)
     {
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'manager', 'admin', 'accountant', 'guest', 'store_keeper', 'customer', 'supplier'])) {
+            return $resp;
+        }
+
         $category = $request->category;
 
         if (!$category) {
             return response()->json(['error' => 'Category required'], 400);
+        }
+
+        if ($this->isCustomerRole()) {
+            if ($category !== 'customer') {
+                return response()->json([], 200);
+            }
+
+            $customer = $this->currentCustomer();
+            if (!$customer) {
+                return response()->json([], 200);
+            }
+
+            $customer->load('city');
+            return response()->json([$customer]);
+        }
+
+        if ($this->isSupplierRole()) {
+            if ($category !== 'supplier') {
+                return response()->json([], 200);
+            }
+
+            $supplier = $this->currentSupplier();
+            if (!$supplier) {
+                return response()->json([], 200);
+            }
+
+            return response()->json([$supplier]);
         }
 
         if ($category === 'customer') {

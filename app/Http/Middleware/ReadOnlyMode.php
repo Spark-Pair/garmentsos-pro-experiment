@@ -36,6 +36,7 @@ class ReadOnlyMode
             'get-utility-accounts',
             'sales-returns.get-details',
             'reports.statement.get-names',
+            'statement-adjustments.first-transaction-date',
             'payment-programs.get-summary',
             'change-data-layout',
             'set-invoice-type',

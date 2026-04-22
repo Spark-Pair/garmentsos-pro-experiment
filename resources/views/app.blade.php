@@ -235,6 +235,18 @@
             transition: opacity .2s linear;
         }
 
+        #mobileMenu.is-open {
+            transform: translateY(0) !important;
+        }
+
+        @media (max-width: 768px) {
+            /* Allow horizontal scroll for A4 previews on small screens */
+            #preview-container {
+                overflow-x: auto !important;
+                -webkit-overflow-scrolling: touch;
+            }
+        }
+
         .card {
             transition: all 0.3s ease-in-out;
             position: relative;

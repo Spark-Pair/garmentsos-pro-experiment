@@ -155,9 +155,9 @@
     </aside>
     {{-- mobile menu --}}
     <div id="mobileMenuOverlay"
-        class="mobileMenuOverlay w-screen h-screen bg-[var(--overlay-color)] opacity-zero opacity-transition pointer-events-none fixed z-30">
+        class="mobileMenuOverlay inset-0 w-screen h-screen bg-[var(--overlay-color)] opacity-zero opacity-transition pointer-events-none fixed z-50">
         <div id="mobileMenu"
-            class="fixed md:hidden w-full bg-[var(--secondary-bg-color)] z-30 flex flex-col items-start justify-start p-4 space-y-4 transform -translate-y-full transition-all 0.5s ease-in-out">
+            class="fixed top-0 left-0 md:hidden w-full max-h-screen overflow-y-auto bg-[var(--secondary-bg-color)] z-50 flex flex-col items-start justify-start p-4 space-y-4 transform -translate-y-full transition-all 0.5s ease-in-out">
             <!-- Main Menu Items -->
             <div class="flex flex-col space-y-2 w-full">
                 <x-mobile-menu-item href="/" title="Home" active="{{ request()->is('home') }}" />
@@ -646,6 +646,79 @@
                     {name: 'Show Payments', href: "/employee-payments"},
                     {name: 'Add Payments', href: "/employee-payments/create"},
                 ]
+            },
+        @endif
+
+        @if (Auth::user()->role === 'customer')
+            {
+                id: "orders",
+                name: "Orders",
+                details: {
+                    '': 'Create and view your orders',
+                },
+                bottomChip: '2 actions',
+                svgIcon:'<svg class="size-5 fill-[var(--text-color)] group-hover:fill-[var(--primary-color)]" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640"><path d="M160 96C160 78.3 174.3 64 192 64L448 64C465.7 64 480 78.3 480 96L480 544C480 561.7 465.7 576 448 576L192 576C174.3 576 160 561.7 160 544L160 96zM224 160C210.7 160 200 170.7 200 184C200 197.3 210.7 208 224 208L416 208C429.3 208 440 197.3 440 184C440 170.7 429.3 160 416 160L224 160zM224 272C210.7 272 200 282.7 200 296C200 309.3 210.7 320 224 320L416 320C429.3 320 440 309.3 440 296C440 282.7 429.3 272 416 272L224 272zM224 384C210.7 384 200 394.7 200 408C200 421.3 210.7 432 224 432L416 432C429.3 432 440 421.3 440 408C440 394.7 429.3 384 416 384L224 384z"/></svg>',
+                noMargin: true,
+                onclick: 'openSubMenu(event, this)',
+                oncontextmenu: 'openSubMenu(event, this)',
+                switchBtn: {
+                    active: false,
+                },
+                subMenu: [
+                    {name: 'Show Orders', href: "/orders"},
+                    {name: 'Generate Order', href: "/orders/create"},
+                ]
+            },
+            {
+                id: "statement",
+                name: "Statement",
+                details: {
+                    '': 'View your statement',
+                },
+                bottomChip: '1 action',
+                svgIcon:'<svg class="size-5 fill-[var(--text-color)] group-hover:fill-[var(--primary-color)]" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640"><path d="M192 64C156.7 64 128 92.7 128 128L128 512C128 547.3 156.7 576 192 576L448 576C483.3 576 512 547.3 512 512L512 234.5C512 217.5 505.3 201.2 493.3 189.2L386.7 82.7C374.7 70.7 358.5 64 341.5 64L192 64zM453.5 240L360 240C346.7 240 336 229.3 336 216L336 122.5L453.5 240z"/></svg>',
+                noMargin: true,
+                onclick: 'window.location.href=\"/reports/statement\"',
+                oncontextmenu: 'window.location.href=\"/reports/statement\"',
+            },
+        @endif
+
+        @if (Auth::user()->role === 'supplier')
+            {
+                id: "expenses",
+                name: "Expenses",
+                details: {
+                    '': 'View your expenses',
+                },
+                bottomChip: '1 action',
+                svgIcon:'<svg class="size-5 fill-[var(--text-color)] group-hover:fill-[var(--primary-color)]" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640"><path d="M192 64C156.7 64 128 92.7 128 128L128 512C128 547.3 156.7 576 192 576L448 576C483.3 576 512 547.3 512 512L512 234.5C512 217.5 505.3 201.2 493.3 189.2L386.7 82.7C374.7 70.7 358.5 64 341.5 64L192 64zM453.5 240L360 240C346.7 240 336 229.3 336 216L336 122.5L453.5 240z"/></svg>',
+                noMargin: true,
+                onclick: 'window.location.href=\"/expenses\"',
+                oncontextmenu: 'window.location.href=\"/expenses\"',
+            },
+            {
+                id: "productions",
+                name: "Productions",
+                details: {
+                    '': 'View your productions',
+                },
+                bottomChip: '1 action',
+                svgIcon:'<svg class="size-5 fill-[var(--text-color)] group-hover:fill-[var(--primary-color)]" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1411.82 1222.49"><path d="M1293.89,1033.7H636.33V799.41h15.52q93.3,0,186.6,0c24.51,0,32.26-7.88,32.27-32.7q.06-132.23,0-264.43c0-23.92-8-32.06-31.4-32.08q-144.72-.07-289.45,0c-23.78,0-31,7.19-32.07,31.51-2.58,58-54,108.29-112.23,109.42-16.63.32-33.27,0-52.26,0,0,23.3-.11,46.07,0,68.84.08,13-6,21.65-18.45,24.77-14.82,3.71-28.08-7.17-28.38-23.38-.43-22.88-.11-45.78-.11-70.18-16.87,0-32.4.1-47.94,0a117,117,0,0,1-116.6-116.93q-.36-155,0-310C142.16,85.21,226.59.26,325.49.17q437.1-.42,874.22-.06c52.78,0,94.1,41.25,94.12,94q.17,463.47.06,927Zm-234.8-916.12c-76.86-.21-141.4,64.21-141.35,141.1,0,76.28,63.55,140.21,140,141,76.66.76,141.6-63.41,142.07-140.4C1200.31,182.43,1136.09,117.79,1059.09,117.58Z"/></svg>',
+                noMargin: true,
+                onclick: 'window.location.href=\"/productions\"',
+                oncontextmenu: 'window.location.href=\"/productions\"',
+            },
+            {
+                id: "statement",
+                name: "Statement",
+                details: {
+                    '': 'View your statement',
+                },
+                bottomChip: '1 action',
+                svgIcon:'<svg class="size-5 fill-[var(--text-color)] group-hover:fill-[var(--primary-color)]" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640"><path d="M192 64C156.7 64 128 92.7 128 128L128 512C128 547.3 156.7 576 192 576L448 576C483.3 576 512 547.3 512 512L512 234.5C512 217.5 505.3 201.2 493.3 189.2L386.7 82.7C374.7 70.7 358.5 64 341.5 64L192 64zM453.5 240L360 240C346.7 240 336 229.3 336 216L336 122.5L453.5 240z"/></svg>',
+                noMargin: true,
+                onclick: 'window.location.href=\"/reports/statement\"',
+                oncontextmenu: 'window.location.href=\"/reports/statement\"',
             },
         @endif
 

@@ -18,15 +18,27 @@ class OrderController extends Controller
      */
     public function index(Request $request)
     {
-        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'manager', 'admin', 'accountant', 'guest'])) {
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'manager', 'admin', 'accountant', 'guest', 'customer'])) {
             return $resp;
         }
 
         $authLayout = $this->getAuthLayout($request->route()->getName());
 
         if ($request->ajax()) {
-            $orders = Order::with('customer.city', 'articles.article')->orderByDesc('id')
-                ->applyFilters($request);
+            $ordersQuery = Order::with('customer.city', 'articles.article')->orderByDesc('id');
+
+            if ($this->isCustomerRole()) {
+                $customer = $this->currentCustomer();
+                if (!$customer) {
+                    return response()->json([
+                        'status' => 'error',
+                        'message' => 'Customer account not linked with this user.',
+                    ], 403);
+                }
+                $ordersQuery->where('customer_id', $customer->id);
+            }
+
+            $orders = $ordersQuery->applyFilters($request);
 
             return response()->json(['data' => $orders, 'authLayout' => $authLayout]);
         }
@@ -83,7 +95,7 @@ class OrderController extends Controller
      */
     public function create(Request $request)
     {
-        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin', 'accountant'])) {
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin', 'accountant', 'customer'])) {
             return $resp;
         }
 
@@ -91,13 +103,23 @@ class OrderController extends Controller
         $articles = [];
 
         if ($request->date) {
-            $customers = Customer::with('city')
-                ->whereHas('user', function ($query) {
-                    $query->where('status', 'active');
-                })
-                ->where('date', '<=', $request->date)
-                ->select('id', 'customer_name', 'city_id')
-                ->get();
+            if ($this->isCustomerRole()) {
+                $customer = $this->currentCustomer();
+                if ($customer && $customer->date && $customer->date->toDateString() <= $request->date) {
+                    $customer->load('city');
+                    $customers = collect([$customer]);
+                } else {
+                    $customers = collect();
+                }
+            } else {
+                $customers = Customer::with('city')
+                    ->whereHas('user', function ($query) {
+                        $query->where('status', 'active');
+                    })
+                    ->where('date', '<=', $request->date)
+                    ->select('id', 'customer_name', 'city_id')
+                    ->get();
+            }
 
             foreach ($customers as $customer) {
                 $customers_options[(int)$customer->id] = [
@@ -147,8 +169,16 @@ class OrderController extends Controller
      */
     public function store(Request $request)
     {
-        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin', 'accountant'])) {
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin', 'accountant', 'customer'])) {
             return $resp;
+        }
+
+        if ($this->isCustomerRole()) {
+            $customer = $this->currentCustomer();
+            if (!$customer) {
+                return redirect()->back()->with('error', 'Customer account not linked with this user.');
+            }
+            $request->merge(['customer_id' => $customer->id]);
         }
 
         $validator = Validator::make($request->all(), [
@@ -222,6 +252,10 @@ class OrderController extends Controller
      */
     public function edit(Order $order)
     {
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin', 'accountant'])) {
+            return $resp;
+        }
+
         $order->load([
             'customer.city',
             'articles.article',

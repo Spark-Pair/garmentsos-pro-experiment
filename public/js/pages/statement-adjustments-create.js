@@ -1,6 +1,80 @@
 (() => {
     function initStatementAdjustmentsCreate() {
         const config = window.__statementAdjustmentsCreate || {};
+        const dateDom = document.getElementById('date');
+
+        function todayString() {
+            return new Date().toISOString().slice(0, 10);
+        }
+
+        function setDateReadonly(readonly) {
+            if (!dateDom) return;
+            dateDom.readOnly = !!readonly;
+            dateDom.style.pointerEvents = readonly ? 'none' : 'auto';
+            dateDom.style.opacity = readonly ? '0.85' : '';
+        }
+
+        function getHiddenValue(id) {
+            return document.querySelector(`input.dbInput[data-for="${id}"]`)?.value ?? '';
+        }
+
+        function maybeSetDefaultDate() {
+            if (!dateDom) return;
+            if (!dateDom.value) {
+                dateDom.value = todayString();
+            }
+        }
+
+        function fetchFirstTransactionDate(category, adjustableId, onSuccess) {
+            $.ajax({
+                url: config.firstDateUrl,
+                type: 'POST',
+                data: {
+                    _token: config.csrfToken,
+                    category,
+                    adjustable_id: adjustableId,
+                },
+                success: function (response) {
+                    const date = response?.date || '';
+                    onSuccess?.(date);
+                },
+                error: function (xhr) {
+                    console.error('Failed to fetch first transaction date:', xhr);
+                    onSuccess?.('');
+                },
+            });
+        }
+
+        function syncDateBehavior() {
+            const entryType = getHiddenValue('entry_type');
+            const category = getHiddenValue('category');
+            const adjustableId = getHiddenValue('adjustable_id');
+
+            if (!dateDom) return;
+
+            if (entryType === 'opening_balance') {
+                setDateReadonly(true);
+
+                if (category && adjustableId) {
+                    fetchFirstTransactionDate(category, adjustableId, (date) => {
+                        dateDom.value = date || dateDom.value || todayString();
+                    });
+                } else {
+                    maybeSetDefaultDate();
+                }
+
+                return;
+            }
+
+            // Default: adjustment (or empty)
+            if (!entryType) {
+                setDateReadonly(true);
+                return;
+            }
+
+            setDateReadonly(false);
+            maybeSetDefaultDate();
+        }
 
         function getNameLabel(category, item) {
             if (category === 'customer') {
@@ -75,11 +149,20 @@
                 },
                 success: function (response) {
                     fillAdjustableOptions(category, response || []);
+                    syncDateBehavior();
                 },
                 error: function (xhr) {
                     console.error('Failed to load names:', xhr);
                 },
             });
+        };
+
+        window.onStatementAdjustmentEntryTypeChange = function onStatementAdjustmentEntryTypeChange() {
+            syncDateBehavior();
+        };
+
+        window.onStatementAdjustmentAdjustableChange = function onStatementAdjustmentAdjustableChange() {
+            syncDateBehavior();
         };
 
         if (config.oldCategory) {
@@ -91,6 +174,9 @@
                 }
             }
         }
+
+        // Initial state
+        syncDateBehavior();
     }
 
     if (document.readyState === 'loading') {

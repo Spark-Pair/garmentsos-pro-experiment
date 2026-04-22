@@ -204,6 +204,21 @@ class VoucherController extends Controller
             $last_voucher = (object)['voucher_no' => '00/149'];
         }
 
+        // --- Self Accounts (needed for Self Cheque / ATM even in supplier vouchers) ---
+        $self_accounts = BankAccount::where('category', 'self')
+            ->with('bank')
+            ->get()
+            ->makeHidden('creator');
+
+        $self_accounts_options = $self_accounts->mapWithKeys(function ($account) {
+            return [
+                (int)$account->id => [
+                    'text' => $account->account_title . ' - ' . $account->bank->short_title,
+                    'data_option' => $account,
+                ]
+            ];
+        })->toArray();
+
         if ($voucherType == 'supplier') {
             // --- Suppliers ---
             $suppliers = Supplier::whereHas('user', fn($q) => $q->where('status', 'active'))->select('id', 'supplier_name', 'date')->get();
@@ -217,23 +232,8 @@ class VoucherController extends Controller
                 ];
             })->toArray();
 
-            return view("vouchers.create", compact("suppliers_options", 'last_voucher'));
+            return view("vouchers.create", compact("suppliers_options", 'self_accounts_options', 'last_voucher'));
         } else {
-            // --- Self Accounts ---
-            $self_accounts = BankAccount::where('category', 'self')
-                ->with('bank')
-                ->get()
-                ->makeHidden('creator');
-
-            $self_accounts_options = $self_accounts->mapWithKeys(function ($account) {
-                return [
-                    (int)$account->id => [
-                        'text' => $account->account_title . ' - ' . $account->bank->short_title,
-                        'data_option' => $account,
-                    ]
-                ];
-            })->toArray();
-
             return view("vouchers.create", compact("self_accounts_options", 'last_voucher'));
         }
     }

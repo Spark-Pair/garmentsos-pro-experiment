@@ -21,7 +21,7 @@ class ProductionController extends Controller
      */
     public function index(Request $request)
     {
-        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'manager', 'admin', 'accountant', 'guest', 'store_keeper'])) {
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'manager', 'admin', 'accountant', 'guest', 'store_keeper', 'supplier'])) {
             return $resp;
         }
         $authLayout = $this->getAuthLayout($request->route()->getName(), 'table');
@@ -29,8 +29,20 @@ class ProductionController extends Controller
         // $productions = Production::with('article', 'work', 'worker')->orderby('id', 'desc')->get();
 
         if ($request->ajax()) {
-            $productions = Production::orderByDesc('id')
-                ->applyFilters($request);
+            $productionsQuery = Production::orderByDesc('id');
+
+            if ($this->isSupplierRole()) {
+                $supplier = $this->currentSupplier();
+                if (!$supplier) {
+                    return response()->json([
+                        'status' => 'error',
+                        'message' => 'Supplier account not linked with this user.',
+                    ], 403);
+                }
+                $productionsQuery->where('supplier_id', $supplier->id);
+            }
+
+            $productions = $productionsQuery->applyFilters($request);
 
             return response()->json(['data' => $productions, 'authLayout' => $authLayout]);
         }

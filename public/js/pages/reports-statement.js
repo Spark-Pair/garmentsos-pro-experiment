@@ -2,6 +2,7 @@
     function initReportsStatement() {
         const config = window.__reportsStatement || {};
         let btnTypeGlobal = config.statementType || "general";
+        const portal = config.portal || {};
 
         window.setVoucherType = function setVoucherType(btn, btnType) {
             doHide = true;
@@ -102,6 +103,14 @@
 
                         nameSelectDropDown.innerHTML = clutter;
                         nameSelect.disabled = false;
+
+                        if (portal?.category && portal?.id && portal.category === category) {
+                            const option = nameSelectDropDown.querySelector(`li[data-value="${portal.id}"]`);
+                            if (option) {
+                                selectThisOption(option);
+                                nameSelect.disabled = true;
+                            }
+                        }
                     } else {
                         const option = document.createElement("option");
                         option.value = "";
@@ -337,6 +346,26 @@
             getStatement();
             return true;
         };
+
+        function forcePortalSelections() {
+            if (!portal?.category || !portal?.id) return;
+
+            const categoryUl = document.querySelector('ul[data-for="category"]');
+            const categoryVisible = document.getElementById('category');
+            const nameVisible = document.getElementById('nameSelect');
+
+            const categoryLi = categoryUl?.querySelector(`li[data-value="${portal.category}"]`);
+            if (categoryLi) {
+                selectThisOption(categoryLi);
+            }
+
+            if (categoryVisible) categoryVisible.disabled = true;
+            if (nameVisible) nameVisible.disabled = true;
+
+            fetchNames(portal.category);
+        }
+
+        forcePortalSelections();
     }
 
     window.initReportsStatement = initReportsStatement;

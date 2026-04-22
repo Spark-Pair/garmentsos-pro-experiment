@@ -16,15 +16,15 @@
                 <x-select label="Category" name="category" id="category" :options="$categoryOptions" :value="old('category')"
                     showDefault onchange="onStatementAdjustmentCategoryChange(this)" />
 
-                <x-select label="Name" name="adjustable_id" id="adjustable_id" :options="[]" showDefault disabled />
-
-                <x-input label="Date" name="date" id="date" type="date" value="{{ old('date', now()->toDateString()) }}"
-                    required />
+                <x-select label="Name" name="adjustable_id" id="adjustable_id" :options="[]" showDefault disabled onchange="onStatementAdjustmentAdjustableChange(this)" />
 
                 <x-select label="Entry Type" name="entry_type" id="entry_type" :options="$entryTypeOptions"
-                    :value="old('entry_type', 'adjustment')" showDefault />
+                    :value="old('entry_type')" showDefault onchange="onStatementAdjustmentEntryTypeChange(this)" />
 
-                <x-select label="Effect" name="direction" id="direction" :options="$directionOptions"
+                <x-input label="Date" name="date" id="date" type="date" value="{{ old('date', now()->toDateString()) }}"
+                    required readonly />
+
+                <x-select label="Transaction" name="direction" id="direction" :options="$directionOptions"
                     :value="old('direction', 'plus')" showDefault />
 
                 <x-input label="Amount" name="amount" id="amount" type="amount" value="{{ old('amount') }}"
@@ -51,6 +51,7 @@
 <script>
     window.__statementAdjustmentsCreate = {
         namesUrl: @json(route('reports.statement.get-names')),
+        firstDateUrl: @json(route('statement-adjustments.first-transaction-date')),
         csrfToken: @json(csrf_token()),
         oldCategory: @json(old('category')),
         oldAdjustableId: @json(old('adjustable_id')),

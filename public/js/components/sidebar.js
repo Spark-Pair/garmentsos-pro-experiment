@@ -110,6 +110,9 @@
         window.generateMenuModal = function generateMenuModal() {
             const shortcuts = getMenuShortcuts();
             menuData.forEach(item => {
+                if (!item.switchBtn) {
+                    item.switchBtn = { active: false };
+                }
                 item.switchBtn.active = shortcuts.includes(item.id);
             });
             modalData.cards.data = menuData;
@@ -165,11 +168,12 @@
         const mobileMenu = document.getElementById('mobileMenu');
 
         function toggleMobileMenu() {
+            if (!mobileMenuOverlay || !mobileMenu) return;
             closeAllMobileMenuDropdowns();
-            menuToggleIcon.classList.toggle('fa-bars');
-            menuToggleIcon.classList.toggle('fa-xmark');
+            menuToggleIcon?.classList.toggle('fa-bars');
+            menuToggleIcon?.classList.toggle('fa-xmark');
             mobileMenu.classList.toggle('-translate-y-full');
-            mobileMenu.classList.toggle('translate-y-0');
+            mobileMenu.classList.toggle('is-open');
             mobileMenuOverlay.classList.toggle('opacity-zero');
             mobileMenuOverlay.classList.toggle('pointer-events-none');
         }

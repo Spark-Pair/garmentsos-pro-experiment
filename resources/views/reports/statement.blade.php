@@ -7,6 +7,17 @@
     if (!in_array($statementType, ['summarized', 'detailed', 'general'], true)) {
         $statementType = 'general';
     }
+
+    $portalRole = Auth::user()->role ?? '';
+    $portalCategory = null;
+    $portalId = null;
+    if ($portalRole === 'customer') {
+        $portalCategory = 'customer';
+        $portalId = \App\Models\Customer::where('user_id', Auth::id())->value('id');
+    } elseif ($portalRole === 'supplier') {
+        $portalCategory = 'supplier';
+        $portalId = \App\Models\Supplier::where('user_id', Auth::id())->value('id');
+    }
 @endphp
     <div class="switch-btn-container flex absolute top-3 md:top-17 left-3 md:left-5 z-4">
         <div class="switch-btn relative flex border-3 border-[var(--secondary-bg-color)] bg-[var(--secondary-bg-color)] rounded-2xl overflow-hidden">
@@ -370,6 +381,11 @@
         setTypeUrl: @json(url('/set-statement-type')),
         getNamesUrl: @json(route('reports.statement.get-names')),
         statementUrl: @json(route('reports.statement')),
+        portal: {
+            role: @json($portalRole),
+            category: @json($portalCategory),
+            id: @json($portalId),
+        },
     };
 </script>
 @endpush
