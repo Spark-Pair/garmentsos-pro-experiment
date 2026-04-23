@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 
@@ -103,6 +104,19 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // SQLite hardening for production stability (locking, FKs).
+        // Applies only when the default connection is sqlite.
+        if (config('database.default') === 'sqlite') {
+            try {
+                DB::statement('PRAGMA foreign_keys = ON');
+                DB::statement('PRAGMA journal_mode = WAL');
+                DB::statement('PRAGMA synchronous = NORMAL');
+                DB::statement('PRAGMA busy_timeout = 5000');
+            } catch (\Throwable $e) {
+                // If the environment doesn't allow PRAGMA changes, continue without failing boot.
+            }
+        }
+
         // Share client company with all views
         View::share('client_company', app('client_company'));
 
