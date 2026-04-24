@@ -3,6 +3,252 @@
         const config = window.__reportsStatement || {};
         let btnTypeGlobal = config.statementType || "general";
         const portal = config.portal || {};
+        const step2 = document.querySelector(".step2");
+        let statementRecordRequest = null;
+
+        if (config.companyData) {
+            window.companyData = config.companyData;
+        }
+        if (config.companyLogoBase) {
+            window.companyLogoBase = config.companyLogoBase;
+        }
+
+        function openExpenseStatementModal(data) {
+            if (!data) return;
+
+            createModal({
+                id: "modalForm",
+                name: data.supplier_name,
+                details: {
+                    Date: data.date,
+                    "Reff. No.": data.reff_no,
+                    Expense: data.expense,
+                    "Lot No.": data.lot_no,
+                    Amount: data.amount,
+                    Remarks: data.remarks,
+                },
+            });
+        }
+
+        function openVoucherStatementModal(data) {
+            if (!data?.data) return;
+
+            data.data.total_payment = data.total_payment;
+            data.data.previous_balance = data.previous_balance;
+
+            createModal({
+                id: "modalForm",
+                preview: { type: "voucher", data: data.data, document: "Voucher" },
+            });
+        }
+
+        function openInvoiceStatementModal(data) {
+            if (!data?.data) return;
+
+            createModal({
+                id: "modalForm",
+                preview: { type: "invoice", data: data.data, document: "Sales Invoice" },
+            });
+        }
+
+        function openCustomerPaymentStatementModal(data) {
+            if (!data) return;
+
+            const clearDetails = Array.isArray(data.clear_details) ? data.clear_details : [];
+            const clearTableBody = clearDetails.map((row, index) => [
+                { data: index + 1, class: "w-[5%]" },
+                { data: row.date || "-", class: "w-[16%]" },
+                { data: row.method || "-", class: "w-[12%] capitalize" },
+                { data: ((row.account_title || "-") + " | " + (row.bank || "-")).trim(), class: "w-[28%]" },
+                { data: formatNumbersWithDigits(row.amount || 0, 1, 1), class: "w-[12%]" },
+                { data: row.reff_no || "-", class: "w-[12%]" },
+                { data: row.remarks || "-", class: "grow" },
+            ]);
+
+            createModal({
+                id: "modalForm",
+                class: clearTableBody.length > 0 ? "h-auto max-w-5xl" : "h-auto",
+                name: data.name,
+                details: {
+                    Date: formatDate(data.data.date),
+                    ...(data.program_date && { "Program Date": data.program_date }),
+                    Amount: data.details?.Amount,
+                    Type: data.details?.Type,
+                    Method: data.details?.Method,
+                    hr: true,
+                    ...(data.data.cheque_no && { "Cheque No": data.data.cheque_no }),
+                    ...(data.data.slip_no && { "Slip No": data.data.slip_no }),
+                    ...(data.data.transaction_id && { "Transaction Id": data.data.transaction_id }),
+                    ...(data.data.bank && { Bank: data.data.bank }),
+                    ...(data.data.cheque_date && { "Cheque Date": formatDate(data.data.cheque_date) }),
+                    ...(data.data.slip_date && { "Slip Date": formatDate(data.data.slip_date) }),
+                    ...(data.clear_date && data.clear_date !== "Pending" && { "Clear Date": data.clear_date }),
+                    ...(data.cleared_amount && { "Clear Amount": formatNumbersWithDigits(data.cleared_amount, 1, 1) }),
+                    ...((data.data.method === "cheque" || data.data.method === "slip" || data.data.method === "program") && {
+                        Issued: data.issued,
+                    }),
+                    Remarks: data.data.remarks || "No Remarks",
+                },
+                ...(clearTableBody.length > 0
+                    ? {
+                          table: {
+                              name: "Clear Records",
+                              headers: [
+                                  { label: "#", class: "w-[5%]" },
+                                  { label: "Date", class: "w-[16%]" },
+                                  { label: "Method", class: "w-[12%]" },
+                                  { label: "Acc. Title", class: "w-[28%]" },
+                                  { label: "Amount", class: "w-[12%]" },
+                                  { label: "Reff. No.", class: "w-[12%]" },
+                                  { label: "Remarks", class: "grow" },
+                              ],
+                              body: clearTableBody,
+                              scrollable: true,
+                          },
+                      }
+                    : {}),
+            });
+        }
+
+        function openSupplierPaymentStatementModal(data) {
+            if (!data) return;
+
+            const clearDetails = Array.isArray(data.clear_details) ? data.clear_details : [];
+            const clearTableBody = clearDetails.map((row, index) => [
+                { data: index + 1, class: "w-[5%]" },
+                { data: row.date || "-", class: "w-[16%]" },
+                { data: row.method || "-", class: "w-[12%] capitalize" },
+                { data: ((row.account_title || "-") + " | " + (row.bank || "-")).trim(), class: "w-[28%]" },
+                { data: formatNumbersWithDigits(row.amount || 0, 1, 1), class: "w-[12%]" },
+                { data: row.reff_no || "-", class: "w-[12%]" },
+                { data: row.remarks || "-", class: "grow" },
+            ]);
+
+            const details = {
+                Date: data.date,
+                Amount: data.amount,
+                Method: data.method,
+                "Customer/Self Acc.": data.source_name || "-",
+                Source: data.source_type || "-",
+                "Reff No.": data.reff_no ?? "-",
+                "Voucher No.": data.voucher_no ?? "-",
+            };
+
+            if (data.program_no || data.program_date || data.program_customer) {
+                details.hr = true;
+                details["Program No"] = data.program_no || "-";
+                details["Program Date"] = data.program_date || "-";
+                details["Program Customer"] = data.program_customer || "-";
+                if (data.program_order_no) details["Order No"] = data.program_order_no;
+            }
+
+            if (data.cr_no || data.cr_date) {
+                details.hr = true;
+                details["CR No"] = data.cr_no || "-";
+                details["CR Date"] = data.cr_date || "-";
+            }
+
+            if (data.dr_no || data.dr_date) {
+                details.hr = true;
+                details["DR No"] = data.dr_no || "-";
+                details["DR Date"] = data.dr_date || "-";
+            }
+
+            createModal({
+                id: "modalForm",
+                class: clearTableBody.length > 0 ? "h-auto max-w-5xl" : "h-auto",
+                name: data.name,
+                details,
+                ...(clearTableBody.length > 0
+                    ? {
+                          table: {
+                              name: "Clear Records",
+                              headers: [
+                                  { label: "#", class: "w-[5%]" },
+                                  { label: "Date", class: "w-[16%]" },
+                                  { label: "Method", class: "w-[12%]" },
+                                  { label: "Acc. Title", class: "w-[28%]" },
+                                  { label: "Amount", class: "w-[12%]" },
+                                  { label: "Reff. No.", class: "w-[12%]" },
+                                  { label: "Remarks", class: "grow" },
+                              ],
+                              body: clearTableBody,
+                              scrollable: true,
+                          },
+                      }
+                    : {}),
+            });
+        }
+
+        function renderStatementRecordModal(payload) {
+            if (payload?.type === "expense") {
+                openExpenseStatementModal(payload.data);
+                return;
+            }
+
+            if (payload?.type === "voucher") {
+                openVoucherStatementModal(payload.data);
+                return;
+            }
+
+            if (payload?.type === "supplier_payment") {
+                openSupplierPaymentStatementModal(payload.data);
+                return;
+            }
+
+            if (payload?.type === "invoice") {
+                openInvoiceStatementModal(payload.data);
+                return;
+            }
+
+            if (payload?.type === "customer_payment") {
+                openCustomerPaymentStatementModal(payload.data);
+            }
+        }
+
+        function setStatementRowLoading(row, isLoading) {
+            if (!row) return;
+            row.classList.toggle("opacity-60", isLoading);
+            row.classList.toggle("pointer-events-none", isLoading);
+        }
+
+        function openStatementRecordModal(row) {
+            if (!row?.dataset?.source) return;
+
+            let source = null;
+            try {
+                source = JSON.parse(row.dataset.source);
+            } catch (error) {
+                console.error("Invalid statement source payload:", error);
+                return;
+            }
+
+            if (!source?.type || !source?.id) return;
+
+            if (statementRecordRequest && typeof statementRecordRequest.abort === "function") {
+                statementRecordRequest.abort();
+            }
+
+            setStatementRowLoading(row, true);
+
+            statementRecordRequest = $.ajax({
+                url: config.recordDetailsUrl,
+                type: "GET",
+                data: source,
+                success: function (response) {
+                    renderStatementRecordModal(response);
+                },
+                error: function (xhr, status, error) {
+                    if (status === "abort") return;
+                    console.error("Error fetching statement record details:", error);
+                    alert("Failed to load statement record details.");
+                },
+                complete: function () {
+                    setStatementRowLoading(row, false);
+                    statementRecordRequest = null;
+                },
+            });
+        }
 
         window.setVoucherType = function setVoucherType(btn, btnType) {
             doHide = true;
@@ -363,6 +609,26 @@
             if (nameVisible) nameVisible.disabled = true;
 
             fetchNames(portal.category);
+        }
+
+        if (step2 && !step2.dataset.statementModalBound) {
+            step2.dataset.statementModalBound = "1";
+
+            step2.addEventListener("click", e => {
+                const row = e.target.closest(".statement-record-trigger");
+                if (!row) return;
+                openStatementRecordModal(row);
+            });
+
+            step2.addEventListener("keydown", e => {
+                if (e.key !== "Enter" && e.key !== " ") return;
+
+                const row = e.target.closest(".statement-record-trigger");
+                if (!row) return;
+
+                e.preventDefault();
+                openStatementRecordModal(row);
+            });
         }
 
         forcePortalSelections();

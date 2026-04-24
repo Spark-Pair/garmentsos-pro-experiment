@@ -17,6 +17,7 @@ use App\Http\Controllers\EmployeePaymentController;
 use App\Http\Controllers\ExpenseController;
 use App\Http\Controllers\FabricController;
 use App\Http\Controllers\InvoiceController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\PhysicalQuantityController;
 use App\Http\Controllers\PaymentProgramController;
@@ -217,8 +218,10 @@ Route::group(['middleware' => ['auth', 'activeSession', 'subscriptionExpiry', 'r
 
     Route::get('reports/statement', [ReportController::class, 'statement'])->name('reports.statement');
     Route::post('reports/statement/get-names', [ReportController::class, 'getNames'])->name('reports.statement.get-names');
+    Route::get('reports/statement/record-details', [ReportController::class, 'statementRecordDetails'])->name('reports.statement.record-details');
     Route::get('reports/pending-payments', [ReportController::class, 'pendingPayments'])->name('reports.pending-payments');
     Route::get('reports/article', [ReportController::class, 'article'])->name('reports.article');
+    Route::get('notifications', [NotificationController::class, 'index'])->name('notifications.index');
 
     Route::post('logout', [AuthController::class, 'logout'])->name('logout');
     Route::post('update-last-activity', [AuthController::class, 'updateLastActivity'])->name('update-last-activity');

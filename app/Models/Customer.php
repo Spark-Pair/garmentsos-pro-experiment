@@ -263,6 +263,10 @@ class Customer extends Model
                     'bill' => (float) $i->netAmount,
                     'payment' => 0,
                     'created_at' => $i->created_at,
+                    'source' => [
+                        'type' => 'invoice',
+                        'id' => $i->id,
+                    ],
                 ]);
             }
 
@@ -281,6 +285,10 @@ class Customer extends Model
                     'bill' => 0,
                     'description' => $paymentDescription($first),
                     'created_at' => $first->created_at,
+                    'source' => [
+                        'type' => 'customer_payment',
+                        'id' => $first->id,
+                    ],
                 ]);
             }
 
@@ -302,6 +310,10 @@ class Customer extends Model
                     'bill' => (float) $i->netAmount,
                     'payment' => 0,
                     'created_at' => $i->created_at,
+                    'source' => [
+                        'type' => 'invoice',
+                        'id' => $i->id,
+                    ],
                 ]);
             }
 
@@ -315,6 +327,10 @@ class Customer extends Model
                     'bill' => 0,
                     'description' => $paymentDescription($p),
                     'created_at' => $p->created_at,
+                    'source' => [
+                        'type' => 'customer_payment',
+                        'id' => $p->id,
+                    ],
                 ]);
             }
 

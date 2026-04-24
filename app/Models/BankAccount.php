@@ -327,6 +327,10 @@ class BankAccount extends Model
                 'payment'     => 0,
                 'description' => ($p->customer?->customer_name . ' | ' . $p->customer?->city?->short_title) ?? $p->remarks ?? null,
                 'created_at'  => $p->created_at ?? null,
+                'source'      => [
+                    'type' => 'customer_payment',
+                    'id' => $p->id,
+                ],
             ]);
 
             $supplierPayments = collect($supplierQuery->get())->map(fn($p) => [
@@ -338,6 +342,10 @@ class BankAccount extends Model
                 'bill'        => 0,
                 'description' => $p->supplier?->supplier_name ?? $p->remarks ?? null,
                 'created_at'  => $p->created_at ?? null,
+                'source'      => [
+                    'type' => $p->voucher_id ? 'voucher' : 'supplier_payment',
+                    'id' => $p->voucher_id ?: $p->id,
+                ],
             ]);
 
             $adjustmentRows = $adjustments->map(fn($adj) => $formatAdjustment($adj));

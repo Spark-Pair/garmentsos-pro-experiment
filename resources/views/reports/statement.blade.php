@@ -229,10 +229,20 @@
                                                         } else {
                                                             $hrClass = 'my-2';
                                                         }
+
+                                                        $statementSource = $statement['source'] ?? null;
+                                                        $isStatementClickable = !empty($statementSource);
                                                     @endphp
                                                     <div>
                                                         <hr class="w-full {{ $hrClass }} border-gray-700">
-                                                        <div class="tr flex justify-between w-full px-4 text-center gap-0.5">
+                                                        <div
+                                                            class="tr flex justify-between w-full px-4 text-center gap-0.5 {{ $isStatementClickable ? 'statement-record-trigger cursor-pointer rounded-md transition-colors hover:bg-slate-100/80' : '' }}"
+                                                            @if($isStatementClickable)
+                                                                data-source='@json($statementSource)'
+                                                                role="button"
+                                                                tabindex="0"
+                                                            @endif
+                                                        >
                                                             <div class="td font-semibold w-[1.5%]">{{ $loop->iteration }}.</div>
                                                             <div class="td font-medium w-[11.5%]">{{ $statement['date']->format('d-M-Y') }}</div>
                                                             @if(in_array($statementType, ['detailed', 'general']))
@@ -332,10 +342,20 @@
                                                             } else {
                                                                 $hrClass = 'my-2';
                                                             }
+
+                                                            $statementSource = $statement['source'] ?? null;
+                                                            $isStatementClickable = !empty($statementSource);
                                                         @endphp
                                                         <div>
                                                             <hr class="w-full {{ $hrClass }} border-gray-700">
-                                                            <div class="tr flex justify-between w-full px-4 text-center">
+                                                            <div
+                                                                class="tr flex justify-between w-full px-4 text-center {{ $isStatementClickable ? 'statement-record-trigger cursor-pointer rounded-md transition-colors hover:bg-slate-100/80' : '' }}"
+                                                                @if($isStatementClickable)
+                                                                    data-source='@json($statementSource)'
+                                                                    role="button"
+                                                                    tabindex="0"
+                                                                @endif
+                                                            >
                                                                 <div class="td font-semibold w-[1.5%]">{{ $loop->iteration + 26 + ($pageIndex * 29) }}.</div>
                                                                 <div class="td font-medium w-[11.5%]">{{ $statement['date']->format('d-M-Y') }}</div>
                                                                 @if(in_array($statementType, ['detailed', 'general']))
@@ -381,6 +401,9 @@
         setTypeUrl: @json(url('/set-statement-type')),
         getNamesUrl: @json(route('reports.statement.get-names')),
         statementUrl: @json(route('reports.statement')),
+        recordDetailsUrl: @json(route('reports.statement.record-details')),
+        companyData: @json($client_company),
+        companyLogoBase: @json(url('/') . '/'),
         portal: {
             role: @json($portalRole),
             category: @json($portalCategory),

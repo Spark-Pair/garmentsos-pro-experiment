@@ -750,6 +750,7 @@
                                     <div class="right w-50 my-auto text-right text-sm text-black space-y-1.5">
                                         <div class="date leading-none">Date: ${formatDate(previewData.date)}</div>
                                         <div class="number leading-none capitalize font-medium">invoice No.: ${previewData.invoice_no}</div>
+                                        <input type="hidden" name="invoice_no" value="${previewData.invoice_no}" />
                                         <div class="preview-copy leading-none capitalize">invoice Copy: ${copyLabel}</div>
                                         <div class="copy leading-none">Document: Sales Invoice</div>
                                     </div>
@@ -1237,6 +1238,7 @@
                                     <div class="right w-50 my-auto text-right text-sm text-black space-y-1.5">
                                         <div class="date leading-none">Date: ${formatDate(previewData.date)}</div>
                                         <div class="number leading-none capitalize font-medium">invoice No.: ${previewData.invoice_no}</div>
+                                        <input type="hidden" name="invoice_no" value="${previewData.invoice_no}" />
                                         <div class="preview-copy leading-none capitalize">invoice Copy: ${copyLabel}</div>
                                         <div class="copy leading-none">Document: Sales Invoice</div>
                                     </div>

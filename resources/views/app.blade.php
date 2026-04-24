@@ -13,6 +13,7 @@
         'pusherKey' => $pusherFrontend['key'] ?? null,
         'pusherCluster' => $pusherFrontend['cluster'] ?? null,
         'authUserId' => Auth::check() ? Auth::user()->id : null,
+        'authUserRole' => Auth::check() ? Auth::user()->role : null,
         'routeIsLogin' => request()->is('login'),
         'routeIsSubscriptionExpired' => request()->is('subscription-expired'),
         'routeIsOrdersCreate' => request()->is('orders/create'),
@@ -21,6 +22,7 @@
             : null,
         'routeName' => request()->route()?->getName(),
         'companyLogoBase' => url('/') . '/',
+        'notificationsUrl' => Auth::check() ? route('notifications.index') : null,
         'readonlySession' => (bool) session('readonly'),
     ];
 @endphp

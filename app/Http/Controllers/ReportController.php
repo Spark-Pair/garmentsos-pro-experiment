@@ -6,9 +6,13 @@ use App\Models\Article;
 use App\Models\BankAccount;
 use App\Models\Customer;
 use App\Models\CustomerPayment;
+use App\Models\Expense;
 use App\Models\InvoiceArticles;
+use App\Models\Invoice;
 use App\Models\OrderArticles;
+use App\Models\SupplierPayment;
 use App\Models\Supplier;
+use App\Models\Voucher;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -84,6 +88,33 @@ class ReportController extends Controller
         }
 
         return view("reports.statement");
+    }
+
+    public function statementRecordDetails(Request $request)
+    {
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'manager', 'admin', 'accountant', 'guest', 'store_keeper', 'customer', 'supplier'])) {
+            return $resp;
+        }
+
+        $validated = $request->validate([
+            'type' => 'required|string|in:expense,voucher,supplier_payment,invoice,customer_payment',
+            'id' => 'required|integer|min:1',
+        ]);
+
+        $payload = match ($validated['type']) {
+            'expense' => $this->expenseStatementPayload((int) $validated['id']),
+            'voucher' => $this->voucherStatementPayload((int) $validated['id']),
+            'supplier_payment' => $this->supplierPaymentStatementPayload((int) $validated['id']),
+            'invoice' => $this->invoiceStatementPayload((int) $validated['id']),
+            'customer_payment' => $this->customerPaymentStatementPayload((int) $validated['id']),
+            default => null,
+        };
+
+        if (!$payload) {
+            return response()->json(['error' => 'Statement record not found.'], 404);
+        }
+
+        return response()->json($payload);
     }
 
     // fucntion get names based on category
@@ -327,5 +358,126 @@ class ReportController extends Controller
 
         $authLayout = $this->getAuthLayout($request->route()->getName(), 'table');
         return view('reports.article', compact('authLayout'));
+    }
+
+    private function expenseStatementPayload(int $id): ?array
+    {
+        $expense = Expense::with(['supplier:id,supplier_name', 'expenseSetups:id,title'])->find($id);
+        if (!$expense) return null;
+
+        if ($this->isSupplierRole() && $expense->supplier_id !== $this->currentSupplier()?->id) {
+            abort(403, 'You are not authorized to view this statement record.');
+        }
+
+        return [
+            'type' => 'expense',
+            'data' => $expense->toFormattedArray(),
+        ];
+    }
+
+    private function voucherStatementPayload(int $id): ?array
+    {
+        $voucher = Voucher::with([
+            'supplier:id,supplier_name',
+            'payments.cheque.customer:id,customer_name,city_id',
+            'payments.cheque.customer.city:id,short_title,title',
+            'payments.slip.customer:id,customer_name,city_id',
+            'payments.slip.customer.city:id,short_title,title',
+            'payments.program.customer:id,customer_name,city_id',
+            'payments.program.customer.city:id,short_title,title',
+            'payments.bankAccount.bank:id,short_title',
+            'payments.selfAccount.bank:id,short_title',
+        ])->find($id);
+        if (!$voucher) return null;
+
+        if ($this->isSupplierRole() && $voucher->supplier_id !== $this->currentSupplier()?->id) {
+            abort(403, 'You are not authorized to view this statement record.');
+        }
+
+        return [
+            'type' => 'voucher',
+            'data' => $voucher->toFormattedArray(),
+        ];
+    }
+
+    private function supplierPaymentStatementPayload(int $id): ?array
+    {
+        $payment = SupplierPayment::with([
+            'supplier:id,supplier_name',
+            'voucher.supplier:id,supplier_name',
+            'bankAccount.bank:id,short_title',
+            'selfAccount.bank:id,short_title',
+            'program.customer:id,customer_name,city_id',
+            'program.customer.city:id,short_title,title',
+            'program.customerPayments.paymentClearRecord.bankAccount.bank',
+            'cheque.customer:id,customer_name,city_id',
+            'cheque.customer.city:id,short_title,title',
+            'cheque.paymentClearRecord.bankAccount.bank',
+            'cheque.dr',
+            'slip.customer:id,customer_name,city_id',
+            'slip.customer.city:id,short_title,title',
+            'slip.paymentClearRecord.bankAccount.bank',
+            'slip.dr',
+            'cr',
+        ])->find($id);
+        if (!$payment) return null;
+
+        if ($this->isSupplierRole() && $payment->supplier_id !== $this->currentSupplier()?->id) {
+            abort(403, 'You are not authorized to view this statement record.');
+        }
+
+        return [
+            'type' => 'supplier_payment',
+            'data' => $payment->toFormattedArray(),
+        ];
+    }
+
+    private function invoiceStatementPayload(int $id): ?array
+    {
+        $invoice = Invoice::with([
+            'order',
+            'shipment',
+            'invoiceArticles.article',
+            'customer.city',
+        ])->find($id);
+        if (!$invoice) return null;
+
+        if ($this->isCustomerRole() && $invoice->customer_id !== $this->currentCustomer()?->id) {
+            abort(403, 'You are not authorized to view this statement record.');
+        }
+
+        return [
+            'type' => 'invoice',
+            'data' => $invoice->toFormattedArray(),
+        ];
+    }
+
+    private function customerPaymentStatementPayload(int $id): ?array
+    {
+        $payment = CustomerPayment::whereNotNull('customer_id')
+            ->with([
+                'customer.city',
+                'cheque.supplier',
+                'cheque.voucher.supplier.bankAccounts.bank',
+                'cheque.cr',
+                'slip.supplier',
+                'slip.voucher.supplier.bankAccounts.bank',
+                'slip.cr',
+                'program.subCategory',
+                'bankAccount.subCategory',
+                'paymentClearRecord.bankAccount.bank',
+                'paymentClearRecord.creator',
+                'dr',
+            ])->find($id);
+        if (!$payment) return null;
+
+        if ($this->isCustomerRole() && $payment->customer_id !== $this->currentCustomer()?->id) {
+            abort(403, 'You are not authorized to view this statement record.');
+        }
+
+        return [
+            'type' => 'customer_payment',
+            'data' => $payment->toFormattedArray(),
+        ];
     }
 }

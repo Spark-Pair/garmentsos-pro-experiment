@@ -11,6 +11,8 @@
     let customerData;
     const customerSelectDom = document.getElementById('customer_id');
     const generateOrderBtn = document.getElementById('generateOrderBtn');
+    const isCustomerRole = !!window.__ordersGenerate?.isCustomerRole;
+    const discountInput = document.getElementById('discount');
 
     let totalQuantityDOM;
     let totalAmountDOM;
@@ -54,6 +56,15 @@
         generateOrderBtn.disabled = true;
         generateOrderBtn.addEventListener('click', () => {
             generateArticlesModal();
+        });
+    }
+
+    if (isCustomerRole && discountInput) {
+        discountInput.value = '10';
+        discountInput.addEventListener('input', () => {
+            discountInput.value = '10';
+            calculateNetAmount();
+            renderFinals();
         });
     }
 

@@ -45,9 +45,11 @@
             class="show-box mx-auto w-[80%] h-[70vh] bg-[var(--secondary-bg-color)] border border-[var(--glass-border-color)]/20 rounded-xl shadow pt-8.5 relative">
             <x-form-title-bar printBtn title="Show Orders" changeLayoutBtn layout="{{ $authLayout }}" resetSortBtn />
 
-            <div class="absolute bottom-3 right-3 flex items-center gap-2 w-fll z-50">
-                <x-section-navigation-button link="{{ route('orders.create') }}" title="Add New Order" icon="fa-plus" />
-            </div>
+            @if (in_array(Auth::user()->role, ['developer', 'owner', 'admin', 'accountant', 'customer']))
+                <div class="absolute bottom-3 right-3 flex items-center gap-2 w-fll z-50">
+                    <x-section-navigation-button link="{{ route('orders.create') }}" title="Add New Order" icon="fa-plus" />
+                </div>
+            @endif
 
             <div class="details h-full z-40">
                 <div class="container-parent h-full">
@@ -79,6 +81,8 @@
         window.__ordersIndex = {
             companyData: @json($client_company),
             authLayout: '{{ $authLayout }}',
+            currentUserRole: @json(Auth::user()->role),
+            openOrderId: @json(request()->integer('open_order') ?: null),
         };
     </script>
 @endpush

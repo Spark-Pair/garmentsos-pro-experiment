@@ -1,6 +1,9 @@
 @extends('app')
 @section('title', 'Generate Order | ' . $client_company->name)
 @section('content')
+    @php
+        $isCustomerPortalOrder = Auth::user()?->role === 'customer';
+    @endphp
     <!-- Main Content -->
     <!-- Progress Bar -->
     <div class="mb-5 max-w-4xl mx-auto">
@@ -56,8 +59,13 @@
                 </div>
                 <div class="final flex justify-between items-center bg-[var(--h-bg-color)] border border-gray-600 rounded-lg py-2 px-4 w-full">
                     <label for="discount" class="grow">Discount - %</label>
-                    <input type="text" name="discount" id="discount" value="10" min="0" max="100"
-                        class="text-right bg-transparent outline-none w-1/2 border-none" />
+                    @if($isCustomerPortalOrder)
+                        <input type="hidden" name="discount" id="discount" value="10" />
+                        <div class="text-right w-1/2 select-none">10</div>
+                    @else
+                        <input type="text" name="discount" id="discount" value="10" min="0" max="100"
+                            class="text-right bg-transparent outline-none w-1/2 border-none" />
+                    @endif
                 </div>
                 <div class="final flex justify-between items-center border border-gray-600 rounded-lg py-2 px-4 w-full">
                     <div class="grow">Net Amount - Rs.</div>
@@ -88,6 +96,7 @@
             companyData: @json($client_company),
             ordersCreateUrl: '{{ route("orders.create") }}',
             companyLogoBase: '{{ asset("images") }}',
+            isCustomerRole: @json($isCustomerPortalOrder),
             maxArticlesAlertHtml: @json('<div class="bg-[var(--danger-color)]/10 border border-[var(--danger-color)] text-[var(--danger-color)] text-xs px-3 py-2 rounded-lg">You have reached the maximum allowed number of 500 articles.</div>'),
         };
     </script>

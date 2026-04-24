@@ -1,10 +1,19 @@
 (function () {
+    let pendingOpenOrderId = null;
+    const canEditOrderRoles = ['developer', 'owner', 'admin', 'accountant'];
+
     function setAuthLayout(data) {
         if (data?.authLayout) {
             window.authLayout = data.authLayout;
         }
         if (data?.companyData) {
             window.companyData = data.companyData;
+        }
+        if (data?.openOrderId) {
+            pendingOpenOrderId = String(data.openOrderId);
+        }
+        if (data?.currentUserRole) {
+            window.__currentUserRole = data.currentUserRole;
         }
     }
 
@@ -117,7 +126,7 @@
             actions: [{ id: 'print', text: 'Print Order', onclick: 'printOrder(this)' }],
         };
 
-        if (data.status == 'pending') {
+        if (data.status == 'pending' && canEditOrderRoles.includes(window.__currentUserRole)) {
             contextMenuData.actions.push({ id: 'edit', text: 'Edit', dataId: data.id });
         }
 
@@ -133,7 +142,7 @@
             bottomActions: [{ id: 'print', text: 'Print Order', onclick: 'printOrder(this)' }],
         };
 
-        if (data.status == 'pending') {
+        if (data.status == 'pending' && canEditOrderRoles.includes(window.__currentUserRole)) {
             modalData.bottomActions.push({ id: 'edit', text: 'Edit', dataId: data.id });
         }
 
@@ -142,6 +151,27 @@
 
     function initOrdersIndex(data) {
         setAuthLayout(data);
+
+        document.addEventListener('app:data:rendered', () => {
+            if (!pendingOpenOrderId) return;
+
+            const targetRow = document.getElementById(pendingOpenOrderId);
+            if (!targetRow) return;
+
+            pendingOpenOrderId = null;
+            targetRow.scrollIntoView({ block: 'center', behavior: 'smooth' });
+            targetRow.classList.add('ring-2', 'ring-[var(--border-success)]');
+
+            setTimeout(() => {
+                targetRow.classList.remove('ring-2', 'ring-[var(--border-success)]');
+            }, 3000);
+
+            generateModal(targetRow);
+
+            const url = new URL(window.location.href);
+            url.searchParams.delete('open_order');
+            window.history.replaceState({}, '', url.toString());
+        }, { once: false });
     }
 
     window.initOrdersIndex = initOrdersIndex;

@@ -44,6 +44,9 @@
         if (config.homeUrl) {
             window.__homeUrl = config.homeUrl;
         }
+        if (config.notificationsUrl) {
+            window.__notificationsUrl = config.notificationsUrl;
+        }
         if (config.routeName) {
             window.__routeName = config.routeName;
         }
@@ -60,10 +63,14 @@
             window.__pusherKey = config.pusherKey;
             window.__pusherCluster = config.pusherCluster;
             window.__authUserId = config.authUserId;
+            window.__authUserRole = config.authUserRole;
             window.__routeIsLogin = config.routeIsLogin;
             window.__routeIsSubscriptionExpired = config.routeIsSubscriptionExpired;
             window.__routeIsOrdersCreate = config.routeIsOrdersCreate;
             if (typeof initPusherNotifications === 'function') initPusherNotifications();
+        }
+        if (config.authenticated && typeof initNotificationPolling === 'function') {
+            initNotificationPolling();
         }
 
         window.doHide = false;

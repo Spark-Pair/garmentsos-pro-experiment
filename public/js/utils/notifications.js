@@ -1,6 +1,6 @@
 window.__recentNotifications = window.__recentNotifications || new Map();
 
-function showNotification(title = '', message = '', type = 'info') {
+function showNotification(title = '', message = '', type = 'info', options = {}) {
     const notificationBox = window.notificationBox || document.getElementById('notificationBox');
     if (!notificationBox) return;
 
@@ -61,6 +61,14 @@ function showNotification(title = '', message = '', type = 'info') {
     notificationElement.className =
         `notification-card bg-[var(--glass-border-color)]/5 backdrop-blur-md text-[var(--secondary-text)] px-5 py-4 border ${tone.border} rounded-2xl shadow-xl flex items-start gap-4 fade-in relative`;
 
+    if (options.url) {
+        notificationElement.classList.add('cursor-pointer', 'hover:bg-[var(--glass-border-color)]/10', 'transition-all', 'duration-300', 'ease-in-out');
+        notificationElement.addEventListener('click', event => {
+            if (event.target.closest('button')) return;
+            window.location.href = options.url;
+        });
+    }
+
     const iconWrap = document.createElement('div');
     iconWrap.className = 'pt-0.5';
     const icon = document.createElement('i');
@@ -96,5 +104,5 @@ function showNotification(title = '', message = '', type = 'info') {
 
     notificationBox.prepend(notificationElement);
 
-    setTimeout(() => hideNotification(notificationElement), 5000);
+    setTimeout(() => hideNotification(notificationElement), options.persist ? 9000 : 5000);
 }

@@ -341,6 +341,10 @@ class Supplier extends Model
                 'payment' => 0,
                 'description' => $i->remarks ?? '-',
                 'created_at' => $i->created_at,
+                'source' => [
+                    'type' => 'expense',
+                    'id' => $i->id,
+                ],
             ]);
 
             $payments = $mapQuery($voucherQuery, function ($v) {
@@ -356,6 +360,10 @@ class Supplier extends Model
                     'bill' => 0,
                     'description' => 'Voucher',
                     'created_at' => $v->created_at,
+                    'source' => [
+                        'type' => 'voucher',
+                        'id' => $v->id,
+                    ],
                 ];
             });
 
@@ -384,17 +392,25 @@ class Supplier extends Model
                 'payment' => 0,
                 'description' => $i->remarks ?? '-',
                 'created_at' => $i->created_at,
+                'source' => [
+                    'type' => 'expense',
+                    'id' => $i->id,
+                ],
             ]);
 
-            $payments = $mapQuery($paymentQuery->with('bankAccount.bank'), fn($p) => [
+            $payments = $mapQuery($paymentQuery, fn($p) => [
                 'date' => $p->date,
-                'reff_no' => $p->cheque_no ?? $p->slip->slip_no ?? $p->cheque->cheque_no ?? $p->transaction_id ?? $p->reff_no,
+                'reff_no' => $p->cheque_no ?? $p->slip?->slip_no ?? $p->cheque?->cheque_no ?? $p->transaction_id ?? $p->reff_no,
                 'type' => 'payment',
                 'method' => $p->method,
                 'payment' => (float) ($p->amount ?? 0),
                 'bill' => 0,
                 'description' => $paymentDescription($p),
                 'created_at' => $p->created_at,
+                'source' => [
+                    'type' => $p->voucher_id ? 'voucher' : 'supplier_payment',
+                    'id' => $p->voucher_id ?: $p->id,
+                ],
             ]);
 
             $productions = $mapQuery($productionQuery, fn($pr) => [

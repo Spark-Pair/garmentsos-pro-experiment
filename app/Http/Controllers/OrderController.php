@@ -2,13 +2,17 @@
 
 namespace App\Http\Controllers;
 
+use App\Events\NewNotificationEvent;
 use App\Models\Article;
 use App\Models\Customer;
+use App\Models\Notification;
 use App\Models\Order;
 use App\Models\OrderArticles;
 use App\Models\PaymentProgram;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 
 class OrderController extends Controller
@@ -18,7 +22,7 @@ class OrderController extends Controller
      */
     public function index(Request $request)
     {
-        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'manager', 'admin', 'accountant', 'guest', 'customer'])) {
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'manager', 'admin', 'accountant', 'guest', 'customer', 'store_keeper'])) {
             return $resp;
         }
 
@@ -179,6 +183,7 @@ class OrderController extends Controller
                 return redirect()->back()->with('error', 'Customer account not linked with this user.');
             }
             $request->merge(['customer_id' => $customer->id]);
+            $request->merge(['discount' => 10]);
         }
 
         $validator = Validator::make($request->all(), [
@@ -194,13 +199,14 @@ class OrderController extends Controller
             return redirect()->back()->withErrors($validator)->withInput();
         }
 
-        DB::transaction(function () use ($request) {
+        $createdOrder = DB::transaction(function () use ($request) {
             $articles = json_decode($request->articles, true) ?? [];
+            $discount = $this->isCustomerRole() ? 10 : (int) $request->discount;
 
             $order = Order::create([
                 'date' => $request->date,
                 'customer_id' => $request->customer_id,
-                'discount' => $request->discount,
+                'discount' => $discount,
                 'netAmount' => str_replace(',', '', $request->netAmount),
                 'articles' => $request->articles,
                 'order_no' => $request->order_no,
@@ -230,7 +236,54 @@ class OrderController extends Controller
                     'amount' => $order['netAmount'],
                 ]);
             }
+
+            return $order;
         });
+
+        if ($this->isCustomerRole() && $createdOrder) {
+            try {
+                $customer = $this->currentCustomer();
+                $creatorName = Auth::user()?->name ?: ($customer?->customer_name ?? 'Customer');
+                $notificationPayload = [
+                    'title' => 'Customer Order Created',
+                    'message' => "{$creatorName} ne order {$createdOrder->order_no} create kiya hai.",
+                    'type' => 'info',
+                    'url' => route('orders.index', ['open_order' => $createdOrder->id]),
+                    'persist' => true,
+                    'target_roles' => ['admin', 'store_keeper'],
+                ];
+                $storedNotificationPayload = [
+                    't' => 'Customer Order Created',
+                    'm' => "{$creatorName} ne order {$createdOrder->order_no} create kiya hai.",
+                    'tp' => 'info',
+                    'u' => route('orders.index', ['open_order' => $createdOrder->id]),
+                    'p' => true,
+                    'tr' => ['admin', 'store_keeper'],
+                ];
+
+                $receivers = \App\Models\User::query()
+                    ->whereIn('role', ['admin', 'store_keeper'])
+                    ->where('status', 'active')
+                    ->pluck('id');
+
+                foreach ($receivers as $receiverId) {
+                    Notification::create([
+                        'senderId' => Auth::id(),
+                        'recieverId' => $receiverId,
+                        'caption' => json_encode($storedNotificationPayload),
+                    ]);
+                }
+
+                event(new NewNotificationEvent($notificationPayload));
+            } catch (\Throwable $e) {
+                Log::error('Customer order notification failed', [
+                    'order_id' => $createdOrder->id,
+                    'order_no' => $createdOrder->order_no,
+                    'auth_user_id' => Auth::id(),
+                    'message' => $e->getMessage(),
+                ]);
+            }
+        }
 
         // if ($request->generateInvoiceAfterSave) {
         //     return redirect()->route('invoices.create')->with('orderNumber', $order->order_no);

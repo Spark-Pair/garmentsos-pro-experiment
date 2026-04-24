@@ -2,15 +2,18 @@
 
 namespace App\Http\Controllers;
 
+use App\Events\NewNotificationEvent;
 use App\Models\Article;
 use App\Models\Customer;
 use App\Models\Invoice;
 use App\Models\InvoiceArticles;
+use App\Models\Notification;
 use App\Models\Order;
 use App\Models\OrderArticles;
 use App\Models\Shipment;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 
 use function PHPSTORM_META\type;
@@ -292,6 +295,7 @@ class InvoiceController extends Controller
                 }
 
                 $invoiceNumbers[] = $currentYear . '-' . $nextNumber;
+                $this->notifyCustomerAboutInvoice((int) $customer['id'], $invoice->invoice_no);
                 $nextNumber = str_pad((int)$nextNumber + 1, 4, '0', STR_PAD_LEFT);
             }
 
@@ -312,7 +316,7 @@ class InvoiceController extends Controller
             ]);
 
             if ($validator->fails()) {
-                return redirect()->back()->withErrors($validator)->withInput();
+                return redirect()->back()->withErrors($validator)->withInput()->with('error', $validator->errors()->first());
             }
 
             $data = [
@@ -355,6 +359,8 @@ class InvoiceController extends Controller
                     'invoice_pcs' => $article['invoice_quantity'],
                 ]);
             }
+
+            $this->notifyCustomerAboutInvoice((int) $data['customer_id'], $invoice->invoice_no);
         }
 
         return redirect()->route('invoices.create')->with('success', 'Invoice generated successfully.');
@@ -403,6 +409,48 @@ class InvoiceController extends Controller
         $invoices = Invoice::with(["customer.city", 'invoiceArticles.article', 'shipment', 'order'])->whereIn('invoice_no', $invoiceNumbers)->get();
 
         return view("invoices.print", compact("invoices"));
+    }
+
+    private function notifyCustomerAboutInvoice(int $customerId, string $invoiceNo): void
+    {
+        try {
+            $customer = Customer::with('user')->find($customerId);
+            $receiverId = $customer?->user?->id;
+
+            if (!$receiverId || $customer?->user?->status !== 'active') {
+                return;
+            }
+
+            $notificationPayload = [
+                'title' => 'Invoice Created',
+                'message' => "Aap ke liye invoice {$invoiceNo} create ho gaya hai.",
+                'type' => 'info',
+                'persist' => true,
+                'target_user_ids' => [$receiverId],
+            ];
+            $storedNotificationPayload = [
+                't' => 'Invoice Created',
+                'm' => "Aap ke liye invoice {$invoiceNo} create ho gaya hai.",
+                'tp' => 'info',
+                'p' => true,
+                'tu' => [$receiverId],
+            ];
+
+            Notification::create([
+                'senderId' => Auth::id(),
+                'recieverId' => $receiverId,
+                'caption' => json_encode($storedNotificationPayload),
+            ]);
+
+            event(new NewNotificationEvent($notificationPayload));
+        } catch (\Throwable $e) {
+            Log::error('Invoice customer notification failed', [
+                'invoice_no' => $invoiceNo,
+                'customer_id' => $customerId,
+                'auth_user_id' => Auth::id(),
+                'message' => $e->getMessage(),
+            ]);
+        }
     }
 
 }
