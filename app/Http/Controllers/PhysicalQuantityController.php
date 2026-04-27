@@ -186,10 +186,11 @@ class PhysicalQuantityController extends Controller
             ->get();
 
         $articles = $articles->filter(function ($article) {
-            $physical_quantity = $article['physical_quantity_sum_packets'];
+            $physicalPackets = (float) ($article['physical_quantity_sum_packets'] ?? 0);
 
-            $article['physical_quantity'] = $physical_quantity
-                ? $physical_quantity * $article->pcs_per_packet
+            $article['physical_packets'] = $physicalPackets;
+            $article['physical_quantity'] = $physicalPackets
+                ? $physicalPackets * $article->pcs_per_packet
                 : 0;
 
             $article['category'] = ucfirst(str_replace('_', ' ', $article['category']));
@@ -197,7 +198,16 @@ class PhysicalQuantityController extends Controller
             $article['size']     = ucfirst(str_replace('_', '-', $article['size']));
 
             $totalOrdered  = $article->quantity + $article->extra_pcs;
+            $article['total_quantity'] = $totalOrdered;
+            $article['total_packets'] = $article->pcs_per_packet
+                ? ($totalOrdered / $article->pcs_per_packet)
+                : 0;
+
             $remaining     = $totalOrdered - $article['physical_quantity'];
+            $article['remaining_quantity'] = $remaining;
+            $article['remaining_packets'] = $article->pcs_per_packet
+                ? ($remaining / $article->pcs_per_packet)
+                : 0;
 
             return $remaining > 0;
         })->values();

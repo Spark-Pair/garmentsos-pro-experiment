@@ -398,7 +398,9 @@
     <script defer src="{{ asset('js/utils/loader.js') }}"></script>
     <script defer src="{{ asset('js/utils/table.js') }}"></script>
     <script defer src="{{ asset('js/utils/layout.js') }}"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
     <script defer src="{{ asset('js/utils/print-columns.js') }}"></script>
+    <script defer src="{{ asset('js/utils/export-excel.js') }}"></script>
     <script defer src="{{ asset('js/utils/backup.js') }}"></script>
     <script defer src="{{ asset('js/utils/modal.js') }}"></script>
     <script defer src="{{ asset('js/components/sidebar.js') }}"></script>

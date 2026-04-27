@@ -24,6 +24,26 @@
 
         if (!articleSelectInputDOM || !articleIdInputDOM) return;
 
+        function formatNumber(value, maximumFractionDigits = 2) {
+            const numericValue = Number(value || 0);
+
+            return new Intl.NumberFormat("en-US", {
+                minimumFractionDigits: Number.isInteger(numericValue) ? 0 : 2,
+                maximumFractionDigits,
+            }).format(numericValue);
+        }
+
+        function getPacketsFromPcs(quantity, pcsPerPacket = selectedArticle?.pcs_per_packet) {
+            const packetSize = Number(pcsPerPacket || 0);
+            if (!packetSize) return 0;
+
+            return Number(quantity || 0) / packetSize;
+        }
+
+        function formatPcsAndPackets(quantity, packets = getPacketsFromPcs(quantity)) {
+            return `${formatNumber(quantity, 0)} pcs | ${formatNumber(packets)} pkts`;
+        }
+
         window.basicSearch = function basicSearch(searchValue) {
             let modalData = {
                 id: "modalForm",
@@ -84,9 +104,16 @@
             selectedArticle = JSON.parse(articleElem.getAttribute("data-json")).data;
 
             articleIdInputDOM.value = selectedArticle.id;
-            let value = `${selectedArticle.article_no} | ${selectedArticle.season} | ${selectedArticle.size} | ${selectedArticle.category} | ${formatNumbersDigitLess(
-                (selectedArticle.quantity + selectedArticle.extra_pcs)
-            )} (pcs) | Rs. ${formatNumbersWithDigits(selectedArticle.sales_rate, 1, 1)}`;
+            const totalArticleQuantity = Number(
+                selectedArticle.total_quantity ?? (selectedArticle.quantity + selectedArticle.extra_pcs)
+            );
+            const totalArticlePackets = Number(
+                selectedArticle.total_packets ?? getPacketsFromPcs(totalArticleQuantity, selectedArticle.pcs_per_packet)
+            );
+            let value = `${selectedArticle.article_no} | ${selectedArticle.season} | ${selectedArticle.size} | ${selectedArticle.category} | ${formatPcsAndPackets(
+                totalArticleQuantity,
+                totalArticlePackets
+            )} | Rs. ${formatNumbersWithDigits(selectedArticle.sales_rate, 1, 1)}`;
             articleSelectInputDOM.value = value;
 
             articleImageShowDOM.classList.remove("opacity-0");
@@ -96,7 +123,10 @@
             trackFieldsDisability();
             calculateTotal();
 
-            totalPhysicalQuantityDom.innerText = selectedArticle.physical_quantity;
+            totalPhysicalQuantityDom.innerText = formatPcsAndPackets(
+                selectedArticle.physical_quantity,
+                selectedArticle.physical_packets
+            );
 
             function formatArticleDate(inputDate) {
                 let [day, month, yearWithDay] = inputDate.replace(",", "").split("-");
@@ -190,11 +220,14 @@
                 finalOrderedQuantityDom.textContent = new Intl.NumberFormat("en-US").format(
                     totalQuantity
                 );
+                finalOrderedQuantityDom.textContent = formatPcsAndPackets(totalQuantity);
 
                 finalOrderAmountDom.innerText = new Intl.NumberFormat("en-US", {
                     minimumFractionDigits: 1,
                     maximumFractionDigits: 1,
                 }).format(totalAmount);
+            } else {
+                finalOrderedQuantityDom.textContent = formatPcsAndPackets(0, 0);
             }
         }
 
@@ -204,14 +237,14 @@
         function updateRemainingQuantity() {
             if (!selectedArticle) return;
 
-            const currentPhysical = parseInt(totalPhysicalQuantityDom.textContent || "0");
+            const currentPhysical = Number(selectedArticle.physical_quantity || 0);
             const remaining = (selectedArticle.quantity + selectedArticle.extra_pcs) - (currentPhysical + totalQuantity);
 
-            remainingqQuantityDom.innerText = new Intl.NumberFormat("en-US").format(remaining);
+            remainingqQuantityDom.innerText = formatPcsAndPackets(remaining);
 
             if (remaining < 0) {
                 totalQtyDom.classList.add("border-[var(--border-error)]");
-                totalQtyErrorDom.innerText = `Extra quantity: ${Math.abs(remaining)} pcs`;
+                totalQtyErrorDom.innerText = `Extra quantity: ${formatPcsAndPackets(Math.abs(remaining))}`;
                 totalQtyErrorDom.classList.remove("hidden");
             } else {
                 totalQtyDom.classList.remove("border-[var(--border-error)]");

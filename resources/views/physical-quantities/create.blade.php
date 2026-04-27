@@ -60,20 +60,20 @@
             <div class="w-full grid grid-cols-1 md:grid-cols-2 gap-4 text-sm mt-5 items-start">
                 <div class="first w-full">
                     <div class="current-phys-qty flex justify-between items-center border border-gray-600 rounded-lg py-2 px-4">
-                        <div class="grow">Total Physical Stock - Pcs.</div>
+                        <div class="grow">Total Physical Stock - Pcs. / Pkts.</div>
                         <div id="currentPhysicalQuantity">0</div>
                     </div>
                 </div>
                 <div class="second w-full">
                     <div class="total-qty flex justify-between items-center border border-gray-600 rounded-lg py-2 px-4">
-                        <div class="grow">Total Quantity - Pcs.</div>
+                        <div class="grow">Total Quantity - Pcs. / Pkts.</div>
                         <div id="finalOrderedQuantity">0</div>
                     </div>
                     <div id="total-qty-error" class="text-[var(--border-error)] text-xs mt-1 hidden transition-all 0.3s ease-in-out"></div>
                 </div>
                 <div class="thered w-full">
                     <div class="final flex justify-between items-center border border-gray-600 rounded-lg py-2 px-4">
-                        <div class="grow">Remaining Quantity - Pcs.</div>
+                        <div class="grow">Remaining Quantity - Pcs. / Pkts.</div>
                         <div id="remainingquantity">0</div>
                     </div>
                 </div>
