@@ -10,7 +10,7 @@
     ];
 @endphp
     <div class="mb-5 max-w-5xl mx-auto">
-        <x-search-header heading="Physical Quantity Report (Phy. Qty.)" />
+        <x-search-header heading="Physical Quantity Report" />
         <x-progress-bar :steps="['Select Options', 'Preview']" :currentStep="1" />
     </div>
 
