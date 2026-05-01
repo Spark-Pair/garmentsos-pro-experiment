@@ -393,7 +393,7 @@ class ReportController extends Controller
             $rows = $canGenerate
                 ? $physicalQuantityReportService->getArticleReportRows($filters)
                 : collect();
-            $maxRowsPerColumn = 57;
+            $maxRowsPerColumn = 58;
             $maxRowsPerPage = $maxRowsPerColumn * 2;
 
             $pages = $rows->chunk($maxRowsPerPage)->map(function ($pageRows) use ($maxRowsPerColumn) {

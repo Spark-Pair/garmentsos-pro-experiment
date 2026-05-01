@@ -69,10 +69,10 @@
                         <div class="preview-page w-[210mm] h-[297mm] mx-auto overflow-hidden relative bg-white p-[0.19in] rounded-md">
                             <div id="preview" class="preview flex flex-col h-full">
                                 <div id="preview-document" class="preview-document flex flex-col h-full px-2">
-                                    <div id="preview-banner" class="preview-banner w-full flex justify-between items-center pl-5 pr-8">
+                                    <div id="preview-banner" class="preview-banner w-full flex justify-between items-center px-8 pr-8">
                                         <div class="flex items-center gap-3">
                                             @if($companyData->logo)
-                                                <div class="h-[1.5rem] w-[13.5rem] flex items-center justify-center gap-2.5">
+                                                <div class="w-[13.5rem] flex items-center justify-start gap-2.5" style="height: 2.1rem">
                                                     <img
                                                         src="{{ asset('images/' . $companyData->logo) }}"
                                                         alt="garmentsos-pro"
@@ -88,8 +88,8 @@
                                         </div>
                                         <div class="right">
                                             <div>
-                                                <h1 class="text-xl font-medium text-[var(--primary-color)] pr-2 capitalize">Physical Quantity Report</h1>
-                                                <div class="total-bill leading-none mt-1 text-sm">Total Records: {{ $data['rows']->count() }}</div>
+                                                <h1 class="text-lg font-medium text-[var(--primary-color)] pr-2 capitalize">Physical Quantity Altraion Report</h1>
+                                                <div class="total-bill leading-none mt-0.5 text-xs">Total Records: {{ $data['rows']->count() }} | Print Date: {{ $today = now()->format('d-M-Y'); }}</div>
                                             </div>
                                         </div>
                                     </div>
