@@ -221,6 +221,7 @@ Route::group(['middleware' => ['auth', 'activeSession', 'subscriptionExpiry', 'r
     Route::get('reports/statement/record-details', [ReportController::class, 'statementRecordDetails'])->name('reports.statement.record-details');
     Route::get('reports/pending-payments', [ReportController::class, 'pendingPayments'])->name('reports.pending-payments');
     Route::get('reports/article', [ReportController::class, 'article'])->name('reports.article');
+    Route::get('reports/physical-quantity', [ReportController::class, 'physicalQuantity'])->name('reports.physical-quantity');
     Route::get('notifications', [NotificationController::class, 'index'])->name('notifications.index');
 
     Route::post('logout', [AuthController::class, 'logout'])->name('logout');

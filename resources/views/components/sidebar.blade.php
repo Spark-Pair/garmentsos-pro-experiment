@@ -805,6 +805,7 @@
                 },
                 subMenu: [
                     {name: 'Article', href: "/reports/article"},
+                    {name: 'Physical Quantity (Phy. Qty.)', href: "/reports/physical-quantity"},
                     {name: 'Statement', href: "/reports/statement"},
                     {name: 'Pending Payments', href: "/reports/pending-payments"},
                     {name: 'Balance Entries', href: "/statement-adjustments/create"},
