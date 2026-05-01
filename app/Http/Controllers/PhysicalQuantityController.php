@@ -4,11 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\Article;
 use App\Models\PhysicalQuantity;
-use App\Models\Shipment;
-use App\Models\ShipmentArticles;
-use App\Models\InvoiceArticles;
+use App\Services\PhysicalQuantityReportService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
 
 class PhysicalQuantityController extends Controller
@@ -16,7 +13,7 @@ class PhysicalQuantityController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index(Request $request)
+    public function index(Request $request, PhysicalQuantityReportService $physicalQuantityReportService)
     {
         if ($resp = $this->denyIfNoRole(['developer', 'owner', 'manager', 'admin', 'accountant', 'guest', 'store_keeper'])) {
             return $resp;
@@ -24,72 +21,7 @@ class PhysicalQuantityController extends Controller
         $authLayout = $this->getAuthLayout($request->route()->getName(), 'table');
 
         if ($request->ajax()) {
-            $rows = PhysicalQuantity::with('article')
-                ->orderByDesc('id')
-                ->applyFilters($request, false) // 👈 important
-                ->get();
-
-            $articleIds = $rows->pluck('article_id')->unique()->values();
-            $invoicedMap = InvoiceArticles::query()
-                ->whereIn('article_id', $articleIds)
-                ->selectRaw('article_id, COALESCE(SUM(invoice_pcs), 0) as total_pcs')
-                ->groupBy('article_id')
-                ->pluck('total_pcs', 'article_id');
-
-            $grouped = $rows
-                ->groupBy('article_id')
-                ->map(function ($items) {
-
-                    $model = $items->first();
-                    $packets = $items->sum('packets');
-
-                    // 🔹 Shipment cities
-                    $cities = ShipmentArticles::where('article_id', $model->article_id)
-                        ->whereHas('shipment')
-                        ->with('shipment:id,city')
-                        ->get()
-                        ->pluck('shipment.city')
-                        ->filter()
-                        ->unique()
-                        ->values();
-
-                    $shipment = null;
-                    if ($cities->isNotEmpty()) {
-                        $hasKarachi = $cities->contains(fn($city) => strtolower($city) === 'karachi');
-
-                        if ($hasKarachi && $cities->count() === 1) {
-                            $shipment = 'karachi';
-                        } elseif ($hasKarachi && $cities->count() > 1) {
-                            $shipment = 'all';
-                        } else {
-                            $shipment = 'other';
-                        }
-                    }
-
-                    $invoicePcs = (float) ($invoicedMap[$model->article_id] ?? 0);
-                    $invoicePkts = $model->article->pcs_per_packet
-                        ? ($invoicePcs / $model->article->pcs_per_packet)
-                        : 0;
-
-                    return [
-                        'article_id'        => $model->article_id,
-                        'article_no'        => $model->article->article_no,
-                        'processed_by'      => $model->article->processed_by,
-                        'unit'              => $model->article->pcs_per_packet,
-                        'total_quantity'    => floor(($model->article->quantity + $model->article->extra_pcs) / 12) . ' - Dz. | ' . (($model->article->quantity + $model->article->extra_pcs) / $model->article->pcs_per_packet) . ' - Pkts.',
-                        'received_quantity' => $packets . ' - Pkts.',
-                        'current_stock'     => ($packets - ($model->article->sold_quantity / $model->article->pcs_per_packet)) . ' - Pkts.',
-                        'invoiced_quantity' => $invoicePkts . ' - Pkts.',
-                        'a_category'        => $items->where('category', 'a')->sum('packets') . ' - Pkts.',
-                        'b_category'        => $items->where('category', 'b')->sum('packets') . ' - Pkts.',
-                        'c_category'        => $items->where('category', 'c')->sum('packets') . ' - Pkts.',
-                        'remaining_quantity'=> (($model->article->quantity + $model->article->extra_pcs) / $model->article->pcs_per_packet - $packets) . ' - Pkts.',
-                        'shipment'          => ucfirst($shipment) ?? '-',
-                        'onclick'           => "generateModal(this)",
-                        'oncontextmenu'     => "generateContextMenu(event)",
-                    ];
-                })
-                ->values();
+            $grouped = $physicalQuantityReportService->getIndexRows($request, $request->limit ? (int) $request->limit : null);
 
             return response()->json([
                 'data' => $grouped,

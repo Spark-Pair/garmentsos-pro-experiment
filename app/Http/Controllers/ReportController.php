@@ -13,6 +13,7 @@ use App\Models\OrderArticles;
 use App\Models\SupplierPayment;
 use App\Models\Supplier;
 use App\Models\Voucher;
+use App\Services\PhysicalQuantityReportService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -358,6 +359,64 @@ class ReportController extends Controller
 
         $authLayout = $this->getAuthLayout($request->route()->getName(), 'table');
         return view('reports.article', compact('authLayout'));
+    }
+
+    public function physicalQuantity(Request $request, PhysicalQuantityReportService $physicalQuantityReportService)
+    {
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'manager', 'admin', 'accountant', 'guest', 'store_keeper'])) {
+            return $resp;
+        }
+
+        $articleOptions = $physicalQuantityReportService->getArticleOptions();
+        $mode = $request->input('mode', 'all_articles');
+        if (!in_array($mode, ['all_articles', 'article_wise', 'proceed_by_wise'], true)) {
+            $mode = 'all_articles';
+        }
+        $data = null;
+
+        if ($request->boolean('withData')) {
+            $filters = [];
+            $canGenerate = true;
+
+            if ($mode === 'article_wise' && $request->filled('article_id')) {
+                $filters['article_id'] = (int) $request->input('article_id');
+            } elseif ($mode === 'article_wise') {
+                $canGenerate = false;
+            }
+
+            if ($mode === 'proceed_by_wise' && $request->filled('proceed_by')) {
+                $filters['processed_by'] = $request->input('proceed_by');
+            } elseif ($mode === 'proceed_by_wise') {
+                $canGenerate = false;
+            }
+
+            $rows = $canGenerate
+                ? $physicalQuantityReportService->getArticleReportRows($filters)
+                : collect();
+            $maxRowsPerColumn = 28;
+            $maxRowsPerPage = $maxRowsPerColumn * 2;
+
+            $pages = $rows->chunk($maxRowsPerPage)->map(function ($pageRows) use ($maxRowsPerColumn) {
+                $leftCount = (int) ceil($pageRows->count() / 2);
+                $leftCount = min($leftCount, $maxRowsPerColumn);
+
+                return [
+                    'left' => $pageRows->take($leftCount)->values(),
+                    'right' => $pageRows->slice($leftCount)->values(),
+                ];
+            })->values();
+
+            $data = [
+                'mode' => $mode,
+                'article_id' => $request->input('article_id'),
+                'proceed_by' => $request->input('proceed_by'),
+                'rows' => $rows,
+                'pages' => $pages,
+                'generated_at' => now(),
+            ];
+        }
+
+        return view('reports.physical-quantity', compact('articleOptions', 'mode', 'data'));
     }
 
     private function expenseStatementPayload(int $id): ?array
