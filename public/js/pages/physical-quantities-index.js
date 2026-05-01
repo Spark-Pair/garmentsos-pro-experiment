@@ -13,13 +13,13 @@
                 <span class="capitalize">${data.processed_by}</span>
                 <span>${data.unit}</span>
                 <span>${data.total_quantity}</span>
-                <span>${data.received_quantity}</span>
-                <span>${data.current_stock}</span>
+                <span>${data.received_quantity} - Pkts.</span>
                 <span>${data.invoiced_quantity}</span>
+                <span>${data.current_stock}</span>
                 <span>${data.a_category}</span>
                 <span>${data.b_category}</span>
                 <span>${data.c_category}</span>
-                <span>${data.remaining_quantity}</span>
+                <span>${data.remaining_quantity} - Pkts.</span>
                 <span>${data.shipment}</span>
             </div>`;
         };

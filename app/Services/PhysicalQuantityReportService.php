@@ -136,7 +136,7 @@ class PhysicalQuantityReportService
                 $totalPackets = $pcsPerPacket > 0 ? ($totalPcs / $pcsPerPacket) : 0;
                 $soldPackets = $pcsPerPacket > 0 ? ((float) $article->sold_quantity / $pcsPerPacket) : 0;
                 $currentStockPackets = $packets - $soldPackets;
-                $remainingPackets = $totalPackets - $packets;
+                $remainingPackets = number_format($totalPackets - $packets, 1);
                 $invoicePcs = (float) ($invoicedMap[$model->article_id] ?? 0);
                 $invoicePackets = $pcsPerPacket > 0 ? ($invoicePcs / $pcsPerPacket) : 0;
                 $shipment = $this->resolveShipment($shipmentCitiesMap->get($model->article_id, collect()));
@@ -147,13 +147,13 @@ class PhysicalQuantityReportService
                     'processed_by' => $article->processed_by,
                     'unit' => $article->pcs_per_packet,
                     'total_quantity' => floor($totalPcs / 12) . ' - Dz. | ' . $totalPackets . ' - Pkts.',
-                    'received_quantity' => $packets . ' - Pkts.',
+                    'received_quantity' => $packets,
                     'current_stock' => $currentStockPackets . ' - Pkts.',
                     'invoiced_quantity' => $invoicePackets . ' - Pkts.',
                     'a_category' => $items->where('category', 'a')->sum('packets') . ' - Pkts.',
                     'b_category' => $items->where('category', 'b')->sum('packets') . ' - Pkts.',
                     'c_category' => $items->where('category', 'c')->sum('packets') . ' - Pkts.',
-                    'remaining_quantity' => $remainingPackets . ' - Pkts.',
+                    'remaining_quantity' => $remainingPackets,
                     'shipment' => $shipment,
                     'total_packets_numeric' => $totalPackets,
                     'received_packets_numeric' => $packets,
@@ -162,6 +162,8 @@ class PhysicalQuantityReportService
                     'oncontextmenu' => 'generateContextMenu(event)',
                 ];
             })
+            ->values()
+            ->sortBy(fn($item) => (float) $item['article_no'])
             ->values();
     }
 

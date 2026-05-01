@@ -63,20 +63,23 @@
                         $totalPages = $data['pages']->count();
                     @endphp
                     @forelse ($data['pages'] as $page)
+                        @php 
+                            $serial = 1; // har page pe reset
+                        @endphp
                         <div class="preview-page w-[210mm] h-[297mm] mx-auto overflow-hidden relative bg-white p-[0.19in] rounded-md">
                             <div id="preview" class="preview flex flex-col h-full">
                                 <div id="preview-document" class="preview-document flex flex-col h-full px-2">
                                     <div id="preview-banner" class="preview-banner w-full flex justify-between items-center pl-5 pr-8">
                                         <div class="flex items-center gap-3">
                                             @if($companyData->logo)
-                                                <div class="h-[3.50rem] w-[13.5rem] flex items-center justify-center gap-2.5">
+                                                <div class="h-[1.5rem] w-[13.5rem] flex items-center justify-center gap-2.5">
                                                     <img
                                                         src="{{ asset('images/' . $companyData->logo) }}"
                                                         alt="garmentsos-pro"
                                                         class="max-h-full max-w-full object-contain"
                                                     />
                                                     @if($companyData->logo_text)
-                                                        <h1 class="text-lg font-bold tracking-wide">
+                                                        <h1 class="text-md font-bold tracking-wide">
                                                             {{ $companyData->logo_text }}
                                                         </h1>
                                                     @endif
@@ -85,13 +88,13 @@
                                         </div>
                                         <div class="right">
                                             <div>
-                                                <h1 class="text-2xl font-medium text-[var(--primary-color)] pr-2 capitalize">Physical Quantity Report</h1>
-                                                <div class="total-bill leading-none mt-1 text-sm">Total Rows: {{ $data['rows']->count() }}</div>
+                                                <h1 class="text-xl font-medium text-[var(--primary-color)] pr-2 capitalize">Physical Quantity Report</h1>
+                                                <div class="total-bill leading-none mt-1 text-sm">Total Records: {{ $data['rows']->count() }}</div>
                                             </div>
                                         </div>
                                     </div>
 
-                                    <hr class="w-full my-3 border-gray-700">
+                                    <hr class="w-full my-2 border-gray-700">
 
                                     <div id="preview-body" class="preview-body w-[95%] grow mx-auto">
                                         <div class="preview-table w-full">
@@ -101,27 +104,26 @@
                                                     <div class="w-1/2">
                                                         @if ($page[$column]->isNotEmpty())
                                                             <div class="preview-table w-full">
-                                                            <div class="table w-full border border-gray-700 rounded-lg pb-2 overflow-hidden text-xs">
+                                                            <div class="table w-full border border-gray-700 rounded-lg overflow-hidden text-xs">
                                                                 <div class="thead w-full">
-                                                                    <div class="tr flex justify-between w-full px-4 py-1.5 bg-[var(--primary-color)] text-white text-center">
-                                                                        <div class="th font-medium w-[25%] text-left">Proc. By</div>
-                                                                        <div class="th font-medium w-[31%] text-left">Article</div>
-                                                                        <div class="th font-medium w-[22%]">Rec. Qty</div>
-                                                                        <div class="th font-medium w-[22%]">Rem. Qty</div>
+                                                                    <div class="tr flex w-full px-2 py-0 bg-[var(--primary-color)] text-white text-center">
+                                                                        <div class="th font-medium overflow-hidden w-[8%] text-left">#</div>
+                                                                        <div class="th font-medium overflow-hidden w-[30%] text-left">Article/pckt.</div>
+                                                                        <div class="th font-medium overflow-hidden grow">Proc. By</div>
+                                                                        <div class="th font-medium overflow-hidden w-[20%]">Received</div>
+                                                                        <div class="th font-medium overflow-hidden w-[20%]">Remainig</div>
                                                                     </div>
                                                                 </div>
                                                                 <div id="tbody" class="tbody w-full">
                                                                     @foreach ($page[$column] as $row)
-                                                                        @php
-                                                                            $hrClass = $loop->iteration === 1 ? 'mb-2' : 'my-2';
-                                                                        @endphp
                                                                         <div>
-                                                                            <hr class="w-full {{ $hrClass }} border-gray-700">
-                                                                            <div class="tr flex justify-between w-full px-4 text-center gap-0.5">
-                                                                                <div class="td font-medium w-[25%] text-left capitalize truncate">{{ $row['proceed_by'] }}</div>
-                                                                                <div class="td font-medium w-[31%] text-left truncate">{{ $row['article_no'] }}</div>
-                                                                                <div class="td font-medium w-[22%]">{{ $row['received_qty'] }}</div>
-                                                                                <div class="td font-medium w-[22%]">{{ $row['remaining_qty'] }}</div>
+                                                                            <hr class="w-full border-dotted border-gray-100">
+                                                                            <div class="tr flex  w-full px-2 text-center gap-0.5">
+                                                                                <div class="td font-medium overflow-hidden w-[8%] text-left capitalize truncate">{{ $serial++ }}.</div>
+                                                                                <div class="td font-medium overflow-hidden w-[30%] text-left truncate">{{ $row['article_no'] }}</div>
+                                                                                <div class="td font-medium overflow-hidden grow capitalize truncate">{{ $row['proceed_by'] }}</div>
+                                                                                <div class="td font-medium overflow-hidden w-[20%]">{{ $row['received_qty'] }}</div>
+                                                                                <div class="td font-medium overflow-hidden w-[20%]">{{ $row['remaining_qty'] }}</div>
                                                                             </div>
                                                                         </div>
                                                                     @endforeach
@@ -140,8 +142,8 @@
                                         </div>
                                     </div>
 
-                                    <hr class="w-full my-3 border-gray-700">
-                                    <div class="tfooter flex w-full text-sm px-4 justify-between text-gray-800 leading-none text-xs">
+                                    <hr class="w-full my-2 border-gray-700">
+                                    <div class="tfooter flex w-full text-sm px-4 justify-between text-gray-800 leading-none text-xs" style="font-size: 0.70rem">
                                         <p>Powered by SparkPair &copy; 2025 SparkPair | +92 316 5825495</p>
                                         <p>Page {{ $loop->iteration }} of {{ $totalPages }}</p>
                                     </div>
