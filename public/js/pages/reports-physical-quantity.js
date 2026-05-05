@@ -2,6 +2,7 @@
     function initReportsPhysicalQuantity() {
         const config = window.__reportsPhysicalQuantity || {};
         const reportUrl = config.reportUrl || "";
+        let reportTypeGlobal = config.reportType || "altration";
 
         function getHiddenSelectValue(id) {
             return document.querySelector(`input[type="hidden"][data-for="${id}"]`)?.value || "";
@@ -9,6 +10,10 @@
 
         function getInputValue(id) {
             return document.getElementById(id)?.value?.trim() || "";
+        }
+
+        function getDirectValue(id) {
+            return document.getElementById(id)?.value || "";
         }
 
         function setSelectDisabledState(wrapperId, inputId, shouldDisable) {
@@ -58,6 +63,50 @@
             setInputDisabledState("proceedByFilterWrap", "proceed_by", mode !== "proceed_by_wise");
         };
 
+        window.setPhysicalQuantityReportType = function setPhysicalQuantityReportType(btn, reportType) {
+            doHide = true;
+            if (reportTypeGlobal === reportType) {
+                return;
+            }
+
+            const reportTypeInput = document.getElementById("report_type");
+            if (reportTypeInput) {
+                reportTypeInput.value = reportType;
+            }
+
+            moveHighlight(btn, reportType);
+
+            $.ajax({
+                url: config.setTypeUrl,
+                type: "POST",
+                data: {
+                    _token: config.csrfToken,
+                    physical_quantity_report_type: reportType,
+                },
+                success: function () {
+                    location.reload();
+                },
+                error: function () {
+                    alert("Failed to update physical quantity report type.");
+                },
+            });
+        };
+
+        function moveHighlight(btn, reportType) {
+            const highlight = document.getElementById("reportTypeHighlight");
+            if (!highlight || !btn?.parentElement) {
+                reportTypeGlobal = reportType;
+                return;
+            }
+
+            const rect = btn.getBoundingClientRect();
+            const parentRect = btn.parentElement.getBoundingClientRect();
+
+            highlight.style.width = `${rect.width}px`;
+            highlight.style.left = `${rect.left - parentRect.left - 3}px`;
+            reportTypeGlobal = reportType;
+        }
+
         function renderPreview(response) {
             const $responseHtml = $(response);
             const $previewInResponse = $responseHtml.find(".step2");
@@ -86,6 +135,7 @@
         }
 
         function fetchReportPreview() {
+            const reportType = getDirectValue("report_type") || reportTypeGlobal || "altration";
             const mode = getHiddenSelectValue("mode") || "all_articles";
             const articleId = getHiddenSelectValue("article_id");
             const proceedBy = getInputValue("proceed_by");
@@ -95,6 +145,7 @@
                 type: "GET",
                 data: {
                     withData: 1,
+                    report_type: reportType,
                     mode: mode,
                     article_id: articleId,
                     proceed_by: proceedBy,
@@ -227,6 +278,15 @@
         };
 
         togglePhysicalQuantityMode();
+
+        const activeBtn =
+            reportTypeGlobal === "stock"
+                ? document.getElementById("stockBtn")
+                : document.getElementById("altrationBtn");
+
+        if (activeBtn) {
+            moveHighlight(activeBtn, reportTypeGlobal);
+        }
     }
 
     window.initReportsPhysicalQuantity = initReportsPhysicalQuantity;

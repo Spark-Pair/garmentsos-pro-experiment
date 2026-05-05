@@ -3,7 +3,6 @@
 namespace App\Services;
 
 use App\Models\Article;
-use App\Models\InvoiceArticles;
 use App\Models\PhysicalQuantity;
 use App\Models\ShipmentArticles;
 use Illuminate\Database\Eloquent\Builder;
@@ -28,18 +27,27 @@ class PhysicalQuantityReportService
         return $this->mapArticleRows($rows);
     }
 
-    public function getArticleReportRows(array $filters = []): Collection
+    public function getArticleReportRows(array $filters = [], string $reportType = 'altration'): Collection
     {
         return $this->getIndexRows($filters)
-            ->map(function (array $row) {
+            ->map(function (array $row) use ($reportType) {
                 $processedBy = trim((string) ($row['processed_by'] ?? ''));
+                $orderedQty = $row['ordered_quantity'] ?? $this->formatPacketQuantity((float) ($row['ordered_packets_numeric'] ?? 0));
+                $currentStockQty = $row['current_stock'] ?? $this->formatPacketQuantity((float) ($row['current_stock_packets_numeric'] ?? 0));
+                $receivedQty = $row['received_quantity'] ?? $this->formatPacketQuantity((float) ($row['received_packets_numeric'] ?? 0));
+                $remainingQty = $row['remaining_quantity'] ?? $this->formatPacketQuantity((float) ($row['remaining_packets_numeric'] ?? 0));
+
                 return [
                     'article_no' => $row['article_no'] ?? '-',
                     'proceed_by' => $processedBy !== '' ? $processedBy : '-',
-                    'received_qty' => $row['received_quantity'] ?? $this->formatPacketQuantity((float) ($row['received_packets_numeric'] ?? 0)),
-                    'remaining_qty' => $row['remaining_quantity'] ?? $this->formatPacketQuantity((float) ($row['remaining_packets_numeric'] ?? 0)),
-                    'received_qty_numeric' => (float) ($row['received_packets_numeric'] ?? 0),
-                    'remaining_qty_numeric' => (float) ($row['remaining_packets_numeric'] ?? 0),
+                    'primary_qty' => $reportType === 'stock' ? $orderedQty : $receivedQty,
+                    'secondary_qty' => $reportType === 'stock' ? $currentStockQty : $remainingQty,
+                    'primary_qty_numeric' => $reportType === 'stock'
+                        ? (float) ($row['ordered_packets_numeric'] ?? 0)
+                        : (float) ($row['received_packets_numeric'] ?? 0),
+                    'secondary_qty_numeric' => $reportType === 'stock'
+                        ? (float) ($row['current_stock_packets_numeric'] ?? 0)
+                        : (float) ($row['remaining_packets_numeric'] ?? 0),
                 ];
             })
             ->sortBy(function (array $row) {
@@ -110,12 +118,6 @@ class PhysicalQuantityReportService
             return collect();
         }
 
-        $invoicedMap = InvoiceArticles::query()
-            ->whereIn('article_id', $articleIds)
-            ->selectRaw('article_id, COALESCE(SUM(invoice_pcs), 0) as total_pcs')
-            ->groupBy('article_id')
-            ->pluck('total_pcs', 'article_id');
-
         $shipmentCitiesMap = ShipmentArticles::query()
             ->whereIn('article_id', $articleIds)
             ->whereHas('shipment')
@@ -126,7 +128,7 @@ class PhysicalQuantityReportService
 
         return $rows
             ->groupBy('article_id')
-            ->map(function (Collection $items) use ($invoicedMap, $shipmentCitiesMap) {
+            ->map(function (Collection $items) use ($shipmentCitiesMap) {
                 /** @var \App\Models\PhysicalQuantity $model */
                 $model = $items->first();
                 $article = $model->article;
@@ -134,11 +136,9 @@ class PhysicalQuantityReportService
                 $pcsPerPacket = (float) ($article->pcs_per_packet ?: 0);
                 $totalPcs = (float) ($article->quantity + $article->extra_pcs);
                 $totalPackets = $pcsPerPacket > 0 ? ($totalPcs / $pcsPerPacket) : 0;
-                $soldPackets = $pcsPerPacket > 0 ? ((float) $article->sold_quantity / $pcsPerPacket) : 0;
-                $currentStockPackets = $packets - $soldPackets;
-                $remainingPackets = number_format($totalPackets - $packets, 1);
-                $invoicePcs = (float) ($invoicedMap[$model->article_id] ?? 0);
-                $invoicePackets = $pcsPerPacket > 0 ? ($invoicePcs / $pcsPerPacket) : 0;
+                $orderedPackets = $totalPackets;
+                $currentStockPackets = $orderedPackets - $packets;
+                $remainingPackets = $currentStockPackets;
                 $shipment = $this->resolveShipment($shipmentCitiesMap->get($model->article_id, collect()));
 
                 return [
@@ -147,16 +147,18 @@ class PhysicalQuantityReportService
                     'processed_by' => $article->processed_by,
                     'unit' => $article->pcs_per_packet,
                     'total_quantity' => floor($totalPcs / 12) . ' - Dz. | ' . $totalPackets . ' - Pkts.',
-                    'received_quantity' => $packets,
-                    'current_stock' => $currentStockPackets . ' - Pkts.',
-                    'invoiced_quantity' => $invoicePackets . ' - Pkts.',
+                    'ordered_quantity' => $this->formatPacketQuantity($orderedPackets),
+                    'received_quantity' => $this->formatPacketQuantity($packets),
+                    'current_stock' => $this->formatPacketQuantity($currentStockPackets),
                     'a_category' => $items->where('category', 'a')->sum('packets') . ' - Pkts.',
                     'b_category' => $items->where('category', 'b')->sum('packets') . ' - Pkts.',
                     'c_category' => $items->where('category', 'c')->sum('packets') . ' - Pkts.',
-                    'remaining_quantity' => $remainingPackets,
+                    'remaining_quantity' => $this->formatPacketQuantity($remainingPackets),
                     'shipment' => $shipment,
                     'total_packets_numeric' => $totalPackets,
+                    'ordered_packets_numeric' => $orderedPackets,
                     'received_packets_numeric' => $packets,
+                    'current_stock_packets_numeric' => $currentStockPackets,
                     'remaining_packets_numeric' => $remainingPackets,
                     'onclick' => 'generateModal(this)',
                     'oncontextmenu' => 'generateContextMenu(event)',
@@ -197,6 +199,6 @@ class PhysicalQuantityReportService
         $formatted = number_format((float) $value, 2, '.', '');
         $formatted = rtrim(rtrim($formatted, '0'), '.');
 
-        return $formatted . ' - Pkts.';
+        return $formatted;
     }
 }

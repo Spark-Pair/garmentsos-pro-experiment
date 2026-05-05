@@ -52,7 +52,7 @@
                             <div class="cursor-pointer" onclick="sortByThis(this)">Unit</div>
                             <div class="cursor-pointer" onclick="sortByThis(this)">Total Qty.</div>
                             <div class="cursor-pointer" onclick="sortByThis(this)">Received Qty.</div>
-                            <div class="cursor-pointer" onclick="sortByThis(this)">Invoiced Qty.</div>
+                            <div class="cursor-pointer" onclick="sortByThis(this)">Ordered Qty.</div>
                             <div class="cursor-pointer" onclick="sortByThis(this)">Current Stock Qty.</div>
                             <div class="cursor-pointer" onclick="sortByThis(this)">A</div>
                             <div class="cursor-pointer" onclick="sortByThis(this)">B</div>

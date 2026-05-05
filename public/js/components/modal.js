@@ -425,35 +425,24 @@ function createModal(data, animate = 'animate') {
 
     function chunkArray(array, size, hasTotal = false) {
         const total = array.length;
-        const itemsPerPage = hasTotal ? 18 : 21;
+        const chunks = [];
 
-        // Agar items 18-21 range mein hain aur total show hoga
-        if (hasTotal && total > 18 && total <= 21) {
-            // Sari rows first page, total second page
-            return [array, []];
-        }
-
-        // Agar items itemsPerPage se kam ya equal hain, ek hi page
-        if (total <= itemsPerPage) {
-            return [array];
-        }
-
-        // Agar last page par bahut kam items honge (< 5), to redistribute
-        const remainder = total % itemsPerPage;
-        if (remainder > 0 && remainder < 5) {
-            const adjustedSize = Math.ceil(total / Math.ceil(total / itemsPerPage));
-            const chunks = [];
-            for (let i = 0; i < total; i += adjustedSize) {
-                chunks.push(array.slice(i, i + adjustedSize));
+        if (!hasTotal || total <= 18) {
+            for (let i = 0; i < total; i += size) {
+                chunks.push(array.slice(i, i + size));
             }
             return chunks;
         }
 
-        // Normal chunking
-        const chunks = [];
-        for (let i = 0; i < total; i += itemsPerPage) {
-            chunks.push(array.slice(i, i + itemsPerPage));
+        let startIndex = 0;
+
+        while (total - startIndex > 18) {
+            chunks.push(array.slice(startIndex, startIndex + size));
+            startIndex += size;
         }
+
+        chunks.push(array.slice(startIndex));
+
         return chunks;
     }
 
@@ -579,6 +568,7 @@ function createModal(data, animate = 'animate') {
             let totalAmount = 0;
             let totalPcs = 0;
             let totalPackets = 0;
+            let rowSerial = 1;
 
             articlePages.forEach((articlesChunk, pageIndex) => {
                 invoiceTableHeader = `
@@ -619,7 +609,7 @@ function createModal(data, animate = 'animate') {
                                 <div>
                                     <hr class="w-full ${hrClass} border-black">
                                     <div class="tr grid grid-cols-${data.preview.type == 'shipment' ? '8' : '9'} justify-between w-full px-4 gap-0.5">
-                                        <div class="td text-sm font-semibold truncate">${pageIndex * 21 + index + 1}.</div>
+                                        <div class="td text-sm font-semibold truncate">${rowSerial++}.</div>
                                         <div class="td text-sm font-semibold truncate">${article.article_no}</div>
                                         <div class="td text-sm font-semibold col-span-2 truncate capitalize">${orderedArticle.description}</div>
                                         ${data.preview.type == 'invoice' ? `<div class="td text-sm font-semibold truncate">${article?.pcs_per_packet}</div>` : ''}

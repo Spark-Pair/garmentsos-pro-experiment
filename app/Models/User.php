@@ -43,11 +43,13 @@ class User extends Authenticatable
         'daily_ledger_type',
         'c_r_type',
         'statement_type',
+        'physical_quantity_report_type',
         'menu_shortcuts',
     ];
 
     protected $attributes = [
         'statement_type' => 'general',
+        'physical_quantity_report_type' => 'altration',
     ];
 
     /**

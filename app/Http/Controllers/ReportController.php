@@ -16,6 +16,7 @@ use App\Models\Voucher;
 use App\Services\PhysicalQuantityReportService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\FacadesLog;
 
@@ -369,8 +370,12 @@ class ReportController extends Controller
 
         $articleOptions = $physicalQuantityReportService->getArticleOptions();
         $mode = $request->input('mode', 'all_articles');
+        $reportType = Auth::user()?->physical_quantity_report_type ?? 'altration';
         if (!in_array($mode, ['all_articles', 'article_wise', 'proceed_by_wise'], true)) {
             $mode = 'all_articles';
+        }
+        if (!in_array($reportType, ['stock', 'altration'], true)) {
+            $reportType = 'altration';
         }
         $data = null;
 
@@ -391,7 +396,7 @@ class ReportController extends Controller
             }
 
             $rows = $canGenerate
-                ? $physicalQuantityReportService->getArticleReportRows($filters)
+                ? $physicalQuantityReportService->getArticleReportRows($filters, $reportType)
                 : collect();
             $maxRowsPerColumn = 58;
             $maxRowsPerPage = $maxRowsPerColumn * 2;
@@ -408,6 +413,7 @@ class ReportController extends Controller
 
             $data = [
                 'mode' => $mode,
+                'report_type' => $reportType,
                 'article_id' => $request->input('article_id'),
                 'proceed_by' => $request->input('proceed_by'),
                 'rows' => $rows,
@@ -416,7 +422,7 @@ class ReportController extends Controller
             ];
         }
 
-        return view('reports.physical-quantity', compact('articleOptions', 'mode', 'data'));
+        return view('reports.physical-quantity', compact('articleOptions', 'mode', 'reportType', 'data'));
     }
 
     private function expenseStatementPayload(int $id): ?array

@@ -117,37 +117,37 @@ class BankAccount extends Model
         $balance = 0;
 
         if ($this->category === 'self') {
-            // --- Normal CustomerPayments (no cheque_no, no slip_no) — filter by own date ---
+            // Normal CustomerPayments (no cheque, no slip) — filter by own date
             $normalPayments = CustomerPayment::where('bank_account_id', $this->id)
                 ->whereNull('cheque_no')
                 ->whereNull('slip_no');
             $this->applyDateFilter($normalPayments, 'date', $fromDate, $toDate, $includeGivenDate);
 
-            // --- Cheque CustomerPayments — filter by voucher date ---
+            // Cheque CustomerPayments — filter by voucher date
             $chequePayments = CustomerPayment::where('bank_account_id', $this->id)
                 ->whereNotNull('cheque_no')
                 ->whereHas('cheque.voucher', function ($q) use ($fromDate, $toDate, $includeGivenDate) {
                     $this->applyDateFilter($q, 'date', $fromDate, $toDate, $includeGivenDate);
                 });
 
-            // --- Slip CustomerPayments — filter by voucher date ---
+            // Slip CustomerPayments — filter by voucher date
             $slipPayments = CustomerPayment::where('bank_account_id', $this->id)
                 ->whereNotNull('slip_no')
                 ->whereHas('slip.voucher', function ($q) use ($fromDate, $toDate, $includeGivenDate) {
                     $this->applyDateFilter($q, 'date', $fromDate, $toDate, $includeGivenDate);
                 });
 
-            // --- SupplierPayments — filter by own date ---
+            // SupplierPayments — filter by own date
             $supplierPayments = SupplierPayment::where('bank_account_id', $this->id);
             $this->applyDateFilter($supplierPayments, 'date', $fromDate, $toDate, $includeGivenDate);
 
-            // --- Adjustments ---
+            // Adjustments
             $adjustmentsQuery = $this->statementAdjustments();
             $this->applyDateFilter($adjustmentsQuery, 'date', $fromDate, $toDate, $includeGivenDate);
 
             $totalInflow  = $normalPayments->sum('amount')
-                          + $chequePayments->sum('amount')
-                          + $slipPayments->sum('amount');
+                        + $chequePayments->sum('amount')
+                        + $slipPayments->sum('amount');
 
             $totalOutflow = $supplierPayments->sum('amount');
 
@@ -190,29 +190,28 @@ class BankAccount extends Model
         $periodBalance  = $this->calculateBalance($fromDate, $toDate);
         $closingBalance = $openingBalance + $periodBalance;
 
-        // ── CustomerPayments query ──
-        // Normal: apni date se, Cheque/Slip: voucher date se filter
+        // ── CustomerPayments query ── (aligned with calculateBalance logic)
         $customerQuery = CustomerPayment::where('bank_account_id', $this->id)
             ->where(function ($q) use ($from, $to) {
-                // Normal (no cheque, no slip)
+                // Normal (no cheque, no slip) — filter by own date
                 $q->where(function ($q) use ($from, $to) {
                     $q->whereNull('cheque_no')
-                      ->whereNull('slip_no')
-                      ->whereBetween(DB::raw('DATE(date)'), [$from, $to]);
+                    ->whereNull('slip_no')
+                    ->whereBetween(DB::raw('DATE(date)'), [$from, $to]);
                 })
-                // Cheque — voucher date
+                // Cheque — filter by voucher date
                 ->orWhere(function ($q) use ($from, $to) {
                     $q->whereNotNull('cheque_no')
-                      ->whereHas('cheque.voucher', fn($q) =>
-                          $q->whereBetween(DB::raw('DATE(date)'), [$from, $to])
-                      );
+                    ->whereHas('cheque.voucher', fn($q) =>
+                        $q->whereBetween(DB::raw('DATE(date)'), [$from, $to])
+                    );
                 })
-                // Slip — voucher date
+                // Slip — filter by voucher date
                 ->orWhere(function ($q) use ($from, $to) {
                     $q->whereNotNull('slip_no')
-                      ->whereHas('slip.voucher', fn($q) =>
-                          $q->whereBetween(DB::raw('DATE(date)'), [$from, $to])
-                      );
+                    ->whereHas('slip.voucher', fn($q) =>
+                        $q->whereBetween(DB::raw('DATE(date)'), [$from, $to])
+                    );
                 });
             })
             ->with([
@@ -329,7 +328,7 @@ class BankAccount extends Model
                 'created_at'  => $p->created_at ?? null,
                 'source'      => [
                     'type' => 'customer_payment',
-                    'id' => $p->id,
+                    'id'   => $p->id,
                 ],
             ]);
 
@@ -344,7 +343,7 @@ class BankAccount extends Model
                 'created_at'  => $p->created_at ?? null,
                 'source'      => [
                     'type' => $p->voucher_id ? 'voucher' : 'supplier_payment',
-                    'id' => $p->voucher_id ?: $p->id,
+                    'id'   => $p->voucher_id ?: $p->id,
                 ],
             ]);
 

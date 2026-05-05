@@ -8,7 +8,26 @@
         'article_wise' => 'Article-wise',
         'proceed_by_wise' => 'Proceed By-wise',
     ];
+    $reportTypeLabels = [
+        'stock' => 'Stock',
+        'altration' => 'Altration',
+    ];
 @endphp
+    <div class="switch-btn-container flex absolute top-3 md:top-17 left-3 md:left-5 z-4">
+        <div class="switch-btn relative flex border-3 border-[var(--secondary-bg-color)] bg-[var(--secondary-bg-color)] rounded-2xl overflow-hidden">
+            <div id="reportTypeHighlight" class="absolute h-full rounded-xl bg-[var(--bg-color)] transition-all duration-300 ease-in-out z-0"></div>
+
+            <button id="stockBtn" type="button" class="relative z-10 px-3.5 md:px-5 py-1.5 md:py-2 cursor-pointer rounded-xl transition-colors duration-300" onclick="setPhysicalQuantityReportType(this, 'stock')">
+                <div class="hidden md:block">Stock</div>
+                <div class="block md:hidden"><i class="fas fa-boxes-stacked text-xs"></i></div>
+            </button>
+            <button id="altrationBtn" type="button" class="relative z-10 px-3.5 md:px-5 py-1.5 md:py-2 cursor-pointer rounded-xl transition-colors duration-300" onclick="setPhysicalQuantityReportType(this, 'altration')">
+                <div class="hidden md:block">Altration</div>
+                <div class="block md:hidden"><i class="fas fa-scissors text-xs"></i></div>
+            </button>
+        </div>
+    </div>
+
     <div class="mb-5 max-w-5xl mx-auto">
         <x-search-header heading="Physical Quantity Report" />
         <x-progress-bar :steps="['Select Options', 'Preview']" :currentStep="1" />
@@ -19,6 +38,8 @@
         <x-form-title-bar title="Generate Physical Quantity Report" />
 
         <div class="step1 space-y-4">
+            <input type="hidden" id="report_type" name="report_type" value="{{ $reportType }}" />
+
             <x-select
                 label="Report Mode"
                 name="mode"
@@ -61,6 +82,12 @@
                 <div id="preview-container" class="h-full relative">
                     @php
                         $totalPages = $data['pages']->count();
+                        $activeReportType = $data['report_type'] ?? $reportType ?? 'altration';
+                        $reportHeading = $activeReportType === 'stock'
+                            ? 'Physical Quantity Stock Report'
+                            : 'Physical Quantity Altration Report';
+                        $primaryLabel = $activeReportType === 'stock' ? 'Ordered' : 'Received';
+                        $secondaryLabel = $activeReportType === 'stock' ? 'Current' : 'Remaining';
                     @endphp
                     @forelse ($data['pages'] as $page)
                         @php 
@@ -88,7 +115,7 @@
                                         </div>
                                         <div class="right">
                                             <div>
-                                                <h1 class="text-lg font-medium text-[var(--primary-color)] pr-2 capitalize">Physical Quantity Altraion Report</h1>
+                                                <h1 class="text-lg font-medium text-[var(--primary-color)] pr-2 capitalize">{{ $reportHeading }}</h1>
                                                 <div class="total-bill leading-none mt-0.5 text-xs">Total Records: {{ $data['rows']->count() }} | Print Date: {{ $today = now()->format('d-M-Y'); }}</div>
                                             </div>
                                         </div>
@@ -110,20 +137,20 @@
                                                                         <div class="th font-medium overflow-hidden w-[8%] text-left">#</div>
                                                                         <div class="th font-medium overflow-hidden w-[30%] text-left">Article/pckt.</div>
                                                                         <div class="th font-medium overflow-hidden grow">Proc. By</div>
-                                                                        <div class="th font-medium overflow-hidden w-[20%]">Received</div>
-                                                                        <div class="th font-medium overflow-hidden w-[20%]">Remainig</div>
+                                                                        <div class="th font-medium overflow-hidden w-[20%]">{{ $primaryLabel }}</div>
+                                                                        <div class="th font-medium overflow-hidden w-[20%]">{{ $secondaryLabel }}</div>
                                                                     </div>
                                                                 </div>
                                                                 <div id="tbody" class="tbody w-full">
                                                                     @foreach ($page[$column] as $row)
                                                                         <div>
-                                                                            <hr class="w-full border-dotted border-gray-100">
+                                                                            <hr class="w-full border-dotted">
                                                                             <div class="tr flex  w-full px-2 text-center gap-0.5">
                                                                                 <div class="td font-medium overflow-hidden w-[8%] text-left capitalize truncate">{{ $serial++ }}.</div>
                                                                                 <div class="td font-medium overflow-hidden w-[30%] text-left truncate">{{ $row['article_no'] }}</div>
                                                                                 <div class="td font-medium overflow-hidden grow capitalize truncate">{{ $row['proceed_by'] }}</div>
-                                                                                <div class="td font-medium overflow-hidden w-[20%]">{{ $row['received_qty'] }}</div>
-                                                                                <div class="td font-medium overflow-hidden w-[20%]">{{ $row['remaining_qty'] }}</div>
+                                                                                <div class="td font-medium overflow-hidden w-[20%]">{{ $row['primary_qty'] }}</div>
+                                                                                <div class="td font-medium overflow-hidden w-[20%]">{{ $row['secondary_qty'] }}</div>
                                                                             </div>
                                                                         </div>
                                                                     @endforeach
@@ -168,6 +195,9 @@
 <script>
     window.__reportsPhysicalQuantity = {
         reportUrl: @json(route('reports.physical-quantity')),
+        reportType: @json($reportType),
+        setTypeUrl: @json(url('/set-physical-quantity-report-type')),
+        csrfToken: @json(csrf_token()),
     };
 </script>
 @endpush

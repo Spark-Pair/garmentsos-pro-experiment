@@ -25,7 +25,8 @@ function initDailyLedgerIndex() {
     let totalUseDom = document.querySelector('#calc-bottom >.total-Payment .text-right');
     let balanceDom = document.querySelector('#calc-bottom >.balance .text-right');
     let closingBalanceDom = document.querySelector('#calc-bottom >.closing-balance .text-right');
-    let infoDom = document.getElementById('info').querySelector('span');
+    const infoRoot = document.getElementById('info');
+    let infoDom = infoRoot ? infoRoot.querySelector('span') : null;
 
     function renderCalculation(data) {
         const opening = Number(data.opening_balance || 0);
@@ -45,7 +46,9 @@ function initDailyLedgerIndex() {
     window.onFilter = function() {
         const visibleRows = window.visibleData || [];
         if (visibleRows.length === 0) {
-            infoDom.textContent = `Showing 0 of ${allDataArray.length} records.`;
+            if (infoDom) {
+                infoDom.textContent = `Showing 0 of ${allDataArray.length} records.`;
+            }
 
             if (allDataArray.length > 0) {
                 let fullDeposit = allDataArray.reduce((sum, d) => sum + parseFloat(d.deposit || 0), 0);
@@ -102,7 +105,9 @@ function initDailyLedgerIndex() {
 
         let closingBalance = runningBalance;
 
-        infoDom.textContent = `Showing ${visibleRows.length} of ${allDataArray.length} records.`;
+        if (infoDom) {
+            infoDom.textContent = `Showing ${visibleRows.length} of ${allDataArray.length} records.`;
+        }
         openingBalanceDom.innerText = formatNumbersWithDigits(openingBalance, 1, 1);
         totalDepositDom.innerText = formatNumbersWithDigits(visibleDeposit, 1, 1);
         totalUseDom.innerText = formatNumbersWithDigits(visibleUse, 1, 1);
