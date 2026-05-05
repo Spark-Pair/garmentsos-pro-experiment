@@ -326,47 +326,47 @@ class VoucherController extends Controller
                             ]);
                         }
                     } else if ($paymentDetails['method'] == 'Self Cheque') {
-                        CustomerPayment::create([
-                            'date' => $request->date,
-                            'type' => 'self_account_deposit',
-                            'method' => $paymentDetails['method'],
-                            'amount' => $paymentDetails['amount'],
-                            'cheque_no' => $paymentDetails['cheque_no'],
-                            'cheque_date' => $paymentDetails['cheque_date'],
-                            'remarks' => $paymentDetails['remarks'],
-                            'bank_account_id' => $paymentDetails['self_account_id'],
+                        $customerPayment = CustomerPayment::create([
+                            'date'           => $request->date,
+                            'type'           => 'self_account_deposit',
+                            'method'         => $paymentDetails['method'],
+                            'amount'         => $paymentDetails['amount'],
+                            'cheque_no'      => $paymentDetails['cheque_no'],
+                            'cheque_date'    => $paymentDetails['cheque_date'],
+                            'remarks'        => $paymentDetails['remarks'],
+                            'bank_account_id'=> $paymentDetails['self_account_id'],
                         ]);
 
                         SupplierPayment::create([
-                            'date' => $request->date,
-                            'method' => $paymentDetails['method'],
-                            'amount' => $paymentDetails['amount'],
-                            'cheque_no' => $paymentDetails['cheque_no'],
-                            'bank_account_id' => $paymentDetails['bank_account_id'],
-                            'remarks' => $paymentDetails['remarks'],
-                            'self_account_id' => $paymentDetails['self_account_id'],
-                            'voucher_id' => $voucher->id,
+                            'date'           => $request->date,
+                            'method'         => $paymentDetails['method'],
+                            'amount'         => $paymentDetails['amount'],
+                            'cheque_id'      => $customerPayment->id, // link, not duplicate
+                            'remarks'        => $paymentDetails['remarks'],
+                            'bank_account_id'=> $paymentDetails['bank_account_id'],
+                            'self_account_id'=> $paymentDetails['self_account_id'],
+                            'voucher_id'     => $voucher->id,
                         ]);
                     } else if ($paymentDetails['method'] == 'ATM') {
-                        CustomerPayment::create([
-                            'date' => $request->date,
-                            'type' => 'self_account_deposit',
-                            'method' => $paymentDetails['method'],
-                            'amount' => $paymentDetails['amount'],
-                            'reff_no' => $paymentDetails['reff_no'],
-                            'remarks' => $paymentDetails['remarks'],
-                            'bank_account_id' => $paymentDetails['self_account_id'],
+                        $customerPayment = CustomerPayment::create([
+                            'date'           => $request->date,
+                            'type'           => 'self_account_deposit',
+                            'method'         => $paymentDetails['method'],
+                            'amount'         => $paymentDetails['amount'],
+                            'reff_no'        => $paymentDetails['reff_no'],
+                            'remarks'        => $paymentDetails['remarks'],
+                            'bank_account_id'=> $paymentDetails['self_account_id'],
                         ]);
 
                         SupplierPayment::create([
-                            'date' => $request->date,
-                            'method' => $paymentDetails['method'],
-                            'amount' => $paymentDetails['amount'],
-                            'reff_no' => $paymentDetails['reff_no'],
-                            'bank_account_id' => $paymentDetails['bank_account_id'],
-                            'remarks' => $paymentDetails['remarks'],
-                            'self_account_id' => $paymentDetails['self_account_id'],
-                            'voucher_id' => $voucher->id,
+                            'date'           => $request->date,
+                            'method'         => $paymentDetails['method'],
+                            'amount'         => $paymentDetails['amount'],
+                            'atm_id'         => $customerPayment->id, // ya cheque_id — jo column use kar rahe ho
+                            'remarks'        => $paymentDetails['remarks'],
+                            'bank_account_id'=> $paymentDetails['bank_account_id'],
+                            'self_account_id'=> $paymentDetails['self_account_id'],
+                            'voucher_id'     => $voucher->id,
                         ]);
                     }
                 } else {
@@ -523,43 +523,50 @@ class VoucherController extends Controller
         $requestPayments = json_decode($request->payment_details_array, true);
         $this->assertVoucherPaymentsAreUnique($requestPayments ?? [], $voucher);
 
-        // return $requestPayments;
-
         DB::transaction(function () use ($voucher, $requestPayments) {
 
             // -----------------------------
-            // Step 3: Delete all existing payments
+            // Step 3: Delete existing payments
             // -----------------------------
             $existingPayments = $voucher->payments()->get();
 
             foreach ($existingPayments as $old) {
-                // Detach or update related CustomerPayment
-                if (($old->method === "Cheque" || $old->method === "cheque") && $old->cheque_id) {
+                
+                if (in_array($old->method, ['Cheque', 'cheque']) && $old->cheque_id) {
                     CustomerPayment::where('id', $old->cheque_id)->update([
                         'bank_account_id' => null,
-                        'is_return' => false,
+                        'is_return'       => false,
                     ]);
                 }
 
-                if (($old->method === "Slip" || $old->method === "slip") && $old->slip_id) {
+                if (in_array($old->method, ['Slip', 'slip']) && $old->slip_id) {
                     CustomerPayment::where('id', $old->slip_id)->update([
                         'bank_account_id' => null,
-                        'is_return' => false,
+                        'is_return'       => false,
                     ]);
                 }
 
-                if ($voucher->supplier_id === null && in_array($old->method, ["Cash", "cash", "Adjustment", "Self Cheque", "ATM"]) && !empty($old->self_account_id)) {
+                // Self Cheque — CustomerPayment cheque_id se linked hai, direct delete karo
+                if ($old->method === 'Self Cheque' && $old->cheque_id) {
+                    CustomerPayment::where('id', $old->cheque_id)->delete();
+                }
+
+                // ATM — atm_id se linked CustomerPayment delete karo
+                if ($old->method === 'ATM' && $old->atm_id) {
+                    CustomerPayment::where('id', $old->atm_id)->delete();
+                }
+
+                // Cash / Adjustment self deposit — cheque_id nahi hota, fields se match karo
+                if (in_array($old->method, ['Cash', 'Adjustment']) && !empty($old->self_account_id)) {
                     CustomerPayment::where([
-                        'date' => $old->date,
-                        'type' => 'self_account_deposit',
-                        'method' => $old->method,
-                        'amount' => $old->amount,
-                        'bank_account_id' => $old->self_account_id,
+                        'type'           => 'self_account_deposit',
+                        'method'         => $old->method,
+                        'amount'         => $old->amount,
+                        'bank_account_id'=> $old->self_account_id,
                     ])->delete();
                 }
 
-                // For Program method, just detach
-                if ($old->method === "program" || $old->method === "Program") {
+                if (in_array($old->method, ['program', 'Program'])) {
                     $old->update(['voucher_id' => null]);
                 } else {
                     $old->delete();
@@ -567,62 +574,103 @@ class VoucherController extends Controller
             }
 
             // -----------------------------
-            // Step 4: Add new payments
+            // Step 4: Re-create payments
             // -----------------------------
             foreach ($requestPayments as $pd) {
 
-                // Validate unique cheque_no
-                Validator::make($pd, [
-                    'cheque_no' => ['nullable', Rule::unique('supplier_payments', 'cheque_no')],
-                ])->validate();
-
                 $pd['supplier_id'] = $voucher->supplier_id;
-                $pd['voucher_id'] = $voucher->id;
-                $pd['date'] = $voucher->date;
+                $pd['voucher_id']  = $voucher->id;
+                $pd['date']        = $voucher->date;
 
-                if ($pd['method'] == 'program') {
-                    $supplierPayment = SupplierPayment::find($pd['payment_id'] ?? $pd['id']);
+                if (in_array($pd['method'], ['program', 'Program'])) {
+                    $supplierPayment = SupplierPayment::find($pd['payment_id'] ?? $pd['id'] ?? null);
                     if ($supplierPayment) {
                         $supplierPayment->update(['voucher_id' => $pd['voucher_id']]);
                     }
-                } else {
-                    $newPayment = SupplierPayment::create(attributes: $pd);
+                    continue;
                 }
 
-                // Self Account logic
+                // Self account flows — CustomerPayment pehle banao, phir link karo
                 if (!empty($pd['self_account_id'])) {
+
                     $cpBase = [
-                        'date' => $pd['date'],
-                        'type' => 'self_account_deposit',
-                        'method' => $pd['method'],
-                        'amount' => $pd['amount'],
-                        'remarks' => $pd['remarks'] ?? null,
-                        'bank_account_id' => $pd['self_account_id'],
+                        'date'           => $pd['date'],
+                        'type'           => 'self_account_deposit',
+                        'method'         => $pd['method'],
+                        'amount'         => $pd['amount'],
+                        'remarks'        => $pd['remarks'] ?? null,
+                        'bank_account_id'=> $pd['self_account_id'],
                     ];
 
                     if (in_array($pd['method'], ['Cash', 'Adjustment'])) {
                         CustomerPayment::create($cpBase);
+                        SupplierPayment::create($pd);
                     }
 
-                    if ($pd['method'] === "Cheque") {
-                        CustomerPayment::where('id', $pd['cheque_id'])->update(['is_return' => false, 'bank_account_id' => $pd['self_account_id']]);
+                    if ($pd['method'] === 'Cheque') {
+                        CustomerPayment::where('id', $pd['cheque_id'])->update([
+                            'is_return'       => false,
+                            'bank_account_id' => $pd['self_account_id'],
+                        ]);
+                        SupplierPayment::create($pd);
                     }
 
-                    if ($pd['method'] === "Slip") {
-                        CustomerPayment::where('id', $pd['slip_id'])->update(['is_return' => false, 'bank_account_id' => $pd['self_account_id']]);
+                    if ($pd['method'] === 'Slip') {
+                        CustomerPayment::where('id', $pd['slip_id'])->update([
+                            'is_return'       => false,
+                            'bank_account_id' => $pd['self_account_id'],
+                        ]);
+                        SupplierPayment::create($pd);
                     }
 
-                    if ($pd['method'] === "Self Cheque") {
-                        CustomerPayment::create(array_merge($cpBase, [
-                            'cheque_no' => $pd['cheque_no'],
-                            'cheque_date' => $pd['cheque_date'],
+                    if ($pd['method'] === 'Self Cheque') {
+                        $cp = CustomerPayment::create(array_merge($cpBase, [
+                            'cheque_no'   => $pd['cheque']['cheque_no'] ?? null,   // fix
+                            'cheque_date' => $pd['cheque']['date'] ?? null, // fix
+                            'bank_account_id' => $pd['self_account_id'],
+                        ]));
+
+                        SupplierPayment::create(array_merge($pd, [
+                            'cheque_id' => $cp->id,
+                            'cheque_no' => null,
+                            'bank_account_id' => $pd['bank_account_id'],
+                            'self_account_id' => $pd['self_account_id'],
+                        ]));        
+                    }
+
+                    if ($pd['method'] === 'ATM') {
+                        $cp = CustomerPayment::create(array_merge($cpBase, [
+                            'reff_no' => $pd['reff_no'] ?? null, // fix
+                            'bank_account_id' => $pd['self_account_id'],
+                        ]));
+
+                        SupplierPayment::create(array_merge($pd, [
+                            'atm_id'  => $cp->id,
+                            'reff_no' => null,
+                            'bank_account_id' => $pd['bank_account_id'],
+                            'self_account_id' => $pd['self_account_id'],
                         ]));
                     }
 
-                    if ($pd['method'] === "ATM") {
-                        CustomerPayment::create(array_merge($cpBase, [
-                            'reff_no' => $pd['reff_no'],
-                        ]));
+                } else {
+                    // Normal supplier payment (non-self-account)
+                    if (in_array($pd['method'], ['Cheque', 'Slip'])) {
+                        $linkKey = $pd['method'] === 'Cheque' ? 'cheque_id' : 'slip_id';
+                        if (!empty($pd[$linkKey])) {
+                            CustomerPayment::where('id', $pd[$linkKey])->update([
+                                'bank_account_id' => $pd['bank_account_id'] ?? null,
+                                'is_return'       => false,
+                            ]);
+                        }
+                    }
+
+                    if (!empty($pd['payment_id'])) {
+                        $existing = SupplierPayment::find($pd['payment_id']);
+                        if ($existing) {
+                            $existing->update(['voucher_id' => $voucher->id]);
+                        }
+                    } else {
+                        SupplierPayment::create($pd);
                     }
                 }
             }

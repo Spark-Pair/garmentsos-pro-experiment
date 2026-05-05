@@ -45,6 +45,7 @@ class ReadOnlyMode
             'set-daily-ledger-type',
             'set-cr-type',
             'set-statement-type',
+            'set-physical-quantity-report-type',
             'update-last-activity',
             'logout',
         ];

@@ -831,6 +831,7 @@ function initVouchersEdit() {
                                 </div>
                                 <div id="tbody" class="tbody w-full">
                                     ${paymentDetailsArray.map((payment, index) => {
+                                        console.log(payment);
 
                                         let selected = JSON.parse(payment.selected || '{}');
 
@@ -841,7 +842,7 @@ function initVouchersEdit() {
                                                     <div class="tr flex justify-between w-full px-4 text-nowrap gap-0.5">
                                                         <div class="td text-sm font-semibold w-[7%]">${index + 1}.</div>
                                                         <div class="td text-sm font-semibold w-[11%] capitalize">${payment.method ?? '-'}</div>
-                                                        <div class="td text-sm font-semibold w-1/5">${payment.program?.customer?.customer_name ? payment.program?.customer?.customer_name : selected.customer?.customer_name ? selected.customer?.customer_name : payment.cheque ? payment.cheque.customer.customer_name : payment.slip ? payment.slip.customer.customer_name : '-'}</div>
+                                                        <div class="td text-sm font-semibold w-1/5">${payment.program?.customer?.customer_name ? payment.program?.customer?.customer_name : selected.customer?.customer_name ? selected.customer?.customer_name : payment.cheque ? payment.cheque?.customer?.customer_name ? payment.cheque.customer.customer_name : '-' : payment.slip ? payment.slip.customer.customer_name : '-'}</div>
                                                         <div class="td text-sm font-semibold w-1/4">${payment.bank_account ? payment.bank_account.account_title + ' | ' + payment.bank_account.bank.short_title : (selected?.bank_account?.account_title ?? '-') + ' | ' + (selected?.bank_account?.bank.short_title ?? '-')}</div>
                                                         <div class="td text-sm font-semibold w-[14%]">${formatDate(dateInpDom.value, true) ?? '-'}</div>
                                                         <div class="td text-sm font-semibold w-[14%]">${selected?.cheque_no ?? selected?.slip_no ?? selected?.transaction_id ?? selected?.reff_no ?? payment.cheque_no ?? payment.reff_no ?? payment.transaction_id ?? payment.cheque?.cheque_no ?? payment.slip?.slip_no ?? '-'}</div>

@@ -14,8 +14,8 @@
                 <span>${data.unit}</span>
                 <span>${data.total_quantity}</span>
                 <span>${data.received_quantity} - Pkts.</span>
-                <span>${data.invoiced_quantity}</span>
-                <span>${data.current_stock}</span>
+                <span>${data.ordered_quantity} - Pkts.</span>
+                <span>${data.current_stock} - Pkts.</span>
                 <span>${data.a_category}</span>
                 <span>${data.b_category}</span>
                 <span>${data.c_category}</span>

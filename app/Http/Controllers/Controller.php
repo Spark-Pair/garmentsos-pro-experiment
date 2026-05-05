@@ -611,6 +611,28 @@ class Controller extends BaseController
         ]);
     }
 
+    public function setPhysicalQuantityReportType(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            "physical_quantity_report_type" => "required|in:stock,altration",
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(["error" => $validator->errors()->first()]);
+        }
+
+        $user = Auth::user();
+        $user->physical_quantity_report_type = $request->physical_quantity_report_type;
+        $user->save();
+
+        session()->flash('success', 'Physical quantity report type updated.');
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Physical quantity report type set as default.',
+        ]);
+    }
+
     public function getUtilityAccounts(Request $request)
     {
         $validator = Validator::make($request->all(), [
