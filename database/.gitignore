@@ -1,3 +1,5 @@
 database.sqlite
 database-SP.sqlite
 database-AJ.sqlite
+*.sqlite-wal
+*.sqlite-shm
