@@ -39,6 +39,7 @@ class CustomerPaymentController extends Controller
                     'slip.voucher.supplier.bankAccounts.bank',
                     'slip.cr',
                     'program.subCategory',
+                    'bankAccount.bank',
                     'bankAccount.subCategory',
                     'paymentClearRecord.bankAccount.bank',
                     'paymentClearRecord.creator',

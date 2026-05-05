@@ -89,12 +89,12 @@ trait CustomerPaymentComputed
     {
         return Attribute::get(function () {
 
-            if ($this->cheque?->supplier) return $this->cheque->supplier->supplier_name;
-            if ($this->slip?->supplier)   return $this->slip->supplier->supplier_name;
-            if ($this->bankAccount)   return $this->bankAccount?->account_title;
-            if ($this->cheque?->voucher?->supplier) return $this->cheque?->voucher?->supplier->supplier_name;
-            if ($this->slip?->voucher?->supplier)   return $this->slip?->voucher?->supplier->supplier_name;
-            if ($this->bankAccount?->subCategory)   return $this->bankAccount?->subCategory->supplier_name;
+            // if ($this->cheque?->supplier) return $this->cheque->supplier->supplier_name;
+            // if ($this->slip?->supplier)   return $this->slip->supplier->supplier_name;
+            if ($this->bankAccount)   return $this->bankAccount?->account_title . ' | ' . $this->bankAccount?->bank->short_title;
+            // if ($this->cheque?->voucher?->supplier) return $this->cheque?->voucher?->supplier->supplier_name;
+            // if ($this->slip?->voucher?->supplier)   return $this->slip?->voucher?->supplier->supplier_name;
+            // if ($this->bankAccount?->subCategory)   return $this->bankAccount?->subCategory->supplier_name;
 
             return '-';
         });
