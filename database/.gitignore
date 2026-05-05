@@ -6,3 +6,4 @@ database-AJ.sqlite
 *.sqlite-shm.corrupt-backup
 *.sqlite-wal.corrupt-backup
 *.sqlite.corrupt-backup
+*.sqlite-wal
