@@ -41,6 +41,8 @@ function initCustomerPaymentsIndex() {
     window.renderCalculation = renderCalculation;
 
     window.generateClearModal = function(item) {
+        console.log(item);
+        
         let data = item.data;
 
         let modalData = {
@@ -97,7 +99,7 @@ function initCustomerPaymentsIndex() {
         };
         createModal(modalData);
 
-        let bankAccounts = data.bank_account ? [data.bank_account] : data.cheque?.voucher?.supplier?.bank_accounts ? data.cheque?.voucher?.supplier?.bank_accounts : data.slip?.voucher?.supplier?.bank_accounts ? data.slip?.voucher?.supplier?.bank_accounts : [];
+        let bankAccounts = data.bank_account ? [data.bank_account] : data.cheque?.voucher?.supplier?.bank_accounts ? data.cheque?.voucher?.supplier?.bank_accounts : data.slip?.voucher?.supplier?.bank_accounts ? data.slip?.voucher?.supplier?.bank_accounts : data.cheque?.cr?.voucher?.supplier?.bank_accounts ? data.cheque?.cr?.voucher?.supplier?.bank_accounts : data.slip?.cr?.voucher?.supplier?.bank_accounts ? data.slip?.cr?.voucher?.supplier?.bank_accounts : [];
         let form = document.querySelector('#clearModal');
         let bankAccountInpDom = form.querySelector('input[id="bank_account_id"]');
         let bankAccountDom = form.querySelector('ul[data-for="bank_account_id"]');
