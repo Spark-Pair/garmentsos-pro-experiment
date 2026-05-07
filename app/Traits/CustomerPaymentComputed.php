@@ -38,7 +38,6 @@ trait CustomerPaymentComputed
             if ($this->slip?->voucher)   return $this->slip->voucher->voucher_no;
             if ($this->cheque?->cr)      return $this->cheque->cr->c_r_no;
             if ($this->slip?->cr)        return $this->slip->cr->c_r_no;
-            if ($this->dr)               return $this->dr->d_r_no;
 
             // program-based fallback
             if ($this->program_id) {
@@ -65,6 +64,8 @@ trait CustomerPaymentComputed
                 $voucherNoCache[$cacheKey] = $supplierPayment?->voucher?->voucher_no ?? null;
                 return $voucherNoCache[$cacheKey];
             }
+
+            if ($this->issued == 'Return') return 'Return';
 
             return null;
         });
