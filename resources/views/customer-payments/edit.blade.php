@@ -12,6 +12,7 @@
             'normal' => ['text' => 'Normal'],
             'payment_program' => ['text' => 'Payment Program'],
             'recovery' => ['text' => 'Recovery'],
+            'DR' => ['text' => 'DR'],
         ]
     @endphp
     <!-- Progress Bar -->
@@ -52,6 +53,7 @@
                         required
                         showDefault
                         onchange="trackTypeState(this)"
+                        disabled
                     />
 
                     <div class="col-span-full">
