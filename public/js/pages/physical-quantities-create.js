@@ -24,11 +24,11 @@
 
         if (!articleSelectInputDOM || !articleIdInputDOM) return;
 
-        function formatNumber(value, maximumFractionDigits = 2) {
+        function formatNumber(value, maximumFractionDigits = 1) {
             const numericValue = Number(value || 0);
 
             return new Intl.NumberFormat("en-US", {
-                minimumFractionDigits: Number.isInteger(numericValue) ? 0 : 2,
+                minimumFractionDigits: 1,
                 maximumFractionDigits,
             }).format(numericValue);
         }
@@ -222,10 +222,7 @@
                 );
                 finalOrderedQuantityDom.textContent = formatPcsAndPackets(totalQuantity);
 
-                finalOrderAmountDom.innerText = new Intl.NumberFormat("en-US", {
-                    minimumFractionDigits: 1,
-                    maximumFractionDigits: 1,
-                }).format(totalAmount);
+                finalOrderAmountDom.innerText = formatMoney(totalAmount);
             } else {
                 finalOrderedQuantityDom.textContent = formatPcsAndPackets(0, 0);
             }

@@ -107,7 +107,7 @@ class PaymentProgramController extends Controller
 
         foreach ($customers as $customer) {
             $customers_options[(int)$customer->id] = [
-                'text' => $customer->customer_name . ' | ' . ($customer->city->title ?? 'N/A') . ' | Balance: ' . number_format($customer->balance, 1),
+                'text' => $customer->customer_name . ' | ' . ($customer->city->title ?? 'N/A') . ' | Balance: ' . \App\Support\Money::format($customer->balance),
                 'data_option' => $customer
             ];
         }

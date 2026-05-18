@@ -16,6 +16,7 @@ const GlobalFilterManager = {
 
         this.loadInitialData();
         this.bindFilterEvents();
+        this.bindShortcutEvents();
     },
 
     bindFilterEvents() {
@@ -40,6 +41,46 @@ const GlobalFilterManager = {
             });
             this.loadInitialData();
         };
+    },
+
+    bindShortcutEvents() {
+        document.addEventListener('keydown', (event) => {
+            if (!document.querySelector('#search-form')) return;
+
+            const activeElement = document.activeElement;
+            const isTypingTarget = activeElement && (
+                activeElement.tagName === 'INPUT' ||
+                activeElement.tagName === 'TEXTAREA' ||
+                activeElement.isContentEditable
+            );
+
+            if (event.key === '`' && !event.altKey && !event.ctrlKey && !event.metaKey && !isTypingTarget) {
+                event.preventDefault();
+                this.openFilterAndFocusFirstField();
+                return;
+            }
+
+            if (!event.altKey || event.ctrlKey || event.metaKey) return;
+
+            const shortcutKey = event.key.toLowerCase();
+
+            if (shortcutKey === 'f') {
+                event.preventDefault();
+                this.toggleFilterPanel();
+                return;
+            }
+
+            if (shortcutKey === 's') {
+                event.preventDefault();
+                this.applyFilters();
+                return;
+            }
+
+            if (shortcutKey === 'c') {
+                event.preventDefault();
+                window.clearAllSearchFields();
+            }
+        });
     },
 
     async loadInitialData() {
@@ -82,6 +123,63 @@ const GlobalFilterManager = {
             alert('Failed to apply filters. Please try again.');
         } finally {
             this.showLoading(false);
+        }
+    },
+
+    getFilterTrigger() {
+        return document.querySelector('#search-form .dropdown-trigger');
+    },
+
+    getFilterMenu() {
+        return this.getFilterTrigger()?.nextElementSibling || null;
+    },
+
+    isFilterMenuOpen() {
+        const menu = this.getFilterMenu();
+        return !!menu && !menu.classList.contains('hidden');
+    },
+
+    toggleFilterPanel() {
+        const trigger = this.getFilterTrigger();
+        if (!trigger) return;
+        trigger.click();
+    },
+
+    openFilterAndFocusFirstField() {
+        const trigger = this.getFilterTrigger();
+        if (!trigger) return;
+
+        if (!this.isFilterMenuOpen()) {
+            trigger.click();
+        }
+
+        window.setTimeout(() => {
+            this.focusFirstFilterField();
+        }, 60);
+    },
+
+    focusFirstFilterField() {
+        const menu = this.getFilterMenu();
+        if (!menu) return;
+
+        const firstField = menu.querySelector('[data-filter-path]');
+        if (!firstField) return;
+
+        if (firstField.classList.contains('dbInput')) {
+            const targetId = firstField.getAttribute('data-for') || firstField.id;
+            const visibleInput = menu.querySelector(`#${CSS.escape(targetId)}`);
+            if (visibleInput) {
+                visibleInput.focus();
+                if (typeof visibleInput.select === 'function') {
+                    visibleInput.select();
+                }
+                return;
+            }
+        }
+
+        firstField.focus();
+        if (typeof firstField.select === 'function') {
+            firstField.select();
         }
     },
 

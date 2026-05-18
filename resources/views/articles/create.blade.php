@@ -151,12 +151,12 @@
                         <div
                             class="total flex justify-between items-center border border-gray-600 rounded-lg py-2 px-4 w-full cursor-not-allowed">
                             <div>Total - Rs.</div>
-                            <div class="text-right">0.00</div>
+                            <div class="text-right">0.0</div>
                         </div>
                         <div
                             class="final flex justify-between items-center bg-[var(--h-bg-color)] border border-gray-600 rounded-lg py-2 px-4 w-full">
                             <label for="sales_rate" class="text-nowrap grow">Sales Rate - Rs.</label>
-                            <input type="text" required name="sales_rate" id="sales_rate" value="0.00"
+                            <input type="text" required name="sales_rate" id="sales_rate" value="0.0"
                                 class="text-right bg-transparent outline-none border-none w-[50%]" />
                         </div>
                     </div>
@@ -249,7 +249,7 @@
                                     <div
                                         class="flex justify-between items-center bg-[var(--h-bg-color)] rounded-lg py-2 px-4">
                                         <div class="grow ml-5">{{ $rate['title'] }}</div>
-                                        <div class="w-1/4">{{ number_format($rate['rate'], 2, '.', '') }}</div>
+                                        <div class="w-1/4">{{ \App\Support\Money::format($rate['rate']) }}</div>
                                     </div>
                                 @endforeach
                             @endif
@@ -259,13 +259,13 @@
                         <div
                             class="flex justify-between items-center bg-[var(--h-bg-color)] rounded-lg py-2 px-4 w-full">
                             <div class="grow">Total - Rs.</div>
-                            <div class="w-1/4 text-right">{{ number_format($lastRecord->total_rate, 2, '.', '') }}
+                            <div class="w-1/4 text-right">{{ \App\Support\Money::format($lastRecord->total_rate) }}
                             </div>
                         </div>
                         <div
                             class="flex justify-between items-center bg-[var(--h-bg-color)] rounded-lg py-2 px-4 w-full">
                             <div class="text-nowrap grow">Sales Rate - Rs.</div>
-                            <div class="w-1/4 text-right">{{ number_format($lastRecord->sales_rate, 2, '.', '') }}
+                            <div class="w-1/4 text-right">{{ \App\Support\Money::format($lastRecord->sales_rate) }}
                             </div>
                         </div>
                     </div>

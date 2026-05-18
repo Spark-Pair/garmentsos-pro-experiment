@@ -113,7 +113,7 @@ trait SupplierPaymentComputed
             'name' => $this->supplier->supplier_name ?? app('client_company')->name,
             'method' => $this->method,
             'date' => $this->slip_date ? $this->slip_date->format('d-M-Y, D') : ($this->cheque_date ? $this->cheque_date->format('d-M-Y, D') : $this->date->format('d-M-Y, D')),
-            'amount' => number_format($this->amount, 1),
+            'amount' => \App\Support\Money::format($this->amount),
             'reff_no' => $this->new_reff_no,
             'voucher_no' => $this->voucher->voucher_no ?? $this->cr?->c_r_no ?? '-',
             'source_name' => $sourceName,

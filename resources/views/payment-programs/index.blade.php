@@ -103,15 +103,15 @@
                         <div id="calc-bottom" class="flex w-full gap-4 text-sm bg-[var(--secondary-bg-color)] pt-2 rounded-lg">
                             <div class="total-Amount flex justify-between items-center border border-gray-600 rounded-lg py-2 px-4 w-full cursor-not-allowed">
                                 <div>Total Amount - Rs.</div>
-                                <div class="text-right">0.00</div>
+                                <div class="text-right">0.0</div>
                             </div>
                             <div class="total-Payment flex justify-between items-center border border-gray-600 rounded-lg py-2 px-4 w-full cursor-not-allowed">
                                 <div>Total Payment - Rs.</div>
-                                <div class="text-right">0.00</div>
+                                <div class="text-right">0.0</div>
                             </div>
                             <div class="balance flex justify-between items-center border border-gray-600 rounded-lg py-2 px-4 w-full cursor-not-allowed">
                                 <div>Balance - Rs.</div>
-                                <div class="text-right">0.00</div>
+                                <div class="text-right">0.0</div>
                             </div>
                         </div>
                     </div>

@@ -60,27 +60,27 @@
                             <div
                                 class="opening-balance flex justify-between items-center border border-gray-600 rounded-lg py-2 px-4 w-full cursor-not-allowed">
                                 <div>Opening Balance - Rs.</div>
-                                <div class="text-right">0.00</div>
+                                <div class="text-right">0.0</div>
                             </div>
                             <div
                                 class="total-Deposit flex justify-between items-center border border-gray-600 rounded-lg py-2 px-4 w-full cursor-not-allowed">
                                 <div>Total Deposit - Rs.</div>
-                                <div class="text-right">0.00</div>
+                                <div class="text-right">0.0</div>
                             </div>
                             <div
                                 class="total-Payment flex justify-between items-center border border-gray-600 rounded-lg py-2 px-4 w-full cursor-not-allowed">
                                 <div>Total Use - Rs.</div>
-                                <div class="text-right">0.00</div>
+                                <div class="text-right">0.0</div>
                             </div>
                             <div
                                 class="balance flex justify-between items-center border border-gray-600 rounded-lg py-2 px-4 w-full cursor-not-allowed">
                                 <div>Total Balance - Rs.</div>
-                                <div class="text-right">0.00</div>
+                                <div class="text-right">0.0</div>
                             </div>
                             <div
                                 class="closing-balance flex justify-between items-center border border-gray-600 rounded-lg py-2 px-4 w-full cursor-not-allowed">
                                 <div>Closing Balance - Rs.</div>
-                                <div class="text-right">0.00</div>
+                                <div class="text-right">0.0</div>
                             </div>
                         </div>
                     </div>

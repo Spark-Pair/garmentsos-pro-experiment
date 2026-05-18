@@ -284,8 +284,8 @@
                     scrollable: true,
                 },
                 calcBottom: [
-                    { label: "Total - Rs.", name: "total", value: "0.00", disabled: true },
-                    { label: "Sales Rate - Rs.", name: "sales_rate", value: "0.00" },
+                    { label: "Total - Rs.", name: "total", value: "0.0", disabled: true },
+                    { label: "Sales Rate - Rs.", name: "sales_rate", value: "0.0" },
                     { label: "Pcs / Packet", name: "pcs_per_packet", value: "0" },
                 ],
                 bottomActions: [{ id: "add", text: "Add", type: "submit" }],

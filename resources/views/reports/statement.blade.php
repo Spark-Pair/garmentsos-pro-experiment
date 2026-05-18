@@ -179,16 +179,16 @@
                                 <div id="preview-header" class="preview-header w-full flex justify-between px-5">
                                     <div class="left my-auto pr-3 text-sm text-gray-800 space-y-1.5">
                                         <div class="date-range leading-none">Date: {{ $data['date'] }}</div>
-                                        <div class="opening-balance leading-none">Opening Balance: Rs.{{ number_format($data['opening_balance']) }}</div>
-                                        <div class="closing-balance leading-none">Closing Balance: Rs.{{ number_format($data['closing_balance']) }}</div>
+                                        <div class="opening-balance leading-none">Opening Balance: Rs.{{ \App\Support\Money::format($data['opening_balance']) }}</div>
+                                        <div class="closing-balance leading-none">Closing Balance: Rs.{{ \App\Support\Money::format($data['closing_balance']) }}</div>
                                     </div>
                                     <div class="center my-auto">
                                         <div class="name capitalize font-semibold text-md">{{ $data['name'] }}</div>
                                     </div>
                                     <div class="right my-auto pr-3 text-sm text-gray-800 space-y-1.5">
-                                        <div class="total-bill leading-none">Total Bill: {{ number_format($data['totals']['bill']) }}</div>
-                                        <div class="total-payment leading-none">Total Payment: {{ number_format($data['totals']['payment']) }}</div>
-                                        <div class="total-balance leading-none">Total Balance: {{ number_format($data['totals']['balance']) }}</div>
+                                        <div class="total-bill leading-none">Total Bill: {{ \App\Support\Money::format($data['totals']['bill']) }}</div>
+                                        <div class="total-payment leading-none">Total Payment: {{ \App\Support\Money::format($data['totals']['payment']) }}</div>
+                                        <div class="total-balance leading-none">Total Balance: {{ \App\Support\Money::format($data['totals']['balance']) }}</div>
                                     </div>
                                 </div>
 
@@ -250,9 +250,9 @@
                                                                 <div class="td font-medium w-[11%] capitalize">{{ $statement['method'] ?? "-" }}</div>
                                                                 <div class="td font-medium w-[33%] text-nowrap truncate">{{ $statement['description'] ?? "-" }}</div>
                                                             @endif
-                                                            <div class="td font-medium w-[9%]">{{ number_format($statement['bill']) ?? "-" }}</div>
-                                                            <div class="td font-medium w-[9%]">{{ number_format($statement['payment']) ?? "-" }}</div>
-                                                            <div class="td font-medium w-[9%]">{{ number_format($balance) }}</div>
+                                                            <div class="td font-medium w-[9%]">{{ \App\Support\Money::format($statement['bill'] ?? 0) }}</div>
+                                                            <div class="td font-medium w-[9%]">{{ \App\Support\Money::format($statement['payment'] ?? 0) }}</div>
+                                                            <div class="td font-medium w-[9%]">{{ \App\Support\Money::format($balance) }}</div>
                                                         </div>
                                                     </div>
                                                 @endforeach
@@ -363,9 +363,9 @@
                                                                     <div class="td font-medium w-[11%] capitalize">{{ $statement['method'] ?? "-" }}</div>
                                                                     <div class="td font-medium w-[33%] text-nowrap overflow-hidden">{{ $statement['description'] ?? "-" }}</div>
                                                                 @endif
-                                                                <div class="td font-medium w-[9%]">{{ number_format($statement['bill']) ?? "-" }}</div>
-                                                                <div class="td font-medium w-[9%]">{{ number_format($statement['payment']) ?? "-" }}</div>
-                                                                <div class="td font-medium w-[9%]">{{ number_format($balance) }}</div>
+                                                                <div class="td font-medium w-[9%]">{{ \App\Support\Money::format($statement['bill'] ?? 0) }}</div>
+                                                                <div class="td font-medium w-[9%]">{{ \App\Support\Money::format($statement['payment'] ?? 0) }}</div>
+                                                                <div class="td font-medium w-[9%]">{{ \App\Support\Money::format($balance) }}</div>
                                                             </div>
                                                         </div>
                                                     @endforeach

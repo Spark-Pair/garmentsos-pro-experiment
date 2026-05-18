@@ -171,7 +171,7 @@ class BankAccount extends Model
             $balance = $clearBalance->sum('amount') + $adjustmentsNet;
         }
 
-        return $formatted ? number_format($balance, 1, '.', ',') : $balance;
+        return $formatted ? \App\Support\Money::format($balance) : $balance;
     }
 
     // ─────────────────────────────────────────

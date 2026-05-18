@@ -48,8 +48,8 @@ class CustomerPaymentController extends Controller
                 ->orderByDesc('id')
                 ->applyFilters($request);
                 
-            $totalAmount = $payments->sum(fn($p) => $p['details']['Amount'] ?? 0);
-            $totalPayment = $payments->sum('cleared_amount');
+            $totalAmount = $payments->sum(fn($payment) => (float) ($payment['amount_numeric'] ?? 0));
+            $totalPayment = $payments->sum(fn($payment) => (float) ($payment['cleared_amount_numeric'] ?? 0));
 
             return response()->json([
                 'data' => $payments,
@@ -311,7 +311,7 @@ class CustomerPaymentController extends Controller
             ->get();
 
         $customers_options = $customers->mapWithKeys(function ($customer) {
-            $balance = (float)($customer->total_order_amount ?? 0) - (float)($customer->total_paid_amount ?? 0);
+            $balance = (float) $customer->calculateBalance();
             $programs = $customer->paymentPrograms
                 ->map(fn($program) => $this->formatProgramPayload($program))
                 ->filter(fn($program) => ($program['balance'] ?? 0) > 0)
@@ -599,6 +599,7 @@ class CustomerPaymentController extends Controller
         }
 
         DB::transaction(function () use ($payload, $customerPayment, $program, $oldProgramId) {
+            $payload['is_return'] = $customerPayment->is_return; // Preserve return status
             $customerPayment->update($payload);
 
             if (!empty($payload['program_id'])) {
@@ -923,8 +924,12 @@ class CustomerPaymentController extends Controller
         ];
     }
 
-    private function buildCustomerPaymentPayload(Request $request): array
+    private function buildCustomerPaymentPayload(Request $request, ?CustomerPayment $existingPayment = null): array
     {
+        $isReturn = $request->has('is_return')
+            ? (bool) $request->is_return
+            : (bool) ($existingPayment?->is_return ?? false);
+
         return [
             'customer_id' => $request->customer_id,
             'date' => $request->date,
@@ -941,7 +946,7 @@ class CustomerPaymentController extends Controller
             'clear_date' => $request->clear_date,
             'bank_account_id' => $request->bank_account_id,
             'program_id' => $request->program_id,
-            'is_return' => (bool) $request->is_return,
+            'is_return' => $isReturn,
             'remarks' => $request->remarks,
         ];
     }

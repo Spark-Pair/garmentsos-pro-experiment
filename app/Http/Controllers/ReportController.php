@@ -12,6 +12,7 @@ use App\Models\Invoice;
 use App\Models\OrderArticles;
 use App\Models\SupplierPayment;
 use App\Models\Supplier;
+use App\Models\Setup;
 use App\Models\Voucher;
 use App\Services\PhysicalQuantityReportService;
 use Carbon\Carbon;
@@ -182,95 +183,106 @@ class ReportController extends Controller
     }
     public function pendingPayments(Request $request)
     {
-        if (!empty($request)) {
-            $date = $request->input('date'); // e.g. 2025-10-10
-            if ($date) {
-                // Base payments query
-                $payments = CustomerPayment::with([
-                        'customer.city',
-                        'paymentClearRecord',
-                    ])
-                    ->whereNotNull('customer_id')
-                    ->whereIn('method', ['cheque', 'slip'])
-                    ->get()
-                    ->filter(function ($payment) use ($date) {
-                        $paymentDate = $payment->method === 'cheque'
-                            ? $payment->cheque_date
-                            : $payment->slip_date;
+        $cities_options = Setup::where('type', 'city')
+            ->orderBy('title')
+            ->get()
+            ->mapWithKeys(fn ($city) => [(int) $city->id => ['text' => $city->title]])
+            ->toArray();
 
-                        if (!$paymentDate) return false;
+        if ($request->filled('date')) {
+            $validated = $request->validate([
+                'date' => 'required|date',
+                'city' => 'nullable|integer|exists:setups,id',
+            ]);
 
-                        // Include only if paymentDate <= given $date
-                        if (\Carbon\Carbon::parse($paymentDate)->gt(\Carbon\Carbon::parse($date))) {
-                            return false;
-                        }
+            $date = $validated['date'];
+            $selectedCity = $validated['city'] ?? '';
 
-                        $totalAmount = floatval($payment->amount);
-                        $receivedAmount = 0;
-
-                        if ($payment->paymentClearRecord && count($payment->paymentClearRecord) > 0) {
-                            $receivedAmount = collect($payment->paymentClearRecord)->sum('amount');
-                        } elseif ($payment->clear_date !== null) {
-                            $receivedAmount = $totalAmount;
-                        }
-
-                        $balance = $totalAmount - $receivedAmount;
-
-                        // ✅ Only include if balance > 0
-                        if ($balance <= 0) return false;
-
-                        // Add computed values for clarity
-                        $payment->received_amount = $receivedAmount;
-                        $payment->balance = $balance;
-
-                        return true;
-                    })
-                    ->values();
-
-                // ✅ Group payments by customer
-                $grouped = $payments->groupBy(function ($p) {
-                    $cityTitle = $p->customer?->city?->title ?? '';
-                    return ($p->customer?->customer_name ?? 'Unknown') . ' | ' . $cityTitle;
+            $payments = CustomerPayment::with([
+                    'customer.city',
+                    'paymentClearRecord',
+                ])
+                ->whereNotNull('customer_id')
+                ->whereIn('method', ['cheque', 'slip'])
+                ->when($selectedCity, function ($query) use ($selectedCity) {
+                    $query->whereHas('customer', function ($customerQuery) use ($selectedCity) {
+                        $customerQuery->where('city_id', $selectedCity);
+                    });
                 })
-                ->map(function ($group, $customerKey) {
-                    // Prepare totals
-                    $totalAmount = $group->sum('amount');
-                    $totalReceived = $group->sum('received_amount');
-                    $totalBalance = $totalAmount - $totalReceived;
+                ->get()
+                ->filter(function ($payment) use ($date) {
+                    $paymentDate = $payment->method === 'cheque'
+                        ? $payment->cheque_date
+                        : $payment->slip_date;
 
-                    // Prepare simplified payment list
-                    $paymentsArray = $group->map(function ($p) {
-                        return [
-                            'id' => $p->id,
-                            'method' => $p->method,
-                            'reff_no' => $p->cheque_no ?? $p->slip_no,
-                            'date' => $p->method === 'cheque' ? $p->cheque_date : $p->slip_date,
-                            'amount' => $p->amount,
-                            'received_amount' => $p->received_amount,
-                            'balance' => $p->balance,
-                        ];
-                    })->values();
+                    if (!$paymentDate) {
+                        return false;
+                    }
 
-                    return [
-                        'customer' => $customerKey,
-                        'payments' => $paymentsArray,
-                        'totals' => [
-                            'amount' => $totalAmount,
-                            'received_amount' => $totalReceived,
-                            'balance' => $totalBalance,
-                        ],
-                    ];
+                    if (\Carbon\Carbon::parse($paymentDate)->gt(\Carbon\Carbon::parse($date))) {
+                        return false;
+                    }
+
+                    $totalAmount = (float) $payment->amount;
+                    $receivedAmount = 0;
+
+                    if ($payment->paymentClearRecord && count($payment->paymentClearRecord) > 0) {
+                        $receivedAmount = collect($payment->paymentClearRecord)->sum('amount');
+                    } elseif ($payment->clear_date !== null) {
+                        $receivedAmount = $totalAmount;
+                    }
+
+                    $balance = $totalAmount - $receivedAmount;
+
+                    if ($balance <= 0) {
+                        return false;
+                    }
+
+                    $payment->received_amount = $receivedAmount;
+                    $payment->balance = $balance;
+
+                    return true;
                 })
                 ->values();
 
-                $data = $grouped;
+            $data = $payments->groupBy(function ($payment) {
+                $cityTitle = $payment->customer?->city?->title ?? '';
+                return ($payment->customer?->customer_name ?? 'Unknown') . ' | ' . $cityTitle;
+            })
+            ->map(function ($group, $customerKey) {
+                $totalAmount = $group->sum('amount');
+                $totalReceived = $group->sum('received_amount');
+                $totalBalance = $totalAmount - $totalReceived;
 
-                // return response()->json($data);
-                return view("reports.pending-payments", compact('data'));
-            }
+                $paymentsArray = $group->map(function ($payment) {
+                    return [
+                        'id' => $payment->id,
+                        'method' => $payment->method,
+                        'reff_no' => $payment->cheque_no ?? $payment->slip_no,
+                        'date' => $payment->method === 'cheque' ? $payment->cheque_date : $payment->slip_date,
+                        'amount' => $payment->amount,
+                        'received_amount' => $payment->received_amount,
+                        'balance' => $payment->balance,
+                    ];
+                })->values();
+
+                return [
+                    'customer' => $customerKey,
+                    'payments' => $paymentsArray,
+                    'totals' => [
+                        'amount' => $totalAmount,
+                        'received_amount' => $totalReceived,
+                        'balance' => $totalBalance,
+                    ],
+                ];
+            })
+            ->values();
+
+            return view("reports.pending-payments", compact('data', 'cities_options', 'selectedCity'));
         }
 
-        return view("reports.pending-payments");
+        $selectedCity = '';
+        return view("reports.pending-payments", compact('cities_options', 'selectedCity'));
     }
 
     public function article(Request $request)
@@ -280,45 +292,64 @@ class ReportController extends Controller
         }
 
         if ($request->ajax()) {
+            $startDate = $request->date_range_start
+                ? Carbon::parse($request->date_range_start)->startOfDay()
+                : null;
+            $endDate = $request->date_range_end
+                ? Carbon::parse($request->date_range_end)->endOfDay()
+                : null;
 
             $invoiceArticles = InvoiceArticles::with([
                 'article',
-                'invoice.customer.city'
+                'invoice.customer.city',
             ]);
 
-            /* 🔍 ARTICLE FILTER */
+            $orderArticles = OrderArticles::with([
+                'article',
+                'order.customer.city',
+            ]);
+
             if ($request->article_no) {
-                $invoiceArticles->whereHas('article', function ($q) use ($request) {
+                $articleFilter = function ($q) use ($request) {
                     $q->where('article_no', 'like', "%{$request->article_no}%");
-                });
+                };
+                $invoiceArticles->whereHas('article', $articleFilter);
+                $orderArticles->whereHas('article', $articleFilter);
             }
 
-            /* 🔍 CUSTOMER FILTER */
             if ($request->customer_name) {
                 $invoiceArticles->whereHas('invoice.customer', function ($q) use ($request) {
                     $q->where('customer_name', 'like', "%{$request->customer_name}%");
                 });
+                $orderArticles->whereHas('order.customer', function ($q) use ($request) {
+                    $q->where('customer_name', 'like', "%{$request->customer_name}%");
+                });
             }
 
-            /* 🔍 INVOICE NO FILTER */
             if ($request->invoice_no) {
                 $invoiceArticles->whereHas('invoice', function ($q) use ($request) {
                     $q->where('invoice_no', 'like', "%{$request->invoice_no}%");
                 });
             }
 
-            /* 📅 DATE RANGE FILTER */
-            if ($request->date_range_start || $request->date_range_end) {
+            if ($request->order_no) {
+                $orderArticles->whereHas('order', function ($q) use ($request) {
+                    $q->where('order_no', 'like', "%{$request->order_no}%");
+                });
+            }
 
-                $startDate = $request->date_range_start
-                    ? Carbon::parse($request->date_range_start)->startOfDay()
-                    : null;
-
-                $endDate = $request->date_range_end
-                    ? Carbon::parse($request->date_range_end)->endOfDay()
-                    : null;
-
+            if ($startDate || $endDate) {
                 $invoiceArticles->whereHas('invoice', function ($q) use ($startDate, $endDate) {
+                    if ($startDate && $endDate) {
+                        $q->whereBetween('date', [$startDate, $endDate]);
+                    } elseif ($startDate) {
+                        $q->whereDate('date', '>=', $startDate);
+                    } elseif ($endDate) {
+                        $q->whereDate('date', '<=', $endDate);
+                    }
+                });
+
+                $orderArticles->whereHas('order', function ($q) use ($startDate, $endDate) {
                     if ($startDate && $endDate) {
                         $q->whereBetween('date', [$startDate, $endDate]);
                     } elseif ($startDate) {
@@ -329,32 +360,56 @@ class ReportController extends Controller
                 });
             }
 
-            /* ⚡ FIRST LOAD OPTIMIZATION */
-            if ($request->limit) {
-                $invoiceArticles
-                    ->latest('id')        // or invoice_id / created_at
-                    ->limit((int) $request->limit);
-            }
-
-            $data = $invoiceArticles->get()->map(function ($invoiceArticle) {
-
-                $invoice  = $invoiceArticle->invoice;
+            $invoiceData = $invoiceArticles->get()->map(function ($invoiceArticle) {
+                $invoice = $invoiceArticle->invoice;
                 $customer = $invoice?->customer;
-                $article  = $invoiceArticle->article;
+                $article = $invoiceArticle->article;
 
                 return [
-                    'article_no'    => $article?->article_no,
-                    'invoice_no'    => $invoice?->invoice_no,
-                    'customer_name' => $customer?->customer_name . ' | ' . $customer?->city?->short_title,
-                    'invoice_date'  => $invoice?->date?->format('d-M-Y, D'),
-                    'invoice_pcs'   => $invoiceArticle->invoice_pcs,
+                    'id' => 'invoice-' . $invoiceArticle->id,
+                    'article_no' => $article?->article_no,
+                    'order_no' => $invoice?->order_no ?? '-',
+                    'invoice_no' => $invoice?->invoice_no ?? '-',
+                    'customer_name' => ($customer?->customer_name ?? '-') . ' | ' . ($customer?->city?->short_title ?? '-'),
+                    'reference_date' => $invoice?->date?->format('d-M-Y, D'),
+                    'reference_date_raw' => $invoice?->date?->format('Y-m-d H:i:s'),
+                    'quantity' => (int) ($invoiceArticle->invoice_pcs ?? 0),
                 ];
             });
+
+            $orderData = $orderArticles->get()->map(function ($orderArticle) {
+                $order = $orderArticle->order;
+                $customer = $order?->customer;
+                $article = $orderArticle->article;
+
+                return [
+                    'id' => 'order-' . $orderArticle->id,
+                    'article_no' => $article?->article_no,
+                    'order_no' => $order?->order_no ?? '-',
+                    'invoice_no' => '-',
+                    'customer_name' => ($customer?->customer_name ?? '-') . ' | ' . ($customer?->city?->short_title ?? '-'),
+                    'reference_date' => $order?->date?->format('d-M-Y, D'),
+                    'reference_date_raw' => $order?->date?->format('Y-m-d H:i:s'),
+                    'quantity' => (int) ($orderArticle->ordered_pcs ?? 0),
+                ];
+            });
+
+            $data = $invoiceData
+                ->merge($orderData)
+                ->sortByDesc('reference_date_raw')
+                ->values();
+
+            if ($request->limit) {
+                $data = $data->take((int) $request->limit)->values();
+            }
 
             $authLayout = $this->getAuthLayout($request->route()->getName(), 'table');
             return response()->json([
                 'data' => $data,
-                'authLayout' => $authLayout
+                'authLayout' => $authLayout,
+                'calculations' => [
+                    'total_quantity' => $data->sum('quantity'),
+                ],
             ]);
         }
 

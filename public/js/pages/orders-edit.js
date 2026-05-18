@@ -437,10 +437,10 @@
                                                             <div class="td text-sm font-semibold w-[10%]">${article.ordered_pcs}</div>
                                                             <div class="td text-sm font-semibold w-[10%]">${article?.pcs_per_packet ? Math.floor(article.ordered_pcs / article.pcs_per_packet) : 0}</div>
                                                             <div class="td text-sm font-semibold w-[10%]">
-                                                                ${new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(article.sales_rate)}
+                                                                ${formatMoney(article.sales_rate)}
                                                             </div>
                                                             <div class="td text-sm font-semibold w-[10%]">
-                                                                ${new Intl.NumberFormat('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(parseInt(article.sales_rate) * article.ordered_pcs)}
+                                                                ${formatMoney(parseInt(article.sales_rate) * article.ordered_pcs)}
                                                             </div>
                                                             <div class="td text-sm font-semibold text-center w-[8%]"></div>
                                                         </div>

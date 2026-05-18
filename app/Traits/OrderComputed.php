@@ -31,7 +31,7 @@ trait OrderComputed
                 'Date' => $this->date?->format('d-M-Y, D'),
                 'Order No' => $this->order_no,
                 'Customer' => $customerName,
-                'Net Amount' => number_format((float) ($this->netAmount ?? 0), 1),
+                'Net Amount' => \App\Support\Money::format((float) ($this->netAmount ?? 0)),
                 'Balance Order' => number_format($remainingOrder) . ' Pcs',
             ],
             'status' => $this->status,
