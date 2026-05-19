@@ -64,6 +64,10 @@ class PaymentProgram extends Model
     {
         return $this->hasMany(CustomerPayment::class, 'program_id');
     }
+    public function supplierPayments()
+    {
+        return $this->hasMany(SupplierPayment::class, 'program_id');
+    }
     // Custom accessor to merge both types of payments
     public function getPaymentsAttribute()
     {
