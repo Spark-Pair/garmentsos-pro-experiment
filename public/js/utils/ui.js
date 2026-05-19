@@ -78,6 +78,7 @@ function openDropDown(e, trigger) {
         setTimeout(() => {
             relatedDropDownMenu.classList.add('opacity-100', 'scale-in');
             relatedDropDownMenu.classList.remove('opacity-0', 'scale-out');
+            focusFirstDropdownField(relatedDropDownMenu);
         }, 10);
     } else {
         relatedDropDownMenu.classList.remove('opacity-100', 'scale-in');
@@ -98,6 +99,32 @@ function closeAllDropdowns(skipElement = null) {
             menu.classList.add('hidden');
         }, 300);
     });
+}
+
+function focusFirstDropdownField(dropdownMenu) {
+    if (!dropdownMenu) return;
+
+    const firstField = dropdownMenu.querySelector('[data-filter-path]');
+    if (!firstField) return;
+
+    if (firstField.classList.contains('dbInput')) {
+        const targetId = firstField.getAttribute('data-for') || firstField.id;
+        const visibleInput = dropdownMenu.querySelector(`#${CSS.escape(targetId)}`);
+
+        if (visibleInput) {
+            visibleInput.focus();
+            if (typeof visibleInput.select === 'function') {
+                visibleInput.select();
+            }
+        }
+
+        return;
+    }
+
+    firstField.focus();
+    if (typeof firstField.select === 'function') {
+        firstField.select();
+    }
 }
 
 function showLoader() {

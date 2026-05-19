@@ -108,7 +108,7 @@ class VoucherController extends Controller
                 $payments_options = $cheques->map(function ($cheque) {
                     return [
                         'id' => (int)$cheque->id,
-                        'text' => number_format($cheque->amount) . ' | ' . $cheque->customer->customer_name . ' | ' . $cheque->customer->city->title . ' | ' . $cheque->cheque_no . ' | ' . date('d-M-Y D', strtotime($cheque->cheque_date)),
+                        'text' => \App\Support\Money::format($cheque->amount) . ' | ' . $cheque->customer->customer_name . ' | ' . $cheque->customer->city->title . ' | ' . $cheque->cheque_no . ' | ' . date('d-M-Y D', strtotime($cheque->cheque_date)),
                         'dataset' => $cheque->makeHidden('creator'),
                     ];
                 })->values()->toArray();
@@ -122,7 +122,7 @@ class VoucherController extends Controller
                 $payments_options = $slips->map(function ($slip) {
                     return [
                         'id' => (int)$slip->id,
-                        'text' => number_format($slip->amount) . ' | ' . $slip->customer->customer_name . ' | ' . $slip->customer->city->title . ' | ' . $slip->slip_no . ' | ' . date('d-M-Y D', strtotime($slip->slip_date)),
+                        'text' => \App\Support\Money::format($slip->amount) . ' | ' . $slip->customer->customer_name . ' | ' . $slip->customer->city->title . ' | ' . $slip->slip_no . ' | ' . date('d-M-Y D', strtotime($slip->slip_date)),
                         'dataset' => $slip->makeHidden('creator'),
                     ];
                 })->values()->toArray();
@@ -135,7 +135,7 @@ class VoucherController extends Controller
                 $payments_options = $expenses->map(function ($expense) {
                     return [
                         'id' => (int)$expense->id,
-                        'text' => number_format($expense->amount) . ' | ' . $expense->reff_no . ' | ' . date('d-M-Y D', strtotime($expense->date)),
+                        'text' => \App\Support\Money::format($expense->amount) . ' | ' . $expense->reff_no . ' | ' . date('d-M-Y D', strtotime($expense->date)),
                         'dataset' => $expense,
                     ];
                 })->values()->toArray();
@@ -167,7 +167,7 @@ class VoucherController extends Controller
                     return [
                         'id' => (int)$payment->id,
                         'text' =>
-                            number_format($payment->amount) . ' | ' .
+                            \App\Support\Money::format($payment->amount) . ' | ' .
                             ($payment->program?->customer?->customer_name ?? '-') . ' | ' .
                             ($payment->program?->customer?->city?->short_title ?? '-') . ' | ' .
                             ($payment->transaction_id ?? '-') . ' | ' .

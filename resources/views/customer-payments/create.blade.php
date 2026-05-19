@@ -115,7 +115,7 @@
 
                         <!-- amount -->
                         <x-input label="Amount" name="last_amount" id="last_amount" disabled
-                            value="{{ number_format($lastRecord->amount,) ?? '-' }}" />
+                            value="{{ \App\Support\Money::format($lastRecord?->amount ?? 0) }}" />
 
                         {{-- remarks --}}
                         <x-input label="Remarks" name="last_remarks" id="last_remarks" type="text" disabled

@@ -10,7 +10,7 @@
             const selectedOptionDataset = scope.querySelector(`.optionsDropdown li[data-for="${forId}"].selected`)?.dataset?.option;
             if (selectedOptionDataset) {
                 const selectedSupplierData = JSON.parse(selectedOptionDataset);
-                balanceInput.value = selectedSupplierData.balance || "0.00";
+                balanceInput.value = selectedSupplierData.balance || "0.0";
                 const supplierCategories = selectedSupplierData.categories;
 
                 let expenseOptions = `

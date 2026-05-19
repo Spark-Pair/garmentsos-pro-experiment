@@ -17,14 +17,14 @@ class PhysicalQuantityReportService
             ->orderByDesc('id');
 
         $this->applyFilters($query, $filters);
+        $rows = $query->get()->filter(fn (PhysicalQuantity $row) => $row->article);
+        $groupedRows = $this->mapArticleRows($rows);
 
         if ($limit) {
-            $query->limit($limit);
+            return $groupedRows->take($limit)->values();
         }
 
-        $rows = $query->get()->filter(fn (PhysicalQuantity $row) => $row->article);
-
-        return $this->mapArticleRows($rows);
+        return $groupedRows;
     }
 
     public function getArticleReportRows(array $filters = [], string $reportType = 'altration'): Collection
@@ -77,7 +77,7 @@ class PhysicalQuantityReportService
     protected function applyFilters(Builder $query, Request|array $filters): void
     {
         if ($filters instanceof Request) {
-            $query->applyFilters($filters, false);
+            $query->applyFilters($filters, false, true);
             return;
         }
 

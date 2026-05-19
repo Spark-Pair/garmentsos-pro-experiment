@@ -13,7 +13,7 @@ trait ExpenseComputed
             'reff_no' => $this->reff_no,
             'expense' => $this->expenseSetups->title,
             'lot_no' => $this->lot_no ?? '-',
-            'amount' => number_format($this->amount),
+            'amount' => \App\Support\Money::format($this->amount),
             'remarks' => $this->remarks ?? 'No Remarks',
             'oncontextmenu' => "generateContextMenu(event)",
             'onclick' => "generateModal(this)",

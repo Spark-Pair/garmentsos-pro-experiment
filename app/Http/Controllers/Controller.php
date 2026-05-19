@@ -94,7 +94,7 @@ class Controller extends BaseController
 
                     foreach ($suppliers as $supplier) {
                         $supplier['balance'] = 0;
-                        $supplier['balance'] = number_format($supplier['balance'], 1, '.', ',');
+                        $supplier['balance'] = \App\Support\Money::format($supplier['balance']);
                     }
 
                     return $suppliers;

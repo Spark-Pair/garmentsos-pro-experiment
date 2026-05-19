@@ -20,7 +20,7 @@ trait EmployeeComputed
             'details' => [
                 'Category'=> $this->category,
                 'Type'=> $this->type->title,
-                'Balance'=> number_format($this->balance),
+                'Balance'=> \App\Support\Money::format($this->balance),
             ],
             'type' => $this->type->title,
             'joining_date' => $this->joining_date->format('d-M-Y, D'),

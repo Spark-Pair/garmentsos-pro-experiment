@@ -107,6 +107,6 @@ class Employee extends Model
         // Final balance (production - payments - salary)
         $balance = ($totalProductions + $totalSalaries) - $totalPayments;
 
-        return $formatted ? number_format($balance, 1, '.', ',') : $balance;
+        return $formatted ? \App\Support\Money::format($balance) : $balance;
     }
 }

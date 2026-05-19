@@ -107,7 +107,7 @@ class PaymentProgramController extends Controller
 
         foreach ($customers as $customer) {
             $customers_options[(int)$customer->id] = [
-                'text' => $customer->customer_name . ' | ' . ($customer->city->title ?? 'N/A') . ' | Balance: ' . number_format($customer->balance, 1),
+                'text' => $customer->customer_name . ' | ' . ($customer->city->title ?? 'N/A') . ' | Balance: ' . \App\Support\Money::format($customer->balance),
                 'data_option' => $customer
             ];
         }
@@ -258,21 +258,39 @@ class PaymentProgramController extends Controller
         $authLayout = $this->getAuthLayout($request->route()->getName(), 'table');
 
         if ($request->ajax()) {
+            $openProgramQuery = fn($q) => $q
+                ->where('status', 'Unpaid')
+                ->orWhereHas('supplierPayments', fn($sq) => $sq
+                    ->whereIn('method', ['program', 'Program'])
+                    ->whereNull('voucher_id'));
+
             $customersQuery = Customer::whereHas('paymentPrograms')
                 ->with([
                     'user:id,username,status,profile_picture',
                     'city:id,title,short_title',
-                    'paymentPrograms' => fn($q) => $q
+                    'paymentPrograms' => fn($q) => $openProgramQuery($q)
                         ->select('id', 'customer_id', 'amount', 'status')
-                        ->withSum('customerPayments as paid_amount', 'amount'),
+                        ->withSum('customerPayments as paid_amount', 'amount')
+                        ->withSum([
+                            'supplierPayments as voucher_pending_payment' => fn($sq) => $sq
+                                ->whereIn('method', ['program', 'Program'])
+                                ->whereNull('voucher_id'),
+                        ], 'amount'),
                 ])
+                ->whereHas('paymentPrograms', $openProgramQuery)
                 ->applyFilters($request, false, true);
 
             $customers = $customersQuery->get()->map(function ($customer) {
                 $customer->paymentPrograms->transform(function ($program) {
+                    $program->setAppends([]);
+                    $programAmount = $program->status === 'Unpaid' ? (float) $program->amount : 0.0;
                     $paid = (float) ($program->paid_amount ?? 0);
-                    $program->setAttribute('payment', $paid);
-                    $program->setAttribute('balance', (float) $program->amount - $paid);
+
+                    $program->setAttribute('amount', $programAmount);
+                    $program->setAttribute('payment', (float) ($program->voucher_pending_payment ?? 0));
+                    $program->setAttribute('balance', $program->status === 'Unpaid'
+                        ? max(0.0, (float) $program->getRawOriginal('amount') - $paid)
+                        : 0.0);
                     return $program;
                 });
 
@@ -293,20 +311,38 @@ class PaymentProgramController extends Controller
         $authLayout = $this->getAuthLayout($request->route()->getName(), 'table');
 
         if ($request->ajax()) {
+            $openProgramQuery = fn($q) => $q
+                ->where('status', 'Unpaid')
+                ->orWhereHas('supplierPayments', fn($sq) => $sq
+                    ->whereIn('method', ['program', 'Program'])
+                    ->whereNull('voucher_id'));
+
             $suppliersQuery = Supplier::whereHas('paymentPrograms')
                 ->with([
                     'user:id,username,status,profile_picture',
-                    'paymentPrograms' => fn($q) => $q
-                        ->select('id', 'sub_category_id', 'amount', 'status')
-                        ->withSum('customerPayments as paid_amount', 'amount'),
+                    'paymentPrograms' => fn($q) => $openProgramQuery($q)
+                        ->select('id', 'sub_category_id', 'sub_category_type', 'amount', 'status')
+                        ->withSum('customerPayments as paid_amount', 'amount')
+                        ->withSum([
+                            'supplierPayments as voucher_pending_payment' => fn($sq) => $sq
+                                ->whereIn('method', ['program', 'Program'])
+                                ->whereNull('voucher_id'),
+                        ], 'amount'),
                 ])
+                ->whereHas('paymentPrograms', $openProgramQuery)
                 ->applyFilters($request, false, true);
 
             $suppliers = $suppliersQuery->get()->map(function ($supplier) {
                 $supplier->paymentPrograms->transform(function ($program) {
+                    $program->setAppends([]);
+                    $programAmount = $program->status === 'Unpaid' ? (float) $program->amount : 0.0;
                     $paid = (float) ($program->paid_amount ?? 0);
-                    $program->setAttribute('payment', $paid);
-                    $program->setAttribute('balance', (float) $program->amount - $paid);
+
+                    $program->setAttribute('amount', $programAmount);
+                    $program->setAttribute('payment', (float) ($program->voucher_pending_payment ?? 0));
+                    $program->setAttribute('balance', $program->status === 'Unpaid'
+                        ? max(0.0, (float) $program->getRawOriginal('amount') - $paid)
+                        : 0.0);
                     return $program;
                 });
 

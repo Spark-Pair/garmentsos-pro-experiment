@@ -163,7 +163,7 @@ function initCustomerPaymentsIndex() {
             { data: row.date || '-', class: 'w-[16%]' },
             { data: row.method || '-', class: 'w-[12%] capitalize' },
             { data: ((row.account_title || '-') + ' | ' + (row.bank || '-')).trim(), class: 'w-[28%]' },
-            { data: formatNumbersWithDigits(row.amount || 0, 1, 1), class: 'w-[12%]' },
+            { data: row.amount || formatNumbersWithDigits(row.amount_numeric || 0, 1, 1), class: 'w-[12%]' },
             { data: row.reff_no || '-', class: 'w-[12%]' },
             { data: row.remarks || '-', class: 'grow' },
         ]));
@@ -186,7 +186,7 @@ function initCustomerPaymentsIndex() {
                 ...(data.data.cheque_date && { 'Cheque Date': formatDate(data.data.cheque_date) }),
                 ...(data.data.slip_date && { 'Slip Date': formatDate(data.data.slip_date) }),
                 ...(data.clear_date && data.clear_date !== 'Pending' && { 'Clear Date': data.clear_date }),
-                ...(data.cleared_amount && { 'Clear Amount': formatNumbersWithDigits(data.cleared_amount, 1, 1) }),
+                ...(data.cleared_amount && { 'Clear Amount': data.cleared_amount }),
                 ...((data.data.method == 'cheque' || data.data.method == 'slip') && (data.clear_date ? { 'Clear Date': data.clear_date } : { 'Clear Date': 'Pending'} )),
                 ...((data.data.method == 'cheque' || data.data.method == 'slip' || data.data.method == 'program') && { 'Issued': data.issued }),
                 'Remarks': data.data.remarks || 'No Remarks',

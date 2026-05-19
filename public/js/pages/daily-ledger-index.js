@@ -56,16 +56,16 @@ function initDailyLedgerIndex() {
                 let fullBalance = fullDeposit - fullUse;
 
                 openingBalanceDom.innerText = formatNumbersWithDigits(fullBalance, 1, 1);
-                totalDepositDom.innerText = "0.00";
-                totalUseDom.innerText = "0.00";
-                balanceDom.innerText = "0.00";
+                totalDepositDom.innerText = "0.0";
+                totalUseDom.innerText = "0.0";
+                balanceDom.innerText = "0.0";
                 closingBalanceDom.innerText = formatNumbersWithDigits(fullBalance, 1, 1);
             } else {
-                openingBalanceDom.innerText = "0.00";
-                totalDepositDom.innerText = "0.00";
-                totalUseDom.innerText = "0.00";
-                balanceDom.innerText = "0.00";
-                closingBalanceDom.innerText = "0.00";
+                openingBalanceDom.innerText = "0.0";
+                totalDepositDom.innerText = "0.0";
+                totalUseDom.innerText = "0.0";
+                balanceDom.innerText = "0.0";
+                closingBalanceDom.innerText = "0.0";
             }
             return;
         }

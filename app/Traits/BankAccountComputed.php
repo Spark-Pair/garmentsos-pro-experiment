@@ -17,7 +17,7 @@ trait BankAccountComputed
             'details' => [
                 'Name'=> $this->subCategory->customer_name ?? $this->subCategory->supplier_name ?? $this->account_title,
                 'Category'=> $this->category,
-                'Balance'=> number_format($this->balance),
+                'Balance'=> \App\Support\Money::format($this->balance),
             ],
             'account_no' => $this->account_no ?? 0,
             'bank' => $this->bank->title,

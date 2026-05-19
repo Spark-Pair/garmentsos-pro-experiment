@@ -102,7 +102,7 @@ class Customer extends Model
     }
     public function calculateBalance($fromDate = null, $toDate = null, $formatted = false, $includeGivenDate = true)
     {
-        $invoicesQuery = $this->invoices()->whereNotNull('shipment_no');
+        $invoicesQuery = $this->invoices();
         $paymentsQuery = $this->payments()->where('type', '!=', 'DR');
         $adjustmentsQuery = $this->statementAdjustments();
 
@@ -146,7 +146,7 @@ class Customer extends Model
 
         $balance = ($totalInvoices - $totalPayments) + $adjustmentsNet;
 
-        return $formatted ? number_format($balance, 1, '.', ',') : $balance;
+        return $formatted ? \App\Support\Money::format($balance) : $balance;
     }
     public function getStatement($fromDate, $toDate, $type = 'general')
     {

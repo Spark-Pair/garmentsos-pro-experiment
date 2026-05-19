@@ -104,7 +104,7 @@ class CRController extends Controller
 
             foreach ($payments as $payment) {
                 $payment_options[(int)$payment->id] = [
-                    'text' => 'Rs. ' . number_format($payment->amount) . ' | ' . $payment->program->customer->customer_name . ' | ' . $payment->program->customer->city->short_title,
+                    'text' => 'Rs. ' . \App\Support\Money::format($payment->amount) . ' | ' . $payment->program->customer->customer_name . ' | ' . $payment->program->customer->city->short_title,
                     'data_option' => $payment,
                 ];
             }

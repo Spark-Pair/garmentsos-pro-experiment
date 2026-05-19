@@ -17,16 +17,27 @@
 
         <!-- Step 1: Select Date -->
         <div class="step1 space-y-4 ">
-            <div class="flex">
-                <div class="grow">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
                     <!-- date -->
                     <x-input
                         label="Date"
                         name="date"
                         id="date"
                         type="date"
-                        value="{{ now()->toDateString() }}"
+                        value="{{ request('date', now()->toDateString()) }}"
                         required
+                    />
+                </div>
+
+                <div>
+                    <x-select
+                        label="City"
+                        name="city"
+                        id="city"
+                        :options="$cities_options ?? []"
+                        :value="$selectedCity ?? ''"
+                        showDefault
                     />
                 </div>
             </div>
@@ -74,9 +85,9 @@
                                                                 <div class="td w-1/6">{{ \Carbon\Carbon::parse($payment['date'])->format('d-M-Y, D') }}</div>
                                                                 <div class="td w-1/6">{{ $payment['method'] }}</div>
                                                                 <div class="td w-1/6">{{ $payment['reff_no'] }}</div>
-                                                                <div class="td w-1/6">{{ number_format($payment['amount']) }}</div>
-                                                                <div class="td w-1/6">{{ number_format($payment['received_amount']) }}</div>
-                                                                <div class="td w-1/6">{{ number_format($payment['balance']) }}</div>
+                                                                <div class="td w-1/6">{{ \App\Support\Money::format($payment['amount']) }}</div>
+                                                                <div class="td w-1/6">{{ \App\Support\Money::format($payment['received_amount']) }}</div>
+                                                                <div class="td w-1/6">{{ \App\Support\Money::format($payment['balance']) }}</div>
                                                             </div>
                                                         </div>
                                                     @endforeach
@@ -86,13 +97,13 @@
                                             {{-- footer --}}
                                             <div class="footer grid grid-cols-3 gap-1 border-t border-gray-700 pt-1">
                                                 <div class="px-4 py-1.5 border border-gray-700 text-center rounded-md">
-                                                    <div class="font-medium">Total Amount : {{ number_format($item['totals']['amount']) }}</div>
+                                                    <div class="font-medium">Total Amount : {{ \App\Support\Money::format($item['totals']['amount']) }}</div>
                                                 </div>
                                                 <div class="px-4 py-1.5 border border-gray-700 text-center rounded-md">
-                                                    <div class="font-medium">Total Received : {{ number_format($item['totals']['received_amount']) }}</div>
+                                                    <div class="font-medium">Total Received : {{ \App\Support\Money::format($item['totals']['received_amount']) }}</div>
                                                 </div>
                                                 <div class="px-4 py-1.5 border border-gray-700 text-center rounded-md">
-                                                    <div class="font-medium">Balance : {{ number_format($item['totals']['balance']) }}</div>
+                                                    <div class="font-medium">Balance : {{ \App\Support\Money::format($item['totals']['balance']) }}</div>
                                                 </div>
                                             </div>
                                         </div>

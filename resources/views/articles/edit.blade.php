@@ -153,11 +153,11 @@
                                 @endphp
                                 @foreach ($article->rates_array as $rate)
                                     @php
-                                        $article->totalRate += number_format($rate['rate'], 2);
+                                        $article->totalRate += (float) $rate['rate'];
                                     @endphp
                                     <div class="flex justify-between items-center bg-[var(--h-bg-color)] rounded-lg py-2 px-4">
                                         <div class="grow ml-5">{{ $rate['title'] }}</div>
-                                        <div class="w-1/4">{{ number_format($rate['rate'], 2) }}</div>
+                                        <div class="w-1/4">{{ \App\Support\Money::format($rate['rate']) }}</div>
                                         <div class="w-[10%] text-center">
                                             <button onclick="deleteRate(this)" type="button"
                                                 class="text-[var(--danger-color)] text-xs px-2 py-1 rounded-lg hover:text-[var(--h-danger-color)] transition-all duration-300 ease-in-out cursor-pointer">

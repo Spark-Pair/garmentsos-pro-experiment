@@ -30,6 +30,10 @@ function formatNumbersWithDigits(number, maxFraction, minFraction) {
     }).format(number);
 }
 
+function formatMoney(number) {
+    return formatNumbersWithDigits(number, 1, 1);
+}
+
 function formatAmountInput(input) {
     let value = input.value.replace(/[^0-9.]/g, '');
 

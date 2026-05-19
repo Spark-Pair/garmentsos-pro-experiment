@@ -15,7 +15,7 @@ trait InvoiceComputed
             'details' => [
                 'Customer' => $this->customer->customer_name . ' | ' . $this->customer->city->title,
                 'Date' => $this->date->format('d-M-Y, D'),
-                'Amount' => number_format($this->netAmount),
+                'Amount' => \App\Support\Money::format($this->netAmount),
                 'Reff. No.' => $this->order_no ?? $this->shipment_no,
             ],
             'data' => $this,

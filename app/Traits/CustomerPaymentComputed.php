@@ -9,12 +9,15 @@ trait CustomerPaymentComputed
 {
     protected function formatClearRecord($record)
     {
+        $amount = (float) ($record?->amount ?? 0);
+
         return [
             'date' => $record?->clear_date?->format('d-M-Y, D') ?? '-',
             'method' => $record?->method ? ucfirst($record->method) : '-',
             'account_title' => $record?->bankAccount?->account_title ?? '-',
             'bank' => $record?->bankAccount?->bank?->short_title ?? '-',
-            'amount' => (float) ($record?->amount ?? 0),
+            'amount' => \App\Support\Money::format($amount),
+            'amount_numeric' => $amount,
             'reff_no' => $record?->reff_no ?? '-',
             'remarks' => $record?->remarks ?: '-',
         ];
@@ -319,6 +322,10 @@ trait CustomerPaymentComputed
                 ->values()
             : collect();
 
+        $amount = (float) ($this->amount ?? 0);
+        $clearedAmount = $this->cleared_amount;
+        $clearedAmountNumeric = is_null($clearedAmount) ? null : (float) $clearedAmount;
+
         return [
             'id' => $this->id,
             'name' => ($this->customer?->customer_name ?? '-') . ' | ' . ($this->customer?->city?->title ?? '-'),
@@ -326,8 +333,9 @@ trait CustomerPaymentComputed
                 'Type' => $this->type,
                 'Method' => $this->method,
                 'Date' => $this->slip_date ? $this->slip_date->format('d-M-Y, D') : ($this->cheque_date ? $this->cheque_date->format('d-M-Y, D') : $this->date->format('d-M-Y, D')),
-                'Amount' => $this->amount,
+                'Amount' => \App\Support\Money::format($amount),
             ],
+            'amount_numeric' => $amount,
             'method' => $this->method,
             'data' => $this,
             'date' => $this->slip_date ? $this->slip_date->format('d-M-Y, D') : ($this->cheque_date ? $this->cheque_date->format('d-M-Y, D') : $this->date->format('d-M-Y, D')),
@@ -337,7 +345,8 @@ trait CustomerPaymentComputed
             'reff_no' => $this->reff_no,
             'beneficiary' => $this->beneficiary,
             'clear_date' => $this->clearance_date,
-            'cleared_amount' => $this->cleared_amount,
+            'cleared_amount' => is_null($clearedAmountNumeric) ? null : \App\Support\Money::format($clearedAmountNumeric),
+            'cleared_amount_numeric' => $clearedAmountNumeric,
             'clear_details' => $clearDetails,
             'category' => $this->category,
             'issued' => $this->issued,

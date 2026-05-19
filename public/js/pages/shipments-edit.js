@@ -265,10 +265,7 @@
         const discount = document.getElementById('discount').value;
         const discountAmount = totalAmount - totalAmount * (discount / 100);
         netAmount = discountAmount;
-        netAmount = new Intl.NumberFormat('en-US', {
-            minimumFractionDigits: 1,
-            maximumFractionDigits: 1,
-        }).format(netAmount);
+        netAmount = formatMoney(netAmount);
         renderFinals();
     }
 
@@ -423,10 +420,10 @@
                                                         <div class="td text-sm font-semibold w-[10%]">${article.shipmentQuantity}</div>
                                                         <div class="td text-sm font-semibold w-[10%]">${article.pcs_per_packet ? Math.floor(article.shipmentQuantity / article.pcs_per_packet) : 0}</div>
                                                         <div class="td text-sm font-semibold w-[10%]">
-                                                            ${new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(article.sales_rate)}
+                                                            ${formatMoney(article.sales_rate)}
                                                         </div>
                                                         <div class="td text-sm font-semibold w-[10%]">
-                                                            ${new Intl.NumberFormat('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(parseInt(article.sales_rate) * article.shipmentQuantity)}
+                                                            ${formatMoney(parseInt(article.sales_rate) * article.shipmentQuantity)}
                                                         </div>
                                                     </div>
                                                 </div>

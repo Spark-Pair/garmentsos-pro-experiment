@@ -108,15 +108,15 @@ class Supplier extends Model
     {
         $expenseQuery = $this->expenses();
         $paymentsQuery = $this->payments()
-            ->whereNotNull('voucher_id')
-            ->whereIn('method', [
-                'Cheque',
-                'Cash',
-                'Slip',
-                'ATM',
-                'Self Cheque',
-                'Program',
-                'Adjustment',
+            ->whereRaw('LOWER(method) IN (?, ?, ?, ?, ?, ?, ?, ?)', [
+                'cheque',
+                'cash',
+                'slip',
+                'atm',
+                'self cheque',
+                'program',
+                'p. return',
+                'adjustment',
             ]);
         $adjustmentsQuery = $this->statementAdjustments();
 
@@ -158,7 +158,7 @@ class Supplier extends Model
 
         $balance = (($totalExpense + $totalProduction) - $totalPayments) + $adjustmentsNet;
 
-        return $formatted ? number_format($balance, 1, '.', ',') : $balance;
+        return $formatted ? \App\Support\Money::format($balance) : $balance;
     }
 
 
@@ -176,7 +176,7 @@ class Supplier extends Model
         $paymentQuery = $this->payments()
             ->whereBetween('date', [$start, $end])
             ->whereIn('method', [
-                'Cheque', 'Cash', 'Slip', 'ATM', 'Self Cheque', 'program', 'Adjustment'
+                'Cheque', 'Cash', 'Slip', 'ATM', 'Self Cheque', 'program', 'p. return', 'Adjustment'
             ]);
         $voucherQuery = Voucher::with('payments')
             ->where('supplier_id', $this->id)

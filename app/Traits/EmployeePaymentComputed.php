@@ -16,7 +16,7 @@ trait EmployeePaymentComputed
                 'Category'=> ucwords($this->employee->category),
                 'Method'=> $this->method,
                 'Date' => $this->date->format('d-M-Y, D'),
-                'Amount'=> number_format($this->amount),
+                'Amount'=> \App\Support\Money::format($this->amount),
             ],
             'date' => $this->date->format('d-M-Y, D'),
             'type' => $this->employee->type->title,

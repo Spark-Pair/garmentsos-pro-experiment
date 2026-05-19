@@ -6,6 +6,7 @@
 
         window.getPendingPayments = function getPendingPayments() {
             const date = document.getElementById("date").value;
+            const city = document.querySelector('input[name="city"]')?.value || "";
 
             $.ajax({
                 url: pendingUrl,
@@ -13,6 +14,7 @@
                 data: {
                     _token: csrfToken,
                     date: date,
+                    city: city,
                 },
                 success: function (response) {
                     renderPendingPayments(response);
