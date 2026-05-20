@@ -7,7 +7,7 @@
                 'id' => 'customer_name',
                 'type' => 'text',
                 'placeholder' => 'Enter customer name',
-                                'dataFilterPath' => 'customer_name',
+                'dataFilterPath' => 'customer_name',
             ],
         ];
     @endphp

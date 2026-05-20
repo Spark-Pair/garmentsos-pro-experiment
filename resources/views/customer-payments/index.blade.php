@@ -19,6 +19,12 @@
             "type2" => "date",
             "dataFilterPath" => "created_at",
         ],
+        "Reff. No." => [
+            "id" => "reff_no",
+            "type" => "text",
+            "placeholder" => "Enter reff. no.",
+            "dataFilterPath" => "reff_no",
+        ],
         "Customer Name" => [
             "type" => "text",
             "id" => "customer_name",
@@ -93,12 +99,6 @@
                         'Pending' => ['text' => 'Pending'],
                     ],
             "dataFilterPath" => "status",
-        ],
-        "Reff. No." => [
-            "id" => "reff_no",
-            "type" => "text",
-            "placeholder" => "Enter reff. no.",
-            "dataFilterPath" => "reff_no",
         ],
         "Voucher No." => [
             "type" => "text",
