@@ -319,7 +319,6 @@ class PaymentProgramController extends Controller
 
             $suppliersQuery = Supplier::whereHas('paymentPrograms')
                 ->with([
-                    'user:id,username,status,profile_picture',
                     'paymentPrograms' => fn($q) => $openProgramQuery($q)
                         ->select('id', 'sub_category_id', 'sub_category_type', 'amount', 'status')
                         ->withSum('customerPayments as paid_amount', 'amount')
