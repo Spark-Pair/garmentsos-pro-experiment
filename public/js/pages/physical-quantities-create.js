@@ -28,11 +28,11 @@
             const numericValue = Number(value || 0);
 
             return new Intl.NumberFormat("en-US", {
-                minimumFractionDigits: 1,
+                minimumFractionDigits: 0,
                 maximumFractionDigits,
             }).format(numericValue);
         }
-
+        
         function getPacketsFromPcs(quantity, pcsPerPacket = selectedArticle?.pcs_per_packet) {
             const packetSize = Number(pcsPerPacket || 0);
             if (!packetSize) return 0;
