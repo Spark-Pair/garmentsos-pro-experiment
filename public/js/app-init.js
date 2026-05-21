@@ -57,6 +57,8 @@
         if (typeof initHomeShortcut === 'function' && config.homeUrl) initHomeShortcut();
         if (typeof messageBoxAnimation === 'function') messageBoxAnimation();
         if (typeof initGlobalUI === 'function') initGlobalUI();
+        if (typeof initNegativeValueHighlighter === 'function') initNegativeValueHighlighter();
+        if (typeof initPreviewTextFitting === 'function') initPreviewTextFitting();
         if (config.authenticated && typeof initActivityPing === 'function') initActivityPing();
 
         if (config.pusherEnabled) {

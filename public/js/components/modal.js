@@ -500,7 +500,7 @@ function createModal(data, animate = 'animate') {
             `;
 
             invoiceBottom = '';
-            const prevBalance = Number((previewData.previous_balance ?? 0).toString().replace(/,/g, '')) || 0;
+            const prevBalance = parseFormattedNumber(previewData.previous_balance);
             const totalPaymentVal = Number((previewData.total_payment ?? 0).toString().replace(/,/g, '')) || 0;
             if (previewData.supplier) {
                 invoiceBottom += `
@@ -778,7 +778,7 @@ function createModal(data, animate = 'animate') {
                     <hr class="w-full my-3 border-black">
                     <div class="footer flex w-full text-sm px-5 justify-between text-black">
                         <p class="leading-none">Powered by SparkPair</p>
-                        <p class="leading-none text-sm">&copy; 2025 SparkPair | +92 316 5825495</p>
+                        <p class="leading-none text-sm">&copy; ${new Date().getFullYear()} SparkPair | +92 316 5825495</p>
                     </div>
                 </div>
             </div>

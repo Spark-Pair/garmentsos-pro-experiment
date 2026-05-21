@@ -346,6 +346,11 @@
             color: var(--secondary-text) !important;
         }
 
+        .negative-value,
+        .negative-value * {
+            color: var(--border-error) !important;
+        }
+
         .open-dropdown:hover .open-dropdown-hover\:block {
             display: block;
         }
@@ -380,6 +385,27 @@
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
+        }
+
+        #preview-container .td,
+        #preview-container .th,
+        .preview .td,
+        .preview .th,
+        .preview-document .td,
+        .preview-document .th {
+            min-width: 0;
+            overflow: hidden !important;
+            text-overflow: clip !important;
+            white-space: nowrap !important;
+            line-height: 1.05;
+        }
+
+        #preview-container .truncate,
+        .preview .truncate,
+        .preview-document .truncate {
+            overflow: hidden !important;
+            text-overflow: clip !important;
+            white-space: nowrap !important;
         }
     </style>
 

@@ -25,7 +25,7 @@
                     <input type="hidden" id="supplier" value='{{ json_encode($expense->supplier) }}' />
 
                     <!-- balance -->
-                    <x-input label="Balance" id="balance" disabled value="{{ $expense->supplier->balance }}" />
+                    <x-input label="Balance" id="balance" disabled value="{{ \App\Support\Money::format($expense->supplier->balance) }}" />
 
                     {{-- expense --}}
                     <x-select label="Expense" name="expense" id="expense" required />

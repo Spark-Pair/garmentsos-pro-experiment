@@ -14,7 +14,7 @@ trait ShipmentComputed
             'id' => $this->id,
             'name' => $this->shipment_no,
             'details' => [
-                'Amount' => $this->netAmount,
+                'Amount' => \App\Support\Money::format($this->netAmount),
                 'Date' => $this->date->format('d-M-Y, D'),
             ],
             'isInvoiceHas' => $this->invoices()->exists(),

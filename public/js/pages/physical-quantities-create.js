@@ -215,7 +215,7 @@
                 let packets = packetsDom.value;
 
                 totalQuantity = pcsPerPacket * packets;
-                totalAmount = totalQuantity * parseInt(selectedArticle.sales_rate);
+                totalAmount = totalQuantity * parseFormattedNumber(selectedArticle.sales_rate);
 
                 finalOrderedQuantityDom.textContent = new Intl.NumberFormat("en-US").format(
                     totalQuantity

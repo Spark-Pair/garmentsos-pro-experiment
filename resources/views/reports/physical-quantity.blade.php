@@ -171,7 +171,7 @@
 
                                     <hr class="w-full my-2 border-gray-700">
                                     <div class="tfooter flex w-full text-sm px-4 justify-between text-gray-800 leading-none text-xs" style="font-size: 0.70rem">
-                                        <p>Powered by SparkPair &copy; 2025 SparkPair | +92 316 5825495</p>
+                                        <p>Powered by SparkPair &copy; {{ now()->year }} SparkPair | +92 316 5825495</p>
                                         <p>Page {{ $loop->iteration }} of {{ $totalPages }}</p>
                                     </div>
                                 </div>

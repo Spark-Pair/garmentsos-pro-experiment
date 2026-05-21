@@ -1,15 +1,62 @@
+function getSortStorageKey() {
+    return `garmentsos:sort:${window.location.pathname}`;
+}
+
+function saveSortState(index, order) {
+    try {
+        localStorage.setItem(getSortStorageKey(), JSON.stringify({ index, order }));
+    } catch (error) {
+        console.warn('Unable to persist sort:', error);
+    }
+}
+
+function clearSortState() {
+    try {
+        localStorage.removeItem(getSortStorageKey());
+    } catch (error) {
+        console.warn('Unable to clear sort:', error);
+    }
+}
+
+function readSortState() {
+    try {
+        return JSON.parse(localStorage.getItem(getSortStorageKey()) || '{}');
+    } catch (error) {
+        return {};
+    }
+}
+
 function sortByThis(elem) {
     const tableHead = elem.parentElement;
     const index = Array.from(tableHead.children).indexOf(elem);
+    const order = elem.dataset.sort === 'asc' ? 'desc' : 'asc';
+
+    sortTableByColumn(index, order, true);
+}
+
+function sortTableByColumn(index, order, persist = false) {
+    const tableHead = document.getElementById('table-head');
+    const elem = tableHead?.children[index];
+    if (!tableHead || !elem) return;
+
     const searchContainer = tableHead.parentElement.querySelector('.search_container');
+    if (!searchContainer) return;
+
     const rows = Array.from(searchContainer.querySelectorAll('.item'));
 
     searchContainer.querySelectorAll('.item').forEach((row, i) => {
         row.dataset.index = i;
     });
 
-    const order = elem.dataset.sort === 'asc' ? 'desc' : 'asc';
+    tableHead.querySelectorAll(':scope > *').forEach(header => {
+        if (header !== elem) delete header.dataset.sort;
+    });
+
     elem.dataset.sort = order;
+
+    if (persist) {
+        saveSortState(index, order);
+    }
 
     const isWholeNumberString = s => {
         if (!s) return false;
@@ -90,6 +137,16 @@ function sortByThis(elem) {
     rows.forEach(row => searchContainer.appendChild(row));
 }
 
+function applyPersistedSort() {
+    const tableHead = document.getElementById('table-head');
+    if (!tableHead || tableHead.classList.contains('hidden')) return;
+
+    const { index, order } = readSortState();
+    if (!Number.isInteger(index) || !['asc', 'desc'].includes(order)) return;
+
+    sortTableByColumn(index, order, false);
+}
+
 function resetSort() {
     const searchContainer = document.querySelector('.search_container');
     const rows = Array.from(searchContainer.querySelectorAll('.item'));
@@ -104,4 +161,8 @@ function resetSort() {
     document.querySelectorAll('#table-head > div').forEach(header => {
         delete header.dataset.sort;
     });
+
+    clearSortState();
 }
+
+window.applyPersistedSort = applyPersistedSort;

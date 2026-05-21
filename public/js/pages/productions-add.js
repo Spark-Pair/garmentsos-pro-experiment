@@ -293,7 +293,7 @@
 
                             filteredRates.forEach((rate) => {
                                 ratesUL.innerHTML += `
-                                    <li data-for="select_rate" data-value="${rate.id}" onmousedown="selectThisOption(this)" class="py-2 px-3 cursor-pointer rounded-lg hover:bg-[var(--h-bg-color)]">${rate.title} | ${rate.rate}</li>
+                                    <li data-for="select_rate" data-value="${rate.id}" onmousedown="selectThisOption(this)" class="py-2 px-3 cursor-pointer rounded-lg hover:bg-[var(--h-bg-color)]">${rate.title} | ${formatMoney(rate.rate)}</li>
                                 `;
                             });
 
@@ -941,7 +941,7 @@
                         if (filteredRates.length > 0) {
                             filteredRates.forEach((rate) => {
                                 ratesUL.innerHTML += `
-                                    <li data-for="select_rate" data-value="${rate.id}" onmousedown="selectThisOption(this)" class="py-2 px-3 cursor-pointer rounded-lg hover:bg-[var(--h-bg-color)]">${rate.title} | ${rate.rate}</li>
+                                    <li data-for="select_rate" data-value="${rate.id}" onmousedown="selectThisOption(this)" class="py-2 px-3 cursor-pointer rounded-lg hover:bg-[var(--h-bg-color)]">${rate.title} | ${formatMoney(rate.rate)}</li>
                                 `;
                             });
                         }

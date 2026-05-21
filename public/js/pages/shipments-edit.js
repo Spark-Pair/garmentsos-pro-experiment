@@ -109,7 +109,7 @@
                 fields: [
                     {
                         category: 'input',
-                        value: `${data.article_no} | ${data.season} | ${data.size} | ${data.category} | ${data.fabric_type} | ${data.quantity} | ${data.sales_rate} - Rs.`,
+                        value: `${data.article_no} | ${data.season} | ${data.size} | ${data.category} | ${data.fabric_type} | ${data.quantity} | ${formatMoney(data.sales_rate)} - Rs.`,
                         disabled: true,
                     },
                     {
@@ -294,8 +294,8 @@
                             <div class="w-[10%]">${selectedArticle.article_no}</div>
                             <div class="w-1/6">${selectedArticle.shipmentQuantity} pcs</div>
                             <div class="grow capitalize">${selectedArticle.description}</div>
-                            <div class="w-1/6">${selectedArticle.sales_rate}</div>
-                            <div class="w-1/5">${selectedArticle.sales_rate * selectedArticle.shipmentQuantity}</div>
+                            <div class="w-1/6">${formatMoney(selectedArticle.sales_rate)}</div>
+                            <div class="w-1/5">${formatMoney(selectedArticle.sales_rate * selectedArticle.shipmentQuantity)}</div>
                             <div class="w-[10%] text-center">
                                 <button onclick="deselectThisArticle(${index})" type="button" class="text-[var(--danger-color)] text-xs px-2 py-1 rounded-lg hover:text-[var(--h-danger-color)] transition-all duration-300 ease-in-out cursor-pointer">
                                     <i class="fas fa-trash"></i>
@@ -423,7 +423,7 @@
                                                             ${formatMoney(article.sales_rate)}
                                                         </div>
                                                         <div class="td text-sm font-semibold w-[10%]">
-                                                            ${formatMoney(parseInt(article.sales_rate) * article.shipmentQuantity)}
+                                                            ${formatMoney(parseFormattedNumber(article.sales_rate) * article.shipmentQuantity)}
                                                         </div>
                                                     </div>
                                                 </div>
@@ -461,7 +461,7 @@
                         <hr class="w-full my-3 border-gray-600">
                         <div class="tfooter flex w-full text-sm px-4 justify-between text-gray-600">
                             <P class="leading-none">Powered by SparkPair</P>
-                            <p class="leading-none text-sm">&copy; 2025 SparkPair | +92 316 5825495</p>
+                            <p class="leading-none text-sm">&copy; ${new Date().getFullYear()} SparkPair | +92 316 5825495</p>
                         </div>
                     </div>
                 `;

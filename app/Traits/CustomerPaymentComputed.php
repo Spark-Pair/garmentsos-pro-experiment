@@ -7,6 +7,280 @@ use Illuminate\Database\Eloquent\Casts\Attribute;
 
 trait CustomerPaymentComputed
 {
+    protected function isProgramMethod(): bool
+    {
+        return strtolower((string) $this->method) === 'program';
+    }
+
+    protected static function whereNullableColumnMatches($query, string $leftColumn, string $rightColumn): void
+    {
+        $query->where(function ($q) use ($leftColumn, $rightColumn) {
+            $q->whereColumn($leftColumn, $rightColumn)
+                ->orWhere(function ($sq) use ($leftColumn, $rightColumn) {
+                    $sq->whereNull($leftColumn)->whereNull($rightColumn);
+                });
+        });
+    }
+
+    protected static function addMatchingProgramSupplierPaymentConstraints($query): void
+    {
+        $query->whereRaw('LOWER(supplier_payments.method) = ?', ['program'])
+            ->whereColumn('supplier_payments.program_id', 'customer_payments.program_id')
+            ->where(function ($matchQ) {
+                $matchQ->where(function ($exactQ) {
+                    $exactQ->whereColumn('supplier_payments.amount', 'customer_payments.amount')
+                        ->whereRaw('DATE(supplier_payments.date) = DATE(customer_payments.date)');
+
+                    self::whereNullableColumnMatches($exactQ, 'supplier_payments.bank_account_id', 'customer_payments.bank_account_id');
+                    self::whereNullableColumnMatches($exactQ, 'supplier_payments.transaction_id', 'customer_payments.transaction_id');
+                })
+                ->orWhere(function ($refAmountQ) {
+                    self::whereMeaningfulTransactionMatches($refAmountQ);
+                    $refAmountQ->whereColumn('supplier_payments.amount', 'customer_payments.amount');
+                })
+                ->orWhere(function ($zeroRefQ) {
+                    self::whereCustomerTransactionIsNotMeaningful($zeroRefQ);
+                    self::whereSupplierTransactionIsNotMeaningful($zeroRefQ);
+                    $zeroRefQ->whereColumn('supplier_payments.amount', 'customer_payments.amount')
+                        ->whereRaw('DATE(supplier_payments.date) = DATE(customer_payments.date)');
+                });
+            });
+    }
+
+    protected function matchingProgramSupplierPaymentQuery()
+    {
+        return SupplierPayment::query()
+            ->whereRaw('LOWER(method) = ?', ['program'])
+            ->where('program_id', $this->program_id)
+            ->where('bank_account_id', $this->bank_account_id)
+            ->where('transaction_id', $this->transaction_id)
+            ->where('amount', $this->amount)
+            ->whereDate('date', $this->date);
+    }
+
+    protected function findMatchingProgramSupplierPayment()
+    {
+        if (!$this->program_id) {
+            return null;
+        }
+
+        static $programVoucherPayments = null;
+
+        $supplierPayments = $this->program?->relationLoaded('supplierPayments')
+            ? $this->program->supplierPayments
+                ->filter(fn ($payment) => strtolower((string) $payment->method) === 'program' && $payment->voucher_id)
+                ->values()
+            : null;
+
+        if (!$supplierPayments) {
+            if ($programVoucherPayments === null) {
+                $programVoucherPayments = SupplierPayment::with('voucher')
+                    ->whereRaw('LOWER(method) = ?', ['program'])
+                    ->whereNotNull('program_id')
+                    ->whereNotNull('voucher_id')
+                    ->get()
+                    ->groupBy('program_id');
+            }
+
+            $supplierPayments = $programVoucherPayments->get($this->program_id, collect())->values();
+        }
+
+        $matchesBase = function ($payment): bool {
+            return (int) $payment->program_id === (int) $this->program_id
+                && (float) $payment->amount === (float) $this->amount;
+        };
+
+        $exact = $supplierPayments
+            ->first(function ($payment) use ($matchesBase) {
+            return $matchesBase($payment)
+                && (int) ($payment->bank_account_id ?? 0) === (int) ($this->bank_account_id ?? 0)
+                && (string) ($payment->transaction_id ?? '') === (string) ($this->transaction_id ?? '')
+                && optional($payment->date)->format('Y-m-d') === optional($this->date)->format('Y-m-d');
+        });
+
+        if ($exact) {
+            return $exact;
+        }
+
+        $transactionId = trim((string) $this->transaction_id);
+        if ($transactionId !== '' && $transactionId !== '0') {
+            $byReferenceAndAmount = $supplierPayments
+                ->first(fn ($payment) =>
+                $matchesBase($payment)
+                && (string) ($payment->transaction_id ?? '') === (string) $this->transaction_id
+            );
+
+            if ($byReferenceAndAmount) {
+                return $byReferenceAndAmount;
+            }
+        }
+
+        if ($transactionId === '' || $transactionId === '0') {
+            return $supplierPayments
+                ->first(function ($payment) use ($matchesBase) {
+                $supplierTransactionId = trim((string) $payment->transaction_id);
+
+                return in_array($supplierTransactionId, ['', '0'], true)
+                    && $matchesBase($payment)
+                    && optional($payment->date)->format('Y-m-d') === optional($this->date)->format('Y-m-d');
+            });
+        }
+
+        return null;
+    }
+
+    protected function hasProgramVoucher(): bool
+    {
+        if (!$this->program_id) {
+            return false;
+        }
+
+        static $programIssuedCache = [];
+        $cacheKey = implode('|', [
+            strtolower((string) $this->method),
+            $this->program_id ?? '',
+            $this->bank_account_id ?? '',
+            $this->transaction_id ?? '',
+            $this->amount ?? '',
+            optional($this->date)->format('Y-m-d') ?? '',
+        ]);
+
+        if (!array_key_exists($cacheKey, $programIssuedCache)) {
+            $programIssuedCache[$cacheKey] = (bool) $this->findMatchingProgramSupplierPayment();
+        }
+
+        return $programIssuedCache[$cacheKey];
+    }
+
+    protected static function whereMeaningfulTransactionMatches($query): void
+    {
+        $query->whereColumn('supplier_payments.transaction_id', 'customer_payments.transaction_id');
+        self::whereCustomerTransactionIsMeaningful($query);
+        self::whereSupplierTransactionIsMeaningful($query);
+    }
+
+    protected static function whereCustomerTransactionIsMeaningful($query): void
+    {
+        $query->whereNotNull('customer_payments.transaction_id')
+            ->where('customer_payments.transaction_id', '!=', '')
+            ->where('customer_payments.transaction_id', '!=', '0');
+    }
+
+    protected static function whereSupplierTransactionIsMeaningful($query): void
+    {
+        $query->whereNotNull('supplier_payments.transaction_id')
+            ->where('supplier_payments.transaction_id', '!=', '')
+            ->where('supplier_payments.transaction_id', '!=', '0');
+    }
+
+    protected static function whereCustomerTransactionIsNotMeaningful($query): void
+    {
+        $query->where(function ($q) {
+            $q->whereNull('customer_payments.transaction_id')
+                ->orWhere('customer_payments.transaction_id', '')
+                ->orWhere('customer_payments.transaction_id', '0');
+        });
+    }
+
+    protected static function whereSupplierTransactionIsNotMeaningful($query): void
+    {
+        $query->where(function ($q) {
+            $q->whereNull('supplier_payments.transaction_id')
+                ->orWhere('supplier_payments.transaction_id', '')
+                ->orWhere('supplier_payments.transaction_id', '0');
+        });
+    }
+
+    protected function dataForResponse()
+    {
+        return [
+            'id' => $this->id,
+            'customer_id' => $this->customer_id,
+            'customer' => $this->customer ? [
+                'id' => $this->customer->id,
+                'customer_name' => $this->customer->customer_name,
+                'city' => $this->customer->city ? [
+                    'id' => $this->customer->city->id,
+                    'title' => $this->customer->city->title,
+                    'short_title' => $this->customer->city->short_title,
+                ] : null,
+            ] : null,
+            'date' => optional($this->date)->toJSON(),
+            'method' => $this->method,
+            'type' => $this->type,
+            'amount' => $this->amount,
+            'cheque_no' => $this->cheque_no,
+            'slip_no' => $this->slip_no,
+            'transaction_id' => $this->transaction_id,
+            'reff_no' => $this->reff_no,
+            'cheque_date' => optional($this->cheque_date)->toJSON(),
+            'slip_date' => optional($this->slip_date)->toJSON(),
+            'clear_date' => optional($this->clear_date)->toJSON(),
+            'remarks' => $this->remarks,
+            'bank' => $this->bank?->title ?? $this->bank?->short_title ?? null,
+            'bank_account' => $this->formatBankAccountForResponse($this->bankAccount),
+            'cheque' => $this->formatSupplierPaymentForResponse($this->cheque),
+            'slip' => $this->formatSupplierPaymentForResponse($this->slip),
+        ];
+    }
+
+    protected function formatSupplierPaymentForResponse($payment): ?array
+    {
+        if (!$payment) {
+            return null;
+        }
+
+        return [
+            'id' => $payment->id,
+            'supplier_id' => $payment->supplier_id,
+            'voucher' => $payment->voucher ? [
+                'id' => $payment->voucher->id,
+                'voucher_no' => $payment->voucher->voucher_no,
+                'supplier' => $payment->voucher->supplier ? [
+                    'id' => $payment->voucher->supplier->id,
+                    'supplier_name' => $payment->voucher->supplier->supplier_name,
+                    'bank_accounts' => $payment->voucher->supplier->bankAccounts
+                        ?->map(fn ($account) => $this->formatBankAccountForResponse($account))
+                        ->values()
+                        ->all() ?? [],
+                ] : null,
+            ] : null,
+            'cr' => $payment->cr ? [
+                'id' => $payment->cr->id,
+                'c_r_no' => $payment->cr->c_r_no,
+                'voucher' => $payment->cr->voucher ? [
+                    'id' => $payment->cr->voucher->id,
+                    'voucher_no' => $payment->cr->voucher->voucher_no,
+                    'supplier' => $payment->cr->voucher->supplier ? [
+                        'id' => $payment->cr->voucher->supplier->id,
+                        'supplier_name' => $payment->cr->voucher->supplier->supplier_name,
+                        'bank_accounts' => $payment->cr->voucher->supplier->bankAccounts
+                            ?->map(fn ($account) => $this->formatBankAccountForResponse($account))
+                            ->values()
+                            ->all() ?? [],
+                    ] : null,
+                ] : null,
+            ] : null,
+        ];
+    }
+
+    protected function formatBankAccountForResponse($account): ?array
+    {
+        if (!$account) {
+            return null;
+        }
+
+        return [
+            'id' => $account->id,
+            'account_title' => $account->account_title,
+            'bank' => $account->bank ? [
+                'id' => $account->bank->id,
+                'title' => $account->bank->title,
+                'short_title' => $account->bank->short_title,
+            ] : null,
+        ];
+    }
+
     protected function formatClearRecord($record)
     {
         $amount = (float) ($record?->amount ?? 0);
@@ -31,11 +305,6 @@ trait CustomerPaymentComputed
         return Attribute::get(function () {
             static $voucherNoCache = [];
 
-            // For heavy issued filtering, skip expensive program voucher lookup
-            if (request()->has('issued') && $this->method === 'program') {
-                return null;
-            }
-
             // direct relations
             if ($this->cheque?->voucher) return $this->cheque->voucher->voucher_no;
             if ($this->slip?->voucher)   return $this->slip->voucher->voucher_no;
@@ -43,8 +312,9 @@ trait CustomerPaymentComputed
             if ($this->slip?->cr)        return $this->slip->cr->c_r_no;
 
             // program-based fallback
-            if ($this->program_id) {
+            if ($this->isProgramMethod() && $this->program_id) {
                 $cacheKey = implode('|', [
+                    strtolower((string) $this->method),
                     $this->program_id ?? '',
                     $this->bank_account_id ?? '',
                     $this->transaction_id ?? '',
@@ -56,13 +326,7 @@ trait CustomerPaymentComputed
                     return $voucherNoCache[$cacheKey];
                 }
 
-                $supplierPayment = SupplierPayment::with('voucher')
-                    ->where('program_id', $this->program_id)
-                    ->where('bank_account_id', $this->bank_account_id)
-                    ->where('transaction_id', $this->transaction_id)
-                    ->where('amount', $this->amount)
-                    ->whereDate('date', $this->date)
-                    ->first();
+                $supplierPayment = $this->findMatchingProgramSupplierPayment();
 
                 $voucherNoCache[$cacheKey] = $supplierPayment?->voucher?->voucher_no ?? null;
                 return $voucherNoCache[$cacheKey];
@@ -176,11 +440,13 @@ trait CustomerPaymentComputed
     public function issued(): Attribute
     {
         return Attribute::get(function () {
+            $method = strtolower((string) $this->method);
+
             if ($this->d_r_id !== null) {
                 return 'DR';
             }
 
-            if (in_array($this->method, ['cash', 'adjustment'])) {
+            if (in_array($method, ['cash', 'adjustment'], true)) {
                 return null;
             }
 
@@ -188,40 +454,28 @@ trait CustomerPaymentComputed
                 return 'Return';
             }
 
-            $issuedByVoucher = false;
-            $issuedByChequeOrSlip = false;
+            if ($method === 'program') {
+                if (request()->filled('issued')) {
+                    $issuedValue = strtolower(trim((string) request('issued')));
+                    $issuedValue = str_replace('_', ' ', explode(':', $issuedValue, 2)[0]);
 
-            if ($this->cheque || $this->slip) {
-                $issuedByChequeOrSlip = true;
-            } elseif ($this->method === 'program' && $this->program_id) {
-                static $programIssuedCache = [];
-                $cacheKey = implode('|', [
-                    $this->program_id ?? '',
-                    $this->bank_account_id ?? '',
-                    $this->transaction_id ?? '',
-                    $this->amount ?? '',
-                    optional($this->date)->format('Y-m-d') ?? '',
-                ]);
-                if (array_key_exists($cacheKey, $programIssuedCache)) {
-                    $issuedByVoucher = $programIssuedCache[$cacheKey];
-                } else {
-                    $issuedByVoucher = SupplierPayment::query()
-                        ->where('program_id', $this->program_id)
-                        ->where('bank_account_id', $this->bank_account_id)
-                        ->where('transaction_id', $this->transaction_id)
-                        ->where('amount', $this->amount)
-                        ->whereDate('date', $this->date)
-                        ->whereNotNull('voucher_id')
-                        ->exists();
-                    $programIssuedCache[$cacheKey] = $issuedByVoucher;
+                    if ($issuedValue === 'issued') {
+                        return 'Issued';
+                    }
+
+                    if ($issuedValue === 'not issued') {
+                        return 'Not Issued';
+                    }
                 }
+
+                return $this->hasProgramVoucher() ? 'Issued' : 'Not Issued';
             }
 
-            if (($issuedByChequeOrSlip || $issuedByVoucher) && !$this->is_return) {
+            if (($this->cheque || $this->slip) && !$this->is_return) {
                 return 'Issued';
-            } else {
-                return 'Not Issued';
             }
+
+            return 'Not Issued';
         });
     }
 
@@ -337,7 +591,7 @@ trait CustomerPaymentComputed
             ],
             'amount_numeric' => $amount,
             'method' => $this->method,
-            'data' => $this,
+            'data' => $this->dataForResponse(),
             'date' => $this->slip_date ? $this->slip_date->format('d-M-Y, D') : ($this->cheque_date ? $this->cheque_date->format('d-M-Y, D') : $this->date->format('d-M-Y, D')),
             'program_date' => $this->program?->date ? $this->program?->date->format('d-M-Y, D') : null,
             'voucher_no' => $this->voucher_no ?? '-',
@@ -406,12 +660,10 @@ trait CustomerPaymentComputed
                             $sq->selectRaw(1)
                                 ->from('supplier_payments')
                                 ->join('vouchers', 'vouchers.id', '=', 'supplier_payments.voucher_id')
-                                ->whereColumn('supplier_payments.program_id', 'customer_payments.program_id')
-                                ->whereColumn('supplier_payments.bank_account_id', 'customer_payments.bank_account_id')
-                                ->whereColumn('supplier_payments.transaction_id', 'customer_payments.transaction_id')
-                                ->whereColumn('supplier_payments.amount', 'customer_payments.amount')
-                                ->whereRaw('DATE(supplier_payments.date) = DATE(customer_payments.date)')
+                                ->whereRaw('LOWER(customer_payments.method) = ?', ['program'])
                                 ->where('vouchers.voucher_no', 'like', "%$value%");
+
+                            self::addMatchingProgramSupplierPaymentConstraints($sq);
                         });
                 });
 
@@ -474,34 +726,29 @@ trait CustomerPaymentComputed
                     if ($issuedValue === 'issued') {
                         $q->where('is_return', 0)
                           ->whereNull('d_r_id')
-                          ->whereNotIn('method', ['cash', 'adjustment'])
+                          ->whereRaw('LOWER(method) NOT IN (?, ?)', ['cash', 'adjustment'])
                           ->where(function($sq) {
-                              $sq->whereExists(function ($sub) {
-                                  $sub->selectRaw(1)
-                                      ->from('supplier_payments')
-                                      ->whereColumn('supplier_payments.cheque_id', 'customer_payments.id')
-                                      ->where(function ($q) {
-                                          $q->whereNotNull('supplier_payments.voucher_id');
+                              $sq->where(function ($methodQ) {
+                                  $methodQ->whereRaw('LOWER(customer_payments.method) != ?', ['program'])
+                                      ->where(function ($nonProgramQ) {
+                                          $nonProgramQ->whereExists(function ($sub) {
+                                              $sub->selectRaw(1)
+                                                  ->from('supplier_payments')
+                                                  ->whereColumn('supplier_payments.cheque_id', 'customer_payments.id');
+                                          })
+                                          ->orWhereExists(function ($sub) {
+                                              $sub->selectRaw(1)
+                                                  ->from('supplier_payments')
+                                                  ->whereColumn('supplier_payments.slip_id', 'customer_payments.id');
+                                          });
                                       });
                               })
-                              ->orWhereExists(function ($sub) {
-                                  $sub->selectRaw(1)
-                                      ->from('supplier_payments')
-                                      ->whereColumn('supplier_payments.slip_id', 'customer_payments.id')
-                                      ->where(function ($q) {
-                                          $q->whereNotNull('supplier_payments.voucher_id');
-                                      });
-                              })
-                              ->orWhereExists(function ($sub) {
-                                  $sub->selectRaw(1)
-                                      ->from('supplier_payments')
-                                      ->whereColumn('supplier_payments.program_id', 'customer_payments.program_id')
-                                      ->where(function ($q) {
-                                          $q->whereColumn('supplier_payments.transaction_id', 'customer_payments.transaction_id')
-                                            ->orWhereNull('customer_payments.transaction_id');
-                                      })
-                                      ->where(function ($q) {
-                                          $q->whereNotNull('supplier_payments.voucher_id');
+                              ->orWhere(function ($programQ) {
+                                  $programQ->whereRaw('LOWER(customer_payments.method) = ?', ['program'])
+                                      ->whereExists(function ($sub) {
+                                          $sub->selectRaw(1)->from('supplier_payments');
+                                          self::addMatchingProgramSupplierPaymentConstraints($sub);
+                                          $sub->whereNotNull('supplier_payments.voucher_id');
                                       });
                               });
                           });
@@ -509,42 +756,37 @@ trait CustomerPaymentComputed
                     elseif ($issuedValue === 'return') {
                         $q->where('is_return', 1)
                           ->whereNull('d_r_id')
-                          ->whereNotIn('method', ['cash', 'adjustment']);
+                          ->whereRaw('LOWER(method) NOT IN (?, ?)', ['cash', 'adjustment']);
                     }
                     elseif ($issuedValue === 'dr') {
                         $q->whereNotNull('d_r_id')
-                          ->whereNotIn('method', ['cash', 'adjustment']);
+                          ->whereRaw('LOWER(method) NOT IN (?, ?)', ['cash', 'adjustment']);
                     }
                     elseif ($issuedValue === 'not issued' || $issuedValue === 'not_issued') {
                         $q->where('is_return', 0)
                           ->whereNull('d_r_id')
-                          ->whereNotIn('method', ['cash', 'adjustment'])
+                          ->whereRaw('LOWER(method) NOT IN (?, ?)', ['cash', 'adjustment'])
                           ->where(function($sq) {
-                              $sq->whereNotExists(function ($sub) {
-                                  $sub->selectRaw(1)
-                                      ->from('supplier_payments')
-                                      ->whereColumn('supplier_payments.cheque_id', 'customer_payments.id');
-                              })
-                              ->whereNotExists(function ($sub) {
-                                  $sub->selectRaw(1)
-                                      ->from('supplier_payments')
-                                      ->whereColumn('supplier_payments.slip_id', 'customer_payments.id');
-                              })
-                              ->whereNotExists(function ($sub) {
-                                  $sub->selectRaw(1)
-                                      ->from('supplier_payments')
-                                      ->whereColumn('supplier_payments.program_id', 'customer_payments.program_id')
-                                      ->where(function ($q) {
-                                          $q->whereColumn('supplier_payments.transaction_id', 'customer_payments.transaction_id')
-                                            ->orWhereNull('customer_payments.transaction_id');
+                              $sq->where(function ($methodQ) {
+                                  $methodQ->whereRaw('LOWER(customer_payments.method) != ?', ['program'])
+                                      ->whereNotExists(function ($sub) {
+                                          $sub->selectRaw(1)
+                                              ->from('supplier_payments')
+                                              ->whereColumn('supplier_payments.cheque_id', 'customer_payments.id');
                                       })
-                                      ->where(function ($q) {
-                                          $q->whereNotNull('supplier_payments.voucher_id');
+                                      ->whereNotExists(function ($sub) {
+                                          $sub->selectRaw(1)
+                                              ->from('supplier_payments')
+                                              ->whereColumn('supplier_payments.slip_id', 'customer_payments.id');
                                       });
                               })
-                              ->where(function ($ssq) {
-                                  $ssq->whereNotIn('method', ['cheque', 'slip', 'program'])
-                                      ->orWhereNull('bank_account_id');
+                              ->orWhere(function ($programQ) {
+                                  $programQ->whereRaw('LOWER(customer_payments.method) = ?', ['program'])
+                                      ->whereNotExists(function ($sub) {
+                                          $sub->selectRaw(1)->from('supplier_payments');
+                                          self::addMatchingProgramSupplierPaymentConstraints($sub);
+                                          $sub->whereNotNull('supplier_payments.voucher_id');
+                                      });
                               });
                           });
                     }
@@ -561,7 +803,7 @@ trait CustomerPaymentComputed
                 });
 
             case 'method':
-                return $query->where('method', $value);
+                return $query->whereRaw('LOWER(method) = ?', [strtolower((string) $value)]);
 
             case 'date':
                 $start = $value['start'] ?? null;

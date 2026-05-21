@@ -16,7 +16,7 @@ trait SalesReturnComputed
             'article_no' => $this->article->article_no,
             'invoice_no' => $this->invoice->invoice_no,
             'quantity' => $this->quantity,
-            'amount' => $this->amount,
+            'amount' => \App\Support\Money::format($this->amount),
         ];
     }
 

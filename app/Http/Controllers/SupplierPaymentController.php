@@ -33,6 +33,7 @@ class SupplierPaymentController extends Controller
                 'program.customer.city',
                 'cheque.customer.city',
                 'slip.customer.city',
+                'voucher',
             ])->orderByDesc('id')->applyFilters($request);
 
             return response()->json(['data' => $payments, 'authLayout' => $authLayout]);

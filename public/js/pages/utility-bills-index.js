@@ -17,7 +17,7 @@ function initUtilityBillsIndex() {
             <span class="capitalize">${data.account_no}</span>
             <span class="capitalize">${data.month}</span>
             <span class="capitalize">${data.units}</span>
-            <span class="capitalize">${data.amount}</span>
+            <span class="capitalize">${formatMoney(data.amount)}</span>
             <span class="capitalize">${data.due_date}</span>
             <span class="capitalize">${data.status}</span>
         </div>`;

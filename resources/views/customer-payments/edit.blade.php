@@ -39,7 +39,7 @@
                     />
 
                     {{-- balance --}}
-                    <x-input label="Balance" value="{{ $customerPayment->customer->balance }}" disabled />
+                    <x-input label="Balance" value="{{ \App\Support\Money::format($customerPayment->customer->balance) }}" disabled />
 
                     {{-- date --}}
                     <x-input label="Date" name="date" id="date" type="date" required value="{{ $customerPayment->date->format('Y-m-d') }}" readonly onchange="trackDateState(this)"/>

@@ -27,6 +27,12 @@
                 "options" => $expenseOptions,
                                 "dataFilterPath" => "expense",
             ],
+            "Amount" => [
+                "id" => "amount",
+                "type" => "text",
+                "placeholder" => "Enter amount",
+                                "dataFilterPath" => "amount",
+            ],
             "Remarks" => [
                 "id" => "remarks",
                 "type" => "text",
