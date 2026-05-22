@@ -21,6 +21,31 @@ trait PaymentProgramComputed
 
     public function toFormattedArray()
     {
+        $paymentRows = $this->customerPayments->map(function ($payment) {
+            $bankAccount = $payment->bankAccount;
+
+            return [
+                'id' => $payment->id,
+                'date' => $payment->date,
+                'amount' => (float) $payment->amount,
+                'transaction_id' => $payment->transaction_id,
+                'bank_account' => $bankAccount ? [
+                    'id' => $bankAccount->id,
+                    'account_title' => $bankAccount->account_title,
+                    'bank' => $bankAccount->bank ? [
+                        'id' => $bankAccount->bank->id,
+                        'short_title' => $bankAccount->bank->short_title,
+                        'title' => $bankAccount->bank->title,
+                    ] : null,
+                    'sub_category' => $bankAccount->subCategory ? [
+                        'id' => $bankAccount->subCategory->id,
+                        'supplier_name' => $bankAccount->subCategory->supplier_name ?? null,
+                        'customer_name' => $bankAccount->subCategory->customer_name ?? null,
+                    ] : null,
+                ] : null,
+            ];
+        })->values();
+
         return [
             'id' => $this->id,
             'date' => $this->date->format('d-M-Y, D'),
@@ -33,7 +58,15 @@ trait PaymentProgramComputed
             'balance' => $this->balance,
             'status' => $this->status,
             'type' => $this->order_no ? 'order' : 'program',
-            'data' => $this,
+            'sub_category' => $this->subCategory ? [
+                'id' => $this->subCategory->id,
+            ] : null,
+            'data' => [
+                'id' => $this->id,
+                'sub_category_id' => $this->sub_category_id,
+                'sub_category_type' => $this->sub_category_type,
+                'payments' => $paymentRows,
+            ],
             'oncontextmenu' => "generateContextMenu(event)",
             'onclick' => "generateModal(this)",
         ];

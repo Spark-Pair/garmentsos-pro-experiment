@@ -1,10 +1,7 @@
-const CACHE_NAME = 'garmentsos-pro-cache-v1';
+const CACHE_NAME = 'garmentsos-pro-cache-v2';
 const urlsToCache = [
   '/',
-  '/offline.html',
-  '/css/app.css',
-  '/js/app.js',
-  '/js/bootstrap.js'
+  '/offline.html'
 ];
 
 // Install event
