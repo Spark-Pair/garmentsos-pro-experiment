@@ -10,7 +10,7 @@
                 <span>${data.article_no}</span>
                 <span>${data.invoice_no}</span>
                 <span>${data.quantity + ' - PCs'}</span>
-                <span>${data.amount}</span>
+                <span>${formatMoney(data.amount)}</span>
             </div>`;
     };
 

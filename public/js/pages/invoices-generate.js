@@ -175,7 +175,7 @@
                     <span class="text-center capitalize">${data.details["Category"]}</span>
                     <span class="text-center capitalize">${data.city}</span>
                     <span class="text-center">${data.phone_number}</span>
-                    <span class="text-right">${Number(data.details["Balance"]).toFixed(1)}</span>
+                    <span class="text-right">${formatMoney(data.details["Balance"])}</span>
                 </div>`;
             }
 
@@ -545,7 +545,7 @@
                             <span class="capitalize grow">${customer.customer_name} | ${customer.city.title}</span>
                             <span class="w-[15%]">${customer.urdu_title}</span>
                             <span class="w-[15%]">${customer.category}</span>
-                            <span class="w-[15%]">${Number(customer.balance).toFixed(1)}</span>
+                            <span class="w-[15%]">${formatMoney(customer.balance)}</span>
                             <span class="w-[15%] capitalize">${customer.user?.status ?? ""}</span>
                         </div>
                     `;
@@ -656,7 +656,7 @@
                 const invoiceTableBody = `
                     ${articles.map((orderedArticle, index) => {
                         const article = orderedArticle.article || {};
-                        const salesRate = Number(article.sales_rate || 0);
+                        const salesRate = parseFormattedNumber(article.sales_rate);
                         const qty = orderedArticle.invoice_pcs ?? orderedArticle.shipment_pcs ?? 0;
                         const total = salesRate * qty;
                         const hrClass = index === 0 ? "mb-2.5" : "my-2.5";
@@ -776,7 +776,7 @@
                                 <hr class="w-full my-3 border-black">
                                 <div class="tfooter flex w-full text-sm px-4 justify-between text-black">
                                     <p class="leading-none">Powered by SparkPair</p>
-                                    <p class="leading-none text-sm">&copy; 2025 SparkPair | +92 316 5825495</p>
+                                    <p class="leading-none text-sm">&copy; ${new Date().getFullYear()} SparkPair | +92 316 5825495</p>
                                 </div>
                             </div>
                         </div>
@@ -1145,7 +1145,7 @@
                 const invoiceTableBody = `
                     ${articles.map((orderedArticle, index) => {
                         const article = orderedArticle.article || {};
-                        const salesRate = Number(article.sales_rate || 0);
+                        const salesRate = parseFormattedNumber(article.sales_rate);
                         const qty = orderedArticle.invoice_pcs ?? orderedArticle.ordered_pcs ?? 0;
                         const total = salesRate * qty;
                         const hrClass = index === 0 ? "mb-2.5" : "my-2.5";
@@ -1264,7 +1264,7 @@
                                 <hr class="w-full my-3 border-black">
                                 <div class="tfooter flex w-full text-sm px-4 justify-between text-black">
                                     <p class="leading-none">Powered by SparkPair</p>
-                                    <p class="leading-none text-sm">&copy; 2025 SparkPair | +92 316 5825495</p>
+                                    <p class="leading-none text-sm">&copy; ${new Date().getFullYear()} SparkPair | +92 316 5825495</p>
                                 </div>
                             </div>
                         </div>

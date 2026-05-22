@@ -14,9 +14,43 @@ const GlobalFilterManager = {
     init() {
         if (!document.querySelector('.search_container')) return;
 
-        this.loadInitialData();
+        this.restoreSavedFilters();
         this.bindFilterEvents();
         this.bindShortcutEvents();
+
+        if (Object.keys(this.collectFilters()).length > 0) {
+            this.applyFilters({ persist: false });
+        } else {
+            this.loadInitialData();
+        }
+    },
+
+    storageKey(type) {
+        return `garmentsos:${type}:${window.location.pathname}`;
+    },
+
+    readStorage(type) {
+        try {
+            return JSON.parse(localStorage.getItem(this.storageKey(type)) || '{}');
+        } catch (error) {
+            return {};
+        }
+    },
+
+    writeStorage(type, value) {
+        try {
+            localStorage.setItem(this.storageKey(type), JSON.stringify(value));
+        } catch (error) {
+            console.warn(`Unable to persist ${type}:`, error);
+        }
+    },
+
+    clearStorage(type) {
+        try {
+            localStorage.removeItem(this.storageKey(type));
+        } catch (error) {
+            console.warn(`Unable to clear ${type}:`, error);
+        }
     },
 
     bindFilterEvents() {
@@ -39,6 +73,8 @@ const GlobalFilterManager = {
             document.querySelectorAll('[data-clearable]').forEach(field => {
                 field.value = '';
             });
+            this.clearSelectLabels();
+            this.clearStorage('filters');
             this.loadInitialData();
         };
     },
@@ -101,8 +137,17 @@ const GlobalFilterManager = {
         }
     },
 
-    async applyFilters() {
+    async applyFilters(options = {}) {
+        const shouldPersist = options.persist !== false;
         const filters = this.collectFilters();
+
+        if (shouldPersist) {
+            if (Object.keys(filters).length > 0) {
+                this.writeStorage('filters', filters);
+            } else {
+                this.clearStorage('filters');
+            }
+        }
 
         // If no filters, load initial data
         if (Object.keys(filters).length === 0) {
@@ -218,7 +263,95 @@ const GlobalFilterManager = {
             }
         });
 
+        this.completeDateRangeFilters(filters);
+
         return filters;
+    },
+
+    completeDateRangeFilters(filters) {
+        const rangeGroups = {};
+
+        document.querySelectorAll('input[type="date"][data-filter-path]').forEach(input => {
+            const path = input.getAttribute('data-filter-path');
+            if (!path) return;
+
+            rangeGroups[path] ??= [];
+            rangeGroups[path].push(input);
+        });
+
+        Object.values(rangeGroups).forEach(inputs => {
+            if (inputs.length < 2) return;
+
+            const startInput = inputs.find(input => /(^|_)(start|from)$/i.test(input.id)) || inputs[0];
+            const endInput = inputs.find(input => /(^|_)(end|to)$/i.test(input.id)) || inputs[1];
+            if (!startInput || !endInput) return;
+
+            const startKey = startInput.id;
+            const endKey = endInput.id;
+            const hasStart = !!filters[startKey];
+            const hasEnd = !!filters[endKey];
+
+            if (hasStart && !hasEnd) {
+                filters[endKey] = '9999-12-31';
+                endInput.value = filters[endKey];
+            } else if (!hasStart && hasEnd) {
+                filters[startKey] = '1900-01-01';
+                startInput.value = filters[startKey];
+            }
+        });
+    },
+
+    restoreSavedFilters() {
+        const savedFilters = this.readStorage('filters');
+        Object.entries(savedFilters).forEach(([key, value]) => {
+            const input = document.querySelector(`[data-for="${CSS.escape(key)}"].dbInput`)
+                || document.getElementById(key)
+                || document.querySelector(`[data-filter-path][id="${CSS.escape(key)}"]`);
+
+            if (!input) return;
+
+            input.value = value;
+
+            if (input.classList.contains('dbInput')) {
+                this.syncSelectLabel(input);
+            }
+        });
+    },
+
+    syncSelectLabel(dbInput) {
+        const forId = dbInput.getAttribute('data-for');
+        if (!forId) return;
+
+        const scope = dbInput.closest('form') || document;
+        const visibleInput = scope.querySelector(`#${CSS.escape(forId)}`);
+        const selectedOption = scope.querySelector(`.optionsDropdown li[data-for="${CSS.escape(forId)}"][data-value="${CSS.escape(dbInput.value)}"]`);
+
+        if (visibleInput && selectedOption) {
+            visibleInput.value = selectedOption.textContent.trim();
+        }
+
+        scope.querySelectorAll(`.optionsDropdown li[data-for="${CSS.escape(forId)}"]`).forEach(li => {
+            li.classList.toggle('selected', li === selectedOption);
+        });
+    },
+
+    clearSelectLabels() {
+        document.querySelectorAll('.dbInput[data-for]').forEach(dbInput => {
+            const forId = dbInput.getAttribute('data-for');
+            if (!forId) return;
+
+            const scope = dbInput.closest('form') || document;
+            const visibleInput = scope.querySelector(`#${CSS.escape(forId)}`);
+            const defaultOption = scope.querySelector(`.optionsDropdown li[data-for="${CSS.escape(forId)}"][data-value=""]`);
+
+            if (visibleInput) {
+                visibleInput.value = defaultOption ? defaultOption.textContent.trim() : '';
+            }
+
+            scope.querySelectorAll(`.optionsDropdown li[data-for="${CSS.escape(forId)}"]`).forEach(li => {
+                li.classList.toggle('selected', li === defaultOption);
+            });
+        });
     },
 
     renderData(response) {
@@ -243,6 +376,10 @@ const GlobalFilterManager = {
             this.renderWithExistingFunctions(items);
         } else {
             console.warn('No createCard or createRow function found');
+        }
+
+        if (typeof window.applyPersistedSort === 'function') {
+            window.applyPersistedSort();
         }
 
         document.dispatchEvent(new CustomEvent('app:data:rendered', { detail: { items: window.allDataArray } }));

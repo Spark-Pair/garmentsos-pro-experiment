@@ -32,6 +32,15 @@
                     ],
             "dataFilterPath" => "method",
         ],
+        "Issued" => [
+            "type" => "select",
+            "id" => "issued",
+            "options" => [
+                        'Issued' => ['text' => 'Issued'],
+                        'Not Issued' => ['text' => 'Not Issued'],
+                    ],
+            "dataFilterPath" => "issued",
+        ],
         "Reff No." => [
             "type" => "text",
             "id" => "reff_no",

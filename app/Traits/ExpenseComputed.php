@@ -34,6 +34,9 @@ trait ExpenseComputed
             case 'expense':
                 return $query->where('expense', $value);
 
+            case 'amount':
+                return $query->where('amount', str_replace(',', '', $value));
+
             case 'date':
                 $start = $value['start'] ?? null;
                 $end   = $value['end'] ?? null;

@@ -112,7 +112,7 @@
             if (addedPaymentsArray.length > 0) {
                 let clutter = "";
                 addedPaymentsArray.forEach((payment, index) => {
-                    totalAddedAmount += parseInt(payment.amount);
+                    totalAddedAmount += parseFormattedNumber(payment.amount);
                     clutter += `
                         <div class="grid grid-cols-6 border-t border-gray-600 py-3 px-4 cursor-pointer">
                             <div>${index + 1}</div>

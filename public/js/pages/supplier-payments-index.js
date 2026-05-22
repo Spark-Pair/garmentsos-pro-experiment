@@ -12,7 +12,7 @@ function initSupplierPaymentsIndex() {
                 <span class="text-center w-1/8">${data.date}</span>
                 <span class="text-center w-1/6">${data.name}</span>
                 <span class="text-center w-1/8 capitalize">${data.method}</span>
-                <span class="text-center w-1/8">${data.amount}</span>
+                <span class="text-center w-1/8">${formatMoney(data.amount)}</span>
                 <span class="text-center w-1/6">${data.source_name}</span>
                 <span class="text-center w-1/8">${data.source_type}</span>
                 <span class="text-center w-1/8">${data.reff_no ?? '-'}</span>
@@ -57,6 +57,7 @@ function initSupplierPaymentsIndex() {
             'Method': data.method,
             'Customer/Self Acc.': data.source_name || '-',
             'Source': data.source_type || '-',
+            ...(String(data.method || '').toLowerCase() === 'program' && { 'Issued': data.issued || 'Not Issued' }),
             'Reff No.': data.reff_no ?? '-',
             'Voucher No.': data.voucher_no ?? '-',
         };

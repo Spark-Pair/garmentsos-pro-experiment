@@ -195,10 +195,10 @@ function initVouchersCreate() {
         );
 
         const totalAmount = matchingPayments.reduce((sum, item) => {
-            return sum + parseFloat(item.amount || 0);
+            return sum + parseFormattedNumber(item.amount);
         }, 0);
 
-        amountInput.dataset.validate += `|max:${selectedAccount.balance - totalAmount}`;
+        amountInput.dataset.validate += `|max:${parseFormattedNumber(selectedAccount.balance) - totalAmount}`;
 
         let selectedAccountInSelfAccount = elem.closest('form').querySelector(`ul[data-for="self_account_id"] li[data-value="${selectedAccount.id}"]`);
 
@@ -903,7 +903,7 @@ function initVouchersCreate() {
                     <hr class="w-full my-3 border-gray-600">
                     <div class="tfooter flex w-full text-sm px-4 justify-between mb-4 text-gray-600">
                         <P class="leading-none">Powered by SparkPair</P>
-                        <p class="leading-none text-sm">&copy; 2025 SparkPair | +92 316 5825495</p>
+                        <p class="leading-none text-sm">&copy; ${new Date().getFullYear()} SparkPair | +92 316 5825495</p>
                     </div>
                 </div>
             `;

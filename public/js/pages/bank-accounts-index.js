@@ -20,7 +20,7 @@
                 <span class="capitalize col-span-2">${data.details["Name"]}</span>
                 <span class="capitalize">${data.bank}</span>
                 <span class="capitalize">${data.details["Category"]}</span>
-                <span>${data.details["Balance"]}</span>
+                <span>${formatMoney(data.details["Balance"])}</span>
                 <span class="capitalize">${data.status}</span>
             </div>`;
         }
@@ -73,7 +73,7 @@
                     'Category': data.details['Category'],
                     'Bank': data.bank,
                     'Date': data.date,
-                    'Balance': data.details['Balance'],
+                    'Balance': formatMoney(data.details['Balance']),
                 },
             }
 

@@ -138,7 +138,7 @@
                 fields: [
                     {
                         category: 'input',
-                        value: `${data.article_no} | ${data.season} | ${data.size} | ${data.category} | ${data.fabric_type} | ${data.quantity} | ${data.sales_rate} - Rs.`,
+                        value: `${data.article_no} | ${data.season} | ${data.size} | ${data.category} | ${data.fabric_type} | ${data.quantity} | ${formatMoney(data.sales_rate)} - Rs.`,
                         disabled: true,
                     },
                     {
@@ -440,7 +440,7 @@
                                                                 ${formatMoney(article.sales_rate)}
                                                             </div>
                                                             <div class="td text-sm font-semibold w-[10%]">
-                                                                ${formatMoney(parseInt(article.sales_rate) * article.ordered_pcs)}
+                                                                ${formatMoney(parseFormattedNumber(article.sales_rate) * article.ordered_pcs)}
                                                             </div>
                                                             <div class="td text-sm font-semibold text-center w-[8%]"></div>
                                                         </div>
@@ -479,7 +479,7 @@
                         <hr class="w-full my-3 border-gray-600">
                         <div class="tfooter flex w-full text-sm px-4 justify-between text-gray-600">
                             <P class="leading-none">Powered by SparkPair</P>
-                            <p class="leading-none text-sm">&copy; 2025 SparkPair | +92 316 5825495</p>
+                            <p class="leading-none text-sm">&copy; ${new Date().getFullYear()} SparkPair | +92 316 5825495</p>
                         </div>
                     </div>
                 `;
@@ -563,7 +563,7 @@
                 ...(item.article || {}),
                 id: item.article_id ?? item.id,
                 ordered_pcs: Number(item.ordered_pcs || 0),
-                sales_rate: Number(item.article?.sales_rate ?? item.sales_rate ?? 0),
+                sales_rate: parseFormattedNumber(item.article?.sales_rate ?? item.sales_rate),
                 pcs_per_packet: Number(item.article?.pcs_per_packet ?? item.pcs_per_packet ?? 0),
                 article_no: item.article?.article_no ?? item.article_no ?? '-',
             }));

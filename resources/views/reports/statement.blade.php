@@ -134,14 +134,13 @@
                     $statements = collect($data['statements']);
                     $balance = $data['opening_balance'];
 
-                    // Pehle page ke liye 26 rows lo
-                    $firstPage = $statements->take(26);
+                    // Pehle page ke liye 29 rows lo
+                    $firstPage = $statements->take(29);
 
-                    // Bachi hui rows ko 29-29 ke chunks mai tod do
-                    $otherPages = $statements->skip(26)->chunk(29);
+                    $otherPages = $statements->skip(29)->chunk(32);
                 @endphp
 
-                {{-- First Page (26 rows) --}}
+                {{-- First Page (29 rows) --}}
                 <div id="preview-container" class="h-full relative">
                     <div class="preview-page w-[210mm] h-[297mm] mx-auto overflow-hidden relative bg-white p-[0.19in] rounded-md">
                         <div id="preview" class="preview flex flex-col h-full">
@@ -195,22 +194,22 @@
                                 <hr class="w-full my-3 border-gray-700">
 
                                 {{-- Table --}}
-                                <div id="preview-body" class="preview-body w-[95%] grow mx-auto">
+                                <div id="preview-body" class="preview-body w-[97%] grow mx-auto">
                                     <div class="preview-table w-full">
-                                        <div class="table w-full border border-gray-700 rounded-lg pb-2.5 overflow-hidden text-xs">
+                                        <div class="table w-full border border-gray-700 rounded-lg pb-2 overflow-hidden text-xs">
                                             {{-- Table Header --}}
                                             <div class="thead w-full">
-                                                <div class="tr flex justify-between w-full px-4 py-1.5 bg-[var(--primary-color)] text-white text-center">
-                                                    <div class="th font-medium w-[1.5%]">#</div>
+                                                <div class="tr flex justify-between w-full px-1.5 py-1.5 bg-[var(--primary-color)] text-white text-center">
+                                                    <div class="th font-medium w-[2.5%]">#</div>
                                                     <div class="th font-medium w-[11.5%]">Date</div>
                                                     @if(in_array($statementType, ['detailed', 'general']))
-                                                        <div class="th font-medium w-[12%]">Reff. No.</div>
-                                                        <div class="th font-medium w-[11%]">Method</div>
+                                                        <div class="th font-medium w-[10%]">Reff. No.</div>
+                                                        <div class="th font-medium w-[10%]">Method</div>
                                                         <div class="th font-medium w-[33%]">Description</div>
                                                     @endif
-                                                    <div class="th font-medium w-[9%]">Bill</div>
-                                                    <div class="th font-medium w-[9%]">Payment</div>
-                                                    <div class="th font-medium w-[9%]">Balance</div>
+                                                    <div class="th font-medium w-[10%]">Bill</div>
+                                                    <div class="th font-medium w-[10%]">Payment</div>
+                                                    <div class="th font-medium w-[10%]">Balance</div>
                                                 </div>
                                             </div>
 
@@ -236,23 +235,23 @@
                                                     <div>
                                                         <hr class="w-full {{ $hrClass }} border-gray-700">
                                                         <div
-                                                            class="tr flex justify-between w-full px-4 text-center gap-0.5 {{ $isStatementClickable ? 'statement-record-trigger cursor-pointer rounded-md transition-colors hover:bg-slate-100/80' : '' }}"
+                                                            class="tr flex justify-between w-full px-2.5 text-center gap-1 {{ $isStatementClickable ? 'statement-record-trigger cursor-pointer rounded-md transition-colors hover:bg-slate-100/80' : '' }}"
                                                             @if($isStatementClickable)
                                                                 data-source='@json($statementSource)'
                                                                 role="button"
                                                                 tabindex="0"
                                                             @endif
                                                         >
-                                                            <div class="td font-semibold w-[1.5%]">{{ $loop->iteration }}.</div>
+                                                            <div class="td font-semibold w-[2.5%]">{{ $loop->iteration }}.</div>
                                                             <div class="td font-medium w-[11.5%]">{{ $statement['date']->format('d-M-Y') }}</div>
                                                             @if(in_array($statementType, ['detailed', 'general']))
-                                                                <div class="td font-medium w-[12%]">{{ $statement['reff_no'] }}</div>
-                                                                <div class="td font-medium w-[11%] capitalize">{{ $statement['method'] ?? "-" }}</div>
+                                                                <div class="td font-medium w-[10%]">{{ $statement['reff_no'] }}</div>
+                                                                <div class="td font-medium w-[10%] capitalize">{{ $statement['method'] ?? "-" }}</div>
                                                                 <div class="td font-medium w-[33%] text-nowrap truncate">{{ $statement['description'] ?? "-" }}</div>
                                                             @endif
-                                                            <div class="td font-medium w-[9%]">{{ \App\Support\Money::format($statement['bill'] ?? 0) }}</div>
-                                                            <div class="td font-medium w-[9%]">{{ \App\Support\Money::format($statement['payment'] ?? 0) }}</div>
-                                                            <div class="td font-medium w-[9%]">{{ \App\Support\Money::format($balance) }}</div>
+                                                            <div class="td font-medium w-[10%]">{{ \App\Support\Money::format($statement['bill'] ?? 0) }}</div>
+                                                            <div class="td font-medium w-[10%]">{{ \App\Support\Money::format($statement['payment'] ?? 0) }}</div>
+                                                            <div class="td font-medium w-[10%]">{{ \App\Support\Money::format($balance) }}</div>
                                                         </div>
                                                     </div>
                                                 @endforeach
@@ -264,7 +263,7 @@
                                 {{-- Footer --}}
                                 <hr class="w-full my-3 border-gray-700">
                                 <div class="tfooter flex w-full text-sm px-4 justify-between text-gray-800 leading-none text-xs">
-                                    <p>Powered by SparkPair &copy; 2025 SparkPair | +92 316 5825495</p>
+                                    <p>Powered by SparkPair &copy; {{ now()->year }} SparkPair | +92 316 5825495</p>
                                     <p>Page 1 of {{ 1 + $otherPages->count() }}</p>
                                 </div>
 
@@ -272,7 +271,7 @@
                         </div>
                     </div>
 
-                    {{-- Other Pages (29 rows each) --}}
+                    {{-- Other Pages (32 rows each) --}}
                     @foreach ($otherPages as $pageIndex => $chunk)
                         <hr class="w-full my-3 border-gray-500">
                         <div class="preview-page w-[210mm] h-[297mm] mx-auto overflow-hidden relative bg-white p-[0.19in] rounded-md">
@@ -305,25 +304,25 @@
                                         </div>
                                     </div>
 
-                                    <hr class="w-full mt-1.5 mb-3 border-gray-700">
+                                    <hr class="w-full my-3 border-gray-700">
 
                                     {{-- Table --}}
-                                    <div id="preview-body" class="preview-body w-[95%] grow mx-auto">
+                                    <div id="preview-body" class="preview-body w-[97%] grow mx-auto">
                                         <div class="preview-table w-full">
-                                            <div class="table w-full border border-gray-700 rounded-lg pb-2.5 overflow-hidden text-xs">
+                                            <div class="table w-full border border-gray-700 rounded-lg pb-2 overflow-hidden text-xs">
                                                 {{-- Table Header --}}
                                                 <div class="thead w-full">
-                                                    <div class="tr flex justify-between w-full px-4 py-1.5 bg-[var(--primary-color)] text-white text-center">
-                                                        <div class="th font-medium w-[1.5%]">#</div>
+                                                    <div class="tr flex justify-between w-full px-1.5 py-1.5 bg-[var(--primary-color)] text-white text-center">
+                                                        <div class="th font-medium w-[2.5%]">#</div>
                                                         <div class="th font-medium w-[11.5%]">Date</div>
                                                         @if(in_array($statementType, ['detailed', 'general']))
-                                                            <div class="th font-medium w-[12%]">Reff. No.</div>
-                                                            <div class="th font-medium w-[11%]">Method</div>
+                                                            <div class="th font-medium w-[10%]">Reff. No.</div>
+                                                            <div class="th font-medium w-[10%]">Method</div>
                                                             <div class="th font-medium w-[33%]">Description</div>
                                                         @endif
-                                                        <div class="th font-medium w-[9%]">Bill</div>
-                                                        <div class="th font-medium w-[9%]">Payment</div>
-                                                        <div class="th font-medium w-[9%]">Balance</div>
+                                                        <div class="th font-medium w-[10%]">Bill</div>
+                                                        <div class="th font-medium w-[10%]">Payment</div>
+                                                        <div class="th font-medium w-[10%]">Balance</div>
                                                     </div>
                                                 </div>
 
@@ -349,23 +348,23 @@
                                                         <div>
                                                             <hr class="w-full {{ $hrClass }} border-gray-700">
                                                             <div
-                                                                class="tr flex justify-between w-full px-4 text-center {{ $isStatementClickable ? 'statement-record-trigger cursor-pointer rounded-md transition-colors hover:bg-slate-100/80' : '' }}"
+                                                                class="tr flex justify-between w-full px-2.5 gap-1 text-center {{ $isStatementClickable ? 'statement-record-trigger cursor-pointer rounded-md transition-colors hover:bg-slate-100/80' : '' }}"
                                                                 @if($isStatementClickable)
                                                                     data-source='@json($statementSource)'
                                                                     role="button"
                                                                     tabindex="0"
                                                                 @endif
                                                             >
-                                                                <div class="td font-semibold w-[1.5%]">{{ $loop->iteration + 26 + ($pageIndex * 29) }}.</div>
+                                                                <div class="td font-semibold w-[2.5%]">{{ $loop->iteration + 29 + ($pageIndex * 32) }}.</div>
                                                                 <div class="td font-medium w-[11.5%]">{{ $statement['date']->format('d-M-Y') }}</div>
                                                                 @if(in_array($statementType, ['detailed', 'general']))
-                                                                    <div class="td font-medium w-[12%]">{{ $statement['reff_no'] }}</div>
-                                                                    <div class="td font-medium w-[11%] capitalize">{{ $statement['method'] ?? "-" }}</div>
+                                                                    <div class="td font-medium w-[10%]">{{ $statement['reff_no'] }}</div>
+                                                                    <div class="td font-medium w-[10%] capitalize">{{ $statement['method'] ?? "-" }}</div>
                                                                     <div class="td font-medium w-[33%] text-nowrap overflow-hidden">{{ $statement['description'] ?? "-" }}</div>
                                                                 @endif
-                                                                <div class="td font-medium w-[9%]">{{ \App\Support\Money::format($statement['bill'] ?? 0) }}</div>
-                                                                <div class="td font-medium w-[9%]">{{ \App\Support\Money::format($statement['payment'] ?? 0) }}</div>
-                                                                <div class="td font-medium w-[9%]">{{ \App\Support\Money::format($balance) }}</div>
+                                                                <div class="td font-medium w-[10%]">{{ \App\Support\Money::format($statement['bill'] ?? 0) }}</div>
+                                                                <div class="td font-medium w-[10%]">{{ \App\Support\Money::format($statement['payment'] ?? 0) }}</div>
+                                                                <div class="td font-medium w-[10%]">{{ \App\Support\Money::format($balance) }}</div>
                                                             </div>
                                                         </div>
                                                     @endforeach
@@ -377,7 +376,7 @@
                                     {{-- Footer --}}
                                     <hr class="w-full my-3 border-gray-700">
                                     <div class="tfooter flex w-full text-sm px-4 justify-between text-gray-800 leading-none text-xs">
-                                        <p>Powered by SparkPair &copy; 2025 SparkPair | +92 316 5825495</p>
+                                        <p>Powered by SparkPair &copy; {{ now()->year }} SparkPair | +92 316 5825495</p>
                                         <p>Page {{ $pageIndex + 2 }} of {{ 1 + $otherPages->count() }}</p>
                                     </div>
 

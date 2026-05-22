@@ -17,7 +17,7 @@ trait SupplierComputed
             'details' => [
                 'Urdu Title' => $this->urdu_title,
                 'Phone' => $this->phone_number,
-                'Balance' => $this->balance,
+                'Balance' => \App\Support\Money::format($this->balance),
             ],
             'user' => [
                 'id' => $this->user->id,

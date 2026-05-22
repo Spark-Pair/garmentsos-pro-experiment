@@ -29,10 +29,10 @@ function initDailyLedgerIndex() {
     let infoDom = infoRoot ? infoRoot.querySelector('span') : null;
 
     function renderCalculation(data) {
-        const opening = Number(data.opening_balance || 0);
-        const totalDeposit = Number(data.total_deposit || 0);
-        const totalUse = Number(data.total_use || 0);
-        const closing = Number(data.closing_balance || 0);
+        const opening = parseFormattedNumber(data.opening_balance);
+        const totalDeposit = parseFormattedNumber(data.total_deposit);
+        const totalUse = parseFormattedNumber(data.total_use);
+        const closing = parseFormattedNumber(data.closing_balance);
 
         openingBalanceDom.innerText = formatNumbersWithDigits(opening, 1, 1);
         totalDepositDom.innerText = formatNumbersWithDigits(totalDeposit, 1, 1);
@@ -51,8 +51,8 @@ function initDailyLedgerIndex() {
             }
 
             if (allDataArray.length > 0) {
-                let fullDeposit = allDataArray.reduce((sum, d) => sum + parseFloat(d.deposit || 0), 0);
-                let fullUse = allDataArray.reduce((sum, d) => sum + parseFloat(d.use || 0), 0);
+                let fullDeposit = allDataArray.reduce((sum, d) => sum + parseFormattedNumber(d.deposit), 0);
+                let fullUse = allDataArray.reduce((sum, d) => sum + parseFormattedNumber(d.use), 0);
                 let fullBalance = fullDeposit - fullUse;
 
                 openingBalanceDom.innerText = formatNumbersWithDigits(fullBalance, 1, 1);

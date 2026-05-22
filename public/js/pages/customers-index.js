@@ -17,7 +17,7 @@ function initCustomersIndex() {
             <span class="text-center capitalize">${data.details["Category"]}</span>
             <span class="text-center capitalize">${data.city}</span>
             <span class="text-center">${data.phone_number}</span>
-            <span class="text-right">${Number(data.details["Balance"]).toFixed(1)}</span>
+            <span class="text-right">${formatMoney(data.details["Balance"])}</span>
             <span class="text-right pr-5 capitalize ${data.user.status === 'active' ? 'text-[var(--border-success)]' : 'text-[var(--border-error)]'}">
                 ${data.user.status}
             </span>

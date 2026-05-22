@@ -41,7 +41,7 @@ trait UtilityBillComputed
             'account_no' => $this->account->account_no,
             'month' => $this->month->format('F Y'),
             'units' => $this->units ?? '-',
-            'amount' => $this->amount,
+            'amount' => \App\Support\Money::format($this->amount),
             'due_date' => $this->due_date->format('d-M-Y, D'),
             'is_paid' => $this->is_paid,
             'status' => $this->status,

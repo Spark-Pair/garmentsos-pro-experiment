@@ -14,7 +14,7 @@
                 <span class="text-center">${data.details["Category"]}</span>
                 <span class="text-center">${data.details["Season"]}</span>
                 <span class="text-center">${data.details["Size"]}</span>
-                <span class="text-center">${data.sales_rate}</span>
+                <span class="text-center">${formatMoney(data.sales_rate)}</span>
                 <span class="text-center">${data.processed_by}</span>
             </div>`;
         };
@@ -71,7 +71,7 @@
                     Category: data.details["Category"],
                     Season: data.details["Season"],
                     Size: data.details["Size"],
-                    "Sales Rate": data.sales_rate,
+                    "Sales Rate": formatMoney(data.sales_rate),
                     hr: "",
                     "Fabric Type": data.fabric_type,
                     "Quantity-Pcs.": data.quantity,

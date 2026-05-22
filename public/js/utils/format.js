@@ -18,12 +18,12 @@ function formatDate(date, notDay, dbDate) {
 }
 
 function formatNumbersDigitLess(number) {
-    number = Number(number);
+    number = parseFormattedNumber(number);
     return new Intl.NumberFormat('en-US').format(number);
 }
 
 function formatNumbersWithDigits(number, maxFraction, minFraction) {
-    number = Number(number);
+    number = parseFormattedNumber(number);
     return new Intl.NumberFormat('en-US', {
         maximumFractionDigits: maxFraction,
         minimumFractionDigits: minFraction
@@ -32,6 +32,14 @@ function formatNumbersWithDigits(number, maxFraction, minFraction) {
 
 function formatMoney(number) {
     return formatNumbersWithDigits(number, 1, 1);
+}
+
+function parseFormattedNumber(number) {
+    if (number === null || typeof number === 'undefined' || number === '') return 0;
+    if (typeof number === 'number') return Number.isFinite(number) ? number : 0;
+
+    const parsed = Number(String(number).replace(/,/g, '').trim());
+    return Number.isFinite(parsed) ? parsed : 0;
 }
 
 function formatAmountInput(input) {

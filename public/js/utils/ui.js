@@ -184,3 +184,193 @@ function initGlobalUI() {
 
     document.addEventListener('contextmenu', e => e.preventDefault());
 }
+
+function initNegativeValueHighlighter() {
+    const negativeNumberPattern = /(?:^|[\s(:|])(?:Rs\.?\s*)?-\s*\d[\d,]*(?:\.\d+)?\b/i;
+    const dateRangePattern = /\b\d{1,2}[-/](?:[A-Za-z]{3,9}|\d{1,2})[-/]\d{2,4}\s*-\s*\d{1,2}[-/](?:[A-Za-z]{3,9}|\d{1,2})[-/]\d{2,4}\b/i;
+    const textTargets = 'span, div, p, td, th, label, strong, b, small, li';
+    const inputTargets = 'input, textarea';
+    const skippedTextParents = 'script, style, noscript, option, select, svg';
+    const skippedInputs = new Set(['date', 'month', 'time', 'datetime-local', 'checkbox', 'radio', 'file', 'password']);
+
+    function hasNegativeValue(value) {
+        const text = String(value || '').trim();
+        if (!text) return false;
+        if (dateRangePattern.test(text)) return false;
+
+        return negativeNumberPattern.test(text);
+    }
+
+    function isLeafTextElement(element) {
+        return !Array.from(element.children).some(child => {
+            const tag = child.tagName?.toLowerCase();
+            return tag && !['i', 'svg', 'path'].includes(tag);
+        });
+    }
+
+    function markTextElement(element) {
+        if (element.closest(skippedTextParents)) return;
+        if (!isLeafTextElement(element)) return;
+
+        const hasNegative = hasNegativeValue(element.textContent);
+        element.classList.toggle('negative-value', hasNegative);
+    }
+
+    function markInput(element) {
+        if (skippedInputs.has((element.type || '').toLowerCase())) return;
+
+        const hasNegative = hasNegativeValue(element.value);
+        element.classList.toggle('negative-value', hasNegative);
+    }
+
+    function highlightNegativeValues(root = document.body) {
+        if (!root) return;
+
+        if (root.matches?.(textTargets)) markTextElement(root);
+        if (root.matches?.(inputTargets)) markInput(root);
+
+        root.querySelectorAll?.(textTargets).forEach(markTextElement);
+        root.querySelectorAll?.(inputTargets).forEach(markInput);
+    }
+
+    function scheduleHighlight(root = document.body) {
+        window.requestAnimationFrame(() => highlightNegativeValues(root));
+    }
+
+    scheduleHighlight();
+
+    document.addEventListener('input', event => {
+        if (event.target.matches?.(inputTargets)) {
+            markInput(event.target);
+        }
+    }, true);
+
+    document.addEventListener('app:data:rendered', () => scheduleHighlight());
+
+    const observer = new MutationObserver(mutations => {
+        const roots = new Set();
+
+        mutations.forEach(mutation => {
+            if (mutation.type === 'characterData') {
+                const parent = mutation.target.parentElement;
+                if (parent) roots.add(parent);
+                return;
+            }
+
+            if (mutation.type === 'attributes') {
+                roots.add(mutation.target);
+                return;
+            }
+
+            mutation.addedNodes.forEach(node => {
+                if (node.nodeType === Node.ELEMENT_NODE) {
+                    roots.add(node);
+                } else if (node.nodeType === Node.TEXT_NODE && node.parentElement) {
+                    roots.add(node.parentElement);
+                }
+            });
+        });
+
+        if (!roots.size) return;
+        window.requestAnimationFrame(() => roots.forEach(root => highlightNegativeValues(root)));
+    });
+
+    observer.observe(document.body, {
+        childList: true,
+        subtree: true,
+        characterData: true,
+        attributes: true,
+        attributeFilter: ['value'],
+    });
+
+    window.highlightNegativeValues = highlightNegativeValues;
+}
+
+function initPreviewTextFitting() {
+    const previewSelector = '#preview-container, .preview, .preview-document';
+    const cellSelector = '.td, .th';
+    let scheduled = false;
+
+    function getPreviewRoots(root = document.body) {
+        const roots = new Set();
+
+        if (root.matches?.(previewSelector)) roots.add(root);
+        root.querySelectorAll?.(previewSelector).forEach(preview => roots.add(preview));
+
+        return Array.from(roots);
+    }
+
+    function getCells(root) {
+        const cells = [];
+
+        if (root.matches?.(cellSelector)) cells.push(root);
+        root.querySelectorAll?.(cellSelector).forEach(cell => cells.push(cell));
+
+        return cells;
+    }
+
+    function fitCell(cell) {
+        if (!cell || !cell.isConnected || !cell.textContent.trim()) return;
+        if (cell.clientWidth <= 0) return;
+
+        cell.style.fontSize = '';
+        const computed = window.getComputedStyle(cell);
+        const baseSize = parseFloat(computed.fontSize) || 12;
+        const minSize = cell.classList.contains('th') ? 8.5 : 7;
+
+        if (cell.scrollWidth <= cell.clientWidth + 1) return;
+
+        let size = baseSize;
+        while (size > minSize && cell.scrollWidth > cell.clientWidth + 1) {
+            size -= 0.25;
+            cell.style.fontSize = `${size}px`;
+        }
+
+        cell.title = cell.textContent.trim();
+    }
+
+    function fitPreviewText(root = document.body) {
+        getPreviewRoots(root).forEach(preview => {
+            getCells(preview).forEach(fitCell);
+        });
+    }
+
+    function scheduleFit(root = document.body) {
+        if (scheduled) return;
+        scheduled = true;
+
+        window.requestAnimationFrame(() => {
+            scheduled = false;
+            fitPreviewText(root);
+        });
+    }
+
+    scheduleFit();
+
+    document.addEventListener('app:data:rendered', () => scheduleFit());
+
+    const observer = new MutationObserver(mutations => {
+        for (const mutation of mutations) {
+            if (mutation.target?.closest?.(previewSelector)) {
+                scheduleFit(mutation.target.closest(previewSelector));
+                return;
+            }
+
+            for (const node of mutation.addedNodes) {
+                if (node.nodeType !== Node.ELEMENT_NODE) continue;
+                if (node.matches?.(previewSelector) || node.querySelector?.(previewSelector)) {
+                    scheduleFit(node);
+                    return;
+                }
+            }
+        }
+    });
+
+    observer.observe(document.body, {
+        childList: true,
+        subtree: true,
+        characterData: true,
+    });
+
+    window.fitPreviewText = fitPreviewText;
+}

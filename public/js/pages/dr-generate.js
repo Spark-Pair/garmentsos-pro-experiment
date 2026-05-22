@@ -69,7 +69,7 @@
             const finalTotalSelectedAmount = document.querySelectorAll(".finalTotalSelectedAmount");
             totalSelectedAmount = payments
                 .filter(p => p.checked)
-                .reduce((sum, p) => sum + parseFloat(p.amount), 0);
+                .reduce((sum, p) => sum + parseFormattedNumber(p.amount), 0);
             finalTotalSelectedAmount.forEach(element => {
                 element.innerText = formatNumbersWithDigits(totalSelectedAmount, 1, 1);
             });

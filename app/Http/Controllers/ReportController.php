@@ -330,9 +330,13 @@ class ReportController extends Controller
                 $invoiceArticles->whereHas('invoice', function ($q) use ($request) {
                     $q->where('invoice_no', 'like', "%{$request->invoice_no}%");
                 });
+                $orderArticles->whereRaw('1 = 0');
             }
 
             if ($request->order_no) {
+                $invoiceArticles->whereHas('invoice', function ($q) use ($request) {
+                    $q->where('order_no', 'like', "%{$request->order_no}%");
+                });
                 $orderArticles->whereHas('order', function ($q) use ($request) {
                     $q->where('order_no', 'like', "%{$request->order_no}%");
                 });

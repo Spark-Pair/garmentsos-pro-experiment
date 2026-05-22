@@ -15,7 +15,7 @@ trait CustomerComputed
             'details' => [
                 'Urdu Title' => $this->urdu_title,
                 'Category' => $this->category,
-                'Balance' => $this->balance,
+                'Balance' => \App\Support\Money::format($this->balance),
             ],
             'person_name'=> $this->person_name,
             'phone_number'=> $this->phone_number,

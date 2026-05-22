@@ -85,7 +85,7 @@
 
                         <!-- amount -->
                         <x-input label="Amount" name="last_amount" id="last_amount" type="number" disabled
-                            value="{{ $lastExpense->amount }}" />
+                            value="{{ \App\Support\Money::format($lastExpense->amount) }}" />
 
                         <!-- lot_no -->
                         <x-input label="Lot No." name="last_lot_no" id="last_lot_no" type="number" disabled

@@ -24,7 +24,7 @@ function initArticlesCreate() {
             rateRow.classList.add('flex', 'justify-between', 'items-center', 'bg-[var(--h-bg-color)]', 'rounded-lg', 'py-2', 'px-4');
             rateRow.innerHTML = `
                 <div class="grow ml-5">${title}</div>
-                <div class="w-1/4">${parseFloat(rate).toFixed(2)}</div>
+                <div class="w-1/4">${formatNumbersWithDigits(rate, 2, 2)}</div>
                 <div class="w-[10%] text-center">
                     <button onclick="deleteRate(this)" type="button" class="text-[var(--danger-color)] text-xs px-2 py-1 rounded-lg hover:text-[var(--h-danger-color)] transition-all duration-300 ease-in-out cursor-pointer">
                         <i class="fas fa-trash"></i>
@@ -73,7 +73,7 @@ function initArticlesCreate() {
         calcBottom.innerHTML = `
             <div class="total flex justify-between items-center border border-gray-600 rounded-lg py-2 px-4 w-full cursor-not-allowed">
                 <div>Total - Rs.</div>
-                <div class="text-right">${totalRate.toFixed(2)}</div>
+                <div class="text-right">${formatNumbersWithDigits(totalRate, 2, 2)}</div>
             </div>
             <div class="final flex justify-between items-center bg-[var(--h-bg-color)] border border-gray-600 rounded-lg py-2 px-4 w-full">
                 <label for="sales_rate" class="text-nowrap grow">Sales Rate - Rs.</label>

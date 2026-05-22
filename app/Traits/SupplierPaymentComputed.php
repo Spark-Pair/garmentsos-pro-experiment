@@ -7,6 +7,17 @@ use Illuminate\Database\Eloquent\Casts\Attribute;
 
 trait SupplierPaymentComputed
 {
+    public function issued(): Attribute
+    {
+        return Attribute::get(function () {
+            if (strtolower((string) $this->method) !== 'program') {
+                return null;
+            }
+
+            return $this->voucher_id ? 'Issued' : 'Not Issued';
+        });
+    }
+
     protected function formatSupplierClearRecord($record)
     {
         return [
@@ -116,6 +127,7 @@ trait SupplierPaymentComputed
             'amount' => \App\Support\Money::format($this->amount),
             'reff_no' => $this->new_reff_no,
             'voucher_no' => $this->voucher->voucher_no ?? $this->cr?->c_r_no ?? '-',
+            'issued' => $this->issued,
             'source_name' => $sourceName,
             'source_type' => $sourceType,
             'program_no' => $program?->program_no,
@@ -148,7 +160,22 @@ trait SupplierPaymentComputed
                 });
 
             case 'method':
-                return $query->where('method', $value);
+                return $query->whereRaw('LOWER(method) = ?', [strtolower((string) $value)]);
+
+            case 'issued':
+                $issuedValueRaw = strtolower(trim((string) $value));
+                $issuedValue = str_replace('_', ' ', explode(':', $issuedValueRaw, 2)[0]);
+
+                return $query->whereRaw('LOWER(method) = ?', ['program'])
+                    ->when($issuedValue === 'issued', function ($q) {
+                        $q->whereNotNull('voucher_id');
+                    })
+                    ->when($issuedValue === 'not issued', function ($q) {
+                        $q->whereNull('voucher_id');
+                    })
+                    ->when(!in_array($issuedValue, ['issued', 'not issued'], true), function ($q) {
+                        $q->whereRaw('1=0');
+                    });
 
             case 'reff_no':
                 return $query->where(function ($q) use ($value) {
