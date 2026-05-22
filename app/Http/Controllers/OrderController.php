@@ -1,0 +1,374 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Events\NewNotificationEvent;
+use App\Models\Article;
+use App\Models\Customer;
+use App\Models\Notification;
+use App\Models\Order;
+use App\Models\OrderArticles;
+use App\Models\PaymentProgram;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Validator;
+
+class OrderController extends Controller
+{
+    /**
+     * Display a listing of the resource.
+     */
+    public function index(Request $request)
+    {
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'manager', 'admin', 'accountant', 'guest', 'customer', 'store_keeper'])) {
+            return $resp;
+        }
+
+        $authLayout = $this->getAuthLayout($request->route()->getName());
+
+        if ($request->ajax()) {
+            $ordersQuery = Order::with('customer.city', 'articles.article')->orderByDesc('id');
+
+            if ($this->isCustomerRole()) {
+                $customer = $this->currentCustomer();
+                if (!$customer) {
+                    return response()->json([
+                        'status' => 'error',
+                        'message' => 'Customer account not linked with this user.',
+                    ], 403);
+                }
+                $ordersQuery->where('customer_id', $customer->id);
+            }
+
+            $orders = $ordersQuery->applyFilters($request);
+
+            return response()->json(['data' => $orders, 'authLayout' => $authLayout]);
+        }
+
+        // $orders = Order::with('customer.city', 'articles.article')->get();
+
+        // // Collect all article IDs from ordered articles
+        // $articleIds = $orders->flatMap(function ($order) {
+        //     return collect(json_decode($order->articles, true))->pluck('id');
+        // })->unique();
+
+        // // Fetch all required articles in a single query
+        // $articles = Article::whereIn('id', $articleIds)->get()->keyBy('id');
+
+        // $orders = $orders->transform(function ($order) use ($articles) {
+        //     // Step 1: Decode and normalize articles to indexed array
+        //     $orderedArticlesRaw = json_decode($order->articles, true) ?? [];
+        //     $orderedArticlesArray = array_values($orderedArticlesRaw); // Normalize to indexed array
+
+        //     // Step 2: Map through each ordered article
+        //     $orderedArticles = collect($orderedArticlesArray)->map(function ($orderedArticle) use ($articles) {
+        //         if (isset($articles[$orderedArticle['id']])) {
+        //             $orderedArticle['article'] = $articles[$orderedArticle['id']];
+        //         }
+
+        //         $orderedArticle['ordered_pcs'] = max(0, $orderedArticle['ordered_pcs'] - ($orderedArticle['invoice_quantity'] ?? 0));
+
+        //         return $orderedArticle;
+        //     })->filter(function ($orderedArticle) {
+        //         return $orderedArticle['ordered_pcs'] > 0;
+        //     })->values(); // 👈 ensures final collection is indexed (not associative)
+
+        //     // Step 3: Put it back into the order
+        //     $order['articles'] = $orderedArticles;
+
+        //     return $order;
+        // })
+        // ->filter(function ($order) {
+        //     return $order['articles']->isNotEmpty();
+        // })
+        // ->values();
+
+        // foreach ($orders as $key => $order) {
+        //     $order['previous_balance'] = $order->customer->calculateBalance(null, $order->date, false, false);
+        //     $order['current_balance'] = $order['previous_balance'] + $order['netAmount'];
+        // }
+
+        return view('orders.index', compact( 'authLayout'));
+        // return $orders;
+    }
+
+    /**
+     * Show the form for creating a new resource.
+     */
+    public function create(Request $request)
+    {
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin', 'accountant', 'customer'])) {
+            return $resp;
+        }
+
+        $customers_options = [];
+        $articles = [];
+
+        if ($request->date) {
+            if ($this->isCustomerRole()) {
+                $customer = $this->currentCustomer();
+                if ($customer && $customer->date && $customer->date->toDateString() <= $request->date) {
+                    $customer->load('city');
+                    $customers = collect([$customer]);
+                } else {
+                    $customers = collect();
+                }
+            } else {
+                $customers = Customer::with('city')
+                    ->whereHas('user', function ($query) {
+                        $query->where('status', 'active');
+                    })
+                    ->where('date', '<=', $request->date)
+                    ->select('id', 'customer_name', 'city_id')
+                    ->get();
+            }
+
+            foreach ($customers as $customer) {
+                $customers_options[(int)$customer->id] = [
+                    'text' => $customer->customer_name . ' | ' . $customer->city->title,
+                    'data_option' => $customer
+                ];
+            }
+
+            $articles = Article::where('date', '<=', $request->date)
+                ->where('sales_rate', '>', 0)
+                ->whereNotNull(['category', 'fabric_type'])
+                ->withSum('physicalQuantity as physical_packets', 'packets')
+                ->orderByDesc('id')
+                ->get();
+
+            foreach ($articles as $article) {
+                $physicalPackets = (float) ($article->physical_packets ?? 0);
+                $article['physical_quantity'] = ($physicalPackets * (float) $article->pcs_per_packet) - (float) $article->sold_quantity;
+
+                $article['category'] = ucfirst(str_replace('_', ' ', $article['category']));
+                $article['season'] = ucfirst(str_replace('_', ' ', $article['season']));
+                $article['size'] = ucfirst(str_replace('_', '-', $article['size']));
+            }
+        }
+
+        $last_order = Order::orderby('id', 'desc')->first();
+
+        if (!$last_order) {
+            $last_order = new Order();
+            $last_order->order_no = '00-0000';
+        }
+
+        if ($request->ajax()) {
+            return response()->json([
+                'status' => 'success',
+                'articles' => $articles,
+                'customers_options' => array_values($customers_options),
+            ]);
+        }
+
+        return view('orders.generate', compact('last_order'));
+        // return $articles;
+    }
+
+    /**
+     * Store a newly created resource in storage.
+     */
+    public function store(Request $request)
+    {
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin', 'accountant', 'customer'])) {
+            return $resp;
+        }
+
+        if ($this->isCustomerRole()) {
+            $customer = $this->currentCustomer();
+            if (!$customer) {
+                return redirect()->back()->with('error', 'Customer account not linked with this user.');
+            }
+            $request->merge(['customer_id' => $customer->id]);
+            $request->merge(['discount' => 10]);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'date' => 'required|date',
+            'customer_id' => 'required|integer|exists:customers,id',
+            'discount' => 'required|integer',
+            'netAmount' => 'required|string',
+            'articles' => 'required|json',
+            'order_no' => 'required|string',
+        ]);
+
+        if ($validator->fails()) {
+            return redirect()->back()->withErrors($validator)->withInput();
+        }
+
+        $createdOrder = DB::transaction(function () use ($request) {
+            $articles = json_decode($request->articles, true) ?? [];
+            $discount = $this->isCustomerRole() ? 10 : (int) $request->discount;
+
+            $order = Order::create([
+                'date' => $request->date,
+                'customer_id' => $request->customer_id,
+                'discount' => $discount,
+                'netAmount' => str_replace(',', '', $request->netAmount),
+                'articles' => $request->articles,
+                'order_no' => $request->order_no,
+            ]);
+
+            foreach ($articles as $articleData) {
+                OrderArticles::create([
+                    'order_id' => $order['id'],
+                    'article_id' => $articleData['id'],
+                    'description' => $articleData['description'] ?? null,
+                    'ordered_pcs' => $articleData['ordered_quantity'] ?? 0,
+                ]);
+            }
+
+            $customer = Customer::find($order['customer_id']);
+
+            if ($customer && $customer['category'] == 'cash') {
+                $lastProgram = PaymentProgram::orderBy('id', 'desc')->first();
+                $nextProgramNo = $lastProgram ? $lastProgram->program_no + 1 : 1;
+
+                PaymentProgram::create([
+                    'program_no' => $nextProgramNo,
+                    'date' => $order['date'],
+                    'order_no' => $order['order_no'],
+                    'customer_id' => $order['customer_id'],
+                    'category' => 'waiting',
+                    'amount' => $order['netAmount'],
+                ]);
+            }
+
+            return $order;
+        });
+
+        if ($this->isCustomerRole() && $createdOrder) {
+            try {
+                $customer = $this->currentCustomer();
+                $creatorName = Auth::user()?->name ?: ($customer?->customer_name ?? 'Customer');
+                $notificationPayload = [
+                    'title' => 'Customer Order Created',
+                    'message' => "{$creatorName} ne order {$createdOrder->order_no} create kiya hai.",
+                    'type' => 'info',
+                    'url' => route('orders.index', ['open_order' => $createdOrder->id]),
+                    'persist' => true,
+                    'target_roles' => ['admin', 'store_keeper'],
+                ];
+                $storedNotificationPayload = [
+                    't' => 'Customer Order Created',
+                    'm' => "{$creatorName} ne order {$createdOrder->order_no} create kiya hai.",
+                    'tp' => 'info',
+                    'u' => route('orders.index', ['open_order' => $createdOrder->id]),
+                    'p' => true,
+                    'tr' => ['admin', 'store_keeper'],
+                ];
+
+                $receivers = \App\Models\User::query()
+                    ->whereIn('role', ['admin', 'store_keeper'])
+                    ->where('status', 'active')
+                    ->pluck('id');
+
+                foreach ($receivers as $receiverId) {
+                    Notification::create([
+                        'senderId' => Auth::id(),
+                        'recieverId' => $receiverId,
+                        'caption' => json_encode($storedNotificationPayload),
+                    ]);
+                }
+
+                event(new NewNotificationEvent($notificationPayload));
+            } catch (\Throwable $e) {
+                Log::error('Customer order notification failed', [
+                    'order_id' => $createdOrder->id,
+                    'order_no' => $createdOrder->order_no,
+                    'auth_user_id' => Auth::id(),
+                    'message' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        // if ($request->generateInvoiceAfterSave) {
+        //     return redirect()->route('invoices.create')->with('orderNumber', $order->order_no);
+        // } else {
+            return redirect()->route('orders.create')->with('success', 'Order generated successfully. Order No. : ' . $request->order_no);
+        // }
+    }
+
+    /**
+     * Display the specified resource.
+     */
+    public function show(Order $order)
+    {
+        //
+    }
+
+    /**
+     * Show the form for editing the specified resource.
+     */
+    public function edit(Order $order)
+    {
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin', 'accountant'])) {
+            return $resp;
+        }
+
+        $order->load([
+            'customer.city',
+            'articles.article',
+        ]);
+
+        return view('orders.edit', compact('order'));
+    }
+
+    public function update(Request $request, Order $order)
+    {
+        if (!$this->checkRole(['developer', 'owner', 'admin', 'accountant'])) {
+            return redirect(route('home'))
+                ->with('error', 'You do not have permission to access this page.');
+        }
+
+        $validator = Validator::make($request->all(), [
+            'discount'   => 'required|integer|min:0',
+            'netAmount'  => 'required|string',
+            'articles'   => 'required',
+        ]);
+
+        if ($validator->fails()) {
+            return redirect()->back()->withErrors($validator)->withInput();
+        }
+
+        DB::transaction(function () use ($request, $order) {
+
+            $netAmount = (int) str_replace(',', '', $request->netAmount);
+
+            // Update order
+            $order->update([
+                'netAmount' => $netAmount,
+                'discount'  => $request->discount,
+            ]);
+
+            // Reset order articles
+            $order->articles()->delete();
+
+            $articles = is_string($request->articles) ? json_decode($request->articles, true) : $request->articles;
+
+            foreach ($articles as $article) {
+                OrderArticles::create([
+                    'order_id'    => $order->id,
+                    'article_id'  => $article['id'],
+                    'description' => $article['description'] ?? null,
+                    'ordered_pcs' => $article['ordered_pcs'] ?? 0,
+                ]);
+            }
+
+            $order->paymentPrograms()->update(['amount' => $netAmount,]);
+        });
+
+        return redirect()->route('orders.index')->with('success', 'Order updated successfully. Order No: ' . $order->order_no);
+    }
+
+    /**
+     * Remove the specified resource from storage.
+     */
+    public function destroy(Order $order)
+    {
+        //
+    }
+}

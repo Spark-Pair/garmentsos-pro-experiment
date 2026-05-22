@@ -1,0 +1,221 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\Expense;
+use App\Models\Setup;
+use App\Models\Supplier;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
+
+class ExpenseController extends Controller
+{
+    /**
+     * Display a listing of the resource.
+     */
+    public function index(Request $request)
+    {
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin', 'accountant', 'guest', 'supplier'])) {
+            return $resp;
+        }
+        $authLayout = $this->getAuthLayout($request->route()->getName(), 'table');
+
+        if ($request->ajax()) {
+            $expensesQuery = Expense::with(['supplier', 'expenseSetups'])->orderByDesc('id');
+
+            if ($this->isSupplierRole()) {
+                $supplier = $this->currentSupplier();
+                if (!$supplier) {
+                    return response()->json([
+                        'status' => 'error',
+                        'message' => 'Supplier account not linked with this user.',
+                    ], 403);
+                }
+                $expensesQuery->where('supplier_id', $supplier->id);
+            }
+
+            $shipments = $expensesQuery->applyFilters($request);
+
+            $totalAmount = (float) $shipments->sum(fn ($item) => (float) str_replace(',', '', $item['amount'] ?? 0));
+
+            return response()->json([
+                'data' => $shipments,
+                'authLayout' => $authLayout,
+                'calculations' => [
+                    'total_amount' => $totalAmount,
+                ],
+            ]);
+        }
+
+        // $expenses = Expense::with('supplier', 'expenseSetups')->get();
+
+        $expenseOptions = Setup::where('type', 'supplier_category')
+            ->get()
+            ->mapWithKeys(fn ($item) => [
+                $item->id => ['text' => $item->title]
+            ])
+            ->toArray();
+
+        return view('expenses.index', compact('expenseOptions', 'authLayout'));
+    }
+
+    /**
+     * Show the form for creating a new resource.
+     */
+    public function create()
+    {
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin', 'accountant'])) {
+            return $resp;
+        }
+
+        $adjustmentSetup = Setup::firstOrCreate([
+            'type' => 'supplier_category',
+            'title' => 'Adjustment',
+        ]);
+
+        $lastExpense = Expense::with('supplier', 'expenseSetups')->latest('id')->first();
+
+        $suppliers = Supplier::whereHas('user', function ($query) {
+            $query->where('status', 'active');
+        })->get();
+
+        $suppliers_options = [];
+        foreach ($suppliers as $supplier) {
+            $suppliers_options[$supplier->id] = ["text" => $supplier->supplier_name, "data_option" => $supplier];
+        }
+
+        foreach ($suppliers as $supplier) {
+            $categoriesIdArray = json_decode($supplier->categories_array, true);
+
+            $categories = Setup::whereIn('id', $categoriesIdArray)
+                ->where('type', 'supplier_category')
+                ->get();
+
+            $supplier["categories"] = $categories;
+
+            $supplier["balance"] = 0.00;
+        }
+
+        return view('expenses.add', compact('suppliers_options', 'lastExpense', 'adjustmentSetup'));
+    }
+
+    /**
+     * Store a newly created resource in storage.
+     */
+    public function store(Request $request)
+    {
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin', 'accountant'])) {
+            return $resp;
+        }
+
+        $validator = Validator::make($request->all(), [
+            'date' => 'required|date',
+            'supplier_id' => 'required|exists:suppliers,id',
+            'expense' => 'required|exists:setups,id',
+            'amount' => 'required|integer|min:0',
+            'lot_no' => 'nullable|integer',
+            'remarks' => 'nullable|string|max:255',
+
+            // composite uniqueness
+            'reff_no' => [
+                'required',
+                'integer',
+                function ($attribute, $value, $fail) use ($request) {
+                    $exists = Expense::where('supplier_id', $request->supplier_id)
+                        ->whereDate('date', $request->date)
+                        ->where('amount', $request->amount)
+                        ->where('expense', $request->expense)
+                        ->where('reff_no', $value)
+                        ->exists();
+
+                    if ($exists) {
+                        $fail('This reference number already exists for the same supplier, date, expense and amount.');
+                    }
+                },
+            ],
+        ]);
+
+        if ($validator->fails()) {
+            return redirect()->back()->with('error', $validator->errors()->first());
+        }
+
+        $expense = Expense::create([
+            'date' => $request->date,
+            'supplier_id' => $request->supplier_id,
+            'expense' => $request->expense,
+            'reff_no' => $request->reff_no,
+            'amount' => $request->amount,
+            'lot_no' => $request->lot_no,
+            'remarks' => $request->remarks,
+        ]);
+
+        return redirect()->back()->with('success', 'Expense added successfully! ID: ' . $expense->id);
+    }
+
+    /**
+     * Display the specified resource.
+     */
+    public function show(Expense $expense)
+    {
+        //
+    }
+
+    /**
+     * Show the form for editing the specified resource.
+     */
+    public function edit(Expense $expense)
+    {
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin', 'accountant'])) {
+            return $resp;
+        }
+
+        $adjustmentSetup = Setup::firstOrCreate([
+            'type' => 'supplier_category',
+            'title' => 'Adjustment',
+        ]);
+
+        return view('expenses.edit', compact('expense', 'adjustmentSetup'));
+    }
+
+    /**
+     * Update the specified resource in storage.
+     */
+    public function update(Request $request, Expense $expense)
+    {
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin', 'accountant'])) {
+            return $resp;
+        }
+
+        $validator = Validator::make($request->all(), [
+            'expense' => 'required|exists:setups,id',
+            'reff_no' => 'required|integer',
+            'amount' => 'required|integer|min:0',
+            'lot_no' => 'nullable|integer',
+            'remarks' => 'nullable|string|max:255'
+        ]);
+
+        // Check for validation errors
+        if ($validator->fails()) {
+            return redirect()->back()->withErrors($validator)->withInput();
+        }
+
+        $expense->update([
+            'expense' => $request->expense,
+            'reff_no' => $request->reff_no,
+            'amount' => $request->amount,
+            'lot_no' => $request->lot_no,
+            'remarks' => $request->remarks,
+        ]);
+
+        return redirect()->route('expenses.index')->with('success', 'Expense updated successfully.');
+    }
+
+    /**
+     * Remove the specified resource from storage.
+     */
+    public function destroy(Expense $expense)
+    {
+        //
+    }
+}
