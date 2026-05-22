@@ -303,7 +303,20 @@ class PaymentProgramController extends Controller
                     return $program;
                 });
 
-                return $customer->toFormattedArray();
+                return [
+                    'id' => $customer->id,
+                    'name' => $customer->customer_name,
+                    'name_city' => $customer->customer_name . ' | ' . ($customer->city?->title ?? '-'),
+                    'data' => [
+                        'payment_programs' => $customer->paymentPrograms->map(fn($program) => [
+                            'id' => $program->id,
+                            'amount' => (float) $program->program_amount,
+                            'payment' => (float) $program->payment,
+                            'balance' => (float) $program->balance,
+                            'status' => $program->status,
+                        ])->values(),
+                    ],
+                ];
             });
 
             return response()->json(['data' => $customers, 'authLayout' => $authLayout]);
@@ -377,7 +390,19 @@ class PaymentProgramController extends Controller
             return $program;
         });
 
-        return $supplier->toFormattedArray();
+        return [
+            'id' => $supplier->id,
+            'name' => $supplier->supplier_name,
+            'data' => [
+                'payment_programs' => $supplier->paymentPrograms->map(fn($program) => [
+                    'id' => $program->id,
+                    'amount' => (float) $program->program_amount,
+                    'payment' => (float) $program->payment,
+                    'balance' => (float) $program->balance,
+                    'status' => $program->status,
+                ])->values(),
+            ],
+        ];
     });
 
     return response()->json([

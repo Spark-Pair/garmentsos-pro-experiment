@@ -139,7 +139,6 @@ trait SupplierPaymentComputed
             'dr_no' => $dr?->d_r_no,
             'dr_date' => $dr?->date ? $dr->date->format('d-M-Y, D') : null,
             'clear_details' => $clearDetails,
-            'data' => $this,
             'oncontextmenu' => "generateContextMenu(event)",
             'onclick' => "generateModal(this)",
         ];

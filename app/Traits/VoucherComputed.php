@@ -19,6 +19,57 @@ trait VoucherComputed
             $previousBalance = $balanceCache[$cacheKey];
         }
 
+        $payments = $this->payments->map(function ($payment) {
+            return [
+                'id' => $payment->id,
+                'method' => $payment->method,
+                'date' => $payment->date,
+                'amount' => (float) $payment->amount,
+                'cheque_no' => $payment->cheque_no,
+                'reff_no' => $payment->reff_no,
+                'transaction_id' => $payment->transaction_id,
+                'program' => $payment->program ? [
+                    'id' => $payment->program->id,
+                    'customer' => $payment->program->customer ? [
+                        'id' => $payment->program->customer->id,
+                        'customer_name' => $payment->program->customer->customer_name,
+                    ] : null,
+                ] : null,
+                'cheque' => $payment->cheque ? [
+                    'id' => $payment->cheque->id,
+                    'cheque_no' => $payment->cheque->cheque_no,
+                    'customer' => $payment->cheque->customer ? [
+                        'id' => $payment->cheque->customer->id,
+                        'customer_name' => $payment->cheque->customer->customer_name,
+                    ] : null,
+                ] : null,
+                'slip' => $payment->slip ? [
+                    'id' => $payment->slip->id,
+                    'slip_no' => $payment->slip->slip_no,
+                    'customer' => $payment->slip->customer ? [
+                        'id' => $payment->slip->customer->id,
+                        'customer_name' => $payment->slip->customer->customer_name,
+                    ] : null,
+                ] : null,
+                'bank_account' => $payment->bankAccount ? [
+                    'id' => $payment->bankAccount->id,
+                    'account_title' => $payment->bankAccount->account_title,
+                    'bank' => $payment->bankAccount->bank ? [
+                        'id' => $payment->bankAccount->bank->id,
+                        'short_title' => $payment->bankAccount->bank->short_title,
+                    ] : null,
+                ] : null,
+                'self_account' => $payment->selfAccount ? [
+                    'id' => $payment->selfAccount->id,
+                    'account_title' => $payment->selfAccount->account_title,
+                    'bank' => $payment->selfAccount->bank ? [
+                        'id' => $payment->selfAccount->bank->id,
+                        'short_title' => $payment->selfAccount->bank->short_title,
+                    ] : null,
+                ] : null,
+            ];
+        })->values();
+
         return [
             'id' => $this->id,
             'name' => $this->voucher_no,
@@ -31,7 +82,17 @@ trait VoucherComputed
             'total_payment_numeric' => (float) $this->payments->sum('amount'),
             'previous_balance' => \App\Support\Money::format($previousBalance),
             'previous_balance_numeric' => (float) $previousBalance,
-            'data' => $this,
+            'data' => [
+                'id' => $this->id,
+                'supplier_id' => $this->supplier_id,
+                'date' => $this->date,
+                'voucher_no' => $this->voucher_no,
+                'supplier' => $this->supplier ? [
+                    'id' => $this->supplier->id,
+                    'supplier_name' => $this->supplier->supplier_name,
+                ] : null,
+                'payments' => $payments,
+            ],
             'oncontextmenu' => "generateContextMenu(event)",
             'onclick' => "generateModal(this)",
         ];
