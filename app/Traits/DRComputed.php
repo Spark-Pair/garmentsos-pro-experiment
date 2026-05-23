@@ -50,7 +50,14 @@ trait DRComputed
             'return_payments_amount' => $returnPayments->sum('amount'),
             'new_payments_details' => $newPayments->map(fn($id) => $mapPayment($id, 'New'))->values(),
             'return_payments_details' => $returnPayments->map(fn($id) => $mapPayment($id, 'Return'))->values(),
-            'data' => $this,
+            'data' => [
+                'id' => $this->id,
+                'd_r_no' => $this->d_r_no,
+                'date' => $this->date,
+                'customer_id' => $this->customer_id,
+                'new_payments' => $this->new_payments,
+                'return_payments' => $this->return_payments,
+            ],
             'oncontextmenu' => "generateContextMenu(event)",
             'onclick' => "generateModal(this)",
         ];

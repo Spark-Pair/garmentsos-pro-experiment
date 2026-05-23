@@ -10,7 +10,7 @@ function createCard(data) {
     };
 
     let clutter = `
-        <div id="${data.id}" data-json='${JSON.stringify(data)}' oncontextmenu='${data.oncontextmenu || ""}' class="item card ${data.subMenu ? 'no-translate' : ''} relative border border-gray-600 shadow rounded-xl min-w-[100px] ${!data.image ? "h-full" : "h-[8rem]"} p-4 cursor-pointer overflow-hidden fade-in" onclick='${data.onclick || ""}'>
+        <div id="${data.id}" data-json='${jsonAttr(data)}' oncontextmenu='${htmlAttr(data.oncontextmenu || "")}' class="item card ${data.subMenu ? 'no-translate' : ''} relative border border-gray-600 shadow rounded-xl min-w-[100px] ${!data.image ? "h-full" : "h-[8rem]"} p-4 cursor-pointer overflow-hidden fade-in" onclick='${htmlAttr(data.onclick || "")}'>
 
         ${!data.checkbox ? `
             <button type="button" class="absolute bottom-0 right-0 rounded-full w-[25%] aspect-square flex items-center justify-center text-lg translate-x-1/4 translate-y-1/4 transition-all duration-200 ease-in-out cursor-pointer">
@@ -33,8 +33,6 @@ function createCard(data) {
 
     clutter += `<div class="flex gap-4 ${data.image ? 'h-full' : ''}">`;
     if (data.image) {
-        // console.log(data);
-
         clutter += `
             <div class="${data.classImg ?? ''} img aspect-square h-full ${!data.profile ? 'rounded-[0.4rem]' : 'rounded-[41.5%]'} ${data.image && data.image == '/images/no_image_icon.png' ? 'p-1' : 'scale-[1.16]'} overflow-hidden relative">
                 <img src="${data.image}" loading="lazy" alt="" class="w-full h-full object-cover">

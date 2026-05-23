@@ -112,7 +112,7 @@ trait VoucherComputed
                     // Case 2: supplier does NOT exist → fallback to client_company name
                     ->orWhere(function ($q) use ($value) {
                         $q->whereDoesntHave('supplier')
-                        ->where(app('client_company')->name, 'like', "%{$value}%");
+                        ->whereRaw('? LIKE ?', [app('client_company')->name, "%{$value}%"]);
                     });
 
                 });

@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Article;
+use App\Models\OrderArticles;
 use App\Models\PhysicalQuantity;
 use App\Models\ShipmentArticles;
 use Illuminate\Database\Eloquent\Builder;
@@ -126,19 +127,27 @@ class PhysicalQuantityReportService
             ->groupBy('article_id')
             ->map(fn (Collection $items) => $items->pluck('shipment.city')->filter()->unique()->values());
 
+        $orderedPcsMap = OrderArticles::query()
+            ->whereIn('article_id', $articleIds)
+            ->selectRaw('article_id, SUM(ordered_pcs) as ordered_pcs')
+            ->groupBy('article_id')
+            ->pluck('ordered_pcs', 'article_id');
+
         return $rows
             ->groupBy('article_id')
-            ->map(function (Collection $items) use ($shipmentCitiesMap) {
+            ->map(function (Collection $items) use ($shipmentCitiesMap, $orderedPcsMap) {
                 /** @var \App\Models\PhysicalQuantity $model */
                 $model = $items->first();
                 $article = $model->article;
-                $packets = (float) $items->sum('packets');
+                $receivedPackets = (float) $items->sum('packets');
                 $pcsPerPacket = (float) ($article->pcs_per_packet ?: 0);
                 $totalPcs = (float) ($article->quantity + $article->extra_pcs);
                 $totalPackets = $pcsPerPacket > 0 ? ($totalPcs / $pcsPerPacket) : 0;
-                $orderedPackets = $totalPackets;
-                $currentStockPackets = $orderedPackets - $packets;
-                $remainingPackets = $currentStockPackets;
+                $orderedPcs = (float) ($orderedPcsMap->get($model->article_id) ?? 0);
+                $orderedPackets = $pcsPerPacket > 0 ? ($orderedPcs / $pcsPerPacket) : 0;
+                $soldPackets = $pcsPerPacket > 0 ? ((float) $article->sold_quantity / $pcsPerPacket) : 0;
+                $currentStockPackets = max(0, $receivedPackets - $soldPackets);
+                $remainingPackets = max(0, $totalPackets - $receivedPackets);
                 $shipment = $this->resolveShipment($shipmentCitiesMap->get($model->article_id, collect()));
 
                 return [
@@ -148,7 +157,7 @@ class PhysicalQuantityReportService
                     'unit' => $article->pcs_per_packet,
                     'total_quantity' => floor($totalPcs / 12) . ' - Dz. | ' . $totalPackets . ' - Pkts.',
                     'ordered_quantity' => $this->formatPacketQuantity($orderedPackets),
-                    'received_quantity' => $this->formatPacketQuantity($packets),
+                    'received_quantity' => $this->formatPacketQuantity($receivedPackets),
                     'current_stock' => $this->formatPacketQuantity($currentStockPackets),
                     'a_category' => $items->where('category', 'a')->sum('packets') . ' - Pkts.',
                     'b_category' => $items->where('category', 'b')->sum('packets') . ' - Pkts.',
@@ -157,7 +166,7 @@ class PhysicalQuantityReportService
                     'shipment' => $shipment,
                     'total_packets_numeric' => $totalPackets,
                     'ordered_packets_numeric' => $orderedPackets,
-                    'received_packets_numeric' => $packets,
+                    'received_packets_numeric' => $receivedPackets,
                     'current_stock_packets_numeric' => $currentStockPackets,
                     'remaining_packets_numeric' => $remainingPackets,
                     'onclick' => 'generateModal(this)',

@@ -101,7 +101,14 @@ trait CRComputed
             'return_payments_amount' => $returnPayments->sum('amount'),
             'new_payments_details' => $newPayments->map(fn($p) => $mapPayment($p, 'New'))->values(),
             'return_payments_details' => $returnPayments->map(fn($p) => $mapPayment($p, 'Return'))->values(),
-            'data' => $this,
+            'data' => [
+                'id' => $this->id,
+                'c_r_no' => $this->c_r_no,
+                'date' => $this->date,
+                'voucher_id' => $this->voucher_id,
+                'new_payments' => $this->new_payments,
+                'return_payments' => $this->return_payments,
+            ],
             'oncontextmenu' => "generateContextMenu(event)",
             'onclick' => "generateModal(this)",
         ];
@@ -121,7 +128,7 @@ trait CRComputed
                     // Case 2: supplier does NOT exist → fallback to client_company name
                     ->orWhere(function ($q) use ($value) {
                         $q->whereDoesntHave('voucher.supplier')
-                        ->where(app('client_company')->name, 'like', "%{$value}%");
+                        ->whereRaw('? LIKE ?', [app('client_company')->name, "%{$value}%"]);
                     });
 
                 });

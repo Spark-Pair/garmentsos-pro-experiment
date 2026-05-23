@@ -222,7 +222,7 @@ function createModal(data, animate = 'animate') {
 
                     optionsArray.forEach(option => {
                         optionsHTML += `
-                            <option value="${option.id}" data-option='${JSON.stringify(option.data_option)}'>${option.text}</option>
+                            <option value="${option.id}" data-option='${jsonAttr(option.data_option)}'>${option.text}</option>
                         `;
                     });
                 }
@@ -486,9 +486,9 @@ function createModal(data, animate = 'animate') {
                         <div class="tr flex justify-between w-full px-4 gap-0.5">
                             <div class="td text-sm font-semibold w-[7%] truncate">${index + 1}.</div>
                             <div class="td text-sm font-semibold w-[11%] truncate capitalize">${payment.method ?? '-'}</div>
-                            ${previewData.supplier ? `<div class="td text-sm font-semibold w-1/5 truncate">${payment.program?.customer.customer_name ? payment.program?.customer.customer_name : payment.cheque?.customer.customer_name ? payment.cheque?.customer.customer_name : payment.slip?.customer.customer_name ? payment.slip?.customer.customer_name : '-'}</div>` : ''}
-                            ${previewData.supplier ? `<div class="td text-sm font-semibold w-1/4 truncate">${(payment.bank_account?.account_title?.split('|')[0] ?? '-') + ' | ' + (payment.bank_account?.bank.short_title ?? '-')}</div>` :
-                                `<div class="td text-sm font-semibold w-1/4 truncate">${(payment.self_account?.account_title?.split('|')[0] ?? '-') + ' | ' + (payment.self_account?.bank.short_title ?? '-')}</div>
+                            ${previewData.supplier ? `<div class="td text-sm font-semibold w-1/5 truncate">${payment.program?.customer?.customer_name ? payment.program?.customer?.customer_name : payment.cheque?.customer?.customer_name ? payment.cheque?.customer?.customer_name : payment.slip?.customer?.customer_name ? payment.slip?.customer?.customer_name : '-'}</div>` : ''}
+                            ${previewData.supplier ? `<div class="td text-sm font-semibold w-1/4 truncate">${(payment.bank_account?.account_title?.split('|')[0] ?? '-') + ' | ' + (payment.bank_account?.bank?.short_title ?? '-')}</div>` :
+                                `<div class="td text-sm font-semibold w-1/4 truncate">${(payment.self_account?.account_title?.split('|')[0] ?? '-') + ' | ' + (payment.self_account?.bank?.short_title ?? '-')}</div>
                             `}
                             <div class="td text-sm font-semibold w-[14%] truncate">${formatDate(payment.date, true) ?? '-'}</div>
                             <div class="td text-sm font-semibold w-[14%] truncate">${payment.cheque?.cheque_no ?? payment.cheque_no ?? payment.reff_no ?? payment.slip?.slip_no ?? payment.transaction_id ?? payment.reff_no ?? '-'}</div>
@@ -811,7 +811,7 @@ function createModal(data, animate = 'animate') {
                 `;
             } else {
                 clutter += `
-                    <button id="${action.id}-in-modal" type="${action.type ?? 'button'}" onclick='${action.onclick}'
+                    <button id="${action.id}-in-modal" type="${action.type ?? 'button'}" onclick='${htmlAttr(action.onclick)}'
                         class="px-4 py-2 bg-${(action.id.includes('add') || action.id.includes('done'))? '[var(--bg-success)]' : '[var(--secondary-bg-color)]'} border hover:border-${(action.id.includes('add') || action.id.includes('done'))? '[var(--border-success)] border-[var(--bg-success)]' : 'gray-600 border-gray-600'} text-${(action.id.includes('add') || action.id.includes('done'))? '[var(--border-success)]' : '[var(--secondary-text)]'} rounded-lg hover:bg-${(action.id.includes('add') || action.id.includes('done'))? '[var(--h-bg-success)]' : '[var(--h-bg-color)]'} transition-all duration-300 ease-in-out cursor-pointer hover:scale-[0.95]">
                         ${action.text}
                     </button>
@@ -960,7 +960,7 @@ function renderTableBody(tableBody) {
                 }
             }).join('');
             bodyHTML += `
-                <div id='${data[0].jsonData?.id}' ${data[0].jsonData ? `data-json='${JSON.stringify(data[0].jsonData)}'` : ''} data class="flex justify-between items-center border-t border-gray-600 py-2 px-4 ${data[0].checkbox ? 'cursor-pointer row-toggle select-none customer-row hover:bg-[var(--h-secondary-bg-color)] transition-all fade-in ease-in-out' : ''}">
+                <div id='${data[0].jsonData?.id}' ${data[0].jsonData ? `data-json='${jsonAttr(data[0].jsonData)}'` : ''} data class="flex justify-between items-center border-t border-gray-600 py-2 px-4 ${data[0].checkbox ? 'cursor-pointer row-toggle select-none customer-row hover:bg-[var(--h-secondary-bg-color)] transition-all fade-in ease-in-out' : ''}">
                     ${rowHTML}
                 </div>
             `;

@@ -7,7 +7,7 @@ function initSupplierPaymentsIndex() {
         return `
             <div id="${data.id}"
                 class="item row relative group flex justify-between border-b border-[var(--h-bg-color)] items-center py-2 cursor-pointer hover:bg-[var(--h-secondary-bg-color)] transition-all fade-in ease-in-out"
-                data-json='${JSON.stringify(data)}'>
+                data-json='${jsonAttr(data)}'>
 
                 <span class="text-center w-1/8">${data.date}</span>
                 <span class="text-center w-1/6">${data.name}</span>

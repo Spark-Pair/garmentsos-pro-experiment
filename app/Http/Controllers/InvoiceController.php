@@ -36,6 +36,7 @@ class InvoiceController extends Controller
                 'order',
                 'shipment',
                 'invoiceArticles.article',
+                'salesReturns',
                 'customer.city'
             ])
             ->orderByDesc('id')
@@ -331,19 +332,21 @@ class InvoiceController extends Controller
 
             foreach ($data['articles_in_invoice'] as $article) {
                 $orderArticleDb = OrderArticles::find($article['order_article_id']);
-                $orderArticleDb->dispatched_pcs = $article['invoice_quantity'];
+                $orderArticleDb->dispatched_pcs = (int) ($orderArticleDb->dispatched_pcs ?? 0) + (int) ($article['invoice_quantity'] ?? 0);
                 $orderArticleDb->save();
-
-                if ($orderArticleDb->dispatched_pcs == 0) {
-                    $orderDb->status = 'pending';
-                } elseif ($orderArticleDb->dispatched_pcs < $orderArticleDb->ordered_pcs) {
-                    $orderDb->status = 'partially_invoiced';
-                } else {
-                    $orderDb->status = 'invoiced';
-                }
-
-                $orderDb->save();
             }
+
+            $orderDb->load('articles');
+            $orderedPcs = (int) $orderDb->articles->sum('ordered_pcs');
+            $dispatchedPcs = (int) $orderDb->articles->sum('dispatched_pcs');
+            if ($dispatchedPcs <= 0) {
+                $orderDb->status = 'pending';
+            } elseif ($dispatchedPcs < $orderedPcs) {
+                $orderDb->status = 'partially_invoiced';
+            } else {
+                $orderDb->status = 'invoiced';
+            }
+            $orderDb->save();
 
             $data["netAmount"] = (int) str_replace(',', '', $data["netAmount"]);
             $data["customer_id"] = $orderDb["customer_id"];

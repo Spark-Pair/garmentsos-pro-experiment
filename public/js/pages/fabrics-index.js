@@ -1,9 +1,9 @@
 (function () {
     window.createRow = function createRow(data) {
         return `
-            <div id="${data.id}" oncontextmenu='${data.oncontextmenu || ""}' onclick='${data.onclick || ""}'
+            <div id="${data.id}" oncontextmenu='${htmlAttr(data.oncontextmenu || "")}' onclick='${htmlAttr(data.onclick || "")}'
                 class="item row relative group flex border-b border-[var(--h-bg-color)] items-center py-2 cursor-pointer hover:bg-[var(--h-secondary-bg-color)] transition-all fade-in ease-in-out"
-                data-json='${JSON.stringify(data)}'>
+                data-json='${jsonAttr(data)}'>
 
                 <span class="text-center w-[10%]">${data.date}</span>
                 <span class="text-center w-[15%] capitalize">${data.supplier_name ?? data.employee_name}</span>

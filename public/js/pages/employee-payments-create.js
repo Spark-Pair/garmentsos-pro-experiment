@@ -30,9 +30,7 @@
 
                             allEmployees.forEach((employee) => {
                                 employeeUL.innerHTML += `
-                                    <li data-for="employee" data-value="${employee.id}" data-option='${JSON.stringify(
-                                    employee
-                                )}' onmousedown="selectThisOption(this)" class="py-2 px-3 cursor-pointer rounded-lg transition hover:bg-[var(--h-bg-color)] text-nowrap overflow-x-auto scrollbar-hidden capitalize">${employee.employee_name} | ${formatNumbersWithDigits(
+                                    <li data-for="employee" data-value="${employee.id}" data-option='${jsonAttr(employee)}' onmousedown="selectThisOption(this)" class="py-2 px-3 cursor-pointer rounded-lg transition hover:bg-[var(--h-bg-color)] text-nowrap overflow-x-auto scrollbar-hidden capitalize">${employee.employee_name} | ${formatNumbersWithDigits(
                                     employee.balance,
                                     1,
                                     1

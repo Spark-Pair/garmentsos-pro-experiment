@@ -167,9 +167,9 @@
 
             function createRow(data) {
                 return `
-                <div id="${data.id}" oncontextmenu='${data.oncontextmenu || ""}' onclick='${data.onclick || ""}'
+                <div id="${data.id}" oncontextmenu='${htmlAttr(data.oncontextmenu || "")}' onclick='${htmlAttr(data.onclick || "")}'
                     class="item row relative group grid text- grid-cols-8 border-b border-[var(--h-bg-color)] items-center py-2 cursor-pointer hover:bg-[var(--h-secondary-bg-color)] transition-all fade-in ease-in-out"
-                    data-json='${JSON.stringify(data)}'>
+                    data-json='${jsonAttr(data)}'>
 
                     <span class="text-left pl-5">${data.details["Urdu Title"]}</span>
                     <span class="text-center capitalize">${data.details["Category"]}</span>
@@ -533,9 +533,7 @@
 
                 customers.forEach((customer) => {
                     const html = `
-                        <div id="customer-${customer.id}" data-json='${JSON.stringify(
-                        customer
-                    )}' class="customer-row contextMenuToggle modalToggle relative text-center group flex border-b border-[var(--h-bg-color)] items-center py-2 cursor-pointer hover:bg-[var(--h-secondary-bg-color)] transition-all fade-in ease-in-out >
+                        <div id="customer-${customer.id}" data-json='${jsonAttr(customer)}' class="customer-row contextMenuToggle modalToggle relative text-center group flex border-b border-[var(--h-bg-color)] items-center py-2 cursor-pointer hover:bg-[var(--h-secondary-bg-color)] transition-all fade-in ease-in-out">
                             <span class="text-left pl-5 flex items-center gap-4 checkbox-container w-[12%]">
                                 <input type="checkbox" name="selected_customers[]"
                                     class="row-checkbox shrink-0 w-3.5 h-3.5 appearance-none border border-gray-400 rounded-sm checked:bg-[var(--primary-color)] checked:border-transparent focus:outline-none transition duration-150 cursor-pointer" />

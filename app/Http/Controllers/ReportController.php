@@ -292,11 +292,17 @@ class ReportController extends Controller
         }
 
         if ($request->ajax()) {
-            $startDate = $request->date_range_start
-                ? Carbon::parse($request->date_range_start)->startOfDay()
+            $orderStartDate = $request->order_date_range_start
+                ? Carbon::parse($request->order_date_range_start)->startOfDay()
                 : null;
-            $endDate = $request->date_range_end
-                ? Carbon::parse($request->date_range_end)->endOfDay()
+            $orderEndDate = $request->order_date_range_end
+                ? Carbon::parse($request->order_date_range_end)->endOfDay()
+                : null;
+            $invoiceStartDate = $request->invoice_date_range_start
+                ? Carbon::parse($request->invoice_date_range_start)->startOfDay()
+                : null;
+            $invoiceEndDate = $request->invoice_date_range_end
+                ? Carbon::parse($request->invoice_date_range_end)->endOfDay()
                 : null;
 
             $invoiceArticles = InvoiceArticles::with([
@@ -330,7 +336,6 @@ class ReportController extends Controller
                 $invoiceArticles->whereHas('invoice', function ($q) use ($request) {
                     $q->where('invoice_no', 'like', "%{$request->invoice_no}%");
                 });
-                $orderArticles->whereRaw('1 = 0');
             }
 
             if ($request->order_no) {
@@ -342,29 +347,117 @@ class ReportController extends Controller
                 });
             }
 
-            if ($startDate || $endDate) {
-                $invoiceArticles->whereHas('invoice', function ($q) use ($startDate, $endDate) {
-                    if ($startDate && $endDate) {
-                        $q->whereBetween('date', [$startDate, $endDate]);
-                    } elseif ($startDate) {
-                        $q->whereDate('date', '>=', $startDate);
-                    } elseif ($endDate) {
-                        $q->whereDate('date', '<=', $endDate);
-                    }
-                });
-
-                $orderArticles->whereHas('order', function ($q) use ($startDate, $endDate) {
-                    if ($startDate && $endDate) {
-                        $q->whereBetween('date', [$startDate, $endDate]);
-                    } elseif ($startDate) {
-                        $q->whereDate('date', '>=', $startDate);
-                    } elseif ($endDate) {
-                        $q->whereDate('date', '<=', $endDate);
+            if ($invoiceStartDate || $invoiceEndDate) {
+                $invoiceArticles->whereHas('invoice', function ($q) use ($invoiceStartDate, $invoiceEndDate) {
+                    if ($invoiceStartDate && $invoiceEndDate) {
+                        $q->whereBetween('date', [$invoiceStartDate, $invoiceEndDate]);
+                    } elseif ($invoiceStartDate) {
+                        $q->whereDate('date', '>=', $invoiceStartDate);
+                    } elseif ($invoiceEndDate) {
+                        $q->whereDate('date', '<=', $invoiceEndDate);
                     }
                 });
             }
 
-            $invoiceData = $invoiceArticles->get()->map(function ($invoiceArticle) {
+            if ($orderStartDate || $orderEndDate) {
+                $orderArticles->whereHas('order', function ($q) use ($orderStartDate, $orderEndDate) {
+                    if ($orderStartDate && $orderEndDate) {
+                        $q->whereBetween('date', [$orderStartDate, $orderEndDate]);
+                    } elseif ($orderStartDate) {
+                        $q->whereDate('date', '>=', $orderStartDate);
+                    } elseif ($orderEndDate) {
+                        $q->whereDate('date', '<=', $orderEndDate);
+                    }
+                });
+            }
+
+            $rowKey = function ($orderNo, $articleId, $customerId) {
+                return implode('|', [
+                    trim((string) ($orderNo ?? '')),
+                    (string) ($articleId ?? ''),
+                    (string) ($customerId ?? ''),
+                ]);
+            };
+
+            $formatCustomer = function ($customer) {
+                return ($customer?->customer_name ?? '-') . ' | ' . ($customer?->city?->short_title ?? '-');
+            };
+
+            $invoiceArticleRecords = $invoiceArticles->get();
+            $orderArticleRecords = $orderArticles->get();
+
+            $invoiceGroups = $invoiceArticleRecords
+                ->filter(fn ($invoiceArticle) => filled($invoiceArticle->invoice?->order_no))
+                ->groupBy(function ($invoiceArticle) use ($rowKey) {
+                    $invoice = $invoiceArticle->invoice;
+
+                    return $rowKey($invoice?->order_no, $invoiceArticle->article_id, $invoice?->customer_id);
+                })
+                ->map(function ($group) {
+                    $invoiceDates = $group
+                        ->map(fn ($invoiceArticle) => $invoiceArticle->invoice?->date)
+                        ->filter();
+
+                    return [
+                        'invoice_nos' => $group
+                            ->map(fn ($invoiceArticle) => $invoiceArticle->invoice?->invoice_no)
+                            ->filter()
+                            ->unique()
+                            ->values(),
+                        'invoice_dates' => $invoiceDates
+                            ->map(fn ($date) => $date->format('d-M-Y, D'))
+                            ->unique()
+                            ->values(),
+                        'invoice_date_raw' => optional($invoiceDates->sortDesc()->first())->format('Y-m-d H:i:s'),
+                        'invoice_quantity' => (int) $group->sum(fn ($invoiceArticle) => (int) ($invoiceArticle->invoice_pcs ?? 0)),
+                    ];
+                });
+
+            $matchedOrderKeys = collect();
+            $requiresInvoiceMatch = $request->filled('invoice_no') || $invoiceStartDate || $invoiceEndDate;
+
+            $orderData = $orderArticleRecords
+                ->map(function ($orderArticle) use ($formatCustomer, $invoiceGroups, $requiresInvoiceMatch, $rowKey, $matchedOrderKeys) {
+                    $order = $orderArticle->order;
+                    $customer = $order?->customer;
+                    $article = $orderArticle->article;
+                    $key = $rowKey($order?->order_no, $orderArticle->article_id, $order?->customer_id);
+                    $invoiceInfo = $invoiceGroups->get($key);
+
+                    if ($requiresInvoiceMatch && !$invoiceInfo) {
+                        return null;
+                    }
+
+                    if ($invoiceInfo) {
+                        $matchedOrderKeys->push($key);
+                    }
+
+                    return [
+                        'id' => 'order-' . $orderArticle->id,
+                        'article_no' => $article?->article_no,
+                        'order_no' => $order?->order_no ?? '-',
+                        'invoice_no' => $invoiceInfo ? ($invoiceInfo['invoice_nos']->implode(', ') ?: '-') : '-',
+                        'customer_name' => $formatCustomer($customer),
+                        'order_date' => $order?->date?->format('d-M-Y, D') ?? '-',
+                        'order_date_raw' => $order?->date?->format('Y-m-d H:i:s'),
+                        'invoice_date' => $invoiceInfo ? ($invoiceInfo['invoice_dates']->implode(', ') ?: '-') : '-',
+                        'invoice_date_raw' => $invoiceInfo['invoice_date_raw'] ?? null,
+                        'sort_date_raw' => $invoiceInfo['invoice_date_raw'] ?? $order?->date?->format('Y-m-d H:i:s'),
+                        'quantity' => (int) ($orderArticle->ordered_pcs ?? 0),
+                        'invoice_quantity' => $invoiceInfo['invoice_quantity'] ?? 0,
+                    ];
+                })
+                ->filter()
+                ->values();
+
+            $invoiceOnlyData = $invoiceArticleRecords->filter(function ($invoiceArticle) use ($matchedOrderKeys, $orderStartDate, $orderEndDate, $rowKey) {
+                $invoice = $invoiceArticle->invoice;
+                $key = $rowKey($invoice?->order_no, $invoiceArticle->article_id, $invoice?->customer_id);
+
+                return (blank($invoice?->order_no) || !$matchedOrderKeys->contains($key))
+                    && !$orderStartDate
+                    && !$orderEndDate;
+            })->map(function ($invoiceArticle) use ($formatCustomer) {
                 $invoice = $invoiceArticle->invoice;
                 $customer = $invoice?->customer;
                 $article = $invoiceArticle->article;
@@ -374,33 +467,20 @@ class ReportController extends Controller
                     'article_no' => $article?->article_no,
                     'order_no' => $invoice?->order_no ?? '-',
                     'invoice_no' => $invoice?->invoice_no ?? '-',
-                    'customer_name' => ($customer?->customer_name ?? '-') . ' | ' . ($customer?->city?->short_title ?? '-'),
-                    'reference_date' => $invoice?->date?->format('d-M-Y, D'),
-                    'reference_date_raw' => $invoice?->date?->format('Y-m-d H:i:s'),
+                    'customer_name' => $formatCustomer($customer),
+                    'order_date' => '-',
+                    'order_date_raw' => null,
+                    'invoice_date' => $invoice?->date?->format('d-M-Y, D') ?? '-',
+                    'invoice_date_raw' => $invoice?->date?->format('Y-m-d H:i:s'),
+                    'sort_date_raw' => $invoice?->date?->format('Y-m-d H:i:s'),
                     'quantity' => (int) ($invoiceArticle->invoice_pcs ?? 0),
+                    'invoice_quantity' => (int) ($invoiceArticle->invoice_pcs ?? 0),
                 ];
             });
 
-            $orderData = $orderArticles->get()->map(function ($orderArticle) {
-                $order = $orderArticle->order;
-                $customer = $order?->customer;
-                $article = $orderArticle->article;
-
-                return [
-                    'id' => 'order-' . $orderArticle->id,
-                    'article_no' => $article?->article_no,
-                    'order_no' => $order?->order_no ?? '-',
-                    'invoice_no' => '-',
-                    'customer_name' => ($customer?->customer_name ?? '-') . ' | ' . ($customer?->city?->short_title ?? '-'),
-                    'reference_date' => $order?->date?->format('d-M-Y, D'),
-                    'reference_date_raw' => $order?->date?->format('Y-m-d H:i:s'),
-                    'quantity' => (int) ($orderArticle->ordered_pcs ?? 0),
-                ];
-            });
-
-            $data = $invoiceData
-                ->merge($orderData)
-                ->sortByDesc('reference_date_raw')
+            $data = $orderData
+                ->merge($invoiceOnlyData)
+                ->sortByDesc('sort_date_raw')
                 ->values();
 
             if ($request->limit) {
@@ -562,6 +642,7 @@ class ReportController extends Controller
             'order',
             'shipment',
             'invoiceArticles.article',
+            'salesReturns',
             'customer.city',
         ])->find($id);
         if (!$invoice) return null;

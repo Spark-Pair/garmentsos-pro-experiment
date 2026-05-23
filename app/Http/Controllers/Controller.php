@@ -234,7 +234,7 @@ class Controller extends BaseController
                         : $totalPhysicalStockPackets;
 
                     $orderedPackets = ($orderedArticle->ordered_pcs ?? 0) / $article->pcs_per_packet;
-                    $invoiceQty = $orderedArticle->dispatched_pcs ?? 0;
+                    $invoiceQty = max(0, (int) ($orderedArticle->dispatched_pcs ?? 0));
                     $pendingPackets = $orderedPackets - ($invoiceQty / $article->pcs_per_packet);
 
                     $orderedArticle->total_quantity_in_packets = floor(min($pendingPackets, $availablePhysicalQuantity));

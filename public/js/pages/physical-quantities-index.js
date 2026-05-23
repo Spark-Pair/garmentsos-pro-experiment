@@ -5,9 +5,9 @@
 
         window.createRow = function createRow(data) {
             return `
-            <div id="${data.id}" oncontextmenu='${data.oncontextmenu || ""}' onclick='${data.onclick || ""}'
+            <div id="${data.id}" oncontextmenu='${htmlAttr(data.oncontextmenu || "")}' onclick='${htmlAttr(data.onclick || "")}'
                 class="item row relative group grid grid-cols-[10%_8%_6%_10%_10%_10%_9%_6%_6%_6%_10%_9%] border-b border-[var(--h-bg-color)] items-center py-2 cursor-pointer hover:bg-[var(--h-secondary-bg-color)] transition-all fade-in ease-in-out"
-                data-json='${JSON.stringify(data)}'>
+                data-json='${jsonAttr(data)}'>
 
                 <span>${data.article_no}</span>
                 <span class="capitalize">${data.processed_by}</span>

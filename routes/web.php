@@ -57,7 +57,7 @@ Route::get('subscription-expired', function () {
     return view('subscription-expired'); // ya controller agar chahiye
 })->name('subscription-expired');
 
-Route::group(['middleware' => ['auth', 'activeSession', 'subscriptionExpiry', 'readonly']], function () {
+Route::group(['middleware' => ['auth', 'activeSession', 'subscriptionExpiry', 'readonly', 'dbTransaction']], function () {
     Route::get('/backup-db', function () {
         try {
             $allowedRoles = ['developer', 'admin'];
@@ -144,7 +144,6 @@ Route::group(['middleware' => ['auth', 'activeSession', 'subscriptionExpiry', 'r
     Route::get('payment-programs/customer-summary', [PaymentProgramController::class, 'CustomerSummary'])->name('payment-programs.customer-summary');
     Route::get('payment-programs/supplier-summary', [PaymentProgramController::class, 'SupplierSummary'])->name('payment-programs.supplier-summary');
     Route::resource('payment-programs', PaymentProgramController::class);
-    Route::post('payment-programs.get-summary', [PaymentProgramController::class, 'getSummary'])->name('payment-programs.get-summary');
     Route::post('payment-programs.update-program', [PaymentProgramController::class, 'updateProgram'])->name('payment-programs.update-program');
     Route::post('payment-programs/{id}/mark-paid', [PaymentProgramController::class, 'markPaid'])->name('payment-programs.mark-paid');
 

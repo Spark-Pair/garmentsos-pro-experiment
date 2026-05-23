@@ -191,6 +191,10 @@ class Customer extends Model
         };
 
         $paymentDescription = function ($p) {
+            if ($p->type === 'sales_return') {
+                return $p->remarks ?: 'Sales return';
+            }
+
             return $p->cheque_date?->format('d-M-Y, D')
                 ?? $p->slip_date?->format('d-M-Y, D')
                 ?? (($p->bankAccount?->account_title || $p->bankAccount?->bank?->short_title)

@@ -83,7 +83,7 @@ function initCustomerPaymentsCreate() {
             : '';
 
         const optionsHtml = options.map(opt => {
-            const dataOption = opt.data_option ? `data-option='${JSON.stringify(opt.data_option)}'` : '';
+            const dataOption = opt.data_option ? `data-option='${jsonAttr(opt.data_option)}'` : '';
             return `<li data-for="${id}" data-value="${opt.value}" ${dataOption} onmousedown="selectThisOption(this)" class="py-2 px-3 cursor-pointer rounded-lg transition hover:bg-[var(--h-bg-color)] text-nowrap overflow-x-auto scrollbar-hidden">${opt.text}</li>`;
         }).join('');
 
@@ -196,7 +196,7 @@ function initCustomerPaymentsCreate() {
 
             dateDom.disabled = false;
             methodSelectDom.disabled = false;
-            dateDom.min = selectedCustomer?.date.toString().split('T')[0];
+            dateDom.min = selectedCustomer?.date ? selectedCustomer.date.toString().split('T')[0] : '';
             dateDom.max = today;
             balanceDom.value = formatNumbersWithDigits(selectedCustomer?.balance || 0, 1, 1);
             selectedCustomerData = selectedCustomer;
@@ -258,7 +258,7 @@ function initCustomerPaymentsCreate() {
                         const categoryText = program.category ? program.category.replaceAll('_', ' ') : '-';
                         const beneficiary = program.sub_category?.supplier_name ?? program.sub_category?.account_title ?? program.sub_category?.customer_name ?? '-';
                         programSelectDom.closest('.selectParent').querySelector('ul').innerHTML += `
-                            <li data-for="payment_programs" data-value="${program.id}" data-option='${JSON.stringify(program)}' onmousedown="selectThisOption(this)" class="py-2 px-3 cursor-pointer rounded-lg transition hover:bg-[var(--h-bg-color)] text-nowrap overflow-x-auto scrollbar-hidden capitalize">${program.program_no ?? program.order_no} | ${formatProgramBalance(program.balance)} | ${categoryText} | ${beneficiary} | ${formatDate(program.date)}</li>
+                            <li data-for="payment_programs" data-value="${program.id}" data-option='${jsonAttr(program)}' onmousedown="selectThisOption(this)" class="py-2 px-3 cursor-pointer rounded-lg transition hover:bg-[var(--h-bg-color)] text-nowrap overflow-x-auto scrollbar-hidden capitalize">${program.program_no ?? program.order_no} | ${formatProgramBalance(program.balance)} | ${categoryText} | ${beneficiary} | ${formatDate(program.date)}</li>
                         `;
                 });
                 if (programIdParam) {
@@ -526,7 +526,7 @@ function initCustomerPaymentsCreate() {
                         ?? fallbackProgram.sub_category?.account_title
                         ?? fallbackProgram.sub_category?.customer_name
                         ?? '-';
-                    const optionHtml = `<li data-for="payment_programs" data-value="${fallbackProgram.id}" data-option='${JSON.stringify(fallbackProgram)}' onmousedown="selectThisOption(this)" class="py-2 px-3 cursor-pointer rounded-lg transition hover:bg-[var(--h-bg-color)] text-nowrap overflow-x-auto scrollbar-hidden capitalize">${fallbackProgram.program_no ?? fallbackProgram.order_no} | ${formatProgramBalance(fallbackProgram.balance)} | ${fallbackProgram.category?.replaceAll('_', ' ') ?? '-'} | ${fallbackBeneficiary} | ${formatDate(fallbackProgram.date)}</li>`;
+                    const optionHtml = `<li data-for="payment_programs" data-value="${fallbackProgram.id}" data-option='${jsonAttr(fallbackProgram)}' onmousedown="selectThisOption(this)" class="py-2 px-3 cursor-pointer rounded-lg transition hover:bg-[var(--h-bg-color)] text-nowrap overflow-x-auto scrollbar-hidden capitalize">${fallbackProgram.program_no ?? fallbackProgram.order_no} | ${formatProgramBalance(fallbackProgram.balance)} | ${fallbackProgram.category?.replaceAll('_', ' ') ?? '-'} | ${fallbackBeneficiary} | ${formatDate(fallbackProgram.date)}</li>`;
                     optionBox.innerHTML = optionHtml;
                     selectedLi = optionBox.querySelector('li');
                 }

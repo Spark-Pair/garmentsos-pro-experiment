@@ -24,7 +24,7 @@ trait ArticleComputed
             $dispatchedFromOrders = $this->orderArticles()
                 ->sum('dispatched_pcs');
 
-            // 2️⃣ shipment pcs × coton_count
+            // 2️⃣ shipment pcs x cotton_count
             $shipmentSold = $this->shipmentArticles()
                 ->with('shipment.invoices')
                 ->get()
@@ -35,15 +35,11 @@ trait ArticleComputed
                     }
 
                     return $shipmentArticle->shipment->invoices->sum(function ($invoice) use ($shipmentArticle) {
-                        return $shipmentArticle->shipment_pcs * ($invoice->coton_count ?? 1);
+                        return $shipmentArticle->shipment_pcs * ($invoice->cotton_count ?? 1);
                     });
                 });
 
-            $salesReturnQuantity = method_exists($this, 'salesReturns')
-                ? $this->salesReturns()->sum('quantity')
-                : 0;
-
-            return max(0, ($dispatchedFromOrders + $shipmentSold) - $salesReturnQuantity);
+            return max(0, $dispatchedFromOrders + $shipmentSold);
         });
     }
 

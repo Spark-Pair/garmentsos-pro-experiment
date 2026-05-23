@@ -641,7 +641,7 @@ function initVouchersCreate() {
                                 return; // Skip already selected payments
                             }
                             ULDOM.innerHTML += `
-                                <li data-for="${elem.value}_id" data-value="${option.program_id ?? option.id}" data-option='${JSON.stringify(option.dataset)}' onmousedown="selectThisOption(this)" class="py-2 px-3 cursor-pointer rounded-lg hover:bg-[var(--h-bg-color)]">${option.text}</li>
+                                <li data-for="${elem.value}_id" data-value="${option.program_id ?? option.id}" data-option='${jsonAttr(option.dataset)}' onmousedown="selectThisOption(this)" class="py-2 px-3 cursor-pointer rounded-lg hover:bg-[var(--h-bg-color)]">${option.text}</li>
                             `;
                         })
                     }

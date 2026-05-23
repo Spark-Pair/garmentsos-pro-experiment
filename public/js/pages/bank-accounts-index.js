@@ -11,9 +11,9 @@
 
         window.createRow = function(data) {
             return `
-            <div id="${data.id}" oncontextmenu='${data.oncontextmenu || ""}' onclick='${data.onclick || ""}'
+            <div id="${data.id}" oncontextmenu='${htmlAttr(data.oncontextmenu || "")}' onclick='${htmlAttr(data.onclick || "")}'
                 class="item row relative group grid grid-cols-9 border-b border-[var(--h-bg-color)] items-center text-center py-2 cursor-pointer hover:bg-[var(--h-secondary-bg-color)] transition-all fade-in ease-in-out"
-                data-json='${JSON.stringify(data)}'>
+                data-json='${jsonAttr(data)}'>
 
                 <span>${data.date}</span>
                 <span class="col-span-2">${data.name}</span>

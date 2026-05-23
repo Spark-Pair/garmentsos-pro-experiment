@@ -9,6 +9,22 @@ trait CargoComputed
 {
     public function toFormattedArray()
     {
+        $invoices = collect($this->invoices)->map(fn($invoice) => [
+            'id' => $invoice->id,
+            'invoice_no' => $invoice->invoice_no,
+            'date' => $invoice->date,
+            'cotton_count' => (int) ($invoice->cotton_count ?? 0),
+            'customer' => $invoice->customer ? [
+                'id' => $invoice->customer->id,
+                'customer_name' => $invoice->customer->customer_name,
+                'city' => $invoice->customer->city ? [
+                    'id' => $invoice->customer->city->id,
+                    'title' => $invoice->customer->city->title,
+                    'short_title' => $invoice->customer->city->short_title,
+                ] : null,
+            ] : null,
+        ])->values();
+
         return [
             'id' => $this->id,
             'name' => $this->cargo_no,
@@ -16,7 +32,13 @@ trait CargoComputed
                 'Cargo Name' => $this->cargo_name,
                 'Date' => $this->date->format('d-M-Y, D'),
             ],
-            'data' => $this,
+            'data' => [
+                'id' => $this->id,
+                'cargo_no' => $this->cargo_no,
+                'cargo_name' => $this->cargo_name,
+                'date' => $this->date,
+                'invoices' => $invoices,
+            ],
             'oncontextmenu' => "generateContextMenu(event)",
             'onclick' => "generateModal(this)",
         ];

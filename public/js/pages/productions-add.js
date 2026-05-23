@@ -255,9 +255,7 @@
 
                         correctWorkers.forEach((worker) => {
                             ul.innerHTML += `
-                                <li data-for="worker" data-value="${worker.data_option.id}" data-option='${JSON.stringify(
-                                    worker.data_option
-                                )}' onmousedown="selectThisOption(this)" class="py-2 px-3 cursor-pointer rounded-lg hover:bg-[var(--h-bg-color)]">${worker.text}</li>
+                                <li data-for="worker" data-value="${worker.data_option.id}" data-option='${jsonAttr(worker.data_option)}' onmousedown="selectThisOption(this)" class="py-2 px-3 cursor-pointer rounded-lg hover:bg-[var(--h-bg-color)]">${worker.text}</li>
                             `;
                         });
 
@@ -895,16 +893,12 @@
                                 )
                             ) {
                                 ul.innerHTML += `
-                                    <li data-for="worker" data-value="${worker.data_option.id}" data-option='${JSON.stringify(
-                                    worker.data_option
-                                )}' onmousedown="selectThisOption(this)" class="py-2 px-3 cursor-pointer rounded-lg hover:bg-[var(--h-bg-color)] selected">${worker.text}</li>
+                                    <li data-for="worker" data-value="${worker.data_option.id}" data-option='${jsonAttr(worker.data_option)}' onmousedown="selectThisOption(this)" class="py-2 px-3 cursor-pointer rounded-lg hover:bg-[var(--h-bg-color)] selected">${worker.text}</li>
                                 `;
                             } else {
                                 if (worker.data_option.type.title == "Cutting") {
                                     ul.innerHTML += `
-                                        <li data-for="worker" data-value="${worker.data_option.id}" data-option='${JSON.stringify(
-                                    worker.data_option
-                                )}' onmousedown="selectThisOption(this)" class="py-2 px-3 cursor-pointer rounded-lg hover:bg-[var(--h-bg-color)]">${worker.text}</li>
+                                        <li data-for="worker" data-value="${worker.data_option.id}" data-option='${jsonAttr(worker.data_option)}' onmousedown="selectThisOption(this)" class="py-2 px-3 cursor-pointer rounded-lg hover:bg-[var(--h-bg-color)]">${worker.text}</li>
                                     `;
                                 }
                             }

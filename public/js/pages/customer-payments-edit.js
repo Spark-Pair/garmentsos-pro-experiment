@@ -81,7 +81,7 @@ function initCustomerPaymentsEdit() {
             : '';
 
         const optionsHtml = options.map(opt => {
-            const dataOption = opt.data_option ? `data-option='${JSON.stringify(opt.data_option)}'` : '';
+            const dataOption = opt.data_option ? `data-option='${jsonAttr(opt.data_option)}'` : '';
             return `<li data-for="${id}" data-value="${opt.value}" ${dataOption} onmousedown="selectThisOption(this)" class="py-2 px-3 cursor-pointer rounded-lg transition hover:bg-[var(--h-bg-color)] text-nowrap overflow-x-auto scrollbar-hidden">${opt.text}</li>`;
         }).join('');
 
@@ -154,7 +154,7 @@ function initCustomerPaymentsEdit() {
             selectedCustomer = customerPayment.customer;
             dateDom.disabled = false;
             methodSelectDom.disabled = false;
-            dateDom.min = selectedCustomer?.date.toString().split('T')[0];
+            dateDom.min = selectedCustomer?.date ? selectedCustomer.date.toString().split('T')[0] : '';
             dateDom.max = today;
             selectedCustomerData = selectedCustomer;
 
@@ -241,7 +241,7 @@ function initCustomerPaymentsEdit() {
                         const categoryText = program.category ? program.category.replaceAll('_', ' ') : '-';
                         const beneficiary = program.sub_category?.supplier_name ?? program.sub_category?.account_title ?? program.sub_category?.customer_name ?? '-';
                         programSelectDom.closest('.selectParent').querySelector('ul').innerHTML += `
-                            <li data-for="payment_programs" data-value="${program.id}" data-option='${JSON.stringify(program)}' onmousedown="selectThisOption(this)" class="py-2 px-3 cursor-pointer rounded-lg transition hover:bg-[var(--h-bg-color)] text-nowrap overflow-x-auto scrollbar-hidden capitalize">${program.program_no ?? program.order_no} | ${formatProgramBalance(program.balance)} | ${categoryText} | ${beneficiary}</li>
+                            <li data-for="payment_programs" data-value="${program.id}" data-option='${jsonAttr(program)}' onmousedown="selectThisOption(this)" class="py-2 px-3 cursor-pointer rounded-lg transition hover:bg-[var(--h-bg-color)] text-nowrap overflow-x-auto scrollbar-hidden capitalize">${program.program_no ?? program.order_no} | ${formatProgramBalance(program.balance)} | ${categoryText} | ${beneficiary}</li>
                         `;
                 });
             } else {

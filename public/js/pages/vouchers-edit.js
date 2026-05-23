@@ -558,7 +558,7 @@ function initVouchersEdit() {
 
                 filteredPayments.forEach(payment => {
                     paymentSelectDom.innerHTML += `
-                        <li data-for="program_id" data-value="${payment.program_id}" data-option='${JSON.stringify(payment)}' onmousedown="selectThisOption(this)" class="py-2 px-3 cursor-pointer rounded-lg hover:bg-[var(--h-bg-color)]">${formatNumbersWithDigits(payment.amount, 1, 1)} | ${payment.program.customer.customer_name} | ${payment.program.customer.city.title} | ${payment.transaction_id} | ${formatDate(payment.date)}</li>
+                        <li data-for="program_id" data-value="${payment.program_id}" data-option='${jsonAttr(payment)}' onmousedown="selectThisOption(this)" class="py-2 px-3 cursor-pointer rounded-lg hover:bg-[var(--h-bg-color)]">${formatNumbersWithDigits(payment.amount, 1, 1)} | ${payment.program.customer.customer_name} | ${payment.program.customer.city.title} | ${payment.transaction_id} | ${formatDate(payment.date)}</li>
                     `;
                 })
 
@@ -593,7 +593,7 @@ function initVouchersEdit() {
 
                 filteredExpenses.forEach(expense => {
                     expenseSelectDom.innerHTML += `
-                        <li data-for="expense_id" data-value="${expense.id}" data-option='${JSON.stringify(expense)}' onmousedown="selectThisOption(this)" class="py-2 px-3 cursor-pointer rounded-lg hover:bg-[var(--h-bg-color)]">${formatNumbersWithDigits(expense.amount, 1, 1)} | ${expense.reff_no}</li>
+                        <li data-for="expense_id" data-value="${expense.id}" data-option='${jsonAttr(expense)}' onmousedown="selectThisOption(this)" class="py-2 px-3 cursor-pointer rounded-lg hover:bg-[var(--h-bg-color)]">${formatNumbersWithDigits(expense.amount, 1, 1)} | ${expense.reff_no}</li>
                     `;
                 })
 
@@ -831,8 +831,6 @@ function initVouchersEdit() {
                                 </div>
                                 <div id="tbody" class="tbody w-full">
                                     ${paymentDetailsArray.map((payment, index) => {
-                                        console.log(payment);
-
                                         let selected = JSON.parse(payment.selected || '{}');
 
                                         const hrClass = index === 0 ? "mb-2.5" : "my-2.5";
@@ -843,7 +841,7 @@ function initVouchersEdit() {
                                                         <div class="td text-sm font-semibold w-[7%]">${index + 1}.</div>
                                                         <div class="td text-sm font-semibold w-[11%] capitalize">${payment.method ?? '-'}</div>
                                                         <div class="td text-sm font-semibold w-1/5">${payment.program?.customer?.customer_name ? payment.program?.customer?.customer_name : selected.customer?.customer_name ? selected.customer?.customer_name : payment.cheque ? payment.cheque?.customer?.customer_name ? payment.cheque.customer.customer_name : '-' : payment.slip ? payment.slip.customer.customer_name : '-'}</div>
-                                                        <div class="td text-sm font-semibold w-1/4">${payment.bank_account ? payment.bank_account.account_title + ' | ' + payment.bank_account.bank.short_title : (selected?.bank_account?.account_title ?? '-') + ' | ' + (selected?.bank_account?.bank.short_title ?? '-')}</div>
+                                                        <div class="td text-sm font-semibold w-1/4">${payment.bank_account ? payment.bank_account.account_title + ' | ' + (payment.bank_account.bank?.short_title ?? '-') : (selected?.bank_account?.account_title ?? '-') + ' | ' + (selected?.bank_account?.bank?.short_title ?? '-')}</div>
                                                         <div class="td text-sm font-semibold w-[14%]">${formatDate(dateInpDom.value, true) ?? '-'}</div>
                                                         <div class="td text-sm font-semibold w-[14%]">${selected?.cheque_no ?? selected?.slip_no ?? selected?.transaction_id ?? selected?.reff_no ?? payment.cheque_no ?? payment.reff_no ?? payment.transaction_id ?? payment.cheque?.cheque_no ?? payment.slip?.slip_no ?? '-'}</div>
                                                         <div class="td text-sm font-semibold w-[10%]">${formatNumbersWithDigits(payment.amount, 1, 1) ?? '-'}</div>

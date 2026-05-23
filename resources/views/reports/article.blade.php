@@ -27,12 +27,19 @@
                 "placeholder" => "Enter order no",
                                 "dataFilterPath" => "order_no",
             ],
-            "Date Range" => [
-                "id" => "date_range_start",
+            "Order Date Range" => [
+                "id" => "order_date_range_start",
                 "type" => "date",
-                "id2" => "date_range_end",
+                "id2" => "order_date_range_end",
                 "type2" => "date",
-                                "dataFilterPath" => "date",
+                                "dataFilterPath" => "order_date",
+            ],
+            "Invoice Date Range" => [
+                "id" => "invoice_date_range_start",
+                "type" => "date",
+                "id2" => "invoice_date_range_end",
+                "type2" => "date",
+                                "dataFilterPath" => "invoice_date",
             ]
         ];
     @endphp
@@ -51,12 +58,13 @@
                 <div class="container-parent h-full">
                     <div class="card_container px-3 pb-3 h-full flex flex-col">
                         <div id="table-head" class="flex items-center bg-[var(--h-bg-color)] rounded-lg font-medium py-2 hidden mt-4">
-                            <div class="w-1/6 cursor-pointer" onclick="sortByThis(this)">Date</div>
-                            <div class="w-1/6 cursor-pointer" onclick="sortByThis(this)">Article No.</div>
-                            <div class="w-1/6 cursor-pointer" onclick="sortByThis(this)">Order No.</div>
-                            <div class="w-1/6 cursor-pointer" onclick="sortByThis(this)">Invoice No.</div>
+                            <div class="w-[13%] cursor-pointer" onclick="sortByThis(this)">Order Date</div>
+                            <div class="w-[13%] cursor-pointer" onclick="sortByThis(this)">Invoice Date</div>
+                            <div class="w-[12%] cursor-pointer" onclick="sortByThis(this)">Article No.</div>
+                            <div class="w-[12%] cursor-pointer" onclick="sortByThis(this)">Order No.</div>
+                            <div class="w-[12%] cursor-pointer" onclick="sortByThis(this)">Invoice No.</div>
                             <div class="grow cursor-pointer" onclick="sortByThis(this)">Customer</div>
-                            <div class="w-1/6 cursor-pointer" onclick="sortByThis(this)">Quantity</div>
+                            <div class="w-[10%] cursor-pointer" onclick="sortByThis(this)">Quantity</div>
                         </div>
                         <p id="noItemsError" style="display: none" class="text-sm text-[var(--border-error)] mt-3">No items found</p>
                         <div class="overflow-y-auto grow my-scrollbar-2">

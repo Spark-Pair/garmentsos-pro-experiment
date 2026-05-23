@@ -10,6 +10,23 @@ trait ShipmentComputed
 {
     public function toFormattedArray()
     {
+        $articles = $this->articles
+            ? $this->articles->map(fn($shipmentArticle) => [
+                'id' => $shipmentArticle->id,
+                'description' => $shipmentArticle->description,
+                'ordered_pcs' => (int) ($shipmentArticle->ordered_pcs ?? 0),
+                'invoice_pcs' => (int) ($shipmentArticle->invoice_pcs ?? 0),
+                'shipment_pcs' => (int) ($shipmentArticle->shipment_pcs ?? 0),
+                'article' => $shipmentArticle->article ? [
+                    'id' => $shipmentArticle->article->id,
+                    'article_no' => $shipmentArticle->article->article_no,
+                    'description' => $shipmentArticle->article->description,
+                    'pcs_per_packet' => $shipmentArticle->article->pcs_per_packet,
+                    'sales_rate' => $shipmentArticle->article->sales_rate,
+                ] : null,
+            ])->values()
+            : collect();
+
         return [
             'id' => $this->id,
             'name' => $this->shipment_no,
@@ -18,7 +35,14 @@ trait ShipmentComputed
                 'Date' => $this->date->format('d-M-Y, D'),
             ],
             'isInvoiceHas' => $this->invoices()->exists(),
-            'data' => $this,
+            'data' => [
+                'id' => $this->id,
+                'shipment_no' => $this->shipment_no,
+                'date' => $this->date,
+                'discount' => (float) ($this->discount ?? 0),
+                'netAmount' => (float) ($this->netAmount ?? 0),
+                'articles' => $articles,
+            ],
             'oncontextmenu' => "generateContextMenu(event)",
             'onclick' => "generateModal(this)",
         ];

@@ -8,9 +8,9 @@ function initCustomerPaymentsIndex() {
 
     function createRow(data) {
         return `
-            <div id="${data.id}" oncontextmenu='${data.oncontextmenu || ""}' onclick='${data.onclick || ""}'
+            <div id="${data.id}" oncontextmenu='${htmlAttr(data.oncontextmenu || "")}' onclick='${htmlAttr(data.onclick || "")}'
                 class="item row relative group flex justify-between border-b border-[var(--h-bg-color)] items-center py-2 cursor-pointer hover:bg-[var(--h-secondary-bg-color)] transition-all fade-in ease-in-out"
-                data-json='${JSON.stringify(data)}'>
+                data-json='${jsonAttr(data)}'>
 
                 <span class="text-center w-1/10">${data.details['Date']}</span>
                 <span class="text-center w-1/7">${data.name}</span>
@@ -41,8 +41,6 @@ function initCustomerPaymentsIndex() {
     window.renderCalculation = renderCalculation;
 
     window.generateClearModal = function(item) {
-        console.log(item);
-        
         let data = item.data;
 
         let modalData = {
