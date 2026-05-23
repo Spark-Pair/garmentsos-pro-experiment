@@ -690,7 +690,8 @@ trait CustomerPaymentComputed
                     $q->where('cheque_no', 'like', "%$value%")
                     ->orWhere('slip_no', 'like', "%$value%")
                     ->orWhere('transaction_id', 'like', "%$value%")
-                    ->orWhere('reff_no', 'like', "%$value%");
+                    ->orWhere('reff_no', 'like', "%$value%")
+                    ->orWhereHas('paymentClearRecord', fn ($sq) => $sq->where('reff_no', 'like', "%{$value}%"));
                 });
 
             case 'status':

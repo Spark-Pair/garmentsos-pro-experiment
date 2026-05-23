@@ -29,7 +29,7 @@ class CustomerPaymentController extends Controller
 
         if ($request->ajax()) {
             $payments = CustomerPayment::whereNotNull('customer_id')
-                // ->where('type', '!=', 'DR')
+                ->where('type', '!=', 'sales_return')
                 ->with([
                     'customer.city',
                     'cheque.supplier',
@@ -248,6 +248,7 @@ class CustomerPaymentController extends Controller
         $lastRecord = CustomerPayment::latest('id')
             ->with('customer:id,customer_name')
             ->whereNotNull('customer_id')
+            ->where('type', '!=', 'sales_return')
             ->first();
 
         $programPayload = null;
