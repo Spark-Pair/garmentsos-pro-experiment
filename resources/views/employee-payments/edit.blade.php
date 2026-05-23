@@ -316,13 +316,62 @@
 
 @endsection
 
+@php
+    $customerPaymentPayload = [
+        'type' => $customerPayment->type,
+        'method' => $customerPayment->method,
+        'program_id' => $customerPayment->program_id,
+        'amount' => $customerPayment->amount,
+        'remarks' => $customerPayment->remarks,
+        'cheque_date' => $customerPayment->cheque_date?->format('Y-m-d'),
+        'cheque_no' => $customerPayment->cheque_no,
+        'clear_date' => $customerPayment->clear_date?->format('Y-m-d'),
+        'bank_id' => $customerPayment->bank_id,
+        'bank_account_id' => $customerPayment->bank_account_id,
+        'slip_date' => $customerPayment->slip_date?->format('Y-m-d'),
+        'slip_no' => $customerPayment->slip_no,
+        'transaction_id' => $customerPayment->transaction_id,
+        'customer' => [
+            'id' => $customerPayment->customer?->id,
+            'customer_name' => $customerPayment->customer?->customer_name,
+            'date' => $customerPayment->customer?->date?->format('Y-m-d'),
+            'payment_programs' => $customerPayment->customer?->paymentPrograms?->map(function ($program) {
+                return [
+                    'id' => $program->id,
+                    'program_no' => $program->program_no,
+                    'order_no' => $program->order_no,
+                    'date' => $program->date?->format('Y-m-d'),
+                    'category' => $program->category,
+                    'sub_category' => $program->subCategory ? [
+                        'supplier_name' => $program->subCategory->supplier_name ?? null,
+                        'customer_name' => $program->subCategory->customer_name ?? null,
+                        'account_title' => $program->subCategory->account_title ?? null,
+                        'bank_accounts' => $program->subCategory->bankAccounts?->map(function ($bankAccount) {
+                            return [
+                                'id' => $bankAccount->id,
+                                'account_title' => $bankAccount->account_title,
+                                'bank' => [
+                                    'short_title' => $bankAccount->bank?->short_title,
+                                ],
+                            ];
+                        })->toArray() ?? [],
+                    ] : null,
+                    'balance' => $program->balance ?? null,
+                    'remarks' => $program->remarks,
+                    'status' => $program->status,
+                ];
+            })->toArray() ?? [],
+        ],
+    ];
+@endphp
+
 @push('page-scripts')
 <script defer src="{{ asset('js/pages/employee-payments-edit.js') }}"></script>
 <script>
         window.__employeePaymentsEdit = {
             chequeNos: @json($cheque_nos ?? ''),
             slipNos: @json($slip_nos ?? ''),
-            customerPayment: @json($customerPayment),
+            customerPayment: @json($customerPaymentPayload),
             programSelectHtml: @json('<div class="col-span-full">' . $programSelectHtml . '</div>'),
             templates: @json($templates),
         };

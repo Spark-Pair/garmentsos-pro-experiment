@@ -121,7 +121,7 @@
 <script defer src="{{ asset('js/pages/employees-edit.js') }}"></script>
 <script>
         window.__employeesEdit = {
-            employee: @json($employee),
+            employee: @json($employeePayload),
             hasProfileImage: @json($employee->profile_picture !== 'default_avatar.png'),
         };
     </script>

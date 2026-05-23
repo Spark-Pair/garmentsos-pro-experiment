@@ -87,7 +87,7 @@
 <script defer src="{{ asset('js/pages/orders-edit.js') }}"></script>
 <script>
         window.__ordersEdit = {
-            order: @json($order),
+            order: @json($orderPayload),
             companyData: @json($client_company),
             ordersCreateUrl: '{{ route("orders.create") }}',
             companyLogoBase: '{{ asset("images") }}',

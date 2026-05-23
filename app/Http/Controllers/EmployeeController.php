@@ -142,7 +142,13 @@ class EmployeeController extends Controller
         $types_options = $types->mapWithKeys(fn($type) => [
             $type->id => ['text' => $type->title]
         ])->toArray();
-        return view('employees.edit', compact('employee', 'types_options'));
+
+        $employeePayload = [
+            'type_id' => $employee->type_id,
+            'profile_picture' => $employee->profile_picture,
+        ];
+
+        return view('employees.edit', compact('employee', 'types_options', 'employeePayload'));
     }
 
     /**

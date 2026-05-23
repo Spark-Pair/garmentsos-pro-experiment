@@ -167,20 +167,25 @@ class ShipmentController extends Controller
 
         $shipment->load('articles.article');
 
-        // $selectedArticles = [];
+        $shipmentPayload = [
+            'date' => $shipment->date?->format('Y-m-d'),
+            'articles' => $shipment->articles->map(function ($shipmentArticle) {
+                return [
+                    'shipment_pcs' => $shipmentArticle->shipment_pcs,
+                    'description' => $shipmentArticle->description,
+                    'article' => [
+                        'id' => $shipmentArticle->article?->id,
+                        'article_no' => $shipmentArticle->article?->article_no,
+                        'image' => $shipmentArticle->article?->image,
+                        'category' => $shipmentArticle->article?->category,
+                        'season' => $shipmentArticle->article?->season,
+                        'size' => $shipmentArticle->article?->size,
+                    ],
+                ];
+            })->toArray(),
+        ];
 
-        // foreach ($shipment->articles as $rawArticle) {
-        //     $article = Article::find($rawArticle['id']);
-
-        //     $article['description'] = $rawArticle['description'];
-        //     $article['shipmentQuantity'] = $rawArticle['shipment_quantity'];
-
-        //     $selectedArticles[] = $article;
-        // }
-
-        // $shipment['selectedArticles'] = $selectedArticles;
-
-        return view('shipments.edit', compact('shipment'));
+        return view('shipments.edit', compact('shipment', 'shipmentPayload'));
     }
 
     /**

@@ -175,7 +175,17 @@ class ExpenseController extends Controller
             'title' => 'Adjustment',
         ]);
 
-        return view('expenses.edit', compact('expense', 'adjustmentSetup'));
+        $supplier = $expense->supplier;
+        $supplierDataPayload = [
+            'id' => $supplier->id,
+            'supplier_name' => $supplier->supplier_name,
+            'categories' => collect($supplier->categories)->map(fn($category) => [
+                'id' => $category->id,
+                'title' => $category->title,
+            ])->values()->all(),
+        ];
+
+        return view('expenses.edit', compact('expense', 'adjustmentSetup', 'supplierDataPayload'));
     }
 
     /**

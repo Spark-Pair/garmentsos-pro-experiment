@@ -140,9 +140,7 @@ class Customer extends Model
         // Calculate totals
         $totalInvoices = $invoicesQuery->sum('netAmount') ?? 0;
         $totalPayments = $paymentsQuery->sum('amount') ?? 0;
-        $adjustmentsNet = (float) $adjustmentsQuery
-            ->get()
-            ->sum(fn($adjustment) => (float) $adjustment->net_amount);
+        $adjustmentsNet = (float) $adjustmentsQuery->sum('net_amount');
 
         $balance = ($totalInvoices - $totalPayments) + $adjustmentsNet;
 

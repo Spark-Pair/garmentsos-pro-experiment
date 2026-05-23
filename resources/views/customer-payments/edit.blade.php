@@ -93,7 +93,7 @@
 <script defer src="{{ asset('js/pages/customer-payments-edit.js') }}"></script>
 <script>
         window.__customerPaymentsEdit = {
-            customerPayment: @json($customerPayment),
+            customerPayment: @json($customerPaymentPayload),
             banksOptions: @json($banks_options),
         };
     </script>

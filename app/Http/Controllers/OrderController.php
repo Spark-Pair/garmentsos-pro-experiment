@@ -314,7 +314,38 @@ class OrderController extends Controller
             'articles.article',
         ]);
 
-        return view('orders.edit', compact('order'));
+        $orderPayload = [
+            'order_no' => $order->order_no,
+            'netAmount' => $order->netAmount,
+            'customer' => [
+                'customer_name' => $order->customer?->customer_name,
+                'urdu_title' => $order->customer?->urdu_title,
+                'address' => $order->customer?->address,
+                'phone_number' => $order->customer?->phone_number,
+                'city' => [
+                    'title' => $order->customer?->city?->title,
+                ],
+            ],
+            'articles' => $order->articles->map(function ($orderArticle) {
+                return [
+                    'article_id' => $orderArticle->article_id,
+                    'ordered_pcs' => $orderArticle->ordered_pcs,
+                    'description' => $orderArticle->description,
+                    'article' => [
+                        'id' => $orderArticle->article?->id,
+                        'article_no' => $orderArticle->article?->article_no,
+                        'sales_rate' => $orderArticle->article?->sales_rate,
+                        'pcs_per_packet' => $orderArticle->article?->pcs_per_packet,
+                        'image' => $orderArticle->article?->image,
+                        'category' => $orderArticle->article?->category,
+                        'season' => $orderArticle->article?->season,
+                        'size' => $orderArticle->article?->size,
+                    ],
+                ];
+            })->toArray(),
+        ];
+
+        return view('orders.edit', compact('order', 'orderPayload'));
     }
 
     public function update(Request $request, Order $order)

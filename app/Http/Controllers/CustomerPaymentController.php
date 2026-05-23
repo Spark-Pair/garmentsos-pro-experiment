@@ -472,7 +472,7 @@ class CustomerPaymentController extends Controller
             return $resp;
         }
 
-        $customerPayment->load('customer.paymentPrograms.subCategory.bankAccounts.bank');
+        $customerPayment->load('customer');
 
         $banks_options = [];
         $banks = Setup::where('type', 'bank_name')->get();
@@ -485,10 +485,38 @@ class CustomerPaymentController extends Controller
             }
         }
 
-        $cheque_nos = CustomerPayment::where('cheque_no', '!=', $customerPayment['cheque_no'])->pluck('cheque_no')->toArray();
-        $slip_nos = CustomerPayment::where('slip_no', '!=', $customerPayment['slip_no'])->pluck('slip_no')->toArray();
+        $programs = $customerPayment->customer->paymentPrograms()
+            ->select('id', 'program_no', 'order_no', 'date', 'customer_id', 'category', 'sub_category_id', 'sub_category_type', 'amount', 'remarks', 'status')
+            ->withSum('customerPayments as paid_amount', 'amount')
+            ->with(['subCategory' => fn($q) => $q->with('bankAccounts.bank')])
+            ->get();
 
-        return view('customer-payments.edit', compact('customerPayment', 'banks_options'));
+        $customerPaymentPayload = [
+            'id' => $customerPayment->id,
+            'customer_id' => $customerPayment->customer_id,
+            'date' => $customerPayment->date?->format('Y-m-d'),
+            'type' => $customerPayment->type,
+            'method' => $customerPayment->method,
+            'amount' => $customerPayment->amount,
+            'cheque_no' => $customerPayment->cheque_no,
+            'slip_no' => $customerPayment->slip_no,
+            'transaction_id' => $customerPayment->transaction_id,
+            'cheque_date' => $customerPayment->cheque_date?->format('Y-m-d'),
+            'slip_date' => $customerPayment->slip_date?->format('Y-m-d'),
+            'clear_date' => $customerPayment->clear_date?->format('Y-m-d'),
+            'bank_id' => $customerPayment->bank_id,
+            'bank_account_id' => $customerPayment->bank_account_id,
+            'program_id' => $customerPayment->program_id,
+            'remarks' => $customerPayment->remarks,
+            'customer' => [
+                'id' => $customerPayment->customer->id,
+                'customer_name' => $customerPayment->customer->customer_name,
+                'date' => $customerPayment->customer->date?->format('Y-m-d'),
+                'payment_programs' => $programs->map(fn($program) => $this->formatProgramPayload($program))->values()->all(),
+            ],
+        ];
+
+        return view('customer-payments.edit', compact('customerPayment', 'banks_options', 'customerPaymentPayload'));
     }
 
 

@@ -22,7 +22,7 @@
 
                     <!-- supplier -->
                     <x-input label="Supplier" id="supplier_name" value="{{ $expense->supplier->supplier_name }}" disabled />
-                    <input type="hidden" id="supplier" value='{{ json_encode($expense->supplier) }}' />
+                    <input type="hidden" id="supplier" value='@json($supplierDataPayload)' />
 
                     <!-- balance -->
                     <x-input label="Balance" id="balance" disabled value="{{ \App\Support\Money::format($expense->supplier->balance) }}" />
@@ -60,7 +60,7 @@
 <script>
         window.__expensesEdit = {
             selectedExpense: @json($expense->expense),
-            supplierData: @json($expense->supplier),
+            supplierData: @json($supplierDataPayload),
             adjustmentId: @json($adjustmentSetup?->id),
         };
     </script>

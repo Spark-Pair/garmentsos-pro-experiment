@@ -94,7 +94,7 @@
 <script defer src="{{ asset('js/pages/shipments-edit.js') }}"></script>
 <script>
         window.__shipmentsEdit = {
-            shipment: @json($shipment),
+            shipment: @json($shipmentPayload),
             companyData: @json($client_company),
             shipmentsCreateUrl: '{{ route("shipments.create") }}',
             companyLogoBase: '{{ asset("images") }}',
