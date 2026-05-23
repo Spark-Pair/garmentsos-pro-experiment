@@ -13,7 +13,7 @@
     <!-- Modal Content -->
     <div class="bg-[var(--secondary-bg-color)] rounded-xl shadow-lg w-80 md:w-full md:max-w-lg p-6 relative">
         <!-- Close Button -->
-        <button onclick="closeLogoutModal()"
+        <button type="button" onclick="closeLogoutModal()"
             class="absolute top-3 right-3 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-all duration-300 ease-in-out cursor-pointer">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"
                 class="w-6 h-6">
@@ -35,7 +35,7 @@
         <!-- Modal Footer -->
         <div class="flex justify-end space-x-3">
             <!-- Cancel Button -->
-            <button onclick="closeLogoutModal()"
+            <button type="button" onclick="closeLogoutModal()"
                 class="px-4 py-2 bg-[var(--secondary-bg-color)] border text-[var(--secondary-text)] rounded-md hover:bg-[var(--bg-color)] transition-all duration-300 ease-in-out cursor-pointer">Cancel</button>
 
             <!-- Logout Form -->
@@ -84,7 +84,8 @@
 
         <div class="relative hidden md:flex group md:pt-3 md:ml-0 md:mt-4 dropdown-trigger">
             <!-- User Avatar -->
-            <button type="button" onclick="openDropDown(event, this)"
+            <button type="button" onclick="openDropDown(event, this)" onkeydown="handleSidebarDropdownKeydown(event, this)"
+                aria-haspopup="menu" aria-expanded="false" aria-label="User menu"
                 class="w-10 h-10 ml-1.5 mb-1 flex items-center justify-center rounded-[41.5%] cursor-pointer transition-all duration-300 ease-in-out text-[var(--text-color)] font-semibold text-lg overflow-hidden">
                 @if (Auth::user()->profile_picture == 'default_avatar.png')
                     <img src="{{ asset('images/default_avatar.png') }}" class="w-full h-full object-cover"
@@ -101,12 +102,14 @@
 
             <!-- Dropdown Menu -->
             <div
+                role="menu" aria-label="User menu"
                 class="dropdownMenu text-sm absolute bottom-0 left-16 hidden border border-gray-600 w-48 bg-[var(--h-secondary-bg-color)] text-[var(--text-color)] shadow-lg rounded-2xl opacity-0 transform scale-95 transition-all duration-300 ease-in-out z-50">
                 <ul class="p-2">
                     @if (in_array(Auth::user()->role, ['developer', 'owner', 'admin', 'accountant', 'store_keeper']))
                         <!-- Setups -->
                         <li>
                             <a href="{{ route('setups.index') }}"
+                                role="menuitem"
                                 class="block px-4 py-2 hover:bg-[var(--h-bg-color)] rounded-lg transition-all duration-200 ease-in-out cursor-pointer">
                                 <i class="fas fa-cog text-[var(--secondary-color)] mr-3"></i>
                                 Setups
@@ -117,6 +120,7 @@
                         <!-- rates -->
                         <li>
                             <a href="{{ route('rates.index') }}"
+                                role="menuitem"
                                 class="block px-4 py-2 hover:bg-[var(--h-bg-color)] rounded-lg transition-all duration-200 ease-in-out cursor-pointer">
                                 <i class="fas fa-cog text-[var(--secondary-color)] mr-3"></i>
                                 Rates
@@ -126,7 +130,7 @@
                     @if (in_array(Auth::user()->role, ['developer', 'admin']))
                         <!-- rates -->
                         <li>
-                            <button id="backupDB" onclick="backupDB()"
+                            <button id="backupDB" type="button" role="menuitem" onclick="backupDB()"
                                 class="block w-full text-left px-4 py-2 hover:bg-[var(--h-bg-color)] rounded-lg transition-all duration-200 ease-in-out cursor-pointer">
                                 <i class="fas fa-database text-[var(--secondary-color)] mr-3"></i>
                                 Backup DB
@@ -135,7 +139,7 @@
                     @endif
                     <!-- Theme Toggle -->
                     <li>
-                        <button id="themeToggle"
+                        <button id="themeToggle" type="button" role="menuitem"
                             class="block w-full text-left px-4 py-2 hover:bg-[var(--h-bg-color)] rounded-lg transition-all duration-200 ease-in-out cursor-pointer">
                             <i class="fas fa-moon text-[var(--secondary-color)] mr-3"></i>
                             Theme
@@ -143,7 +147,7 @@
                     </li>
                     <!-- Logout Button -->
                     <li>
-                        <button onclick="openLogoutModal()"
+                        <button type="button" role="menuitem" onclick="openLogoutModal()"
                             class="block w-full text-left px-4 py-2 text-[var(--border-error)] hover:bg-[var(--bg-error)] hover:text-[var(--text-error)] rounded-lg transition-all duration-200 ease-in-out cursor-pointer">
                             <i class="fas fa-sign-out-alt mr-3"></i>
                             Logout

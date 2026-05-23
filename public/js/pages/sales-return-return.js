@@ -6,6 +6,7 @@
 
         let returnableLines = [];
         let selectedReturns = [];
+        let returnModalSearch = "";
 
         const articleListDOM = document.getElementById("article-list");
         const dateInput = document.getElementById("date");
@@ -89,6 +90,7 @@
         function resetReturns(message = "Select a customer to load invoices") {
             returnableLines = [];
             selectedReturns = [];
+            returnModalSearch = "";
             dateInput.value = "";
             dateInput.min = "";
             dateInput.disabled = true;
@@ -119,6 +121,7 @@
                 success: function (response) {
                     returnableLines = normalizeResponse(response);
                     selectedReturns = [];
+                    returnModalSearch = "";
 
                     if (returnableLines.length === 0) {
                         resetReturns("No returnable invoice articles found");
@@ -144,12 +147,15 @@
             if (!returnableLines.length) return;
 
             const eligibleLines = getEligibleLines();
+            const visibleLines = filterReturnModalLines(eligibleLines);
 
             const modalData = {
                 id: "ReturnArticlesModal",
                 name: "Select Return Articles",
                 class: "h-[42rem] max-w-6xl",
                 info: `Selected: ${selectedReturns.length} lines / ${numberLess(getTotalQuantity())} PCs`,
+                basicSearch: true,
+                onBasicSearch: "filterReturnLinesModal(this.value)",
                 fieldsGridCount: "1",
                 fields: [
                     {
@@ -157,21 +163,21 @@
                         full: true,
                         html: `
                             <div id="return-lines-modal-table" class="w-full text-left text-sm">
-                                <div class="flex justify-between items-center bg-[var(--h-bg-color)] rounded-lg py-2 px-4 mb-3">
-                                    <div class="w-[4%]">#</div>
-                                    <div class="w-[10%]">Invoice</div>
-                                    <div class="w-[10%]">Date</div>
-                                    <div class="w-[11%]">Article</div>
-                                    <div class="grow">Desc.</div>
-                                    <div class="w-[7%] text-right">Unit</div>
-                                    <div class="w-[9%] text-right">Max Pcs</div>
+                                <div id="table-head" class="flex justify-between items-center bg-[var(--h-bg-color)] rounded-lg py-2 px-4 mb-3 select-none">
+                                    <div class="w-[4%] cursor-pointer" onclick="sortByThis(this)">#</div>
+                                    <div class="w-[10%] cursor-pointer" onclick="sortByThis(this)">Invoice</div>
+                                    <div class="w-[10%] cursor-pointer" onclick="sortByThis(this)">Date</div>
+                                    <div class="w-[11%] cursor-pointer" onclick="sortByThis(this)">Article</div>
+                                    <div class="grow cursor-pointer" onclick="sortByThis(this)">Desc.</div>
+                                    <div class="w-[7%] text-right cursor-pointer" onclick="sortByThis(this)">Unit</div>
+                                    <div class="w-[9%] text-right cursor-pointer" onclick="sortByThis(this)">Max Pcs</div>
                                     <div class="w-[12%] text-right">Return Pcs</div>
-                                    <div class="w-[9%] text-right">Rate</div>
-                                    <div class="w-[7%] text-right">Amount</div>
-                                    <div class="w-[9%] text-right">Selected</div>
+                                    <div class="w-[9%] text-right cursor-pointer" onclick="sortByThis(this)">Rate</div>
+                                    <div class="w-[7%] text-right cursor-pointer" onclick="sortByThis(this)">Amount</div>
+                                    <div class="w-[9%] text-right cursor-pointer" onclick="sortByThis(this)">Selected</div>
                                 </div>
-                                <div class="h-[27rem] overflow-y-auto my-scrollbar-2">
-                                    ${returnLinesModalRows(eligibleLines)}
+                                <div id="return-lines-modal-body" class="search_container h-[22.5rem] overflow-y-auto my-scrollbar-2">
+                                    ${returnLinesModalRows(visibleLines)}
                                 </div>
                             </div>
                         `,
@@ -183,6 +189,40 @@
             };
 
             createModal(modalData);
+        };
+
+        function filterReturnModalLines(lines = getEligibleLines()) {
+            const search = returnModalSearch.trim().toLowerCase();
+
+            if (!search) {
+                return lines;
+            }
+
+            return lines.filter(line => {
+                    const selected = getSelected(line.key);
+                    return [
+                        line.invoice_no,
+                        line.invoice_date,
+                        line.article_no,
+                        line.description,
+                        line.pcs_per_packet,
+                        line.remaining_quantity,
+                        line.sales_rate,
+                        selected?.quantity,
+                    ].some(value => String(value ?? "").toLowerCase().includes(search));
+                });
+        }
+
+        function renderReturnLinesModalBody() {
+            const body = document.getElementById("return-lines-modal-body");
+            if (!body) return;
+
+            body.innerHTML = returnLinesModalRows(filterReturnModalLines());
+        }
+
+        window.filterReturnLinesModal = function filterReturnLinesModal(value) {
+            returnModalSearch = value || "";
+            renderReturnLinesModalBody();
         };
 
         function returnLinesModalRows(lines) {
@@ -200,7 +240,7 @@
                 const amount = selected ? selected.amount : 0;
 
                 return `
-                    <div class="return-modal-line flex justify-between items-center border-t border-gray-600 py-3 px-4"
+                    <div class="item return-modal-line flex justify-between items-center border-t border-gray-600 py-3 px-4"
                         data-key="${htmlAttr(line.key)}">
                         <div class="w-[4%]">${index + 1}.</div>
                         <div class="w-[10%]">${line.invoice_no || "-"}</div>
@@ -249,6 +289,7 @@
         dateInput?.addEventListener("change", function () {
             removeReturnsAfterSelectedDate();
             updateDateMinimum();
+            renderReturnLinesModalBody();
             renderList();
             renderCalcBottom();
         });
@@ -314,6 +355,7 @@
             }
 
             updateDateMinimum();
+            renderReturnLinesModalBody();
             renderList();
             renderCalcBottom();
         };

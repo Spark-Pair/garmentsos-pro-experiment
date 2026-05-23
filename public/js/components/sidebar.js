@@ -57,7 +57,12 @@
                 clutter += `
                     <div class="relative group">
                         <button
+                            type="button"
                             onclick="openDropDown(event, this)"
+                            onkeydown="handleSidebarDropdownKeydown(event, this)"
+                            aria-haspopup="menu"
+                            aria-expanded="false"
+                            aria-label="${shortcut.name}"
                             class="nav-link ${shortcut.name.toLowerCase()} ${isActive && 'active'} dropdown-trigger text-[var(--text-color)] p-3 rounded-[41.5%] group-hover:bg-[var(--h-bg-color)] transition-all duration-300 ease-in-out w-10 h-10 flex items-center justify-center cursor-pointer relative"
                         >
                             ${shortcut.svgIcon}
@@ -70,6 +75,8 @@
                         </button>
 
                         <div
+                            role="menu"
+                            aria-label="${shortcut.name}"
                             class="dropdownMenu text-sm absolute top-0 left-16 border border-gray-600 w-48 bg-[var(--h-secondary-bg-color)] text-[var(--text-color)] shadow-lg rounded-2xl transform scale-95 transition-all duration-300 ease-in-out z-50 opacity-0 scale-out hidden"
                         >
                             <ul class="p-2">
@@ -79,6 +86,7 @@
                                     <li>
                                         <a
                                             href="${item.href}"
+                                            role="menuitem"
                                             class="block px-4 py-2 hover:bg-[var(--h-bg-color)] rounded-lg transition-all duration-200 ease-in-out"
                                         >
                                             ${item.name}
@@ -140,17 +148,98 @@
             renderCardsInModal(modalData);
         };
 
+        function getDropdownItems(menu) {
+            if (!menu) return [];
+            return Array.from(menu.querySelectorAll('a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])'))
+                .filter(item => item.offsetParent !== null);
+        }
+
+        function focusDropdownItem(trigger, position = 'first') {
+            const menu = trigger?.nextElementSibling;
+            const items = getDropdownItems(menu);
+            if (!items.length) return;
+            const target = position === 'last' ? items[items.length - 1] : items[0];
+            target.focus();
+        }
+
+        window.handleSidebarDropdownKeydown = function handleSidebarDropdownKeydown(event, trigger) {
+            if (event.key === 'Enter' || event.key === ' ' || event.key === 'ArrowDown') {
+                event.preventDefault();
+                const menu = trigger.nextElementSibling;
+                const shouldOpen = menu?.classList.contains('hidden');
+                if (shouldOpen) {
+                    openDropDown(event, trigger);
+                }
+                setTimeout(() => focusDropdownItem(trigger), 20);
+            }
+
+            if (event.key === 'ArrowUp') {
+                event.preventDefault();
+                const menu = trigger.nextElementSibling;
+                if (menu?.classList.contains('hidden')) {
+                    openDropDown(event, trigger);
+                }
+                setTimeout(() => focusDropdownItem(trigger, 'last'), 20);
+            }
+
+            if (event.key === 'Escape') {
+                event.preventDefault();
+                closeAllDropdowns();
+                trigger.focus();
+            }
+        };
+
+        document.addEventListener('keydown', event => {
+            const menu = event.target.closest?.('.dropdownMenu');
+            if (!menu) return;
+
+            const trigger = menu.previousElementSibling;
+            const items = getDropdownItems(menu);
+            const currentIndex = items.indexOf(event.target);
+
+            if (event.key === 'Escape') {
+                event.preventDefault();
+                closeAllDropdowns();
+                trigger?.focus();
+                return;
+            }
+
+            if (!items.length) return;
+
+            if (event.key === 'ArrowDown') {
+                event.preventDefault();
+                items[(currentIndex + 1) % items.length].focus();
+            }
+
+            if (event.key === 'ArrowUp') {
+                event.preventDefault();
+                items[(currentIndex - 1 + items.length) % items.length].focus();
+            }
+
+            if (event.key === 'Home') {
+                event.preventDefault();
+                items[0].focus();
+            }
+
+            if (event.key === 'End') {
+                event.preventDefault();
+                items[items.length - 1].focus();
+            }
+        });
+
         document.querySelectorAll('.dropdown-toggle').forEach(button => {
             button.addEventListener('click', () => {
                 document.querySelectorAll('.dropdown-menu').forEach(menu => {
                     if (menu !== button.nextElementSibling) {
                         menu.classList.add('hidden');
+                        menu.previousElementSibling?.setAttribute('aria-expanded', 'false');
                         menu.previousElementSibling.querySelector('i').classList.remove('rotate-180');
                     }
                 });
 
                 const dropdownMenu = button.nextElementSibling;
                 dropdownMenu.classList.toggle('hidden');
+                button.setAttribute('aria-expanded', dropdownMenu.classList.contains('hidden') ? 'false' : 'true');
                 button.querySelector('i').classList.toggle('rotate-180');
             });
         });
@@ -158,6 +247,7 @@
         function closeAllMobileMenuDropdowns() {
             document.querySelectorAll('.dropdown-menu').forEach(menu => {
                 menu.classList.add('hidden');
+                menu.previousElementSibling?.setAttribute('aria-expanded', 'false');
                 menu.previousElementSibling.querySelector('i').classList.remove('rotate-180');
             });
         }

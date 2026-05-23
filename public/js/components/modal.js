@@ -106,8 +106,37 @@ function createModal(data, animate = 'animate') {
                 <div class="flex justify-between">
                     <h5 id="name" class="text-2xl my-1 text-[var(--text-color)] capitalize font-semibold">${data.name}</h5>
                     ${data.searchFilter ? renderSearchFilter() : ''}
+                    ${data.basicSearch ? renderBasicSearch() : ''}
                 </div>
                 ${detailsHTML}
+        `;
+    }
+
+    function renderBasicSearch() {
+        return `
+            <div class="form-group relative" id="basicSearch">
+                <div class="relative flex gap-2 w-sm pt-0.5">
+                    <input
+                        type="text"
+                        placeholder="Search..."
+                        autocomplete="off"
+                        class="w-full rounded-lg bg-[var(--h-bg-color)] border-gray-600 text-[var(--text-color)] px-3 py-2 border focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-300 ease-in-out disabled:bg-transparent disabled:opacity-70 placeholder:capitalize"
+                        oninput="${data.onBasicSearch}"
+                    />
+
+                    <button
+                        type="button"
+                        class="bg-[var(--primary-color)] px-4 rounded-lg hover:bg-[var(--h-primary-color)] transition-all duration-300 ease-in-out cursor-pointer text-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        <i class="text-xs fa-solid fa-magnifying-glass"></i>
+                    </button>
+                </div>
+
+                <div
+                    id="search_box-error"
+                    class="text-[var(--border-error)] text-xs mt-1 hidden transition-all duration-300 ease-in-out"
+                ></div>
+            </div>
         `;
     }
 

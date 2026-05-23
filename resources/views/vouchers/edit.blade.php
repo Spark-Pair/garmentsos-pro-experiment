@@ -160,11 +160,11 @@
 <script>
         window.__vouchersEdit = {
             voucherType: @json($voucherType),
-            voucher: @json($voucher),
+            voucher: @json($voucherPayload),
             companyData: @json($client_company),
             companyLogoUrl: @json(asset('images/' . $client_company->logo)),
             companyLogoBase: @json(asset('images')),
-            selfAccounts: @json($self_accounts),
+            selfAccounts: @json($selfAccountsPayload),
             templates: @json($voucherTemplates),
         };
     </script>

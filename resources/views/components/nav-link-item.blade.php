@@ -11,7 +11,8 @@
 
 @if ($includesDropdown)
     <!-- Main Icon Button -->
-    <button onclick="openDropDown(event, this)"
+    <button type="button" onclick="openDropDown(event, this)" onkeydown="handleSidebarDropdownKeydown(event, this)"
+        aria-haspopup="menu" aria-expanded="false" aria-label="{{ $label }}"
         data-nav-label="{{ strtolower($label) }}"
         data-activators='@json(collect($activatorTags ?? [])->map(fn ($t) => strtolower($t))->values())'
         class="nav-link {{ strtolower($label) }} dropdown-trigger text-[var(--text-color)] p-3 rounded-[41.5%] group-hover:bg-[var(--h-bg-color)] transition-all duration-300 ease-in-out w-10 h-10 flex items-center justify-center cursor-pointer relative">
@@ -28,6 +29,7 @@
 
     <!-- Dropdown Menu -->
     <div
+        role="menu" aria-label="{{ $label }}"
         class="dropdownMenu text-sm absolute top-0 left-16 hidden border border-gray-600 w-48 bg-[var(--h-secondary-bg-color)] text-[var(--text-color)] shadow-lg rounded-2xl opacity-0 transform scale-95 transition-all duration-300 ease-in-out z-50">
         <ul class="p-2">
             @foreach ($items as $item)
@@ -45,6 +47,7 @@
                             @foreach ($item['children'] as $child)
                                 <li>
                                     <a href="{{ $child['href'] }}"
+                                        role="menuitem"
                                         class="block px-4 py-2 hover:bg-[var(--h-bg-color)] rounded-lg transition-all duration-200 ease-in-out">
                                         {{ $child['label'] }}
                                     </a>
@@ -55,6 +58,7 @@
                 @elseif ($item['type'] === 'link')
                     <li>
                         <a href="{{ $item['href'] }}"
+                            role="menuitem"
                             class="block px-4 py-2 hover:bg-[var(--h-bg-color)] rounded-lg transition-all duration-200 ease-in-out">
                             {{ $item['label'] }}
                         </a>
@@ -65,10 +69,19 @@
     </div>
 @else
     <!-- No Dropdown, Just Link -->
-    <a href="{{ $href }}" onclick="{{ $onclick }}"
-        data-nav-label="{{ strtolower($label) }}"
-        data-activators='@json(collect($activatorTags ?? [])->map(fn ($t) => strtolower($t))->values())'
-        class="nav-link {{ strtolower($label) }} text-[var(--text-color)] p-3 rounded-[41.5%] hover:bg-[var(--h-bg-color)] transition-all duration-300 ease-in-out w-10 h-10 flex items-center justify-center group relative">
+    @if ($href === '#' && $onclick)
+        <button type="button" onclick="{{ $onclick }}"
+            aria-label="{{ $label }}"
+            data-nav-label="{{ strtolower($label) }}"
+            data-activators='@json(collect($activatorTags ?? [])->map(fn ($t) => strtolower($t))->values())'
+            class="nav-link {{ strtolower($label) }} text-[var(--text-color)] p-3 rounded-[41.5%] hover:bg-[var(--h-bg-color)] transition-all duration-300 ease-in-out w-10 h-10 flex items-center justify-center group relative">
+    @else
+        <a href="{{ $href }}" onclick="{{ $onclick }}"
+            aria-label="{{ $label }}"
+            data-nav-label="{{ strtolower($label) }}"
+            data-activators='@json(collect($activatorTags ?? [])->map(fn ($t) => strtolower($t))->values())'
+            class="nav-link {{ strtolower($label) }} text-[var(--text-color)] p-3 rounded-[41.5%] hover:bg-[var(--h-bg-color)] transition-all duration-300 ease-in-out w-10 h-10 flex items-center justify-center group relative">
+    @endif
         @if ($icon)
             <i class="{{ $icon }} group-hover:text-[var(--primary-color)]"></i>
         @else
@@ -78,7 +91,11 @@
             class="absolute shadow-xl left-18 top-1/2 transform -translate-y-1/2 bg-[var(--h-secondary-bg-color)] border border-gray-600 text-[var(--text-color)] text-xs rounded-lg px-2 py-1 opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none text-nowrap">
             {{ $label }}
         </span>
-    </a>
+    @if ($href === '#' && $onclick)
+        </button>
+    @else
+        </a>
+    @endif
 @endif
 
 @once

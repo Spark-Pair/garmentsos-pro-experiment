@@ -2,7 +2,7 @@
 <footer class="w-full bg-[var(--secondary-bg-color)] px-6 py-4 md:py-2 shadow-lg z-30 text-sm fade-in">
     <div class="container mx-auto flex justify-between items-center">
         @if (request()->is('users/create') || request()->is('suppliers/create') || request()->is('employees/create') || request()->is('articles/create') || request()->is('rates/create') || request()->is('productions/create') || request()->is('articles/*/edit') || request()->is('customers/*/edit') || request()->is('suppliers/*/edit') || request()->is('orders/*/edit') || request()->is('employees/*/edit') || request()->is('customers/create') || request()->is('orders/create') || request()->is('cr/create') || request()->is('dr/create') || request()->is('shipments/create') || request()->is('shipments/*/edit') || request()->is('invoices/create') || request()->is('vouchers/create') || request()->is('vouchers/*/edit') || request()->is('cargos/create') || request()->is('reports/statement') || request()->is('reports/pending-payments') || request()->is('reports/physical-quantity') || request()->is('attendances/generate-slip') || request()->is('statement-adjustments/create'))
-            <button id="prevBtn" class="bg-[var(--h-bg-color)] text-[var(--text-color)] px-4 md:px-5 py-2 md:py-1 rounded-lg hover:scale-95 transition-all duration-300 ease-in-out flex items-center disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer" disabled>
+            <button id="prevBtn" type="button" class="bg-[var(--h-bg-color)] text-[var(--text-color)] px-4 md:px-5 py-2 md:py-1 rounded-lg hover:scale-95 transition-all duration-300 ease-in-out flex items-center disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer" disabled>
                 <i class='fas fa-angles-left mr-1'></i> <div class="bg-[var(--h-bg-color)] hidden md:block">Previous</div>
             </button>
         @endif
@@ -20,7 +20,7 @@
             </div>
             @if (request()->is('login'))
                 <div class="flex justify-center mx-5 fixed right-0">
-                    <button id="themeToggle" onclick="changeTheme()" class="text-sm text-[var(--secondary-text)] hover:text-[var(--primary-color)] cursor-pointer">
+                    <button id="themeToggle" type="button" onclick="changeTheme()" class="text-sm text-[var(--secondary-text)] hover:text-[var(--primary-color)] cursor-pointer">
                         <i class="fas fa-moon"></i>
                     </button>
                 </div>
@@ -28,12 +28,12 @@
         </div>
         <div class="flex items-center gap-3">
             @if (request()->is('reports/statement') || request()->is('reports/pending-payments') || request()->is('reports/physical-quantity') || request()->is('attendances/generate-slip'))
-                <button id="printBtn" class="bg-[var(--success-color)] text-[#e2e8f0] px-4 md:px-5 py-2 md:py-1 rounded-lg hover:bg-[var(--h-success-color)] hover:scale-95 transition-all duration-300 ease-in-out flex items-center gap-1 hidden cursor-pointer" onclick="onClickOnPrintBtn()">
+                <button id="printBtn" type="button" class="bg-[var(--success-color)] text-[#e2e8f0] px-4 md:px-5 py-2 md:py-1 rounded-lg hover:bg-[var(--h-success-color)] hover:scale-95 transition-all duration-300 ease-in-out flex items-center gap-1 hidden cursor-pointer" onclick="onClickOnPrintBtn()">
                     <i class='fas fa-print'></i> <div class="text-[#e2e8f0] hidden md:block">Print</div>
                 </button>
             @endif
             @if (request()->is('invoices/create') || request()->is('cargos/create'))
-                <button id="printAndSaveBtn" class="bg-[var(--success-color)] text-[#e2e8f0] px-4 md:px-5 py-2 md:py-1 rounded-lg hover:bg-[var(--h-success-color)] hover:scale-95 transition-all duration-300 ease-in-out flex items-center gap-1 hidden cursor-pointer">
+                <button id="printAndSaveBtn" type="button" class="bg-[var(--success-color)] text-[#e2e8f0] px-4 md:px-5 py-2 md:py-1 rounded-lg hover:bg-[var(--h-success-color)] hover:scale-95 transition-all duration-300 ease-in-out flex items-center gap-1 hidden cursor-pointer">
                     <i class='fas fa-save'></i> <div class="text-[#e2e8f0] hidden md:block">Print & Save</div>
                 </button>
             @endif
@@ -43,12 +43,12 @@
                 </button>
             @endif --}}
             @if (request()->is('users/create') || request()->is('suppliers/create') || request()->is('employees/create') || request()->is('articles/create') || request()->is('rates/create') || request()->is('productions/create') || request()->is('articles/*/edit') || request()->is('customers/*/edit') || request()->is('suppliers/*/edit') || request()->is('orders/*/edit') || request()->is('employees/*/edit') || request()->is('customers/create') || request()->is('orders/create') || request()->is('cr/create') || request()->is('dr/create') || request()->is('shipments/create') || request()->is('shipments/*/edit') || request()->is('invoices/create') || request()->is('vouchers/create') || request()->is('vouchers/*/edit') || request()->is('cargos/create'))
-                <button id="saveBtn" class="bg-[var(--success-color)] text-[#e2e8f0] px-4 md:px-5 py-2 md:py-1 rounded-lg hover:bg-[var(--h-success-color)] hover:scale-95 transition-all duration-300 ease-in-out flex items-center gap-1 hidden cursor-pointer">
+                <button id="saveBtn" type="button" class="bg-[var(--success-color)] text-[#e2e8f0] px-4 md:px-5 py-2 md:py-1 rounded-lg hover:bg-[var(--h-success-color)] hover:scale-95 transition-all duration-300 ease-in-out flex items-center gap-1 hidden cursor-pointer">
                     <i class='fas fa-save'></i> <div class="text-[#e2e8f0] hidden md:block">Save</div>
                 </button>
             @endif
             @if (request()->is('users/create') || request()->is('suppliers/create') || request()->is('employees/create') || request()->is('articles/create') || request()->is('rates/create') || request()->is('productions/create') || request()->is('articles/*/edit') || request()->is('customers/*/edit') || request()->is('suppliers/*/edit') || request()->is('orders/*/edit') || request()->is('employees/*/edit') || request()->is('customers/create') || request()->is('orders/create') || request()->is('cr/create') || request()->is('dr/create') || request()->is('shipments/create') || request()->is('shipments/*/edit') || request()->is('invoices/create') || request()->is('vouchers/create') || request()->is('vouchers/*/edit') || request()->is('cargos/create') || request()->is('reports/statement') || request()->is('reports/pending-payments') || request()->is('reports/physical-quantity') || request()->is('attendances/generate-slip') || request()->is('statement-adjustments/create'))
-                <button id="nextBtn" class="bg-[var(--primary-color)] text-[var(--text-color)] px-4 md:px-5 py-2 md:py-1 rounded-lg hover:bg-[var(--h-primary-color)] hover:scale-95 transition-all duration-300 ease-in-out flex items-center gap-1 cursor-pointer">
+                <button id="nextBtn" type="button" class="bg-[var(--primary-color)] text-[var(--text-color)] px-4 md:px-5 py-2 md:py-1 rounded-lg hover:bg-[var(--h-primary-color)] hover:scale-95 transition-all duration-300 ease-in-out flex items-center gap-1 cursor-pointer">
                     <div class="text-[#e2e8f0] hidden md:block">Next</div> <i class='fas fa-angles-right'></i>
                 </button>
             @endif

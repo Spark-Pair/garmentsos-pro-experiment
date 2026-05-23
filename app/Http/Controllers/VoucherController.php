@@ -457,9 +457,10 @@ class VoucherController extends Controller
         $cheques_options = [];
 
         foreach ($cheques as $cheque) {
+            $chequePayload = $this->formatVoucherCustomerPaymentPayload($cheque);
             $cheques_options[(int)$cheque->id] = [
                 'text' => $cheque->amount . ' | ' . $cheque->customer->customer_name . ' | ' . $cheque->customer->city->title . ' | ' . $cheque->cheque_no . ' | ' . date('d-M-Y D', strtotime($cheque->cheque_date)),
-                'data_option' => $cheque->makeHidden('creator'),
+                'data_option' => $chequePayload,
             ];
         }
 
@@ -467,20 +468,26 @@ class VoucherController extends Controller
         $slips_options = [];
 
         foreach ($slips as $slip) {
+            $slipPayload = $this->formatVoucherCustomerPaymentPayload($slip);
             $slips_options[(int)$slip->id] = [
                 'text' => $slip->amount . ' | ' . $slip->customer->customer_name . ' | ' . $slip->customer->city->title . ' | ' . $slip->slip_no . ' | ' . date('d-M-Y D', strtotime($slip->slip_date)),
-                'data_option' => $slip->makeHidden('creator'),
+                'data_option' => $slipPayload,
             ];
         }
 
-        $self_accounts = BankAccount::where('category', 'self')->with('bank')->get()->makeHidden('creator');
+        $self_accounts = BankAccount::where('category', 'self')->with('bank')->get();
+        $selfAccountsPayload = $self_accounts
+            ->map(fn ($account) => $this->formatVoucherBankAccountPayload($account))
+            ->values()
+            ->all();
 
         $self_accounts_options = [];
 
         foreach ($self_accounts as $account) {
+            $accountPayload = $this->formatVoucherBankAccountPayload($account);
             $self_accounts_options[(int)$account->id] = [
                 'text' => $account->account_title . ' - ' . $account->bank->short_title,
-                'data_option' => $account,
+                'data_option' => $accountPayload,
             ];
         }
 
@@ -494,7 +501,146 @@ class VoucherController extends Controller
             $user->save();
         }
 
-        return view("vouchers.edit", compact('voucher', 'cheques_options', 'slips_options', 'self_accounts', 'self_accounts_options'));
+        $voucherPayload = $this->formatVoucherEditPayload($voucher);
+
+        return view("vouchers.edit", compact('voucher', 'voucherPayload', 'cheques_options', 'slips_options', 'selfAccountsPayload', 'self_accounts_options'));
+    }
+
+    private function formatVoucherEditPayload(Voucher $voucher): array
+    {
+        return [
+            'id' => $voucher->id,
+            'voucher_no' => $voucher->voucher_no,
+            'supplier_id' => $voucher->supplier_id,
+            'date' => optional($voucher->date)->toJSON(),
+            'supplier' => $voucher->supplier ? $this->formatVoucherSupplierPayload($voucher->supplier) : null,
+            'payments' => $voucher->payments
+                ? $voucher->payments->map(fn ($payment) => $this->formatVoucherSupplierPaymentPayload($payment))->values()->all()
+                : [],
+        ];
+    }
+
+    private function formatVoucherSupplierPayload(Supplier $supplier): array
+    {
+        return [
+            'id' => $supplier->id,
+            'supplier_name' => $supplier->supplier_name,
+            'date' => optional($supplier->date)->toJSON(),
+            'balance' => (float) ($supplier->balance_at_date ?? 0),
+            'balance_at_date' => (float) ($supplier->balance_at_date ?? 0),
+            'payments' => $supplier->payments
+                ? $supplier->payments->map(fn ($payment) => $this->formatVoucherSupplierPaymentPayload($payment))->values()->all()
+                : [],
+            'expenses' => $supplier->expenses
+                ? $supplier->expenses->map(fn ($expense) => $this->formatVoucherExpensePayload($expense))->values()->all()
+                : [],
+        ];
+    }
+
+    private function formatVoucherSupplierPaymentPayload(SupplierPayment $payment): array
+    {
+        return [
+            'id' => $payment->id,
+            'payment_id' => $payment->id,
+            'supplier_id' => $payment->supplier_id,
+            'voucher_id' => $payment->voucher_id,
+            'date' => optional($payment->date)->toJSON(),
+            'method' => $payment->method,
+            'amount' => (float) ($payment->amount ?? 0),
+            'reff_no' => $payment->reff_no,
+            'cheque_no' => $payment->cheque_no,
+            'cheque_id' => $payment->cheque_id,
+            'slip_id' => $payment->slip_id,
+            'program_id' => $payment->program_id,
+            'bank_account_id' => $payment->bank_account_id,
+            'self_account_id' => $payment->self_account_id,
+            'transaction_id' => $payment->transaction_id,
+            'remarks' => $payment->remarks,
+            'cheque' => $payment->cheque ? $this->formatVoucherCustomerPaymentPayload($payment->cheque) : null,
+            'slip' => $payment->slip ? $this->formatVoucherCustomerPaymentPayload($payment->slip) : null,
+            'program' => $payment->program ? $this->formatVoucherPaymentProgramPayload($payment->program) : null,
+            'bank_account' => $payment->bankAccount ? $this->formatVoucherBankAccountPayload($payment->bankAccount) : null,
+            'self_account' => $payment->selfAccount ? $this->formatVoucherBankAccountPayload($payment->selfAccount) : null,
+        ];
+    }
+
+    private function formatVoucherCustomerPaymentPayload(CustomerPayment $payment): array
+    {
+        return [
+            'id' => $payment->id,
+            'customer_id' => $payment->customer_id,
+            'date' => optional($payment->date)->toJSON(),
+            'method' => $payment->method,
+            'type' => $payment->type,
+            'amount' => (float) ($payment->amount ?? 0),
+            'cheque_no' => $payment->cheque_no,
+            'slip_no' => $payment->slip_no,
+            'reff_no' => $payment->reff_no,
+            'transaction_id' => $payment->transaction_id,
+            'cheque_date' => optional($payment->cheque_date)->toJSON(),
+            'slip_date' => optional($payment->slip_date)->toJSON(),
+            'remarks' => $payment->remarks,
+            'customer' => $payment->customer ? [
+                'id' => $payment->customer->id,
+                'customer_name' => $payment->customer->customer_name,
+                'city' => $payment->customer->city ? [
+                    'id' => $payment->customer->city->id,
+                    'title' => $payment->customer->city->title,
+                    'short_title' => $payment->customer->city->short_title,
+                ] : null,
+            ] : null,
+        ];
+    }
+
+    private function formatVoucherPaymentProgramPayload($program): array
+    {
+        return [
+            'id' => $program->id,
+            'program_no' => $program->program_no,
+            'customer_id' => $program->customer_id,
+            'date' => optional($program->date)->toJSON(),
+            'customer' => $program->customer ? [
+                'id' => $program->customer->id,
+                'customer_name' => $program->customer->customer_name,
+                'city' => $program->customer->city ? [
+                    'id' => $program->customer->city->id,
+                    'title' => $program->customer->city->title,
+                    'short_title' => $program->customer->city->short_title,
+                ] : null,
+            ] : null,
+        ];
+    }
+
+    private function formatVoucherBankAccountPayload(BankAccount $account): array
+    {
+        return [
+            'id' => $account->id,
+            'category' => $account->category,
+            'account_title' => $account->account_title,
+            'account_no' => $account->account_no,
+            'date' => optional($account->date)->toJSON(),
+            'balance' => (float) ($account->balance ?? 0),
+            'available_cheques' => $account->available_cheques ?? [],
+            'bank' => $account->bank ? [
+                'id' => $account->bank->id,
+                'title' => $account->bank->title,
+                'short_title' => $account->bank->short_title,
+            ] : null,
+        ];
+    }
+
+    private function formatVoucherExpensePayload(Expense $expense): array
+    {
+        return [
+            'id' => $expense->id,
+            'date' => optional($expense->date)->toJSON(),
+            'supplier_id' => $expense->supplier_id,
+            'expense' => $expense->expense,
+            'reff_no' => $expense->reff_no,
+            'amount' => (float) ($expense->amount ?? 0),
+            'lot_no' => $expense->lot_no,
+            'remarks' => $expense->remarks,
+        ];
     }
 
     /**

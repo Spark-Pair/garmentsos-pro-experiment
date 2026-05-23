@@ -74,6 +74,7 @@ function openDropDown(e, trigger) {
 
     if (relatedDropDownMenu.classList.contains('hidden')) {
         closeAllDropdowns(relatedDropDownMenu);
+        trigger?.setAttribute('aria-expanded', 'true');
         relatedDropDownMenu.classList.remove('hidden');
         setTimeout(() => {
             relatedDropDownMenu.classList.add('opacity-100', 'scale-in');
@@ -81,6 +82,7 @@ function openDropDown(e, trigger) {
             focusFirstDropdownField(relatedDropDownMenu);
         }, 10);
     } else {
+        trigger?.setAttribute('aria-expanded', 'false');
         relatedDropDownMenu.classList.remove('opacity-100', 'scale-in');
         relatedDropDownMenu.classList.add('opacity-0', 'scale-out');
         setTimeout(() => {
@@ -93,6 +95,8 @@ function closeAllDropdowns(skipElement = null) {
     const dropdownMenus = document.querySelectorAll('.dropdownMenu');
     dropdownMenus.forEach(menu => {
         if (menu === skipElement) return;
+        const trigger = menu.previousElementSibling;
+        trigger?.setAttribute?.('aria-expanded', 'false');
         menu.classList.remove('opacity-100', 'scale-in');
         menu.classList.add('opacity-0', 'scale-out');
         setTimeout(() => {
@@ -173,6 +177,39 @@ const previewFileName = (event) => {
 };
 
 function initGlobalUI() {
+    function isNativeInteractive(element) {
+        return ['A', 'BUTTON', 'INPUT', 'SELECT', 'TEXTAREA', 'SUMMARY'].includes(element.tagName);
+    }
+
+    function isTypingTarget(element) {
+        return element.closest('input, textarea, select, [contenteditable="true"]');
+    }
+
+    function hydrateKeyboardActions(root = document) {
+        root.querySelectorAll?.('[data-keyboard-action="true"], [role="button"], #table-head > .cursor-pointer').forEach(element => {
+            if (isNativeInteractive(element)) return;
+            if (!element.hasAttribute('tabindex')) {
+                element.setAttribute('tabindex', '0');
+            }
+            if (!element.hasAttribute('role')) {
+                element.setAttribute('role', 'button');
+            }
+        });
+    }
+
+    hydrateKeyboardActions();
+
+    const observer = new MutationObserver(mutations => {
+        mutations.forEach(mutation => {
+            mutation.addedNodes.forEach(node => {
+                if (node.nodeType === Node.ELEMENT_NODE) {
+                    hydrateKeyboardActions(node);
+                }
+            });
+        });
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+
     document.addEventListener('focus', function(event) {
         if (!event.isTrusted) return;
         if (event.target.matches('input[type=\"date\"]')) {
@@ -181,6 +218,15 @@ function initGlobalUI() {
             try { event.target.showPicker(); } catch (_) {}
         }
     }, true);
+
+    document.addEventListener('keydown', function(event) {
+        if (isTypingTarget(event.target)) return;
+
+        if ((event.key === 'Enter' || event.key === ' ') && event.target.matches('[role="button"]')) {
+            event.preventDefault();
+            event.target.click();
+        }
+    });
 
     document.addEventListener('contextmenu', e => e.preventDefault());
 }

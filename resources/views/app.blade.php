@@ -301,6 +301,18 @@
             fill: var(--primary-color) !important;
         }
 
+        :where(a, button, input, select, textarea, [role="button"], [tabindex]):focus-visible {
+            outline: 2px solid var(--primary-color);
+            outline-offset: 3px;
+            box-shadow: 0 0 0 4px color-mix(in srgb, var(--primary-color) 22%, transparent);
+        }
+
+        .nav-link:focus-visible,
+        .dropdownMenu :where(a, button):focus-visible {
+            background-color: var(--h-bg-color) !important;
+            color: var(--primary-color) !important;
+        }
+
         .nav-link.active:hover i {
             color: var(--h-primary-color) !important;
         }
@@ -498,7 +510,7 @@
                 /> --}}
             </div>
             <div class="left_actions absolute top-5 left-5 flex gap-2">
-                <div id="go_back_button" class="border border-gray-600 group bg-[var(--bg-color)] h-full rounded-xl cursor-pointer flex items-center justify-end p-1 overflow-hidden hover:pr-3 transition-all duration-300 ease-in-out">
+                <button id="go_back_button" type="button" aria-label="Go Back" class="border border-gray-600 group bg-[var(--bg-color)] h-full rounded-xl cursor-pointer flex items-center justify-end p-1 overflow-hidden hover:pr-3 transition-all duration-300 ease-in-out">
                     <div class="flex items-center justify-center bg-[var(--h-bg-color)] rounded-lg p-2">
                         <svg class="size-3 transition-all duration-300 ease-in-out group-hover:size-2.5 fill-[var(--secondary-text)]"
                         xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
@@ -508,8 +520,8 @@
                     <span class="inline-block max-w-0 opacity-0 overflow-hidden whitespace-nowrap transition-all duration-300 ease-in-out group-hover:opacity-100 group-hover:max-w-[200px] group-hover:ml-2">
                         Go Back
                     </span>
-                </div>
-                <div id="refresh_button" class="border border-gray-600 group bg-[var(--bg-color)] h-full rounded-xl cursor-pointer flex items-center justify-end p-1 overflow-hidden hover:pr-3 transition-all duration-300 ease-in-out">
+                </button>
+                <button id="refresh_button" type="button" aria-label="Refresh" class="border border-gray-600 group bg-[var(--bg-color)] h-full rounded-xl cursor-pointer flex items-center justify-end p-1 overflow-hidden hover:pr-3 transition-all duration-300 ease-in-out">
                     <div class="flex items-center justify-center bg-[var(--h-bg-color)] rounded-lg p-2">
                         <svg class="size-3 transition-all duration-300 ease-in-out group-hover:size-2.5 fill-[var(--secondary-text)]" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
                             <g>
@@ -519,9 +531,9 @@
                         </svg>
                     </div>
                     <span class="inline-block max-w-0 opacity-0 overflow-hidden whitespace-nowrap transition-all duration-300 ease-in-out group-hover:opacity-100 group-hover:max-w-[200px] group-hover:ml-2">
-                        Refersh
+                        Refresh
                     </span>
-                </div>
+                </button>
             </div>
             <div class="main-child grow">
                 @yield('content')

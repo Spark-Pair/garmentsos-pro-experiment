@@ -9,8 +9,9 @@ function createCard(data) {
         partially_invoiced: ['bg-[var(--border-success)]', 'text-[var(--border-success)]'],
     };
 
+    const hasClickAction = Boolean(data.onclick);
     let clutter = `
-        <div id="${data.id}" data-json='${jsonAttr(data)}' oncontextmenu='${htmlAttr(data.oncontextmenu || "")}' class="item card ${data.subMenu ? 'no-translate' : ''} relative border border-gray-600 shadow rounded-xl min-w-[100px] ${!data.image ? "h-full" : "h-[8rem]"} p-4 cursor-pointer overflow-hidden fade-in" onclick='${htmlAttr(data.onclick || "")}'>
+        <div id="${data.id}" data-json='${jsonAttr(data)}' oncontextmenu='${htmlAttr(data.oncontextmenu || "")}' ${hasClickAction ? 'role="button" tabindex="0" data-keyboard-action="true"' : ''} class="item card ${data.subMenu ? 'no-translate' : ''} relative border border-gray-600 shadow rounded-xl min-w-[100px] ${!data.image ? "h-full" : "h-[8rem]"} p-4 cursor-pointer overflow-hidden fade-in" onclick='${htmlAttr(data.onclick || "")}'>
 
         ${!data.checkbox ? `
             <button type="button" class="absolute bottom-0 right-0 rounded-full w-[25%] aspect-square flex items-center justify-center text-lg translate-x-1/4 translate-y-1/4 transition-all duration-200 ease-in-out cursor-pointer">

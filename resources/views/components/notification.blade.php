@@ -19,7 +19,7 @@
         @endif
     </div>
 
-    <button class="absolute top-2.5 right-3.5 text-md opacity-60 hover:opacity-100 transition-all duration-300 ease-in-out cursor-pointer" onclick="this.parentElement.remove()">
+    <button type="button" class="absolute top-2.5 right-3.5 text-md opacity-60 hover:opacity-100 transition-all duration-300 ease-in-out cursor-pointer" onclick="this.parentElement.remove()">
         <i class="fas fa-xmark"></i>
     </button>
 </div>
