@@ -96,19 +96,36 @@ class PaymentProgramController extends Controller
         }
 
         $customers = Customer::with('city:id,title')
+            ->withSum('invoices as total_invoice_amount', 'netAmount')
+            ->withSum(['payments as total_paid_amount' => fn($q) => $q->where('type', '!=', 'DR')], 'amount')
+            ->withSum(['statementAdjustments as adjustment_plus_amount' => fn($q) => $q->where('direction', 'plus')], 'amount')
+            ->withSum(['statementAdjustments as adjustment_minus_amount' => fn($q) => $q->where('direction', 'minus')], 'amount')
             ->whereHas('user', function ($query) {
                 $query->where('status', 'active');
             })
-            ->select('id', 'customer_name', 'city_id')
-            ->get()
-            ->makeHidden('creator');
+            ->select('id', 'customer_name', 'date', 'city_id')
+            ->get();
 
         $customers_options = [];
 
         foreach ($customers as $customer) {
+            $balance = (float) ($customer->total_invoice_amount ?? 0)
+                - (float) ($customer->total_paid_amount ?? 0)
+                + (float) ($customer->adjustment_plus_amount ?? 0)
+                - (float) ($customer->adjustment_minus_amount ?? 0);
+
             $customers_options[(int)$customer->id] = [
-                'text' => $customer->customer_name . ' | ' . ($customer->city->title ?? 'N/A') . ' | Balance: ' . \App\Support\Money::format($customer->balance),
-                'data_option' => $customer
+                'text' => $customer->customer_name . ' | ' . ($customer->city->title ?? 'N/A') . ' | Balance: ' . \App\Support\Money::format($balance),
+                'data_option' => [
+                    'id' => $customer->id,
+                    'customer_name' => $customer->customer_name,
+                    'date' => $customer->date?->format('Y-m-d'),
+                    'balance' => $balance,
+                    'city' => [
+                        'id' => $customer->city?->id,
+                        'title' => $customer->city?->title,
+                    ],
+                ],
             ];
         }
 

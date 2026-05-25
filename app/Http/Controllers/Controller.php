@@ -199,7 +199,10 @@ class Controller extends BaseController
         }
 
         // Load order with customer, city, and articles
-        $order = Order::with('customer.city', 'articles.article')
+        $order = Order::with([
+            'customer.city',
+            'articles.article' => fn ($q) => $q->withSum('invoiceArticles as sold_pcs', 'invoice_pcs'),
+        ])
             ->where("order_no", $request->order_no)
             ->first();
 
@@ -263,7 +266,7 @@ class Controller extends BaseController
             return response()->json(['error' => 'No articles found for this order.']);
         }
 
-        return response()->json($order);
+        return response()->json($this->formatOrderDetailsPayload($order));
     }
 
     public function getProgramDetails(Request $request) {
@@ -370,7 +373,11 @@ class Controller extends BaseController
         }
 
         // Get shipment by number
-        $shipment = Shipment::where('shipment_no', $request->shipment_no)->with('articles.article')->first();
+        $shipment = Shipment::where('shipment_no', $request->shipment_no)
+            ->with([
+                'articles.article' => fn ($q) => $q->withSum('invoiceArticles as sold_pcs', 'invoice_pcs'),
+            ])
+            ->first();
 
         if (!$shipment) {
             return response()->json(['error' => 'Shipment not found']);
@@ -414,7 +421,11 @@ class Controller extends BaseController
             return response()->json(['error' => 'No articles found for this shipment']);
         }
 
-        $Allcustomers = Customer::with(['invoices.shipment', 'user', 'city'])
+        $Allcustomers = Customer::with(['invoices.shipment', 'user:id,status', 'city'])
+            ->withSum('invoices as total_invoice_amount', 'netAmount')
+            ->withSum(['payments as total_paid_amount' => fn($q) => $q->where('type', '!=', 'DR')], 'amount')
+            ->withSum(['statementAdjustments as adjustment_plus_amount' => fn($q) => $q->where('direction', 'plus')], 'amount')
+            ->withSum(['statementAdjustments as adjustment_minus_amount' => fn($q) => $q->where('direction', 'minus')], 'amount')
             ->whereIn('category', ['regular', 'site'])
             ->whereHas('user', function ($query) {
                 $query->where('status', 'active');
@@ -430,6 +441,7 @@ class Controller extends BaseController
                 });
             })
             // For 'all', no city filter
+            ->select('id', 'user_id', 'customer_name', 'urdu_title', 'category', 'phone_number', 'city_id')
             ->get();
 
         $Customers = $Allcustomers->filter(function ($customer) use ($shipment) {
@@ -439,13 +451,103 @@ class Controller extends BaseController
                 $invoice->shipment_no == $shipment->shipment_no ||
                 ($invoice->shipment && $invoice->shipment->date == $shipment->date);
             });
-        })->values()->toArray();
+        })->values()->map(fn ($customer) => $this->formatInvoiceCustomerPayload($customer))->toArray();
 
         return response()->json([
             'status' => 'success',
-            'shipment' => $shipment,
+            'shipment' => $this->formatShipmentDetailsPayload($shipment),
             'customers' => $Customers,
         ]);
+    }
+
+    private function formatOrderDetailsPayload(Order $order): array
+    {
+        return [
+            'id' => $order->id,
+            'order_no' => $order->order_no,
+            'date' => $order->date?->format('Y-m-d'),
+            'discount' => $order->discount,
+            'netAmount' => $order->netAmount,
+            'customer' => $this->formatInvoiceCustomerPayload($order->customer),
+            'articles' => $order->articles->map(fn ($item) => [
+                'id' => $item->id,
+                'article_id' => $item->article_id,
+                'description' => $item->description,
+                'ordered_pcs' => $item->ordered_pcs,
+                'dispatched_pcs' => $item->dispatched_pcs,
+                'total_quantity_in_packets' => $item->total_quantity_in_packets,
+                'article' => $this->formatInvoiceArticlePayload($item->article),
+            ])->values()->all(),
+        ];
+    }
+
+    private function formatShipmentDetailsPayload(Shipment $shipment): array
+    {
+        return [
+            'id' => $shipment->id,
+            'shipment_no' => $shipment->shipment_no,
+            'date' => $shipment->date?->format('Y-m-d'),
+            'discount' => $shipment->discount,
+            'netAmount' => $shipment->netAmount,
+            'city' => $shipment->city,
+            'articles' => collect($shipment->Articles)->map(fn ($item) => [
+                'id' => $item->id,
+                'shipment_id' => $item->shipment_id,
+                'article_id' => $item->article_id,
+                'description' => $item->description,
+                'shipment_pcs' => $item->shipment_pcs,
+                'available_stock' => $item->available_stock,
+                'article' => $this->formatInvoiceArticlePayload($item->article),
+            ])->values()->all(),
+        ];
+    }
+
+    private function formatInvoiceArticlePayload(?Article $article): ?array
+    {
+        if (!$article) {
+            return null;
+        }
+
+        return [
+            'id' => $article->id,
+            'article_no' => $article->article_no,
+            'pcs_per_packet' => $article->pcs_per_packet,
+            'sales_rate' => $article->sales_rate,
+            'category' => $article->category,
+            'season' => $article->season,
+            'size' => $article->size,
+            'image' => $article->image,
+        ];
+    }
+
+    private function formatInvoiceCustomerPayload(?Customer $customer): ?array
+    {
+        if (!$customer) {
+            return null;
+        }
+
+        $balance = (float) ($customer->total_invoice_amount ?? 0)
+            - (float) ($customer->total_paid_amount ?? 0)
+            + (float) ($customer->adjustment_plus_amount ?? 0)
+            - (float) ($customer->adjustment_minus_amount ?? 0);
+
+        return [
+            'id' => $customer->id,
+            'customer_name' => $customer->customer_name,
+            'urdu_title' => $customer->urdu_title,
+            'category' => $customer->category,
+            'phone_number' => $customer->phone_number,
+            'balance' => $balance,
+            'user' => $customer->user ? [
+                'id' => $customer->user->id,
+                'status' => $customer->user->status,
+            ] : null,
+            'city' => $customer->city ? [
+                'id' => $customer->city->id,
+                'title' => $customer->city->title,
+                'short_title' => $customer->city->short_title,
+            ] : null,
+        ];
     }
 
     public function getVoucherDetails(Request $request)

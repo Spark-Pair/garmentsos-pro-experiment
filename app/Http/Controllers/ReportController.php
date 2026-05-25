@@ -144,7 +144,7 @@ class ReportController extends Controller
             }
 
             $customer->load('city');
-            return response()->json([$customer]);
+            return response()->json([$this->formatNameOptionPayload($customer)]);
         }
 
         if ($this->isSupplierRole()) {
@@ -157,29 +157,53 @@ class ReportController extends Controller
                 return response()->json([], 200);
             }
 
-            return response()->json([$supplier]);
+            return response()->json([$this->formatNameOptionPayload($supplier)]);
         }
 
         if ($category === 'customer') {
             $customers = Customer::whereHas('user', function ($query) {
                 $query->where('status', 'active');
-            })->with('city')->get(); // select only needed fields
-            return response()->json($customers);
+            })->with('city')->get();
+            return response()->json($customers->map(fn ($customer) => $this->formatNameOptionPayload($customer))->values());
         }
 
         if ($category === 'supplier') {
             $suppliers = Supplier::whereHas('user', function ($query) {
                 $query->where('status', 'active');
             })->get();
-            return response()->json($suppliers);
+            return response()->json($suppliers->map(fn ($supplier) => $this->formatNameOptionPayload($supplier))->values());
         }
 
         if ($category === 'bank_account') {
             $bank_accounts = BankAccount::with('bank')->where('status', 'active')->get();
-            return response()->json($bank_accounts);
+            return response()->json($bank_accounts->map(fn ($account) => [
+                'id' => $account->id,
+                'account_title' => $account->account_title,
+                'category' => $account->category,
+                'bank' => [
+                    'id' => $account->bank?->id,
+                    'title' => $account->bank?->title,
+                    'short_title' => $account->bank?->short_title,
+                ],
+            ])->values());
         }
 
         return response()->json(['error' => 'Invalid category'], 400);
+    }
+
+    private function formatNameOptionPayload($record): array
+    {
+        return [
+            'id' => $record->id,
+            'customer_name' => $record->customer_name ?? null,
+            'supplier_name' => $record->supplier_name ?? null,
+            'date' => optional($record->date)->format('Y-m-d'),
+            'city' => $record->city ? [
+                'id' => $record->city->id,
+                'title' => $record->city->title,
+                'short_title' => $record->city->short_title,
+            ] : null,
+        ];
     }
     public function pendingPayments(Request $request)
     {

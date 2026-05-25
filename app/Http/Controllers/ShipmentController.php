@@ -58,13 +58,26 @@ class ShipmentController extends Controller
             $customers = Customer::with('city')
                 ->whereHas('user', fn($query) => $query->where('status', 'active'))
                 ->where('date', '<=', $request->date)
-                ->select('id', 'customer_name', 'city_id')
+                ->select('id', 'customer_name', 'person_name', 'urdu_title', 'phone_number', 'date', 'city_id', 'address')
                 ->get();
 
             foreach ($customers as $customer) {
                 $customers_options[(int)$customer->id] = [
                     'text' => $customer->customer_name . ' | ' . $customer->city->title,
-                    'data_option' => $customer
+                    'data_option' => [
+                        'id' => $customer->id,
+                        'customer_name' => $customer->customer_name,
+                        'person_name' => $customer->person_name,
+                        'urdu_title' => $customer->urdu_title,
+                        'phone_number' => $customer->phone_number,
+                        'address' => $customer->address,
+                        'date' => $customer->date?->format('Y-m-d'),
+                        'city' => [
+                            'id' => $customer->city?->id,
+                            'title' => $customer->city?->title,
+                            'short_title' => $customer->city?->short_title,
+                        ],
+                    ],
                 ];
             }
 
@@ -72,6 +85,8 @@ class ShipmentController extends Controller
                 ->where('sales_rate', '>', 0)
                 ->whereNotNull(['category', 'fabric_type'])
                 ->withSum('physicalQuantity as physical_packets', 'packets')
+                ->withSum('orderArticles as ordered_pcs', 'ordered_pcs')
+                ->withSum('invoiceArticles as sold_pcs', 'invoice_pcs')
                 ->orderByDesc('id')
                 ->get();
 

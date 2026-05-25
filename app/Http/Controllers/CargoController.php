@@ -48,6 +48,7 @@ class CargoController extends Controller
                     ->orWhere('cargo_name', '');
             })
             ->get()
+            ->map(fn ($invoice) => $this->formatInvoiceOptionPayload($invoice))
             ->values();
 
         $last_cargo = [];
@@ -59,6 +60,27 @@ class CargoController extends Controller
         }
 
         return view('cargos.generate', compact('invoices', 'last_cargo'));
+    }
+
+    private function formatInvoiceOptionPayload(Invoice $invoice): array
+    {
+        return [
+            'id' => $invoice->id,
+            'invoice_no' => $invoice->invoice_no,
+            'date' => $invoice->date?->format('Y-m-d'),
+            'cotton_count' => $invoice->cotton_count,
+            'cargo_name' => $invoice->cargo_name,
+            'shipment_no' => $invoice->shipment_no,
+            'customer' => $invoice->customer ? [
+                'id' => $invoice->customer->id,
+                'customer_name' => $invoice->customer->customer_name,
+                'city' => [
+                    'id' => $invoice->customer->city?->id,
+                    'title' => $invoice->customer->city?->title,
+                    'short_title' => $invoice->customer->city?->short_title,
+                ],
+            ] : null,
+        ];
     }
 
     /**

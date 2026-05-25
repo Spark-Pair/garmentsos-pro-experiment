@@ -238,7 +238,7 @@ class CustomerPaymentController extends Controller
             ->mapWithKeys(function ($bank) {
             return [(int)$bank->id => [
                 'text' => $bank->title,
-                'data_option' => $bank,
+                'data_option' => $this->formatSetupPayload($bank),
             ]];
         })->toArray();
 
@@ -250,6 +250,7 @@ class CustomerPaymentController extends Controller
             ->whereNotNull('customer_id')
             ->where('type', '!=', 'sales_return')
             ->first();
+        $lastRecordPayload = $lastRecord ? $this->formatLastPaymentPayload($lastRecord) : null;
 
         $programPayload = null;
         $programCustomerId = null;
@@ -289,7 +290,7 @@ class CustomerPaymentController extends Controller
 
                 $programCustomerId = $program->customer->id;
 
-                return view("customer-payments.create", compact("customers_options", "banks_options", 'lastRecord', 'programPayload', 'programCustomerId'));
+                return view("customer-payments.create", compact("customers_options", "banks_options", 'lastRecord', 'lastRecordPayload', 'programPayload', 'programCustomerId'));
             }
         }
 
@@ -305,14 +306,19 @@ class CustomerPaymentController extends Controller
                     'subCategory.bankAccounts.bank:id,short_title',
                 ]),
         ])
-            ->withSum('orders as total_order_amount', 'netAmount')
+            ->withSum('invoices as total_invoice_amount', 'netAmount')
             ->withSum(['payments as total_paid_amount' => fn($q) => $q->where('type', '!=', 'DR')], 'amount')
+            ->withSum(['statementAdjustments as adjustment_plus_amount' => fn($q) => $q->where('direction', 'plus')], 'amount')
+            ->withSum(['statementAdjustments as adjustment_minus_amount' => fn($q) => $q->where('direction', 'minus')], 'amount')
             ->whereHas('user', fn($q) => $q->where('status', 'active'))
             ->select('id', 'customer_name', 'date', 'city_id')
             ->get();
 
         $customers_options = $customers->mapWithKeys(function ($customer) {
-            $balance = (float) $customer->calculateBalance();
+            $balance = (float) ($customer->total_invoice_amount ?? 0)
+                - (float) ($customer->total_paid_amount ?? 0)
+                + (float) ($customer->adjustment_plus_amount ?? 0)
+                - (float) ($customer->adjustment_minus_amount ?? 0);
             $programs = $customer->paymentPrograms
                 ->map(fn($program) => $this->formatProgramPayload($program))
                 ->filter(fn($program) => ($program['balance'] ?? 0) > 0)
@@ -333,7 +339,7 @@ class CustomerPaymentController extends Controller
             ]];
         })->toArray();
 
-        return view("customer-payments.create", compact("customers_options", 'banks_options', 'lastRecord', 'programPayload', 'programCustomerId'));
+        return view("customer-payments.create", compact("customers_options", 'banks_options', 'lastRecord', 'lastRecordPayload', 'programPayload', 'programCustomerId'));
     }
 
     /**
@@ -480,7 +486,7 @@ class CustomerPaymentController extends Controller
             if ($bank) {
                 $banks_options[(int)$bank->id] = [
                     'text' => $bank->title,
-                    'data_option' => $bank,
+                    'data_option' => $this->formatSetupPayload($bank),
                 ];
             }
         }
@@ -950,6 +956,42 @@ class CustomerPaymentController extends Controller
                 'account_title' => $subCategory?->account_title ?? null,
                 'bank_accounts' => $bankAccountsPayload,
             ],
+        ];
+    }
+
+    private function formatSetupPayload(Setup $setup): array
+    {
+        return [
+            'id' => $setup->id,
+            'title' => $setup->title,
+            'short_title' => $setup->short_title ?? null,
+            'type' => $setup->type,
+        ];
+    }
+
+    private function formatLastPaymentPayload(CustomerPayment $payment): array
+    {
+        return [
+            'id' => $payment->id,
+            'customer_id' => $payment->customer_id,
+            'customer' => $payment->customer ? [
+                'id' => $payment->customer->id,
+                'customer_name' => $payment->customer->customer_name,
+            ] : null,
+            'date' => $payment->date?->format('Y-m-d'),
+            'type' => $payment->type,
+            'method' => $payment->method,
+            'amount' => $payment->amount,
+            'bank_id' => $payment->bank_id,
+            'program_id' => $payment->program_id,
+            'cheque_no' => $payment->cheque_no,
+            'slip_no' => $payment->slip_no,
+            'reff_no' => $payment->reff_no,
+            'transaction_id' => $payment->transaction_id,
+            'cheque_date' => $payment->cheque_date?->format('Y-m-d'),
+            'slip_date' => $payment->slip_date?->format('Y-m-d'),
+            'clear_date' => $payment->clear_date?->format('Y-m-d'),
+            'remarks' => $payment->remarks,
         ];
     }
 

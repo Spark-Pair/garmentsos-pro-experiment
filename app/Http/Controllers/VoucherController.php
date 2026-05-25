@@ -109,7 +109,7 @@ class VoucherController extends Controller
                     return [
                         'id' => (int)$cheque->id,
                         'text' => \App\Support\Money::format($cheque->amount) . ' | ' . $cheque->customer->customer_name . ' | ' . $cheque->customer->city->title . ' | ' . $cheque->cheque_no . ' | ' . date('d-M-Y D', strtotime($cheque->cheque_date)),
-                        'dataset' => $cheque->makeHidden('creator'),
+                        'dataset' => $this->formatVoucherCustomerPaymentPayload($cheque),
                     ];
                 })->values()->toArray();
             } else if ($paymentMethod == 'slip') {
@@ -123,7 +123,7 @@ class VoucherController extends Controller
                     return [
                         'id' => (int)$slip->id,
                         'text' => \App\Support\Money::format($slip->amount) . ' | ' . $slip->customer->customer_name . ' | ' . $slip->customer->city->title . ' | ' . $slip->slip_no . ' | ' . date('d-M-Y D', strtotime($slip->slip_date)),
-                        'dataset' => $slip->makeHidden('creator'),
+                        'dataset' => $this->formatVoucherCustomerPaymentPayload($slip),
                     ];
                 })->values()->toArray();
             } else if ($paymentMethod == 'purchase_return') {
@@ -136,7 +136,7 @@ class VoucherController extends Controller
                     return [
                         'id' => (int)$expense->id,
                         'text' => \App\Support\Money::format($expense->amount) . ' | ' . $expense->reff_no . ' | ' . date('d-M-Y D', strtotime($expense->date)),
-                        'dataset' => $expense,
+                        'dataset' => $this->formatVoucherExpensePayload($expense),
                     ];
                 })->values()->toArray();
             } else if ($paymentMethod === 'program') {
@@ -158,12 +158,6 @@ class VoucherController extends Controller
                     ->get();
 
                 $payments_options = $payments->map(function ($payment) {
-
-                    // 🔥 IMPORTANT: disable appends on PaymentProgram
-                    if ($payment->relationLoaded('program') && $payment->program) {
-                        $payment->program->setAppends([]);
-                    }
-
                     return [
                         'id' => (int)$payment->id,
                         'text' =>
@@ -172,7 +166,7 @@ class VoucherController extends Controller
                             ($payment->program?->customer?->city?->short_title ?? '-') . ' | ' .
                             ($payment->transaction_id ?? '-') . ' | ' .
                             optional($payment->date)->format('d-M-Y D'),
-                        'dataset' => $payment,
+                        'dataset' => $this->formatVoucherSupplierPaymentPayload($payment),
                     ];
                 })->values()->toArray();
             } else if ($paymentMethod == 'self_cheque' || $paymentMethod == 'atm') {
@@ -185,7 +179,7 @@ class VoucherController extends Controller
                     return [
                         'id' => (int)$account->id,
                         'text' => $account->account_title . ' | ' . $account->bank->short_title,
-                        'dataset' => $account,
+                        'dataset' => $this->formatVoucherBankAccountPayload($account),
                     ];
                 })->values()->toArray();
             }
@@ -214,7 +208,7 @@ class VoucherController extends Controller
             return [
                 (int)$account->id => [
                     'text' => $account->account_title . ' - ' . $account->bank->short_title,
-                    'data_option' => $account,
+                    'data_option' => $this->formatVoucherBankAccountPayload($account),
                 ]
             ];
         })->toArray();
@@ -227,7 +221,13 @@ class VoucherController extends Controller
                 return [
                     (int)$supplier->id => [
                         'text' => $supplier->supplier_name,
-                        'data_option' => $supplier,
+                        'data_option' => [
+                            'id' => $supplier->id,
+                            'supplier_name' => $supplier->supplier_name,
+                            'date' => optional($supplier->date)->toJSON(),
+                            'balance' => 0,
+                            'balance_at_date' => 0,
+                        ],
                     ]
                 ];
             })->toArray();

@@ -133,7 +133,14 @@
                         $dataOptionAttr = null;
                         if (isset($option['data_option'])) {
                             $rawDataOption = $option['data_option'];
-                            if (is_array($rawDataOption) || is_object($rawDataOption)) {
+                            if ($rawDataOption instanceof \Illuminate\Database\Eloquent\Model) {
+                                $dataOptionAttr = json_encode($rawDataOption->attributesToArray(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+                            } elseif ($rawDataOption instanceof \Illuminate\Support\Collection) {
+                                $safeCollection = $rawDataOption
+                                    ->map(fn ($item) => $item instanceof \Illuminate\Database\Eloquent\Model ? $item->attributesToArray() : $item)
+                                    ->all();
+                                $dataOptionAttr = json_encode($safeCollection, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+                            } elseif (is_array($rawDataOption) || is_object($rawDataOption)) {
                                 $dataOptionAttr = json_encode($rawDataOption, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
                             } else {
                                 $dataOptionAttr = (string) $rawDataOption;

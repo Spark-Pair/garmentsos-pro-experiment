@@ -142,7 +142,28 @@ class PhysicalQuantityController extends Controller
                 : 0;
 
             return $remaining > 0;
-        })->values();
+        })
+            ->map(fn ($article) => [
+                'id' => $article->id,
+                'article_no' => $article->article_no,
+                'date' => $article->date?->format('d-M-Y, D'),
+                'category' => $article->category,
+                'season' => $article->season,
+                'size' => $article->size,
+                'quantity' => $article->quantity,
+                'extra_pcs' => $article->extra_pcs,
+                'pcs_per_packet' => $article->pcs_per_packet,
+                'processed_by' => $article->processed_by,
+                'sales_rate' => $article->sales_rate,
+                'image' => $article->image,
+                'physical_packets' => $article->physical_packets,
+                'physical_quantity' => $article->physical_quantity,
+                'total_quantity' => $article->total_quantity,
+                'total_packets' => $article->total_packets,
+                'remaining_quantity' => $article->remaining_quantity,
+                'remaining_packets' => $article->remaining_packets,
+            ])
+            ->values();
         
         return view('physical-quantities.create', compact('articles'));
     }

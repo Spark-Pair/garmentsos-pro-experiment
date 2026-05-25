@@ -12,6 +12,10 @@ trait ArticleComputed
     public function orderedQuantity(): Attribute
     {
         return Attribute::get(function () {
+            if (array_key_exists('ordered_pcs', $this->attributes)) {
+                return (float) $this->attributes['ordered_pcs'];
+            }
+
             return $this->orderArticles()->sum('ordered_pcs');
         });
     }
@@ -19,6 +23,9 @@ trait ArticleComputed
     public function soldQuantity(): Attribute
     {
         return Attribute::get(function () {
+            if (array_key_exists('sold_pcs', $this->attributes)) {
+                return (float) $this->attributes['sold_pcs'];
+            }
 
             // 1️⃣ dispatched pcs from orders
             $dispatchedFromOrders = $this->orderArticles()

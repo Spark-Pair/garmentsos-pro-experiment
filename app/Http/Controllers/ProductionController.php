@@ -78,6 +78,7 @@ class ProductionController extends Controller
             }
             $articles = Article::whereNotNull('fabric_type')->whereNotNull('category')->with('production.work')->get();
         }
+        $articles->each->setAppends([]);
         $work_options = [];
         $workerTypes = Setup::where('type', 'worker_type')->get();
         foreach($workerTypes as $workerType) {

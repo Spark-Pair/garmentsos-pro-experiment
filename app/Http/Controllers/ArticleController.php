@@ -63,7 +63,7 @@ class ArticleController extends Controller
             $lastRecord = '';
         }
 
-        $articles = Article::all();
+        $articles = Article::select('id', 'article_no')->get();
 
         return view('articles.create', compact('lastRecord', 'articles'));
     }

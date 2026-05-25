@@ -122,7 +122,7 @@
                             value="{{ $lastRecord->remarks ?? 'No Remarks' }}" />
 
                         <div class="flex items-end">
-                            <button type="button" data-record='@json($lastRecord)' onclick="repeatThisRecord(this)"
+                            <button type="button" data-record='@json($lastRecordPayload)' onclick="repeatThisRecord(this)"
                                 class="w-full px-6 py-2 bg-[var(--bg-warning)] border border-[var(--bg-warning)] text-[var(--text-warning)] font-medium text-nowrap rounded-lg hover:bg-[var(--h-bg-warning)] hover:border-[var(--border-warning)] hover:scale-90 transition-all duration-300 ease-in-out cursor-pointer">
                                 <i class='fas fa-repeat mr-1'></i> Repeat
                             </button>

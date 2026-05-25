@@ -76,7 +76,7 @@ class CRController extends Controller
             foreach ($cheques as $cheque) {
                 $payment_options[(int)$cheque->id] = [
                     'text' => $cheque->amount . ' | ' . $cheque->customer->customer_name . ' | ' . $cheque->customer->city->title . ' | ' . $cheque->cheque_no . ' | ' . date('d-M-Y D', strtotime($cheque->cheque_date)),
-                    'data_option' => $cheque,
+                    'data_option' => $this->formatCustomerPaymentOptionPayload($cheque),
                 ];
             }
         } else if ($method === 'slip') {
@@ -85,32 +85,89 @@ class CRController extends Controller
             foreach ($slips as $slip) {
                 $payment_options[(int)$slip->id] = [
                     'text' => $slip->amount . ' | ' . $slip->customer->customer_name . ' | ' . $slip->customer->city->title . ' | ' . $slip->slip_no . ' | ' . date('d-M-Y D', strtotime($slip->slip_date)),
-                    'data_option' => $slip,
+                    'data_option' => $this->formatCustomerPaymentOptionPayload($slip),
                 ];
             }
         } else if ($method === 'self_cheque') {
-            $self_accounts = BankAccount::where('category', 'self')->get()->makeHidden('creator');
+            $self_accounts = BankAccount::where('category', 'self')->with('bank:id,title,short_title')->get();
 
             foreach ($self_accounts as $self_account) {
                 foreach ($self_account->available_cheques as $available_cheque) {
                     $payment_options[(int)$available_cheque] = [
                         'text' => $available_cheque . ' |' . explode('|', $self_account->account_title)[1],
-                        'data_option' => $self_account,
+                        'data_option' => $this->formatBankAccountOptionPayload($self_account),
                     ];
                 }
             }
         } else if ($method === 'program') {
-            $payments = SupplierPayment::where('supplier_id', $supplier_id)->with('program.customer')->where('method', 'program')->whereNull('voucher_id')->where('date', '<=', $maxDate)->get()->makeHidden('creator');
+            $payments = SupplierPayment::where('supplier_id', $supplier_id)
+                ->with('program.customer.city:id,title,short_title')
+                ->where('method', 'program')
+                ->whereNull('voucher_id')
+                ->where('date', '<=', $maxDate)
+                ->get();
 
             foreach ($payments as $payment) {
                 $payment_options[(int)$payment->id] = [
                     'text' => 'Rs. ' . \App\Support\Money::format($payment->amount) . ' | ' . $payment->program->customer->customer_name . ' | ' . $payment->program->customer->city->short_title,
-                    'data_option' => $payment,
+                    'data_option' => $this->formatSupplierPaymentOptionPayload($payment),
                 ];
             }
         }
 
         return view('cr.generate', compact('payment_options', 'voucher_options'));
+    }
+
+    private function formatCustomerPaymentOptionPayload(CustomerPayment $payment): array
+    {
+        return [
+            'id' => $payment->id,
+            'date' => $payment->date?->format('Y-m-d'),
+            'method' => $payment->method,
+            'amount' => $payment->amount,
+            'bank_account_id' => $payment->bank_account_id,
+            'cheque_no' => $payment->cheque_no,
+            'slip_no' => $payment->slip_no,
+            'reff_no' => $payment->cheque_no ?? $payment->slip_no ?? $payment->transaction_id ?? $payment->reff_no,
+            'cheque_date' => $payment->cheque_date?->format('Y-m-d'),
+            'slip_date' => $payment->slip_date?->format('Y-m-d'),
+            'customer' => $payment->customer ? [
+                'id' => $payment->customer->id,
+                'customer_name' => $payment->customer->customer_name,
+                'city' => [
+                    'id' => $payment->customer->city?->id,
+                    'title' => $payment->customer->city?->title,
+                    'short_title' => $payment->customer->city?->short_title,
+                ],
+            ] : null,
+        ];
+    }
+
+    private function formatSupplierPaymentOptionPayload(SupplierPayment $payment): array
+    {
+        return [
+            'id' => $payment->id,
+            'date' => $payment->date?->format('Y-m-d'),
+            'method' => $payment->method,
+            'amount' => $payment->amount,
+            'bank_account_id' => $payment->bank_account_id,
+            'transaction_id' => $payment->transaction_id,
+            'program_id' => $payment->program_id,
+        ];
+    }
+
+    private function formatBankAccountOptionPayload(BankAccount $account): array
+    {
+        return [
+            'id' => $account->id,
+            'category' => $account->category,
+            'account_title' => $account->account_title,
+            'bank' => [
+                'id' => $account->bank?->id,
+                'title' => $account->bank?->title,
+                'short_title' => $account->bank?->short_title,
+            ],
+        ];
     }
 
     /**
