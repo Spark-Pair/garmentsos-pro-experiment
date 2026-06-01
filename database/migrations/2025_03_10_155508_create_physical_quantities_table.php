@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
             $table->date('date');
             $table->unsignedBigInteger('article_id');
-            $table->integer('packets');
+            $table->decimal('packets', 10, 2);
             $table->string('category');
             $table->timestamps();
             

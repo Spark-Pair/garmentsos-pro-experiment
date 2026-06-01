@@ -152,7 +152,7 @@
             const modalData = {
                 id: "ReturnArticlesModal",
                 name: "Select Return Articles",
-                class: "h-[42rem] max-w-6xl",
+                class: "h-[85vh] max-h-[46rem] max-w-6xl",
                 info: `Selected: ${selectedReturns.length} lines / ${numberLess(getTotalQuantity())} PCs`,
                 basicSearch: true,
                 onBasicSearch: "filterReturnLinesModal(this.value)",
@@ -162,7 +162,7 @@
                         category: "explicitHtml",
                         full: true,
                         html: `
-                            <div id="return-lines-modal-table" class="w-full text-left text-sm">
+                            <div id="return-lines-modal-table" class="w-full h-[calc(85vh-11rem)] max-h-[36rem] flex flex-col text-left text-sm">
                                 <div id="table-head" class="flex justify-between items-center bg-[var(--h-bg-color)] rounded-lg py-2 px-4 mb-3 select-none">
                                     <div class="w-[4%] cursor-pointer" onclick="sortByThis(this)">#</div>
                                     <div class="w-[10%] cursor-pointer" onclick="sortByThis(this)">Invoice</div>
@@ -176,7 +176,7 @@
                                     <div class="w-[7%] text-right cursor-pointer" onclick="sortByThis(this)">Amount</div>
                                     <div class="w-[9%] text-right cursor-pointer" onclick="sortByThis(this)">Selected</div>
                                 </div>
-                                <div id="return-lines-modal-body" class="search_container h-[22.5rem] overflow-y-auto my-scrollbar-2">
+                                <div id="return-lines-modal-body" class="search_container flex-1 min-h-0 overflow-y-auto my-scrollbar-2">
                                     ${returnLinesModalRows(visibleLines)}
                                 </div>
                             </div>

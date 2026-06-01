@@ -10,6 +10,7 @@ use App\Models\PhysicalQuantity;
 use App\Models\SalesReturn;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 
@@ -82,6 +83,7 @@ class SalesReturnController extends Controller
 
         DB::transaction(function () use ($data, $returnLines, &$totalAmount) {
             $createdReturnIds = [];
+            $physicalQuantityLinksSalesReturn = Schema::hasColumn('physical_quantities', 'sales_return_id');
 
             foreach ($returnLines as $line) {
                 $invoiceId = (int) ($line['invoice_id'] ?? 0);
@@ -126,6 +128,12 @@ class SalesReturnController extends Controller
                 $amount = (int) round($quantity * $salesRate * (1 - ((float) $discount / 100)));
                 $pcsPerPacket = (float) ($invoiceArticle->article?->pcs_per_packet ?? 0);
 
+                if ($pcsPerPacket <= 0) {
+                    throw ValidationException::withMessages([
+                        'returns_data' => "Master unit is missing for {$invoiceArticle->article?->article_no}.",
+                    ]);
+                }
+
                 $salesReturn = SalesReturn::create([
                     'article_id' => $articleId,
                     'invoice_id' => $invoiceId,
@@ -135,15 +143,18 @@ class SalesReturnController extends Controller
                 ]);
                 $createdReturnIds[] = $salesReturn->id;
 
-                if ($pcsPerPacket > 0) {
-                    PhysicalQuantity::create([
-                        'date' => $data['date'],
-                        'article_id' => $articleId,
-                        'packets' => $quantity / $pcsPerPacket,
-                        'category' => 'sales_return',
-                        'sales_return_id' => $salesReturn->id,
-                    ]);
+                $physicalQuantityData = [
+                    'date' => $data['date'],
+                    'article_id' => $articleId,
+                    'packets' => $quantity / $pcsPerPacket,
+                    'category' => 'sales_return',
+                ];
+
+                if ($physicalQuantityLinksSalesReturn) {
+                    $physicalQuantityData['sales_return_id'] = $salesReturn->id;
                 }
+
+                PhysicalQuantity::create($physicalQuantityData);
 
                 $totalAmount += $amount;
             }

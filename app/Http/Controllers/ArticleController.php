@@ -303,7 +303,7 @@ class ArticleController extends Controller
         $validator = Validator::make($request->all(), [
             'article_id' => 'required|integer|exists:articles,id',
             "sales_rate" => 'required|numeric|min:0',
-            "pcs_per_packet" => 'required|numeric|min:0',
+            "pcs_per_packet" => 'required|numeric|min:1',
         ]);
 
         if ($validator->fails()) {

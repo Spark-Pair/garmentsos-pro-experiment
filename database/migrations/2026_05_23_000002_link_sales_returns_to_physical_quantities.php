@@ -12,6 +12,11 @@ return new class extends Migration
         if (!Schema::hasColumn('physical_quantities', 'sales_return_id')) {
             Schema::table('physical_quantities', function (Blueprint $table) {
                 $table->unsignedBigInteger('sales_return_id')->nullable();
+            });
+        }
+
+        if (!$this->indexExists('physical_quantities', 'physical_quantities_sales_return_id_index')) {
+            Schema::table('physical_quantities', function (Blueprint $table) {
                 $table->index('sales_return_id');
             });
         }
@@ -84,9 +89,40 @@ return new class extends Migration
     {
         if (Schema::hasColumn('physical_quantities', 'sales_return_id')) {
             Schema::table('physical_quantities', function (Blueprint $table) {
-                $table->dropIndex(['sales_return_id']);
+                if ($this->indexExists('physical_quantities', 'physical_quantities_sales_return_id_index')) {
+                    $table->dropIndex(['sales_return_id']);
+                }
+
                 $table->dropColumn('sales_return_id');
             });
         }
+    }
+
+    private function indexExists(string $table, string $index): bool
+    {
+        $driver = DB::getDriverName();
+
+        if ($driver === 'sqlite') {
+            return collect(DB::select("PRAGMA index_list({$table})"))
+                ->contains(fn ($row) => ($row->name ?? null) === $index);
+        }
+
+        if (in_array($driver, ['mysql', 'mariadb'], true)) {
+            return DB::table('information_schema.statistics')
+                ->whereRaw('table_schema = database()')
+                ->where('table_name', $table)
+                ->where('index_name', $index)
+                ->exists();
+        }
+
+        if ($driver === 'pgsql') {
+            return DB::table('pg_indexes')
+                ->whereRaw('schemaname = current_schema()')
+                ->where('tablename', $table)
+                ->where('indexname', $index)
+                ->exists();
+        }
+
+        return false;
     }
 };

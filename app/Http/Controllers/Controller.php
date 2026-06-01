@@ -391,6 +391,10 @@ class Controller extends BaseController
 
             if (!$article) continue;
 
+            if ((float) ($article['pcs_per_packet'] ?? 0) <= 0) {
+                return response()->json(['error' => 'Master unit is missing for article: ' . $article['article_no']]);
+            }
+
             // Total stock from PhysicalQuantity
             $totalPackets = PhysicalQuantity::where("article_id", $article['id'])->sum("packets");
 
