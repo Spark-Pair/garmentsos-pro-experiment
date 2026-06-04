@@ -112,7 +112,7 @@ Customer portal me:
 
 ### Balance entries (Opening Balance / Adjustment)
 - Entry type `adjustment` ho to date user select kar sakta hai
-- Entry type `opening_balance` ho to date auto set hoti hai: selected record ki “first transaction date” par (agar mil jaye)
+- Entry type `opening_balance` ho to date auto set hoti hai: selected record ki “first transaction date” se 1 din pehle (agar transaction date mil jaye)
 
 ## 5) Database (DB) – kya hai aur kahan hai?
 

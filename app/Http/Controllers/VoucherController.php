@@ -362,7 +362,7 @@ class VoucherController extends Controller
                             'date'           => $request->date,
                             'method'         => $paymentDetails['method'],
                             'amount'         => $paymentDetails['amount'],
-                            'atm_id'         => $customerPayment->id, // ya cheque_id — jo column use kar rahe ho
+                            'cheque_id'      => $customerPayment->id,
                             'remarks'        => $paymentDetails['remarks'],
                             'bank_account_id'=> $paymentDetails['bank_account_id'],
                             'self_account_id'=> $paymentDetails['self_account_id'],
@@ -697,19 +697,25 @@ class VoucherController extends Controller
                     CustomerPayment::where('id', $old->cheque_id)->delete();
                 }
 
-                // ATM — atm_id se linked CustomerPayment delete karo
-                if ($old->method === 'ATM' && $old->atm_id) {
-                    CustomerPayment::where('id', $old->atm_id)->delete();
+                // ATM self deposit is linked through cheque_id because supplier_payments has no atm_id column.
+                if ($old->method === 'ATM' && $old->cheque_id) {
+                    CustomerPayment::where('id', $old->cheque_id)->delete();
                 }
 
                 // Cash / Adjustment self deposit — cheque_id nahi hota, fields se match karo
                 if (in_array($old->method, ['Cash', 'Adjustment']) && !empty($old->self_account_id)) {
-                    CustomerPayment::where([
+                    $selfDeposit = CustomerPayment::where([
                         'type'           => 'self_account_deposit',
                         'method'         => $old->method,
                         'amount'         => $old->amount,
                         'bank_account_id'=> $old->self_account_id,
-                    ])->delete();
+                    ])
+                        ->whereDate('date', $old->date)
+                        ->where('remarks', $old->remarks)
+                        ->latest('id')
+                        ->first();
+
+                    $selfDeposit?->delete();
                 }
 
                 if (in_array($old->method, ['program', 'Program'])) {
@@ -771,8 +777,8 @@ class VoucherController extends Controller
 
                     if ($pd['method'] === 'Self Cheque') {
                         $cp = CustomerPayment::create(array_merge($cpBase, [
-                            'cheque_no'   => $pd['cheque']['cheque_no'] ?? null,   // fix
-                            'cheque_date' => $pd['cheque']['date'] ?? null, // fix
+                            'cheque_no'   => $pd['cheque_no'] ?? $pd['cheque']['cheque_no'] ?? null,
+                            'cheque_date' => $pd['cheque_date'] ?? $pd['cheque']['cheque_date'] ?? null,
                             'bank_account_id' => $pd['self_account_id'],
                         ]));
 
@@ -791,7 +797,7 @@ class VoucherController extends Controller
                         ]));
 
                         SupplierPayment::create(array_merge($pd, [
-                            'atm_id'  => $cp->id,
+                            'cheque_id'  => $cp->id,
                             'reff_no' => null,
                             'bank_account_id' => $pd['bank_account_id'],
                             'self_account_id' => $pd['self_account_id'],
@@ -814,6 +820,8 @@ class VoucherController extends Controller
                         $existing = SupplierPayment::find($pd['payment_id']);
                         if ($existing) {
                             $existing->update(['voucher_id' => $voucher->id]);
+                        } else {
+                            SupplierPayment::create($pd);
                         }
                     } else {
                         SupplierPayment::create($pd);

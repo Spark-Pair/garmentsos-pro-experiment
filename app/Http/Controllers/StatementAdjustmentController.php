@@ -63,7 +63,7 @@ class StatementAdjustmentController extends Controller
             return response()->json(['error' => 'Selected record not found.'], 404);
         }
 
-        $date = $this->resolveFirstTransactionDate($request->category, $adjustable);
+        $date = $this->resolveOpeningBalanceDate($request->category, $adjustable);
 
         return response()->json([
             'date' => $date?->toDateString(),
@@ -99,9 +99,9 @@ class StatementAdjustmentController extends Controller
 
         $resolvedDate = $request->date;
         if ($request->entry_type === 'opening_balance') {
-            $firstDate = $this->resolveFirstTransactionDate($request->category, $adjustable);
-            if ($firstDate) {
-                $resolvedDate = $firstDate->toDateString();
+            $openingBalanceDate = $this->resolveOpeningBalanceDate($request->category, $adjustable);
+            if ($openingBalanceDate) {
+                $resolvedDate = $openingBalanceDate->toDateString();
             }
         }
 
@@ -200,6 +200,13 @@ class StatementAdjustmentController extends Controller
         }
 
         return null;
+    }
+
+    private function resolveOpeningBalanceDate(string $category, $adjustable): ?Carbon
+    {
+        $firstDate = $this->resolveFirstTransactionDate($category, $adjustable);
+
+        return $firstDate?->copy()->subDay();
     }
 
     private function minVoucherDateForCustomerPayments(int $bankAccountId, string $mode): ?string
