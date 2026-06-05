@@ -331,6 +331,7 @@ class OrderController extends Controller
 
         $orderPayload = [
             'order_no' => $order->order_no,
+            'date' => $order->date?->format('Y-m-d'),
             'netAmount' => $order->netAmount,
             'customer' => [
                 'customer_name' => $order->customer?->customer_name,

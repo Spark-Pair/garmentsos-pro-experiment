@@ -186,18 +186,34 @@ class Supplier extends Model
             ? $this->worker->productions()->whereBetween('receive_date', [$start, $end])
             : null;
 
+        $normalizeDateValue = function ($value) {
+            if ($value instanceof \DateTimeInterface) {
+                return Carbon::instance($value);
+            }
+
+            if (!$value) {
+                return null;
+            }
+
+            return Carbon::parse(str_replace(';', ':', (string) $value));
+        };
+
+        $rawDate = fn($model, string $attribute) => $normalizeDateValue(
+            $model->getRawOriginal($attribute) ?? $model->getAttribute($attribute)
+        );
+
         $makeSortKey = fn($item) =>
-            Carbon::parse($item['date'])->format('Ymd') . '_' .
+            $normalizeDateValue($item['date'])?->format('Ymd') . '_' .
             (isset($item['created_at']) && $item['created_at']
-                ? Carbon::parse($item['created_at'])->format('YmdHis')
+                ? $normalizeDateValue($item['created_at'])?->format('YmdHis')
                 : '00000000');
 
         $mapQuery = function ($query, callable $mapper) {
             return $query && $query->exists() ? $query->get()->map($mapper) : collect();
         };
 
-        $paymentDescription = function ($p) {
-            return $p->cheque_date?->format('d-M-Y')
+        $paymentDescription = function ($p) use ($rawDate) {
+            return $rawDate($p, 'cheque_date')?->format('d-M-Y')
                 ?? (
                     $p->slip?->customer
                         ? trim(
@@ -249,12 +265,12 @@ class Supplier extends Model
                 )
                 ?? ($p->remarks ?? '-');
         };
-        $formatDetailedAdjustment = function ($adjustment) {
+        $formatDetailedAdjustment = function ($adjustment) use ($rawDate) {
             $isPlus = $adjustment->direction === 'plus';
             $label = $adjustment->entry_type === 'opening_balance' ? 'Opening Balance' : 'Adjustment';
 
             return [
-                'date' => $adjustment->date,
+                'date' => $rawDate($adjustment, 'date'),
                 'reff_no' => ($adjustment->entry_type === 'opening_balance' ? 'OB' : 'ADJ') . '-' . $adjustment->id,
                 'type' => $isPlus ? 'invoice' : 'payment',
                 'method' => $label,
@@ -268,7 +284,7 @@ class Supplier extends Model
         if ($type === 'summarized') {
             $expenses = $mapQuery($expenseQuery, fn($i) => [
                 'type' => 'invoice',
-                'date' => Carbon::parse($i->date)->toDateString(),
+                'date' => $rawDate($i, 'date')?->toDateString(),
                 'bill' => (float) ($i->amount ?? 0),
                 'payment' => 0,
                 'created_at' => $i->created_at,
@@ -276,7 +292,7 @@ class Supplier extends Model
 
             $payments = $mapQuery($paymentQuery, fn($p) => [
                 'type' => 'payment',
-                'date' => Carbon::parse($p->date)->toDateString(),
+                'date' => $rawDate($p, 'date')?->toDateString(),
                 'bill' => 0,
                 'payment' => (float) ($p->amount ?? 0),
                 'created_at' => $p->created_at,
@@ -284,14 +300,14 @@ class Supplier extends Model
 
             $productions = $mapQuery($productionQuery, fn($pr) => [
                 'type' => 'invoice',
-                'date' => Carbon::parse($pr->receive_date)->toDateString(),
+                'date' => $rawDate($pr, 'receive_date')?->toDateString(),
                 'bill' => (float) ($pr->amount ?? 0),
                 'payment' => 0,
                 'created_at' => $pr->created_at,
             ]);
             $adjustments = $mapQuery($adjustmentsQuery, fn($adjustment) => [
                 'type' => $adjustment->direction === 'plus' ? 'invoice' : 'payment',
-                'date' => Carbon::parse($adjustment->date)->toDateString(),
+                'date' => $rawDate($adjustment, 'date')?->toDateString(),
                 'bill' => $adjustment->direction === 'plus' ? (float) $adjustment->amount : 0,
                 'payment' => $adjustment->direction === 'minus' ? (float) $adjustment->amount : 0,
                 'created_at' => $adjustment->created_at,
@@ -311,7 +327,7 @@ class Supplier extends Model
                     if ($paymentSum > 0) {
                         $result->push([
                             'type' => 'payment',
-                            'date' => Carbon::parse($date),
+                            'date' => Carbon::parse(str_replace(';', ':', (string) $date)),
                             'bill' => 0,
                             'payment' => $paymentSum,
                             'created_at' => $rows->where('type', 'payment')->min('created_at'),
@@ -321,7 +337,7 @@ class Supplier extends Model
                     if ($billSum > 0) {
                         $result->push([
                             'type' => 'invoice',
-                            'date' => Carbon::parse($date),
+                            'date' => Carbon::parse(str_replace(';', ':', (string) $date)),
                             'bill' => $billSum,
                             'payment' => 0,
                             'created_at' => $rows->where('type', 'invoice')->min('created_at'),
@@ -334,7 +350,7 @@ class Supplier extends Model
                 ->values();
         } elseif ($type === 'general') {
             $expenses = $mapQuery($expenseQuery, fn($i) => [
-                'date' => $i->date,
+                'date' => $rawDate($i, 'date'),
                 'reff_no' => $i->reff_no,
                 'type' => 'invoice',
                 'bill' => (float) ($i->amount ?? 0),
@@ -347,12 +363,12 @@ class Supplier extends Model
                 ],
             ]);
 
-            $payments = $mapQuery($voucherQuery, function ($v) {
+            $payments = $mapQuery($voucherQuery, function ($v) use ($rawDate) {
                 $methods = $v->payments->pluck('method')->filter()->unique()->values();
                 $methodLabel = $methods->count() === 1 ? $methods->first() : ($methods->count() > 1 ? 'mixed' : null);
 
                 return [
-                    'date' => $v->date,
+                    'date' => $rawDate($v, 'date'),
                     'reff_no' => $v->voucher_no,
                     'type' => 'payment',
                     'method' => $methodLabel,
@@ -368,7 +384,7 @@ class Supplier extends Model
             });
 
             $productions = $mapQuery($productionQuery, fn($pr) => [
-                'date' => $pr->receive_date,
+                'date' => $rawDate($pr, 'receive_date'),
                 'reff_no' => $pr->ticket,
                 'type' => 'invoice',
                 'bill' => (float) ($pr->amount ?? 0),
@@ -385,7 +401,7 @@ class Supplier extends Model
                 ->values();
         } else {
             $expenses = $mapQuery($expenseQuery, fn($i) => [
-                'date' => $i->date,
+                'date' => $rawDate($i, 'date'),
                 'reff_no' => $i->reff_no,
                 'type' => 'invoice',
                 'bill' => (float) ($i->amount ?? 0),
@@ -399,7 +415,7 @@ class Supplier extends Model
             ]);
 
             $payments = $mapQuery($paymentQuery, fn($p) => [
-                'date' => $p->date,
+                'date' => $rawDate($p, 'date'),
                 'reff_no' => $p->cheque_no ?? $p->slip?->slip_no ?? $p->cheque?->cheque_no ?? $p->transaction_id ?? $p->reff_no,
                 'type' => 'payment',
                 'method' => $p->method,
@@ -414,7 +430,7 @@ class Supplier extends Model
             ]);
 
             $productions = $mapQuery($productionQuery, fn($pr) => [
-                'date' => $pr->receive_date,
+                'date' => $rawDate($pr, 'receive_date'),
                 'reff_no' => $pr->ticket,
                 'type' => 'invoice',
                 'bill' => (float) ($pr->amount ?? 0),
