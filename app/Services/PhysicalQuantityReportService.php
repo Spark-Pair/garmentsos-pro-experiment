@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Article;
+use App\Models\InvoiceArticles;
 use App\Models\OrderArticles;
 use App\Models\PhysicalQuantity;
 use App\Models\ShipmentArticles;
@@ -133,20 +134,33 @@ class PhysicalQuantityReportService
             ->groupBy('article_id')
             ->pluck('ordered_pcs', 'article_id');
 
+        $invoicePcsMap = InvoiceArticles::query()
+            ->whereIn('article_id', $articleIds)
+            ->selectRaw('article_id, SUM(invoice_pcs) as invoice_pcs')
+            ->groupBy('article_id')
+            ->pluck('invoice_pcs', 'article_id');
+
         return $rows
             ->groupBy('article_id')
-            ->map(function (Collection $items) use ($shipmentCitiesMap, $orderedPcsMap) {
+            ->map(function (Collection $items) use ($shipmentCitiesMap, $orderedPcsMap, $invoicePcsMap) {
                 /** @var \App\Models\PhysicalQuantity $model */
                 $model = $items->first();
                 $article = $model->article;
-                $receivedPackets = (float) $items->sum('packets');
+                $returnPackets = (float) $items
+                    ->filter(fn ($item) => $this->isSalesReturnQuantity($item))
+                    ->sum('packets');
+                $receivedPackets = (float) $items
+                    ->reject(fn ($item) => $this->isSalesReturnQuantity($item))
+                    ->sum('packets');
                 $pcsPerPacket = (float) ($article->pcs_per_packet ?: 0);
                 $totalPcs = (float) ($article->quantity + $article->extra_pcs);
                 $totalPackets = $pcsPerPacket > 0 ? ($totalPcs / $pcsPerPacket) : 0;
                 $orderedPcs = (float) ($orderedPcsMap->get($model->article_id) ?? 0);
                 $orderedPackets = $pcsPerPacket > 0 ? ($orderedPcs / $pcsPerPacket) : 0;
-                $soldPackets = $pcsPerPacket > 0 ? ((float) $article->sold_quantity / $pcsPerPacket) : 0;
-                $currentStockPackets = max(0, $receivedPackets - $soldPackets);
+                $soldPcs = (float) ($invoicePcsMap->get($model->article_id) ?? 0);
+                $soldPackets = $pcsPerPacket > 0 ? ($soldPcs / $pcsPerPacket) : 0;
+                $stockInPackets = $receivedPackets + $returnPackets;
+                $currentStockPackets = max(0, $stockInPackets - $soldPackets);
                 $remainingPackets = max(0, $totalPackets - $receivedPackets);
                 $shipment = $this->resolveShipment($shipmentCitiesMap->get($model->article_id, collect()));
 
@@ -158,6 +172,7 @@ class PhysicalQuantityReportService
                     'total_quantity' => floor($totalPcs / 12) . ' - Dz. | ' . $totalPackets . ' - Pkts.',
                     'ordered_quantity' => $this->formatPacketQuantity($orderedPackets),
                     'received_quantity' => $this->formatPacketQuantity($receivedPackets),
+                    'return_quantity' => $this->formatPacketQuantity($returnPackets),
                     'current_stock' => $this->formatPacketQuantity($currentStockPackets),
                     'a_category' => $items->where('category', 'a')->sum('packets') . ' - Pkts.',
                     'b_category' => $items->where('category', 'b')->sum('packets') . ' - Pkts.',
@@ -167,6 +182,7 @@ class PhysicalQuantityReportService
                     'total_packets_numeric' => $totalPackets,
                     'ordered_packets_numeric' => $orderedPackets,
                     'received_packets_numeric' => $receivedPackets,
+                    'return_packets_numeric' => $returnPackets,
                     'current_stock_packets_numeric' => $currentStockPackets,
                     'remaining_packets_numeric' => $remainingPackets,
                     'onclick' => 'generateModal(this)',
@@ -201,6 +217,11 @@ class PhysicalQuantityReportService
         }
 
         return 'Other';
+    }
+
+    protected function isSalesReturnQuantity(PhysicalQuantity $item): bool
+    {
+        return (string) $item->category === 'sales_return' || filled($item->sales_return_id);
     }
 
     protected function formatPacketQuantity(float|int $value): string

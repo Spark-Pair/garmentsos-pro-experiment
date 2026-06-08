@@ -46,13 +46,14 @@
             <div class="details h-full z-40">
                 <div class="container-parent h-full">
                     <div class="card_container px-3 h-full flex flex-col">
-                        <div id="table-head" class="grid grid-cols-[10%_8%_6%_10%_10%_10%_9%_6%_6%_6%_10%_9%] items-center bg-[var(--h-bg-color)] rounded-lg font-medium py-2 hidden mt-4">
+                        <div id="table-head" class="grid grid-cols-[10%_8%_5%_9%_9%_9%_8%_8%_5%_5%_5%_9%_10%] items-center bg-[var(--h-bg-color)] rounded-lg font-medium py-2 hidden mt-4 text-xs">
                             <div class="cursor-pointer" onclick="sortByThis(this)">Article No.</div>
                             <div class="cursor-pointer" onclick="sortByThis(this)">Proc. By</div>
                             <div class="cursor-pointer" onclick="sortByThis(this)">Unit</div>
                             <div class="cursor-pointer" onclick="sortByThis(this)">Total Qty.</div>
                             <div class="cursor-pointer" onclick="sortByThis(this)">Received Qty.</div>
                             <div class="cursor-pointer" onclick="sortByThis(this)">Ordered Qty.</div>
+                            <div class="cursor-pointer" onclick="sortByThis(this)">Return Qty.</div>
                             <div class="cursor-pointer" onclick="sortByThis(this)">Current Stock Qty.</div>
                             <div class="cursor-pointer" onclick="sortByThis(this)">A</div>
                             <div class="cursor-pointer" onclick="sortByThis(this)">B</div>

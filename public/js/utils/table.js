@@ -113,8 +113,10 @@ function sortTableByColumn(index, order, persist = false) {
     };
 
     rows.sort((a, b) => {
-        const aText = (a.children[index] && a.children[index].innerText) ? a.children[index].innerText.trim() : '';
-        const bText = (b.children[index] && b.children[index].innerText) ? b.children[index].innerText.trim() : '';
+        const aText = a.children[index]?.dataset?.sortValue
+            ?? ((a.children[index] && a.children[index].innerText) ? a.children[index].innerText.trim() : '');
+        const bText = b.children[index]?.dataset?.sortValue
+            ?? ((b.children[index] && b.children[index].innerText) ? b.children[index].innerText.trim() : '');
 
         if (isWholeNumberString(aText) && isWholeNumberString(bText)) {
             const na = parseFloat(aText.replace(/,/g, ''));

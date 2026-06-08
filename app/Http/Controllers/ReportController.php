@@ -467,8 +467,10 @@ class ReportController extends Controller
                         'invoice_date' => $invoiceInfo ? ($invoiceInfo['invoice_dates']->implode(', ') ?: '-') : '-',
                         'invoice_date_raw' => $invoiceInfo['invoice_date_raw'] ?? null,
                         'sort_date_raw' => $invoiceInfo['invoice_date_raw'] ?? $order?->date?->format('Y-m-d H:i:s'),
-                        'quantity' => (int) ($orderArticle->ordered_pcs ?? 0),
+                        'pcs_per_packet' => (float) ($article?->pcs_per_packet ?? 0),
+                        'order_quantity' => (int) ($orderArticle->ordered_pcs ?? 0),
                         'invoice_quantity' => $invoiceInfo['invoice_quantity'] ?? 0,
+                        'quantity' => (int) ($orderArticle->ordered_pcs ?? 0),
                     ];
                 })
                 ->filter()
@@ -497,8 +499,10 @@ class ReportController extends Controller
                     'invoice_date' => $invoice?->date?->format('d-M-Y, D') ?? '-',
                     'invoice_date_raw' => $invoice?->date?->format('Y-m-d H:i:s'),
                     'sort_date_raw' => $invoice?->date?->format('Y-m-d H:i:s'),
-                    'quantity' => (int) ($invoiceArticle->invoice_pcs ?? 0),
+                    'pcs_per_packet' => (float) ($article?->pcs_per_packet ?? 0),
+                    'order_quantity' => 0,
                     'invoice_quantity' => (int) ($invoiceArticle->invoice_pcs ?? 0),
+                    'quantity' => 0,
                 ];
             });
 
@@ -511,12 +515,32 @@ class ReportController extends Controller
                 $data = $data->take((int) $request->limit)->values();
             }
 
+            $totalOrderQuantity = $data->sum('order_quantity');
+            $totalInvoiceQuantity = $data->sum('invoice_quantity');
+            $totalOrderPackets = $data->sum(fn ($row) => ($row['pcs_per_packet'] ?? 0) > 0
+                ? ((float) ($row['order_quantity'] ?? 0) / (float) $row['pcs_per_packet'])
+                : 0);
+            $totalInvoicePackets = $data->sum(fn ($row) => ($row['pcs_per_packet'] ?? 0) > 0
+                ? ((float) ($row['invoice_quantity'] ?? 0) / (float) $row['pcs_per_packet'])
+                : 0);
+            $units = $data
+                ->pluck('pcs_per_packet')
+                ->filter(fn ($unit) => (float) $unit > 0)
+                ->map(fn ($unit) => (float) $unit)
+                ->unique()
+                ->values();
+
             $authLayout = $this->getAuthLayout($request->route()->getName(), 'table');
             return response()->json([
                 'data' => $data,
                 'authLayout' => $authLayout,
                 'calculations' => [
-                    'total_quantity' => $data->sum('quantity'),
+                    'total_quantity' => $totalOrderQuantity,
+                    'total_order_quantity' => $totalOrderQuantity,
+                    'total_invoice_quantity' => $totalInvoiceQuantity,
+                    'total_order_packets' => $totalOrderPackets,
+                    'total_invoice_packets' => $totalInvoicePackets,
+                    'total_unit' => $units->count() === 1 ? $units->first() : 0,
                 ],
             ]);
         }

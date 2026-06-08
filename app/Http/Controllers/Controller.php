@@ -8,7 +8,9 @@ use App\Models\CR;
 use App\Models\Customer;
 use App\Models\CustomerPayment;
 use App\Models\Employee;
+use App\Models\InvoiceArticles;
 use App\Models\Order;
+use App\Models\OrderArticles;
 use App\Models\PaymentProgram;
 use App\Models\PhysicalQuantity;
 use App\Models\Shipment;
@@ -57,6 +59,64 @@ class Controller extends BaseController
         }
 
         return Supplier::where('user_id', $userId)->first();
+    }
+
+    protected function articleStockMap($articleIds, ?int $excludeOrderId = null)
+    {
+        $articleIds = collect($articleIds)
+            ->filter()
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values();
+
+        if ($articleIds->isEmpty()) {
+            return collect();
+        }
+
+        $articles = Article::query()
+            ->whereIn('id', $articleIds)
+            ->get(['id', 'pcs_per_packet'])
+            ->keyBy('id');
+
+        $physicalPackets = PhysicalQuantity::query()
+            ->whereIn('article_id', $articleIds)
+            ->selectRaw('article_id, SUM(packets) as packets')
+            ->groupBy('article_id')
+            ->pluck('packets', 'article_id');
+
+        $invoicePcs = InvoiceArticles::query()
+            ->whereIn('article_id', $articleIds)
+            ->selectRaw('article_id, SUM(invoice_pcs) as invoice_pcs')
+            ->groupBy('article_id')
+            ->pluck('invoice_pcs', 'article_id');
+
+        $orderLines = OrderArticles::query()
+            ->whereIn('article_id', $articleIds)
+            ->when($excludeOrderId, fn ($query) => $query->where('order_id', '!=', $excludeOrderId))
+            ->get(['article_id', 'ordered_pcs', 'dispatched_pcs']);
+
+        $openOrderPcs = $orderLines
+            ->groupBy('article_id')
+            ->map(fn ($lines) => $lines->sum(fn ($line) => max(0, (int) $line->ordered_pcs - (int) $line->dispatched_pcs)));
+
+        return $articleIds->mapWithKeys(function (int $articleId) use ($articles, $physicalPackets, $invoicePcs, $openOrderPcs) {
+            $unit = (float) ($articles->get($articleId)?->pcs_per_packet ?? 0);
+            $physicalPcs = $unit > 0 ? ((float) ($physicalPackets->get($articleId) ?? 0) * $unit) : 0;
+            $soldPcs = (float) ($invoicePcs->get($articleId) ?? 0);
+            $reservedPcs = (float) ($openOrderPcs->get($articleId) ?? 0);
+            $currentStockPcs = max(0, floor($physicalPcs - $soldPcs));
+            $availableStockPcs = max(0, floor($currentStockPcs - $reservedPcs));
+
+            return [
+                $articleId => [
+                    'physical_pcs' => $physicalPcs,
+                    'sold_pcs' => $soldPcs,
+                    'open_order_pcs' => $reservedPcs,
+                    'current_stock_pcs' => $currentStockPcs,
+                    'available_stock_pcs' => $availableStockPcs,
+                ],
+            ];
+        });
     }
 
     public function home() {
@@ -216,9 +276,10 @@ class Controller extends BaseController
 
         if (!$request->boolean('only_order')) {
             $stockErrors = [];
+            $stockMap = $this->articleStockMap($order->articles->pluck('article_id'), $order->id);
 
             // Filter out articles with 0 stock or missing
-            $filteredArticles = $order->articles->filter(function ($orderedArticle) use (&$stockErrors) {
+            $filteredArticles = $order->articles->filter(function ($orderedArticle) use (&$stockErrors, $stockMap) {
 
                 $article = $orderedArticle->article;
 
@@ -229,18 +290,14 @@ class Controller extends BaseController
 
                 $orderedArticle->total_quantity_in_packets = 0;
 
-                $totalPhysicalStockPackets = PhysicalQuantity::where("article_id", $article->id)->sum('packets');
-
-                if ($totalPhysicalStockPackets > 0 && ($article->pcs_per_packet ?? 0) > 0) {
-                    $availablePhysicalQuantity = $article->sold_quantity > 0
-                        ? $totalPhysicalStockPackets - ($article->sold_quantity / $article->pcs_per_packet)
-                        : $totalPhysicalStockPackets;
+                if (($article->pcs_per_packet ?? 0) > 0) {
+                    $availablePcs = (float) ($stockMap->get($article->id)['available_stock_pcs'] ?? 0);
 
                     $orderedPackets = ($orderedArticle->ordered_pcs ?? 0) / $article->pcs_per_packet;
                     $invoiceQty = max(0, (int) ($orderedArticle->dispatched_pcs ?? 0));
-                    $pendingPackets = $orderedPackets - ($invoiceQty / $article->pcs_per_packet);
+                    $pendingPackets = max(0, $orderedPackets - ($invoiceQty / $article->pcs_per_packet));
 
-                    $orderedArticle->total_quantity_in_packets = floor(min($pendingPackets, $availablePhysicalQuantity));
+                    $orderedArticle->total_quantity_in_packets = floor(min($pendingPackets, $availablePcs / $article->pcs_per_packet));
                 }
 
                 $actualQuantity = (int) ($orderedArticle->total_quantity_in_packets ?? 0)
@@ -385,6 +442,7 @@ class Controller extends BaseController
 
         // Only continue if not filtering by only_order
         $validArticles = [];
+        $stockMap = $this->articleStockMap($shipment->articles->pluck('article_id'));
 
         foreach ($shipment->Articles as $articleData) {
             $article = $articleData['article'];
@@ -395,15 +453,7 @@ class Controller extends BaseController
                 return response()->json(['error' => 'Master unit is missing for article: ' . $article['article_no']]);
             }
 
-            // Total stock from PhysicalQuantity
-            $totalPackets = PhysicalQuantity::where("article_id", $article['id'])->sum("packets");
-
-            // Available quantity calculation
-            $availablePackets = $article['sold_quantity'] > 0
-                ? $totalPackets - ($article['sold_quantity'] / $article['pcs_per_packet'])
-                : $totalPackets;
-
-            $availableStock = max(0, floor($availablePackets * $article['pcs_per_packet'])); // convert packets to pcs
+            $availableStock = (int) ($stockMap->get((int) $article['id'])['available_stock_pcs'] ?? 0);
             $articleData['article'] = $article;
             $articleData['available_stock'] = $availableStock;
 

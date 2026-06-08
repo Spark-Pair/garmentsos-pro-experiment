@@ -100,6 +100,8 @@
     window.generateQuantityModal = function generateQuantityModal(elem) {
         const data = JSON.parse(elem.dataset.json).data;
         const alreadySelected = isArticleAlreadySelected(data.id);
+        const selectedArticle = selectedArticles.find(article => article.id == data.id);
+        const maxShipmentQuantity = Number(data.available_stock || 0) + Number(selectedArticle?.shipmentQuantity || 0);
 
         if (limitOfArticles > 0 || alreadySelected) {
             const modalData = {
@@ -114,8 +116,8 @@
                     },
                     {
                         category: 'input',
-                        label: 'Current Stock - Pcs.',
-                        value: formatNumbersDigitLess(data.quantity - data.ordered_quantity),
+                        label: 'Available Stock - Pcs.',
+                        value: formatNumbersDigitLess(maxShipmentQuantity),
                         disabled: true,
                     },
                     {
@@ -131,6 +133,7 @@
                         type: 'number',
                         label: 'Quantity - Pcs.',
                         placeholder: 'Enter quantity in pcs.',
+                        max: maxShipmentQuantity,
                         required: true,
                         oninput: 'checkMax(this)',
                     },

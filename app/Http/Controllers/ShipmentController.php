@@ -9,6 +9,7 @@ use App\Models\ShipmentArticles;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\ValidationException;
 
 class ShipmentController extends Controller
 {
@@ -84,15 +85,16 @@ class ShipmentController extends Controller
             $articles = Article::where('date', '<=', $request->date)
                 ->where('sales_rate', '>', 0)
                 ->whereNotNull(['category', 'fabric_type'])
-                ->withSum('physicalQuantity as physical_packets', 'packets')
-                ->withSum('orderArticles as ordered_pcs', 'ordered_pcs')
-                ->withSum('invoiceArticles as sold_pcs', 'invoice_pcs')
                 ->orderByDesc('id')
                 ->get();
 
+            $stockMap = $this->articleStockMap($articles->pluck('id'));
+
             foreach ($articles as $article) {
-                $physicalPackets = (float) ($article->physical_packets ?? 0);
-                $article['physical_quantity'] = ($physicalPackets * (float) $article->pcs_per_packet) - (float) $article->sold_quantity;
+                $stock = $stockMap->get($article->id, []);
+                $article['physical_quantity'] = (int) ($stock['current_stock_pcs'] ?? 0);
+                $article['available_stock'] = (int) ($stock['available_stock_pcs'] ?? 0);
+                $article['ordered_quantity'] = (int) ($stock['open_order_pcs'] ?? 0);
             }
         }
 
@@ -140,6 +142,7 @@ class ShipmentController extends Controller
 
         DB::transaction(function () use ($request) {
             $articles = json_decode($request->articles, true) ?? [];
+            $this->validateShipmentArticleStock($articles);
 
             $shipment = Shipment::create([
                 'date' => $request->date,
@@ -225,6 +228,12 @@ class ShipmentController extends Controller
 
         DB::transaction(function () use ($request, $shipment) {
             $articles = json_decode($request->articles, true) ?? [];
+            $existingShipmentPcs = $shipment->articles()
+                ->get(['article_id', 'shipment_pcs'])
+                ->groupBy('article_id')
+                ->map(fn ($lines) => (int) $lines->sum('shipment_pcs'));
+
+            $this->validateShipmentArticleStock($articles, $existingShipmentPcs);
 
             ShipmentArticles::where('shipment_id', $shipment->id)->delete();
 
@@ -253,5 +262,45 @@ class ShipmentController extends Controller
     public function destroy(Shipment $shipment)
     {
         //
+    }
+
+    private function validateShipmentArticleStock(array $articles, $existingShipmentPcs = null): void
+    {
+        $lines = collect($articles)
+            ->filter(fn ($line) => is_array($line))
+            ->map(function ($line) {
+                return [
+                    'article_id' => (int) ($line['id'] ?? 0),
+                    'shipment_pcs' => (int) ($line['shipment_quantity'] ?? 0),
+                ];
+            })
+            ->filter(fn ($line) => $line['article_id'] > 0 && $line['shipment_pcs'] > 0)
+            ->groupBy('article_id')
+            ->map(fn ($group) => (int) $group->sum('shipment_pcs'));
+
+        if ($lines->isEmpty()) {
+            throw ValidationException::withMessages([
+                'articles' => 'Please select at least one article.',
+            ]);
+        }
+
+        $existingShipmentPcs = collect($existingShipmentPcs ?? []);
+        $stockMap = $this->articleStockMap($lines->keys());
+        $articlesById = Article::query()
+            ->whereIn('id', $lines->keys())
+            ->get(['id', 'article_no'])
+            ->keyBy('id');
+
+        foreach ($lines as $articleId => $shipmentPcs) {
+            $availablePcs = (int) ($stockMap->get((int) $articleId)['available_stock_pcs'] ?? 0);
+            $maxShipmentPcs = $availablePcs + (int) ($existingShipmentPcs->get((int) $articleId) ?? 0);
+
+            if ($shipmentPcs > $maxShipmentPcs) {
+                $articleNo = $articlesById->get((int) $articleId)?->article_no ?? $articleId;
+                throw ValidationException::withMessages([
+                    'articles' => "Stock is less than shipment quantity for article: {$articleNo}. Available: {$maxShipmentPcs} pcs.",
+                ]);
+            }
+        }
     }
 }

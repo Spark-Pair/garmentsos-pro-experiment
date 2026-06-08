@@ -129,6 +129,8 @@
     window.generateQuantityModal = function generateQuantityModal(elem) {
         const data = JSON.parse(elem.dataset.json).data;
         const alreadySelected = isArticleAlreadySelected(data.id);
+        const selectedArticle = selectedArticles.find(article => article.id == data.id);
+        const maxOrderQuantity = Number(data.available_stock || 0) + Number(selectedArticle?.dispatched_pcs || 0);
 
         if (limitOfArticles > 0 || alreadySelected) {
             const modalData = {
@@ -143,8 +145,8 @@
                     },
                     {
                         category: 'input',
-                        label: 'Available - Pcs.',
-                        value: formatNumbersDigitLess(data.quantity - data.ordered_quantity),
+                        label: 'Available Stock - Pcs.',
+                        value: formatNumbersDigitLess(maxOrderQuantity),
                         disabled: true,
                     },
                     {
@@ -160,6 +162,7 @@
                         type: 'number',
                         label: 'Quantity - Pcs.',
                         placeholder: 'Enter quantity in pcs.',
+                        max: maxOrderQuantity,
                         required: true,
                         oninput: 'checkMax(this)',
                     },
@@ -495,6 +498,7 @@
             method: 'GET',
             data: {
                 date: order?.date,
+                exclude_order_id: order?.id,
             },
             success: function (response) {
                 articles = response.articles || [];
@@ -563,6 +567,7 @@
                 ...(item.article || {}),
                 id: item.article_id ?? item.id,
                 ordered_pcs: Number(item.ordered_pcs || 0),
+                dispatched_pcs: Number(item.dispatched_pcs || 0),
                 sales_rate: parseFormattedNumber(item.article?.sales_rate ?? item.sales_rate),
                 pcs_per_packet: Number(item.article?.pcs_per_packet ?? item.pcs_per_packet ?? 0),
                 article_no: item.article?.article_no ?? item.article_no ?? '-',

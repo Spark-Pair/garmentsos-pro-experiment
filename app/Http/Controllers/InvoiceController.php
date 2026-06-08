@@ -15,6 +15,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\ValidationException;
 
 use function PHPSTORM_META\type;
 
@@ -274,6 +275,11 @@ class InvoiceController extends Controller
             $nextNumber = str_pad((int)$lastNumberPart + 1, 4, '0', STR_PAD_LEFT);
 
             $invoiceNumbers = [];
+            $totalCottonCount = (int) collect($customers_array)->sum(fn ($customer) => (int) ($customer['cotton_count'] ?? 0));
+            $shipmentQuantities = collect($shipment->articles)
+                ->groupBy('article_id')
+                ->map(fn ($lines) => (int) $lines->sum('shipment_pcs') * $totalCottonCount);
+            $this->validateInvoiceStock($shipmentQuantities);
 
             foreach ($customers_array as $customer) {
                 $invoice = new Invoice();
@@ -329,6 +335,25 @@ class InvoiceController extends Controller
             ];
 
             $orderDb = Order::where("order_no", $data["order_no"])->first();
+            $orderArticleIds = collect($data['articles_in_invoice'])->pluck('order_article_id')->filter()->map(fn ($id) => (int) $id);
+            $orderArticles = OrderArticles::whereIn('id', $orderArticleIds)->get()->keyBy('id');
+            $invoiceQuantities = collect($data['articles_in_invoice'])
+                ->groupBy(fn ($line) => (int) ($line['id'] ?? 0))
+                ->map(fn ($lines) => (int) $lines->sum(fn ($line) => (int) ($line['invoice_quantity'] ?? 0)));
+
+            foreach ($data['articles_in_invoice'] as $article) {
+                $orderArticle = $orderArticles->get((int) ($article['order_article_id'] ?? 0));
+                $invoiceQuantity = (int) ($article['invoice_quantity'] ?? 0);
+                $pendingQuantity = max(0, (int) ($orderArticle?->ordered_pcs ?? 0) - (int) ($orderArticle?->dispatched_pcs ?? 0));
+
+                if (!$orderArticle || $invoiceQuantity <= 0 || $invoiceQuantity > $pendingQuantity) {
+                    throw ValidationException::withMessages([
+                        'articles_in_invoice' => 'Invoice quantity cannot exceed pending order quantity.',
+                    ]);
+                }
+            }
+
+            $this->validateInvoiceStock($invoiceQuantities, $orderDb?->id);
 
             foreach ($data['articles_in_invoice'] as $article) {
                 $orderArticleDb = OrderArticles::find($article['order_article_id']);
@@ -412,6 +437,36 @@ class InvoiceController extends Controller
         $invoices = Invoice::with(["customer.city", 'invoiceArticles.article', 'shipment', 'order'])->whereIn('invoice_no', $invoiceNumbers)->get();
 
         return view("invoices.print", compact("invoices"));
+    }
+
+    private function validateInvoiceStock($invoiceQuantities, ?int $excludeOrderId = null): void
+    {
+        $invoiceQuantities = collect($invoiceQuantities)
+            ->filter(fn ($quantity, $articleId) => (int) $articleId > 0 && (int) $quantity > 0)
+            ->map(fn ($quantity) => (int) $quantity);
+
+        if ($invoiceQuantities->isEmpty()) {
+            throw ValidationException::withMessages([
+                'articles_in_invoice' => 'Please select at least one invoice article.',
+            ]);
+        }
+
+        $stockMap = $this->articleStockMap($invoiceQuantities->keys(), $excludeOrderId);
+        $articlesById = Article::query()
+            ->whereIn('id', $invoiceQuantities->keys())
+            ->get(['id', 'article_no'])
+            ->keyBy('id');
+
+        foreach ($invoiceQuantities as $articleId => $invoicePcs) {
+            $availablePcs = (int) ($stockMap->get((int) $articleId)['available_stock_pcs'] ?? 0);
+
+            if ((int) $invoicePcs > $availablePcs) {
+                $articleNo = $articlesById->get((int) $articleId)?->article_no ?? $articleId;
+                throw ValidationException::withMessages([
+                    'articles_in_invoice' => "Stock is less than invoice quantity for article: {$articleNo}. Available: {$availablePcs} pcs.",
+                ]);
+            }
+        }
     }
 
     private function notifyCustomerAboutInvoice(int $customerId, string $invoiceNo): void

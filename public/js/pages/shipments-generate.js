@@ -133,8 +133,8 @@
                     },
                     {
                         category: 'input',
-                        label: 'Current Stock - Pcs.',
-                        value: formatNumbersDigitLess(data.quantity - data.ordered_quantity),
+                        label: 'Available Stock - Pcs.',
+                        value: formatNumbersDigitLess(data.available_stock),
                         disabled: true,
                     },
                     {
@@ -150,6 +150,7 @@
                         type: 'number',
                         label: 'Quantity - Pcs.',
                         placeholder: 'Enter quantity in pcs.',
+                        max: Number(data.available_stock || 0),
                         required: true,
                         oninput: 'checkMax(this)',
                     },

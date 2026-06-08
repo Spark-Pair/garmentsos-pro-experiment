@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\ValidationException;
 
 class OrderController extends Controller
 {
@@ -148,15 +149,19 @@ class OrderController extends Controller
             $articles = Article::where('date', '<=', $request->date)
                 ->where('sales_rate', '>', 0)
                 ->whereNotNull(['category', 'fabric_type'])
-                ->withSum('physicalQuantity as physical_packets', 'packets')
-                ->withSum('orderArticles as ordered_pcs', 'ordered_pcs')
-                ->withSum('invoiceArticles as sold_pcs', 'invoice_pcs')
                 ->orderByDesc('id')
                 ->get();
 
+            $stockMap = $this->articleStockMap(
+                $articles->pluck('id'),
+                $request->filled('exclude_order_id') ? (int) $request->exclude_order_id : null
+            );
+
             foreach ($articles as $article) {
-                $physicalPackets = (float) ($article->physical_packets ?? 0);
-                $article['physical_quantity'] = ($physicalPackets * (float) $article->pcs_per_packet) - (float) $article->sold_quantity;
+                $stock = $stockMap->get($article->id, []);
+                $article['physical_quantity'] = (int) ($stock['current_stock_pcs'] ?? 0);
+                $article['available_stock'] = (int) ($stock['available_stock_pcs'] ?? 0);
+                $article['ordered_quantity'] = (int) ($stock['open_order_pcs'] ?? 0);
 
                 $article['category'] = ucfirst(str_replace('_', ' ', $article['category']));
                 $article['season'] = ucfirst(str_replace('_', ' ', $article['season']));
@@ -217,6 +222,7 @@ class OrderController extends Controller
         $createdOrder = DB::transaction(function () use ($request) {
             $articles = json_decode($request->articles, true) ?? [];
             $discount = $this->isCustomerRole() ? 10 : (int) $request->discount;
+            $this->validateOrderArticleStock($articles);
 
             $order = Order::create([
                 'date' => $request->date,
@@ -232,7 +238,7 @@ class OrderController extends Controller
                     'order_id' => $order['id'],
                     'article_id' => $articleData['id'],
                     'description' => $articleData['description'] ?? null,
-                    'ordered_pcs' => $articleData['ordered_quantity'] ?? 0,
+                    'ordered_pcs' => $articleData['ordered_quantity'] ?? $articleData['ordered_pcs'] ?? 0,
                 ]);
             }
 
@@ -331,6 +337,7 @@ class OrderController extends Controller
 
         $orderPayload = [
             'order_no' => $order->order_no,
+            'id' => $order->id,
             'date' => $order->date?->format('Y-m-d'),
             'netAmount' => $order->netAmount,
             'customer' => [
@@ -346,6 +353,7 @@ class OrderController extends Controller
                 return [
                     'article_id' => $orderArticle->article_id,
                     'ordered_pcs' => $orderArticle->ordered_pcs,
+                    'dispatched_pcs' => $orderArticle->dispatched_pcs,
                     'description' => $orderArticle->description,
                     'article' => [
                         'id' => $orderArticle->article?->id,
@@ -384,6 +392,14 @@ class OrderController extends Controller
         DB::transaction(function () use ($request, $order) {
 
             $netAmount = (int) str_replace(',', '', $request->netAmount);
+            $articles = is_string($request->articles) ? json_decode($request->articles, true) : $request->articles;
+            $articles = is_array($articles) ? $articles : [];
+            $existingDispatched = $order->articles()
+                ->get(['article_id', 'dispatched_pcs'])
+                ->groupBy('article_id')
+                ->map(fn ($lines) => (int) $lines->sum('dispatched_pcs'));
+
+            $this->validateOrderArticleStock($articles, $order->id, $existingDispatched);
 
             // Update order
             $order->update([
@@ -394,16 +410,32 @@ class OrderController extends Controller
             // Reset order articles
             $order->articles()->delete();
 
-            $articles = is_string($request->articles) ? json_decode($request->articles, true) : $request->articles;
+            $usedDispatched = collect();
 
             foreach ($articles as $article) {
+                $articleId = (int) ($article['id'] ?? 0);
+                $dispatchedPcs = $usedDispatched->has($articleId)
+                    ? 0
+                    : (int) ($existingDispatched->get($articleId) ?? 0);
+
                 OrderArticles::create([
                     'order_id'    => $order->id,
-                    'article_id'  => $article['id'],
+                    'article_id'  => $articleId,
                     'description' => $article['description'] ?? null,
                     'ordered_pcs' => $article['ordered_pcs'] ?? 0,
+                    'dispatched_pcs' => $dispatchedPcs,
                 ]);
+
+                $usedDispatched->put($articleId, true);
             }
+
+            $order->load('articles');
+            $orderedPcs = (int) $order->articles->sum('ordered_pcs');
+            $dispatchedPcs = (int) $order->articles->sum('dispatched_pcs');
+            $order->status = $dispatchedPcs <= 0
+                ? 'pending'
+                : ($dispatchedPcs < $orderedPcs ? 'partially_invoiced' : 'invoiced');
+            $order->save();
 
             $order->paymentPrograms()->update(['amount' => $netAmount,]);
         });
@@ -417,5 +449,55 @@ class OrderController extends Controller
     public function destroy(Order $order)
     {
         //
+    }
+
+    private function validateOrderArticleStock(array $articles, ?int $excludeOrderId = null, $existingDispatched = null): void
+    {
+        $lines = collect($articles)
+            ->filter(fn ($line) => is_array($line))
+            ->map(function ($line) {
+                return [
+                    'article_id' => (int) ($line['id'] ?? 0),
+                    'ordered_pcs' => (int) ($line['ordered_quantity'] ?? $line['ordered_pcs'] ?? 0),
+                ];
+            })
+            ->filter(fn ($line) => $line['article_id'] > 0 && $line['ordered_pcs'] > 0)
+            ->groupBy('article_id')
+            ->map(fn ($group) => (int) $group->sum('ordered_pcs'));
+
+        if ($lines->isEmpty()) {
+            throw ValidationException::withMessages([
+                'articles' => 'Please select at least one article.',
+            ]);
+        }
+
+        $existingDispatched = collect($existingDispatched ?? []);
+        foreach ($existingDispatched as $articleId => $dispatchedPcs) {
+            if ((int) $dispatchedPcs > 0 && (int) ($lines->get((int) $articleId) ?? 0) < (int) $dispatchedPcs) {
+                $article = Article::find((int) $articleId);
+                throw ValidationException::withMessages([
+                    'articles' => 'Order quantity cannot be less than already invoiced quantity for article: ' . ($article?->article_no ?? $articleId),
+                ]);
+            }
+        }
+
+        $stockMap = $this->articleStockMap($lines->keys(), $excludeOrderId);
+        $articlesById = Article::query()
+            ->whereIn('id', $lines->keys())
+            ->get(['id', 'article_no'])
+            ->keyBy('id');
+
+        foreach ($lines as $articleId => $orderedPcs) {
+            $dispatchedPcs = (int) ($existingDispatched->get((int) $articleId) ?? 0);
+            $availablePcs = (int) ($stockMap->get((int) $articleId)['available_stock_pcs'] ?? 0);
+            $maxOrderPcs = $availablePcs + $dispatchedPcs;
+
+            if ($orderedPcs > $maxOrderPcs) {
+                $articleNo = $articlesById->get((int) $articleId)?->article_no ?? $articleId;
+                throw ValidationException::withMessages([
+                    'articles' => "Stock is less than order quantity for article: {$articleNo}. Available: {$maxOrderPcs} pcs.",
+                ]);
+            }
+        }
     }
 }

@@ -57,14 +57,15 @@
             <div class="details h-full z-40">
                 <div class="container-parent h-full">
                     <div class="card_container px-3 pb-3 h-full flex flex-col">
-                        <div id="table-head" class="flex items-center bg-[var(--h-bg-color)] rounded-lg font-medium py-2 hidden mt-4">
-                            <div class="w-[13%] cursor-pointer" onclick="sortByThis(this)">Order Date</div>
-                            <div class="w-[13%] cursor-pointer" onclick="sortByThis(this)">Invoice Date</div>
-                            <div class="w-[12%] cursor-pointer" onclick="sortByThis(this)">Article No.</div>
-                            <div class="w-[12%] cursor-pointer" onclick="sortByThis(this)">Order No.</div>
-                            <div class="w-[12%] cursor-pointer" onclick="sortByThis(this)">Invoice No.</div>
-                            <div class="grow cursor-pointer" onclick="sortByThis(this)">Customer</div>
-                            <div class="w-[10%] cursor-pointer" onclick="sortByThis(this)">Quantity</div>
+                        <div id="table-head" class="flex items-center bg-[var(--h-bg-color)] rounded-lg font-medium py-2 hidden mt-4 text-xs">
+                            <div class="w-[9%] cursor-pointer" onclick="sortByThis(this)">Article No.</div>
+                            <div class="grow cursor-pointer text-left" onclick="sortByThis(this)">Customer</div>
+                            <div class="w-[11%] cursor-pointer" onclick="sortByThis(this)">Order Date</div>
+                            <div class="w-[10%] cursor-pointer" onclick="sortByThis(this)">Order No.</div>
+                            <div class="w-[13%] cursor-pointer" onclick="sortByThis(this)">Order Qty</div>
+                            <div class="w-[11%] cursor-pointer" onclick="sortByThis(this)">Invoice Date</div>
+                            <div class="w-[10%] cursor-pointer" onclick="sortByThis(this)">Invoice No.</div>
+                            <div class="w-[13%] cursor-pointer" onclick="sortByThis(this)">Invoice Qty</div>
                         </div>
                         <p id="noItemsError" style="display: none" class="text-sm text-[var(--border-error)] mt-3">No items found</p>
                         <div class="overflow-y-auto grow my-scrollbar-2">
@@ -72,9 +73,13 @@
                             </div>
                         </div>
                         <div id="calc-bottom" class="flex w-full gap-4 text-sm bg-[var(--secondary-bg-color)] pt-2 rounded-lg">
-                            <div class="total-quantity flex justify-between items-center border border-gray-600 rounded-lg py-2 px-4 w-full cursor-not-allowed">
-                                <div>Total Quantity</div>
-                                <div class="text-right">0</div>
+                            <div class="total-order-quantity flex justify-between items-center border border-gray-600 rounded-lg py-2 px-4 w-full cursor-not-allowed">
+                                <div>Total Order Qty</div>
+                                <div class="text-right">0Pc</div>
+                            </div>
+                            <div class="total-invoice-quantity flex justify-between items-center border border-gray-600 rounded-lg py-2 px-4 w-full cursor-not-allowed">
+                                <div>Total Invoice Qty</div>
+                                <div class="text-right">0Pc</div>
                             </div>
                         </div>
                     </div>
