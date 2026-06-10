@@ -92,10 +92,17 @@ class ShipmentController extends Controller
 
             foreach ($articles as $article) {
                 $stock = $stockMap->get($article->id, []);
-                $article['physical_quantity'] = (int) ($stock['current_stock_pcs'] ?? 0);
-                $article['available_stock'] = (int) ($stock['available_stock_pcs'] ?? 0);
-                $article['ordered_quantity'] = (int) ($stock['open_order_pcs'] ?? 0);
+                $article['current_stock'] = (int) ($stock['current_stock_pcs'] ?? 0);
+                $article['current_stock_packets'] = (float) ($stock['current_stock_packets'] ?? 0);
+                $article['orderable_quantity'] = (int) ($stock['orderable_quantity_pcs'] ?? 0);
+                $article['orderable_quantity_packets'] = (float) ($stock['orderable_quantity_packets'] ?? 0);
+                $article['total_quantity'] = (int) ($stock['total_quantity_pcs'] ?? 0);
+                $article['ordered_quantity'] = (int) ($stock['ordered_quantity_pcs'] ?? 0);
             }
+
+            $articles = $articles
+                ->filter(fn (Article $article) => (int) $article->orderable_quantity > 0)
+                ->values();
         }
 
         $last_shipment = Shipment::orderby('id', 'desc')->first();
@@ -184,16 +191,28 @@ class ShipmentController extends Controller
         }
 
         $shipment->load('articles.article');
+        $stockMap = $this->articleStockMap($shipment->articles->pluck('article_id'));
 
         $shipmentPayload = [
             'date' => $shipment->date?->format('Y-m-d'),
-            'articles' => $shipment->articles->map(function ($shipmentArticle) {
+            'articles' => $shipment->articles->map(function ($shipmentArticle) use ($stockMap) {
+                $stock = $stockMap->get($shipmentArticle->article_id, []);
+
                 return [
                     'shipment_pcs' => $shipmentArticle->shipment_pcs,
                     'description' => $shipmentArticle->description,
                     'article' => [
                         'id' => $shipmentArticle->article?->id,
                         'article_no' => $shipmentArticle->article?->article_no,
+                        'sales_rate' => $shipmentArticle->article?->sales_rate,
+                        'pcs_per_packet' => $shipmentArticle->article?->pcs_per_packet,
+                        'quantity' => $shipmentArticle->article?->quantity,
+                        'extra_pcs' => $shipmentArticle->article?->extra_pcs,
+                        'fabric_type' => $shipmentArticle->article?->fabric_type,
+                        'orderable_quantity' => (int) ($stock['orderable_quantity_pcs'] ?? 0),
+                        'orderable_quantity_packets' => (float) ($stock['orderable_quantity_packets'] ?? 0),
+                        'current_stock' => (int) ($stock['current_stock_pcs'] ?? 0),
+                        'current_stock_packets' => (float) ($stock['current_stock_packets'] ?? 0),
                         'image' => $shipmentArticle->article?->image,
                         'category' => $shipmentArticle->article?->category,
                         'season' => $shipmentArticle->article?->season,
@@ -292,13 +311,16 @@ class ShipmentController extends Controller
             ->keyBy('id');
 
         foreach ($lines as $articleId => $shipmentPcs) {
-            $availablePcs = (int) ($stockMap->get((int) $articleId)['available_stock_pcs'] ?? 0);
-            $maxShipmentPcs = $availablePcs + (int) ($existingShipmentPcs->get((int) $articleId) ?? 0);
+            $availablePcs = (int) ($stockMap->get((int) $articleId)['orderable_quantity_pcs'] ?? 0);
+            $maxShipmentPcs = max(
+                $availablePcs,
+                (int) ($existingShipmentPcs->get((int) $articleId) ?? 0)
+            );
 
             if ($shipmentPcs > $maxShipmentPcs) {
                 $articleNo = $articlesById->get((int) $articleId)?->article_no ?? $articleId;
                 throw ValidationException::withMessages([
-                    'articles' => "Stock is less than shipment quantity for article: {$articleNo}. Available: {$maxShipmentPcs} pcs.",
+                    'articles' => "Shipment quantity exceeds the remaining article quantity for {$articleNo}. Available: {$maxShipmentPcs} pcs.",
                 ]);
             }
         }

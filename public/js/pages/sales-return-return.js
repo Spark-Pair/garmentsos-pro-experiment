@@ -16,6 +16,29 @@
         const totalAmountDOM = document.getElementById("totalAmountInForm");
         const selectArticlesBtn = document.getElementById("selectReturnArticlesBtn");
         const form = document.getElementById("form");
+        const typeInput = document.getElementById("salesReturnType");
+
+        function currentTypeLabel() {
+            return typeInput?.value === "adjustment" ? "Adjustment" : "Return";
+        }
+
+        window.setSalesReturnType = function setSalesReturnType(button, type) {
+            if (!typeInput || !["return", "adjustment"].includes(type)) return;
+
+            typeInput.value = type;
+            const highlight = document.getElementById("returnTypeHighlight");
+            if (highlight && button?.parentElement) {
+                const rect = button.getBoundingClientRect();
+                const parentRect = button.parentElement.getBoundingClientRect();
+                highlight.style.width = `${rect.width}px`;
+                highlight.style.left = `${rect.left - parentRect.left - 3}px`;
+            }
+
+            selectedReturns = [];
+            renderReturnLinesModalBody();
+            renderList();
+            renderCalcBottom();
+        };
 
         function money(value) {
             return typeof formatNumbersWithDigits === "function"
@@ -151,7 +174,7 @@
 
             const modalData = {
                 id: "ReturnArticlesModal",
-                name: "Select Return Articles",
+                name: `Select ${currentTypeLabel()} Articles`,
                 class: "h-[85vh] max-h-[46rem] max-w-6xl",
                 info: `Selected: ${selectedReturns.length} lines / ${numberLess(getTotalQuantity())} PCs`,
                 basicSearch: true,
@@ -171,7 +194,7 @@
                                     <div class="grow cursor-pointer" onclick="sortByThis(this)">Desc.</div>
                                     <div class="w-[7%] text-right cursor-pointer" onclick="sortByThis(this)">Unit</div>
                                     <div class="w-[9%] text-right cursor-pointer" onclick="sortByThis(this)">Max Pcs</div>
-                                    <div class="w-[12%] text-right">Return Pcs</div>
+                                    <div class="w-[12%] text-right">${currentTypeLabel()} Pcs</div>
                                     <div class="w-[9%] text-right cursor-pointer" onclick="sortByThis(this)">Rate</div>
                                     <div class="w-[7%] text-right cursor-pointer" onclick="sortByThis(this)">Amount</div>
                                     <div class="w-[9%] text-right cursor-pointer" onclick="sortByThis(this)">Selected</div>
@@ -392,11 +415,16 @@
 
             if (selectedReturns.length === 0) {
                 event.preventDefault();
-                alert("Please select at least one invoice article to return.");
+                alert(`Please select at least one invoice article for ${currentTypeLabel().toLowerCase()}.`);
             }
         });
 
         resetReturns();
+        const initialType = typeInput?.value === "adjustment" ? "adjustment" : "return";
+        window.setSalesReturnType(
+            document.getElementById(initialType === "adjustment" ? "adjustmentTypeBtn" : "returnTypeBtn"),
+            initialType
+        );
     }
 
     window.initSalesReturnReturn = initSalesReturnReturn;

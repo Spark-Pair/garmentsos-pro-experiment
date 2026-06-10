@@ -16,6 +16,7 @@ class SalesReturn extends Model
     protected $fillable = [
         'article_id',
         'invoice_id',
+        'type',
         'date',
         'quantity',
         'amount',

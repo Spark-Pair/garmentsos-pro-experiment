@@ -159,14 +159,21 @@ class OrderController extends Controller
 
             foreach ($articles as $article) {
                 $stock = $stockMap->get($article->id, []);
-                $article['physical_quantity'] = (int) ($stock['current_stock_pcs'] ?? 0);
-                $article['available_stock'] = (int) ($stock['available_stock_pcs'] ?? 0);
-                $article['ordered_quantity'] = (int) ($stock['open_order_pcs'] ?? 0);
+                $article['current_stock'] = (int) ($stock['current_stock_pcs'] ?? 0);
+                $article['current_stock_packets'] = (float) ($stock['current_stock_packets'] ?? 0);
+                $article['orderable_quantity'] = (int) ($stock['orderable_quantity_pcs'] ?? 0);
+                $article['orderable_quantity_packets'] = (float) ($stock['orderable_quantity_packets'] ?? 0);
+                $article['total_quantity'] = (int) ($stock['total_quantity_pcs'] ?? 0);
+                $article['ordered_quantity'] = (int) ($stock['ordered_quantity_pcs'] ?? 0);
 
                 $article['category'] = ucfirst(str_replace('_', ' ', $article['category']));
                 $article['season'] = ucfirst(str_replace('_', ' ', $article['season']));
                 $article['size'] = ucfirst(str_replace('_', '-', $article['size']));
             }
+
+            $articles = $articles
+                ->filter(fn (Article $article) => (int) $article->orderable_quantity > 0)
+                ->values();
         }
 
         $last_order = Order::orderby('id', 'desc')->first();
@@ -489,13 +496,12 @@ class OrderController extends Controller
 
         foreach ($lines as $articleId => $orderedPcs) {
             $dispatchedPcs = (int) ($existingDispatched->get((int) $articleId) ?? 0);
-            $availablePcs = (int) ($stockMap->get((int) $articleId)['available_stock_pcs'] ?? 0);
-            $maxOrderPcs = $availablePcs + $dispatchedPcs;
+            $maxOrderPcs = (int) ($stockMap->get((int) $articleId)['orderable_quantity_pcs'] ?? 0);
 
             if ($orderedPcs > $maxOrderPcs) {
                 $articleNo = $articlesById->get((int) $articleId)?->article_no ?? $articleId;
                 throw ValidationException::withMessages([
-                    'articles' => "Stock is less than order quantity for article: {$articleNo}. Available: {$maxOrderPcs} pcs.",
+                    'articles' => "Order quantity exceeds the remaining article quantity for {$articleNo}. Available: {$maxOrderPcs} pcs.",
                 ]);
             }
         }

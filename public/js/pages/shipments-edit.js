@@ -41,6 +41,7 @@
                             Category: item.category,
                             Season: item.season,
                             Size: item.size,
+                            Unit: `${item.pcs_per_packet} Pcs/Pkt`,
                         },
                         data: item,
                         onclick: 'generateQuantityModal(this)',
@@ -101,7 +102,10 @@
         const data = JSON.parse(elem.dataset.json).data;
         const alreadySelected = isArticleAlreadySelected(data.id);
         const selectedArticle = selectedArticles.find(article => article.id == data.id);
-        const maxShipmentQuantity = Number(data.available_stock || 0) + Number(selectedArticle?.shipmentQuantity || 0);
+        const maxShipmentQuantity = Math.max(
+            Number(data.orderable_quantity || 0),
+            Number(selectedArticle?.shipmentQuantity || 0)
+        );
 
         if (limitOfArticles > 0 || alreadySelected) {
             const modalData = {
@@ -116,14 +120,20 @@
                     },
                     {
                         category: 'input',
-                        label: 'Available Stock - Pcs.',
-                        value: formatNumbersDigitLess(maxShipmentQuantity),
+                        label: 'Order Can Be Created',
+                        value: `${formatNumbersDigitLess(maxShipmentQuantity)} Pcs | ${formatNumbersWithDigits(data.orderable_quantity_packets)} Pkts`,
                         disabled: true,
                     },
                     {
                         category: 'input',
-                        label: 'Current Stock - Pcs.',
-                        value: formatNumbersDigitLess(data.physical_quantity),
+                        label: 'Current Stock / Invoiceable',
+                        value: `${formatNumbersDigitLess(data.current_stock)} Pcs | ${formatNumbersWithDigits(data.current_stock_packets)} Pkts`,
+                        disabled: true,
+                    },
+                    {
+                        category: 'input',
+                        label: 'Unit',
+                        value: `${formatNumbersDigitLess(data.pcs_per_packet)} Pcs per Packet`,
                         disabled: true,
                     },
                     {
@@ -483,6 +493,11 @@
             },
             success: function (response) {
                 articles = response.articles || [];
+                selectedArticles.forEach(selected => {
+                    if (!articles.some(article => article.id == selected.id)) {
+                        articles.push({ ...selected });
+                    }
+                });
 
                 const modal = document.getElementById('modalForm');
                 if (modal) {
@@ -496,6 +511,7 @@
                             Category: item.category,
                             Season: item.season,
                             Size: item.size,
+                            Unit: `${item.pcs_per_packet} Pcs/Pkt`,
                         },
                         data: item,
                         onclick: 'generateQuantityModal(this)',
