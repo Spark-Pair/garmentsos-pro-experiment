@@ -21,18 +21,18 @@
                 "placeholder" => "Enter invoice no",
                                 "dataFilterPath" => "invoice_no",
             ],
-            "Order No." => [
-                "id" => "order_no",
+            "Reff No." => [
+                "id" => "reff_no",
                 "type" => "text",
-                "placeholder" => "Enter order no",
-                                "dataFilterPath" => "order_no",
+                "placeholder" => "Enter order or shipment no",
+                                "dataFilterPath" => "reff_no",
             ],
-            "Order Date Range" => [
-                "id" => "order_date_range_start",
+            "Reff Date Range" => [
+                "id" => "reff_date_range_start",
                 "type" => "date",
-                "id2" => "order_date_range_end",
+                "id2" => "reff_date_range_end",
                 "type2" => "date",
-                                "dataFilterPath" => "order_date",
+                                "dataFilterPath" => "reff_date",
             ],
             "Invoice Date Range" => [
                 "id" => "invoice_date_range_start",
@@ -58,14 +58,15 @@
                 <div class="container-parent h-full">
                     <div class="card_container px-3 pb-3 h-full flex flex-col">
                         <div id="table-head" class="flex items-center bg-[var(--h-bg-color)] rounded-lg font-medium py-2 hidden mt-4 text-xs">
-                            <div class="w-[9%] cursor-pointer" onclick="sortByThis(this)">Article No.</div>
+                            <div class="w-[8%] cursor-pointer" onclick="sortByThis(this)">Article No.</div>
                             <div class="grow cursor-pointer text-left" onclick="sortByThis(this)">Customer</div>
-                            <div class="w-[11%] cursor-pointer" onclick="sortByThis(this)">Order Date</div>
-                            <div class="w-[10%] cursor-pointer" onclick="sortByThis(this)">Order No.</div>
-                            <div class="w-[13%] cursor-pointer" onclick="sortByThis(this)">Order Qty</div>
-                            <div class="w-[11%] cursor-pointer" onclick="sortByThis(this)">Invoice Date</div>
-                            <div class="w-[10%] cursor-pointer" onclick="sortByThis(this)">Invoice No.</div>
-                            <div class="w-[13%] cursor-pointer" onclick="sortByThis(this)">Invoice Qty</div>
+                            <div class="w-[10%] cursor-pointer" onclick="sortByThis(this)">Reff Date</div>
+                            <div class="w-[9%] cursor-pointer" onclick="sortByThis(this)">Reff No.</div>
+                            <div class="w-[12%] cursor-pointer" onclick="sortByThis(this)">Reff Qty</div>
+                            <div class="w-[6%] cursor-pointer" onclick="sortByThis(this)">Unit</div>
+                            <div class="w-[10%] cursor-pointer" onclick="sortByThis(this)">Invoice Date</div>
+                            <div class="w-[9%] cursor-pointer" onclick="sortByThis(this)">Invoice No.</div>
+                            <div class="w-[12%] cursor-pointer" onclick="sortByThis(this)">Invoice Qty</div>
                         </div>
                         <p id="noItemsError" style="display: none" class="text-sm text-[var(--border-error)] mt-3">No items found</p>
                         <div class="overflow-y-auto grow my-scrollbar-2">
@@ -73,8 +74,8 @@
                             </div>
                         </div>
                         <div id="calc-bottom" class="flex w-full gap-4 text-sm bg-[var(--secondary-bg-color)] pt-2 rounded-lg">
-                            <div class="total-order-quantity flex justify-between items-center border border-gray-600 rounded-lg py-2 px-4 w-full cursor-not-allowed">
-                                <div>Total Order Qty</div>
+                            <div class="total-reff-quantity flex justify-between items-center border border-gray-600 rounded-lg py-2 px-4 w-full cursor-not-allowed">
+                                <div>Total Reff Qty</div>
                                 <div class="text-right">0Pc</div>
                             </div>
                             <div class="total-invoice-quantity flex justify-between items-center border border-gray-600 rounded-lg py-2 px-4 w-full cursor-not-allowed">

@@ -15,10 +15,6 @@
 
         <!-- Step 1: Basic Information -->
         <div id="step1" class="space-y-4 ">
-            <div class="rounded-lg border border-[var(--h-bg-color)] bg-[var(--bg-color)]/40 px-4 py-3 text-xs leading-5 text-[var(--secondary-text)]">
-                `Short Title` poori app mein globally unique hoti hai.
-                Yani agar `KHI`, `UBL`, ya koi aur short title ek dafa save ho gayi, to woh dobara kisi bhi doosre type mein use nahi ho sakti.
-            </div>
             <div class="grid grid-cols-1 md:grid-cols-1 gap-4">
                 <!-- type -->
                 <x-select
@@ -60,10 +56,7 @@
                     maxlength="20"
                     data-setup-short-title
                 />
-                <div class="-mt-2 text-xs text-[var(--secondary-text)]">
-                    Example: `KHI`, `LHR`, `MBL`. Duplicate short titles allow nahi hongi, chahe type kuch bhi ho.
-                </div>
-
+                
                 <!-- login Button -->
                 <button type="submit"
                     class="w-full bg-[var(--primary-color)] text-[var(--text-color)] px-4 py-2 mt-2 rounded-lg hover:bg-[var(--h-primary-color)] transition-all duration-300 ease-in-out font-medium uppercase cursor-pointer">
