@@ -1,0 +1,33 @@
+<?php
+
+return [
+    'suppliers' => true,
+    'customers' => true,
+    'articles' => true,
+    'orders' => true,
+    'invoices' => true,
+    'shipments' => true,
+    'stock' => true,
+    'payments' => true,
+    'payment_programs' => true,
+    'bank_accounts' => true,
+    'vouchers' => true,
+    'expenses' => true,
+    'fabrics' => true,
+    'production' => true,
+    'employees' => true,
+    'attendance' => true,
+    'daily_ledger' => true,
+    'cr_dr' => true,
+    'sales_returns' => true,
+    'logistics' => true,
+    'utilities' => true,
+    'reports' => true,
+    'backups' => true,
+
+    'purchases' => false,
+    'barcode' => false,
+    'advanced_reports' => false,
+    'dashboard_cards' => false,
+    'updates' => false,
+];

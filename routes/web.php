@@ -3,6 +3,7 @@
 use App\Http\Controllers\ArticleController;
 use App\Http\Controllers\AttendanceController;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\BackupController;
 use App\Http\Controllers\BankAccountController;
 use App\Http\Controllers\BiltyController;
 use App\Http\Controllers\CargoController;
@@ -35,11 +36,7 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\UtilityAccountController;
 use App\Http\Controllers\UtilityBillController;
 use App\Http\Controllers\VoucherController;
-use Illuminate\Support\Facades\Response;
 use Illuminate\Support\Facades\Route;
-use Illuminate\Support\Facades\File;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Http\Request;
 /*
 |--------------------------------------------------------------------------
 | Web Routes
@@ -58,49 +55,7 @@ Route::get('subscription-expired', function () {
 })->name('subscription-expired');
 
 Route::group(['middleware' => ['auth', 'activeSession', 'subscriptionExpiry', 'readonly', 'dbTransaction']], function () {
-    Route::get('/backup-db', function () {
-        try {
-            $allowedRoles = ['developer', 'admin'];
-            if (!in_array(auth()->user()?->role, $allowedRoles, true)) {
-                return response('You do not have permission to download database backup.', 403);
-            }
-
-            if (config('database.default') !== 'sqlite') {
-                return response('Backup route currently supports sqlite only.', 400);
-            }
-
-            $sourcePath = (string) config('database.connections.sqlite.database', '');
-            if ($sourcePath === '') {
-                $sourcePath = (string) env('DB_DATABASE', '');
-            }
-            if ($sourcePath === '') {
-                $sourcePath = database_path('database.sqlite');
-            }
-
-            $isWindowsAbsolute = preg_match('/^[A-Za-z]:[\\\\\\/]/', $sourcePath) === 1;
-            $isUnixAbsolute = str_starts_with($sourcePath, '/');
-            if (!$isWindowsAbsolute && !$isUnixAbsolute) {
-                $sourcePath = base_path($sourcePath);
-            }
-
-            if (!$sourcePath || !File::exists($sourcePath)) {
-                return response('Database file not found for sqlite connection at: ' . $sourcePath, 404);
-            }
-
-            return Response::download($sourcePath, 'database.sqlite', [
-                'Content-Type' => 'application/octet-stream',
-                'Cache-Control' => 'no-store, no-cache, must-revalidate, max-age=0',
-            ]);
-        } catch (\Throwable $e) {
-            Log::error('DB backup failed', [
-                'message' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-                'user_id' => auth()->id(),
-            ]);
-
-            return response('Backup generation failed: ' . $e->getMessage(), 500);
-        }
-    });
+    Route::get('/backup-db', [BackupController::class, 'downloadDatabase']);
 
     Route::get('', function () {
         return redirect(route('home'));
