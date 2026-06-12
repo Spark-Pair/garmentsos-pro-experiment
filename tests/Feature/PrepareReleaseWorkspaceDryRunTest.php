@@ -269,7 +269,7 @@ class PrepareReleaseWorkspaceDryRunTest extends TestCase
     public function test_expected_development_tree_content_is_advisory(): void
     {
         $source = $this->createValidSource();
-        foreach (['.env', 'tests/FakeTest.php', 'docs/internal.md', 'scripts/tool.ps1', 'node_modules/pkg/index.js'] as $path) {
+        foreach (['tests/FakeTest.php', 'docs/internal.md', 'scripts/tool.ps1', 'node_modules/pkg/index.js'] as $path) {
             $this->writeFile($source.'/'.$path, 'development only');
         }
 
@@ -282,6 +282,133 @@ class PrepareReleaseWorkspaceDryRunTest extends TestCase
         $this->assertSame(0, $exitCode, json_encode($report));
         $this->assertNotEmpty($report['findings']['advisory']);
         $this->assertSame([], $report['findings']['blocking']);
+    }
+
+    public function test_realistic_lockfile_v3_content_passes_php_json_validation(): void
+    {
+        $source = $this->createValidSource();
+        $lock = [
+            'name' => 'garmentsos-pro',
+            'lockfileVersion' => 3,
+            'requires' => true,
+            'packages' => [
+                '' => ['name' => 'garmentsos-pro', 'dependencies' => ['Example' => '1.0.0', 'example' => '1.0.0']],
+                'node_modules/example' => ['version' => '1.0.0', 'resolved' => 'https://registry.npmjs.org/example/-/example-1.0.0.tgz'],
+            ],
+        ];
+        $this->writeFile(
+            $source.'/package-lock.json',
+            json_encode($lock, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR)
+        );
+
+        [$exitCode, $report] = $this->runDryRun(
+            $source,
+            $this->newPath('workspace'),
+            $this->newPath('staging')
+        );
+
+        $this->assertSame(0, $exitCode, json_encode($report));
+        $this->assertSame([], $report['findings']['blocking']);
+    }
+
+    public function test_sanctum_style_access_token_php_names_do_not_block(): void
+    {
+        $source = $this->createValidSource();
+        $this->writeFile(
+            $source.'/database/migrations/2019_12_14_000001_create_personal_access_tokens_table.php',
+            "<?php\n"
+        );
+        $this->writeFile($source.'/app/PersonalAccessToken.php', "<?php\n");
+
+        [$exitCode, $report] = $this->runDryRun(
+            $source,
+            $this->newPath('workspace'),
+            $this->newPath('staging')
+        );
+
+        $this->assertSame(0, $exitCode, json_encode($report));
+        $this->assertSame([], $report['findings']['blocking']);
+    }
+
+    /**
+     * @dataProvider advisoryEnvironmentFileProvider
+     */
+    public function test_environment_file_in_source_is_safe_and_reported_as_excluded(string $relativePath): void
+    {
+        $source = $this->createValidSource();
+        $this->writeFile($source.'/'.$relativePath, 'APP_KEY=secret-value-that-must-not-be-printed');
+
+        [$exitCode, $report, $output] = $this->runDryRun(
+            $source,
+            $this->newPath('workspace'),
+            $this->newPath('staging')
+        );
+
+        $this->assertSame(0, $exitCode, json_encode($report));
+        $this->assertSame('SAFE', $report['status']);
+        $this->assertSame([], $report['findings']['blocking']);
+        $finding = $this->findAdvisoryFinding($report, 'environment_file_excluded', $relativePath);
+        $this->assertSame(
+            '.env file exists in source and will be excluded from workspace/release.',
+            $finding['message']
+        );
+        $this->assertStringContainsString('.env', implode("\n", $report['plan']['exclusions']));
+        $this->assertStringNotContainsString('secret-value-that-must-not-be-printed', $output);
+    }
+
+    public static function advisoryEnvironmentFileProvider(): array
+    {
+        return [
+            '.env' => ['.env'],
+            '.env.example' => ['.env.example'],
+        ];
+    }
+
+    /**
+     * @dataProvider riskyCredentialFileProvider
+     */
+    public function test_risky_credential_filename_is_blocking(string $relativePath): void
+    {
+        $source = $this->createValidSource();
+        $this->writeFile($source.'/'.$relativePath, '{}');
+
+        [$exitCode, $report] = $this->runDryRun(
+            $source,
+            $this->newPath('workspace'),
+            $this->newPath('staging')
+        );
+
+        $this->assertSame(1, $exitCode, $relativePath);
+        $this->assertFinding($report, 'secret_file', $relativePath);
+    }
+
+    public static function riskyCredentialFileProvider(): array
+    {
+        return [
+            'auth JSON' => ['auth.json'],
+            'RSA key' => ['id_rsa'],
+            'DSA key' => ['id_dsa'],
+            'private PEM' => ['config/private.pem'],
+            'private key' => ['config/client.key'],
+            'service account JSON' => ['config/service-account-prod.json'],
+            'token JSON' => ['config/access-token.json'],
+            'secret JSON' => ['config/client-secret.json'],
+        ];
+    }
+
+    public function test_invalid_package_lock_json_is_blocking_when_php_is_available(): void
+    {
+        $source = $this->createValidSource();
+        $this->writeFile($source.'/package-lock.json', '{invalid');
+
+        [$exitCode, $report] = $this->runDryRun(
+            $source,
+            $this->newPath('workspace'),
+            $this->newPath('staging')
+        );
+
+        $this->assertSame(1, $exitCode);
+        $this->assertFinding($report, 'malformed_metadata', 'package-lock.json');
     }
 
     public function test_secret_content_is_blocking_without_exposing_value(): void
@@ -406,6 +533,18 @@ class PrepareReleaseWorkspaceDryRunTest extends TestCase
         }
 
         $this->fail("Expected blocking finding {$code} at {$path}.");
+    }
+
+    private function findAdvisoryFinding(array $report, string $code, string $path): array
+    {
+        foreach ($report['findings']['advisory'] ?? [] as $finding) {
+            if ($finding['code'] === $code && ($finding['path'] ?? null) === $path) {
+                $this->addToAssertionCount(1);
+                return $finding;
+            }
+        }
+
+        $this->fail("Expected advisory finding {$code} at {$path}.");
     }
 
     private function temporaryDirectory(string $prefix): string

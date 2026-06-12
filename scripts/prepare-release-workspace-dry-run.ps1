@@ -149,6 +149,59 @@ function Get-RelativePath {
     ).Replace('\', '/')
 }
 
+function Test-JsonFileWithPhp {
+    param([string]$Path)
+
+    $testPhp = [System.Environment]::GetEnvironmentVariable('GARMENTSOS_TEST_REAL_PHP')
+
+    if (-not [string]::IsNullOrWhiteSpace($testPhp) -and (Test-Path -LiteralPath $testPhp -PathType Leaf)) {
+        $phpPath = $testPhp
+    } else {
+        $php = Get-Command php -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+
+        if ($null -eq $php) {
+            return $null
+        }
+
+        $phpPath = $php.Source
+    }
+
+    if ([string]::IsNullOrWhiteSpace($phpPath)) {
+        return $null
+    }
+
+    $code = 'try { json_decode(file_get_contents($argv[1]), true, 512, JSON_THROW_ON_ERROR); exit(0); } catch (Throwable $e) { exit(1); }'
+    $startInfo = New-Object System.Diagnostics.ProcessStartInfo
+    $startInfo.FileName = $phpPath
+    $startInfo.Arguments = '-r ' + (Quote-ProcessArgument $code) + ' ' + (Quote-ProcessArgument $Path)
+    $startInfo.UseShellExecute = $false
+    $startInfo.RedirectStandardOutput = $true
+    $startInfo.RedirectStandardError = $true
+    $startInfo.CreateNoWindow = $true
+    $process = New-Object System.Diagnostics.Process
+    $process.StartInfo = $startInfo
+
+    if (-not $process.Start()) {
+        return $null
+    }
+
+    $null = $process.StandardOutput.ReadToEnd()
+    $null = $process.StandardError.ReadToEnd()
+    $process.WaitForExit()
+
+    return $process.ExitCode -eq 0
+}
+
+function Quote-ProcessArgument {
+    param([string]$Argument)
+
+    if ($Argument -notmatch '[\s"]') {
+        return $Argument
+    }
+
+    return '"' + ($Argument -replace '(\\*)"', '$1$1\"' -replace '(\\+)$', '$1$1') + '"'
+}
+
 $requiredArguments = [ordered]@{
     Source = $Source
     Workspace = $Workspace
@@ -289,16 +342,25 @@ foreach ($jsonFile in @('composer.json', 'composer.lock', 'package.json', 'packa
     $absolutePath = Join-Path -Path $sourcePath -ChildPath $jsonFile
 
     if (Test-Path -LiteralPath $absolutePath -PathType Leaf) {
-        try {
-            $null = Get-Content -LiteralPath $absolutePath -Raw | ConvertFrom-Json
-        } catch {
+        $validJson = Test-JsonFileWithPhp $absolutePath
+
+        if ($validJson -eq $false) {
             Add-Finding $blocking 'malformed_metadata' 'A required package metadata file contains invalid JSON.' $jsonFile
+        } elseif ($null -eq $validJson) {
+            if ($jsonFile -eq 'package-lock.json') {
+                Add-Finding $advisory 'json_validation_deferred' 'PHP was unavailable, so package-lock.json was checked only for existence and readability.' $jsonFile
+            } else {
+                try {
+                    $null = Get-Content -LiteralPath $absolutePath -Raw | ConvertFrom-Json
+                } catch {
+                    Add-Finding $blocking 'malformed_metadata' 'A required package metadata file contains invalid JSON.' $jsonFile
+                }
+            }
         }
     }
 }
 
 $advisoryRoots = [ordered]@{
-    '.env' = 'environment_file_present'
     '.git' = 'source_control_present'
     '.github' = 'source_control_present'
     'vendor' = 'existing_vendor_ignored'
@@ -318,9 +380,11 @@ foreach ($entry in $advisoryRoots.GetEnumerator()) {
 }
 
 $unsafePathPatterns = @(
-    '(?i)(^|/)(auth\.json|id_rsa|id_ed25519)$',
+    '(?i)(^|/)(auth\.json|credentials\.json|id_rsa|id_dsa|id_ed25519)$',
     '(?i)\.(pem|key|pfx|p12)$',
-    '(?i)(private[-_]?key|client[-_]?secret|access[-_]?token)'
+    '(?i)(^|/)service-account[^/]*\.json$',
+    '(?i)(^|/)[^/]*secret[^/]*\.json$',
+    '(?i)(^|/)[^/]*token[^/]*\.json$'
 )
 $secretContentPatterns = @(
     '(?i)ghp_[a-z0-9]{20,}',
@@ -343,6 +407,11 @@ try {
         }
 
         if (-not $entry.PSIsContainer) {
+            if ($relativePath -match '(?i)(^|/)\.env(\..*)?$') {
+                Add-Finding $advisory 'environment_file_excluded' '.env file exists in source and will be excluded from workspace/release.' $relativePath
+                continue
+            }
+
             foreach ($pattern in $unsafePathPatterns) {
                 if ($relativePath -match $pattern) {
                     Add-Finding $blocking 'secret_file' 'The source contains a secret or credential-like file.' $relativePath
