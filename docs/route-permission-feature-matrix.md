@@ -56,13 +56,13 @@ Readonly policy:
 
 | Endpoint | Controller action | Type | Current protection | Notes | Status |
 | --- | --- | --- | --- | --- | --- |
-| `POST get-order-details` | `Controller@getOrderDetails` | read helper | auth + readonly allowlist | invoice flow dependency | needs-review |
-| `POST get-category-data` | `Controller@getCategoryData` | read helper | auth + readonly allowlist | used by payment programs and bank accounts | needs-review |
-| `POST get-program-details` | `Controller@getProgramDetails` | read helper | auth + readonly allowlist | payment program dependency | needs-review |
-| `POST get-shipment-details` | `Controller@getShipmentDetails` | read helper | auth + readonly allowlist | invoice flow dependency | needs-review |
-| `POST get-voucher-details` | `Controller@getVoucherDetails` | read helper | auth + readonly allowlist | CR flow dependency | needs-review |
-| `POST get-employees-by-category` | `Controller@getEmployeesByCategory` | read helper | auth + readonly allowlist | employee payment dependency | needs-review |
-| `POST get-utility-accounts` | `Controller@getUtilityAccounts` | read helper | auth + readonly allowlist | utility bill dependency | needs-review |
+| `POST get-order-details` | `Controller@getOrderDetails` | read helper | auth + explicit role gate + readonly allowlist | invoice flow dependency | ready |
+| `POST get-category-data` | `Controller@getCategoryData` | read helper | auth + explicit role gate + readonly allowlist | used by payment programs and bank accounts | ready |
+| `POST get-program-details` | `Controller@getProgramDetails` | read helper | auth + explicit role gate + readonly allowlist | payment program dependency | ready |
+| `POST get-shipment-details` | `Controller@getShipmentDetails` | read helper | auth + explicit role gate + readonly allowlist | invoice flow dependency | ready |
+| `POST get-voucher-details` | `Controller@getVoucherDetails` | read helper | auth + explicit role gate + readonly allowlist | CR flow dependency | ready |
+| `POST get-employees-by-category` | `Controller@getEmployeesByCategory` | read helper | auth + explicit role gate + readonly allowlist | employee payment dependency | ready |
+| `POST get-utility-accounts` | `Controller@getUtilityAccounts` | read helper | auth + explicit role gate + readonly allowlist | utility bill dependency | ready |
 | `POST change-data-layout` | `Controller@changeDataLayout` | safe preference update | auth + readonly allowlist | updates `users.layout` only | ready |
 | `POST update-theme` | `AuthController@updateTheme` | safe preference update | auth + readonly allowlist | updates `users.theme` only | ready |
 | `POST update-menu-shortcuts` | `AuthController@updateMenuShortcuts` | safe preference update | auth + readonly allowlist | updates `users.menu_shortcuts` only | ready |
@@ -176,6 +176,23 @@ Routes inside the authenticated group should not rely on broad auth-only access 
 | `UtilityBillController@markPaid` | old-style check retained for now | endpoint returns JSON `403`; converting to redirect helper would change AJAX behavior | needs-review |
 | `NotificationController@index` | left auth-only | scoped to current user notifications and deletes only fetched current-user notifications | ready |
 | auth preference/session endpoints | left auth-only | theme/menu/activity updates are current-user preference/session operations | ready |
+
+## Helper Data Scoping
+
+Generic helper endpoints must not become a back door for customer/supplier portal users to fetch unrelated business records by guessing IDs or reference numbers.
+
+| Endpoint | Decision | Scope/roles | Status |
+| --- | --- | --- | --- |
+| `POST get-category-data` | explicit role gate added | developer, owner, admin, accountant; returns supplier/customer/self-account option data | ready |
+| `POST get-order-details` | explicit role gate added | developer, owner, admin, accountant; invoice/order helper, not customer portal helper | ready |
+| `POST get-program-details` | explicit role gate added | developer, owner, admin, accountant; payment-program helper | ready |
+| `POST get-shipment-details` | explicit role gate added | developer, owner, admin, accountant; invoice/shipment helper | ready |
+| `POST get-voucher-details` | explicit role gate added | developer, owner, admin, accountant; CR/voucher helper | ready |
+| `POST get-employees-by-category` | explicit role gate added | developer, owner, admin, accountant; employee payment helper | ready |
+| `POST get-utility-accounts` | explicit role gate added | developer, owner, admin, accountant, store_keeper; utility module helper | ready |
+| `POST sales-returns/get-details` | already explicitly gated | developer, owner, admin, accountant | ready |
+| `GET dr/get-payments` | already explicitly gated | developer, owner, admin, accountant | ready |
+| report statement details | already portal-scoped | customer/supplier can access only their allowed statement record types | ready |
 
 ## Immediate Matrix Tasks
 

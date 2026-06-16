@@ -90,6 +90,10 @@ class Controller extends BaseController
 
     public function getCategoryData(Request $request)
     {
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin', 'accountant'])) {
+            return $resp;
+        }
+
         switch ($request->category) {
             case 'supplier':
                 return Cache::remember('category_data:supplier', now()->addMinutes(5), function () {
@@ -195,6 +199,10 @@ class Controller extends BaseController
 
     public function getOrderDetails(Order $order, Request $request)
     {
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin', 'accountant'])) {
+            return $resp;
+        }
+
         $validator = Validator::make($request->all(), [
             "order_no" => "required|exists:orders,order_no",
         ]);
@@ -272,6 +280,10 @@ class Controller extends BaseController
     }
 
     public function getProgramDetails(Request $request) {
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin', 'accountant'])) {
+            return $resp;
+        }
+
         $validator = Validator::make($request->all(), [
             "program_no" => "required|exists:payment_programs,program_no",
         ]);
@@ -366,6 +378,10 @@ class Controller extends BaseController
 
     public function getShipmentDetails(Request $request)
     {
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin', 'accountant'])) {
+            return $resp;
+        }
+
         $validator = Validator::make($request->all(), [
             "shipment_no" => "required|exists:shipments,shipment_no",
         ]);
@@ -551,6 +567,10 @@ class Controller extends BaseController
 
     public function getVoucherDetails(Request $request)
     {
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin', 'accountant'])) {
+            return $resp;
+        }
+
         $voucher = Voucher::where('voucher_no', $request->voucher_no)
             ->with([
                 'supplier:id,supplier_name',
@@ -656,6 +676,9 @@ class Controller extends BaseController
 
     public function getEmployeesByCategory(Request $request)
     {
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin', 'accountant'])) {
+            return $resp;
+        }
 
         $employees = Employee::where('category', $request->category)->where('status', 'active')->with('type')
             ->whereHas('type', function ($query) {
@@ -736,6 +759,10 @@ class Controller extends BaseController
 
     public function getUtilityAccounts(Request $request)
     {
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin', 'accountant', 'store_keeper'])) {
+            return $resp;
+        }
+
         $validator = Validator::make($request->all(), [
             'bill_type_id' => 'required|integer|exists:setups,id',
             'location_id' => 'required|integer|exists:setups,id',
