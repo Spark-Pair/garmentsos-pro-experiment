@@ -24,8 +24,9 @@ class ReadOnlyMode
             return $next($request);
         }
 
-        // Allow read-only POST endpoints (data fetchers)
-        $allowedRouteNames = [
+        // These POST routes do not mutate business records. They only fetch
+        // data needed by forms while the app is in read-only mode.
+        $readonlyDataFetcherRouteNames = [
             'get-order-details',
             'get-category-data',
             'get-program-details',
@@ -36,16 +37,34 @@ class ReadOnlyMode
             'sales-returns.get-details',
             'reports.statement.get-names',
             'statement-adjustments.first-transaction-date',
+        ];
+
+        // These routes update the authenticated user's UI/report preferences
+        // only. They are allowed so read-only users can keep navigating safely.
+        $readonlyPreferenceRouteNames = [
             'change-data-layout',
+            'update-theme',
+            'updateMenuShortcuts',
             'set-invoice-type',
             'set-voucher-type',
             'set-production-type',
             'set-daily-ledger-type',
             'set-statement-type',
             'set-physical-quantity-report-type',
+        ];
+
+        // Session lifecycle endpoints are allowed because they do not change
+        // operational records such as invoices, payments, stock, or ledgers.
+        $readonlySessionRouteNames = [
             'update-last-activity',
             'logout',
         ];
+
+        $allowedRouteNames = array_merge(
+            $readonlyDataFetcherRouteNames,
+            $readonlyPreferenceRouteNames,
+            $readonlySessionRouteNames,
+        );
 
         $routeName = $request->route()?->getName();
         if ($routeName && in_array($routeName, $allowedRouteNames, true)) {

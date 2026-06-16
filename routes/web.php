@@ -67,7 +67,7 @@ Route::group(['middleware' => ['auth', 'activeSession', 'subscriptionExpiry', 'r
     Route::post('update-user-status', [UserController::class, 'updateStatus'])->name('update-user-status');
     Route::post('users.reset-password', [UserController::class, 'resetPassword'])->name('users.reset-password');
 
-    Route::post('update-theme', [AuthController::class, 'updateTheme']);
+    Route::post('update-theme', [AuthController::class, 'updateTheme'])->name('update-theme');
 
     Route::resource('setups', SetupController::class)->only(['index', 'create', 'store']);
     Route::get('permissions-report', [PermissionReportController::class, 'index'])->name('permissions-report');

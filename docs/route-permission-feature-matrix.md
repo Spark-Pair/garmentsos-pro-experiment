@@ -46,6 +46,13 @@ Status values:
 
 These routes are authenticated and remain inside the shared `readonly` and `dbTransaction` middleware group unless noted otherwise.
 
+Readonly policy:
+
+- Core business writes remain blocked in readonly mode.
+- Data-fetching POST helpers are allowed only when explicitly listed in `ReadOnlyMode`.
+- Safe UI/report preference writes are allowed only when explicitly listed in `ReadOnlyMode`.
+- Dead or missing routes must not remain in the readonly allowlist.
+
 | Endpoint | Controller action | Type | Current protection | Notes | Status |
 | --- | --- | --- | --- | --- | --- |
 | `POST get-order-details` | `Controller@getOrderDetails` | read helper | auth + readonly allowlist | invoice flow dependency | needs-review |
@@ -55,13 +62,15 @@ These routes are authenticated and remain inside the shared `readonly` and `dbTr
 | `POST get-voucher-details` | `Controller@getVoucherDetails` | read helper | auth + readonly allowlist | CR flow dependency | needs-review |
 | `POST get-employees-by-category` | `Controller@getEmployeesByCategory` | read helper | auth + readonly allowlist | employee payment dependency | needs-review |
 | `POST get-utility-accounts` | `Controller@getUtilityAccounts` | read helper | auth + readonly allowlist | utility bill dependency | needs-review |
-| `POST change-data-layout` | `Controller@changeDataLayout` | user preference write | auth + readonly allowlist | intentionally left unchanged to avoid UI regression; needs readonly policy decision | needs-review |
-| `POST set-invoice-type` | `Controller@setInvoiceType` | user preference write | auth + readonly allowlist | used by invoice generation UI | needs-review |
-| `POST set-voucher-type` | `Controller@setVoucherType` | user preference write | auth + readonly allowlist | used by voucher UI | needs-review |
-| `POST set-production-type` | `Controller@setProductionType` | user preference write | auth + readonly allowlist | used by production UI | needs-review |
-| `POST set-daily-ledger-type` | `Controller@setDailyLedgerType` | user preference write | auth + readonly allowlist | used by daily ledger UI | needs-review |
-| `POST set-statement-type` | `Controller@setStatementType` | user preference write | auth + readonly allowlist | used by statement report UI | needs-review |
-| `POST set-physical-quantity-report-type` | `Controller@setPhysicalQuantityReportType` | user preference write | auth + readonly allowlist | used by physical quantity report UI | needs-review |
+| `POST change-data-layout` | `Controller@changeDataLayout` | safe preference update | auth + readonly allowlist | updates `users.layout` only | ready |
+| `POST update-theme` | `AuthController@updateTheme` | safe preference update | auth + readonly allowlist | updates `users.theme` only | ready |
+| `POST update-menu-shortcuts` | `AuthController@updateMenuShortcuts` | safe preference update | auth + readonly allowlist | updates `users.menu_shortcuts` only | ready |
+| `POST set-invoice-type` | `Controller@setInvoiceType` | safe preference update | auth + readonly allowlist | updates `users.invoice_type` only | ready |
+| `POST set-voucher-type` | `Controller@setVoucherType` | safe preference update | auth + readonly allowlist | updates `users.voucher_type` only | ready |
+| `POST set-production-type` | `Controller@setProductionType` | safe preference update | auth + readonly allowlist | updates `users.production_type` only | ready |
+| `POST set-daily-ledger-type` | `Controller@setDailyLedgerType` | safe preference update | auth + readonly allowlist | updates `users.daily_ledger_type` only | ready |
+| `POST set-statement-type` | `Controller@setStatementType` | safe preference update | auth + readonly allowlist | updates `users.statement_type` only | ready |
+| `POST set-physical-quantity-report-type` | `Controller@setPhysicalQuantityReportType` | safe preference update | auth + readonly allowlist | updates `users.physical_quantity_report_type` only | ready |
 | `POST get-payments-by-method` | missing `Controller@getPaymentsByMethod` | dead helper | removed | route pointed to a missing method and had no UI references | ready |
 | `POST set-cr-type` | missing `Controller@setCRType` | dead helper | removed | route pointed to a missing method and had no UI references | ready |
 
@@ -69,5 +78,5 @@ These routes are authenticated and remain inside the shared `readonly` and `dbTr
 
 - Keep resource routes restricted to implemented actions with `only([...])`.
 - Add feature keys for modules not yet represented if needed.
-- Decide whether user preference setters should remain readonly-allowed or move behind a separate preference-write policy.
+- Keep readonly preference exceptions explicit and covered by tests.
 - Align sidebar entries with this matrix after route protection exists.
