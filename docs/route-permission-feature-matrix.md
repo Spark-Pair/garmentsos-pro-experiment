@@ -40,11 +40,34 @@ Status values:
 | utilities | `utility-bills.*`, `utility-accounts.*` | utility controllers | staff/store roles | utilities | utility | bills marked paid via PUT | needs-review |
 | logistics | `cargos.*`, `bilties.*` | cargo/bilty controllers | staff roles | logistics | cargo, bilty | resource blank actions should be reviewed | needs-review |
 | reports | `reports/*` | `ReportController` | broad roles, record-level checks in places | reports | report | reads many modules; high dependency risk | risky |
-| AJAX helpers | `get-*`, `set-*` | base `Controller` | authenticated route group; mixed validation | varies | varies | map each helper to module before feature guards | risky |
+| AJAX helpers | `get-*`, `set-*` | base `Controller` | authenticated route group; mixed validation | varies | varies | active helpers remain grouped under auth/readonly/dbTransaction; dead helpers removed | needs-review |
+
+## Helper/AJAX Endpoint Permissions
+
+These routes are authenticated and remain inside the shared `readonly` and `dbTransaction` middleware group unless noted otherwise.
+
+| Endpoint | Controller action | Type | Current protection | Notes | Status |
+| --- | --- | --- | --- | --- | --- |
+| `POST get-order-details` | `Controller@getOrderDetails` | read helper | auth + readonly allowlist | invoice flow dependency | needs-review |
+| `POST get-category-data` | `Controller@getCategoryData` | read helper | auth + readonly allowlist | used by payment programs and bank accounts | needs-review |
+| `POST get-program-details` | `Controller@getProgramDetails` | read helper | auth + readonly allowlist | payment program dependency | needs-review |
+| `POST get-shipment-details` | `Controller@getShipmentDetails` | read helper | auth + readonly allowlist | invoice flow dependency | needs-review |
+| `POST get-voucher-details` | `Controller@getVoucherDetails` | read helper | auth + readonly allowlist | CR flow dependency | needs-review |
+| `POST get-employees-by-category` | `Controller@getEmployeesByCategory` | read helper | auth + readonly allowlist | employee payment dependency | needs-review |
+| `POST get-utility-accounts` | `Controller@getUtilityAccounts` | read helper | auth + readonly allowlist | utility bill dependency | needs-review |
+| `POST change-data-layout` | `Controller@changeDataLayout` | user preference write | auth + readonly allowlist | intentionally left unchanged to avoid UI regression; needs readonly policy decision | needs-review |
+| `POST set-invoice-type` | `Controller@setInvoiceType` | user preference write | auth + readonly allowlist | used by invoice generation UI | needs-review |
+| `POST set-voucher-type` | `Controller@setVoucherType` | user preference write | auth + readonly allowlist | used by voucher UI | needs-review |
+| `POST set-production-type` | `Controller@setProductionType` | user preference write | auth + readonly allowlist | used by production UI | needs-review |
+| `POST set-daily-ledger-type` | `Controller@setDailyLedgerType` | user preference write | auth + readonly allowlist | used by daily ledger UI | needs-review |
+| `POST set-statement-type` | `Controller@setStatementType` | user preference write | auth + readonly allowlist | used by statement report UI | needs-review |
+| `POST set-physical-quantity-report-type` | `Controller@setPhysicalQuantityReportType` | user preference write | auth + readonly allowlist | used by physical quantity report UI | needs-review |
+| `POST get-payments-by-method` | missing `Controller@getPaymentsByMethod` | dead helper | removed | route pointed to a missing method and had no UI references | ready |
+| `POST set-cr-type` | missing `Controller@setCRType` | dead helper | removed | route pointed to a missing method and had no UI references | ready |
 
 ## Immediate Matrix Tasks
 
 - Keep resource routes restricted to implemented actions with `only([...])`.
 - Add feature keys for modules not yet represented if needed.
-- Map every AJAX helper to a module and dependency list.
+- Decide whether user preference setters should remain readonly-allowed or move behind a separate preference-write policy.
 - Align sidebar entries with this matrix after route protection exists.

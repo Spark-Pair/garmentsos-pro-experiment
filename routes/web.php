@@ -163,11 +163,9 @@ Route::group(['middleware' => ['auth', 'activeSession', 'subscriptionExpiry', 'r
     Route::post('set-voucher-type', [Controller::class, 'setVoucherType'])->name('set-voucher-type');
     Route::post('set-production-type', [Controller::class, 'setProductionType'])->name('set-production-type');
     Route::post('get-voucher-details', [Controller::class, 'getVoucherDetails'])->name('get-voucher-details');
-    Route::post('get-payments-by-method', [Controller::class, 'getPaymentsByMethod'])->name('get-payments-by-method');
     Route::post('get-employees-by-category', [Controller::class, 'getEmployeesByCategory'])->name('get-employees-by-category');
     Route::post('set-daily-ledger-type', [Controller::class, 'setDailyLedgerType'])->name('set-daily-ledger-type');
     Route::post('get-utility-accounts', [Controller::class, 'getUtilityAccounts'])->name('get-utility-accounts');
-    Route::post('set-cr-type', [Controller::class, 'setCRType'])->name('set-cr-type');
     Route::post('set-statement-type', [Controller::class, 'setStatementType'])->name('set-statement-type');
     Route::post('set-physical-quantity-report-type', [Controller::class, 'setPhysicalQuantityReportType'])->name('set-physical-quantity-report-type');
 
