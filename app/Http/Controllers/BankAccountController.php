@@ -18,7 +18,7 @@ class BankAccountController extends Controller
      */
     public function index(Request $request)
     {
-        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'manager', 'admin', 'accountant'])) {
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin', 'accountant'])) {
             return $resp;
         }
 
@@ -177,7 +177,7 @@ class BankAccountController extends Controller
 
     public function updateStatus(Request $request)
     {
-        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'manager', 'admin'])) {
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin'])) {
             return $resp;
         }
 
@@ -196,7 +196,7 @@ class BankAccountController extends Controller
 
     public function updateSerial(BankAccount $account, Request $request)
     {
-        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'manager', 'admin'])) {
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin'])) {
             return $resp;
         }
 

@@ -25,7 +25,7 @@ class ReportController extends Controller
 {
     public function statement(Request $request)
     {
-        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'manager', 'admin', 'accountant', 'store_keeper', 'customer', 'supplier'])) {
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin', 'accountant', 'customer', 'supplier'])) {
             return $resp;
         }
 
@@ -95,7 +95,7 @@ class ReportController extends Controller
 
     public function statementRecordDetails(Request $request)
     {
-        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'manager', 'admin', 'accountant', 'store_keeper', 'customer', 'supplier'])) {
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin', 'accountant', 'customer', 'supplier'])) {
             return $resp;
         }
 
@@ -131,7 +131,7 @@ class ReportController extends Controller
     // fucntion get names based on category
     public function getNames(Request $request)
     {
-        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'manager', 'admin', 'accountant', 'store_keeper', 'customer', 'supplier'])) {
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin', 'accountant', 'customer', 'supplier'])) {
             return $resp;
         }
 

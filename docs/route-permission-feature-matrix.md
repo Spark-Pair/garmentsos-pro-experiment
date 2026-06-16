@@ -23,12 +23,12 @@ Status values:
 | orders | `orders.*` | `OrderController` | staff plus customer portal for create/store/index | orders | order | depends on customers/articles | needs-review |
 | shipments | `shipments.*` | `ShipmentController` | staff roles | shipments | shipment | can be disabled for some clients; invoice dependency must be reviewed | risky |
 | invoices | `invoices.*`, `print-invoices` | `InvoiceController` | staff roles | invoices | invoice | depends on orders/shipments/customers/articles | needs-review |
-| customer payments | `customer-payments.*` | `CustomerPaymentController` | staff roles | payments | payment | clear/split endpoints are write operations | needs-review |
-| supplier payments | `supplier-payments.index` | `SupplierPaymentController@index` | staff roles | payments | payment | create/store/show/edit/update/destroy removed because methods are blank | ready |
-| payment programs | `payment-programs.*` | `PaymentProgramController` | staff roles | payment_programs | payment_program | customer/supplier summaries | needs-review |
-| bank accounts | `bank-accounts.*` | `BankAccountController` | staff roles | bank_accounts | bank_account | serial/status endpoints | needs-review |
+| customer payments | `customer-payments.*` | `CustomerPaymentController` | developer, owner, admin, accountant | payments | payment | clear/split endpoints are write operations | ready |
+| supplier payments | `supplier-payments.index` | `SupplierPaymentController@index` | developer, owner, admin, accountant | payments | payment | create/store/show/edit/update/destroy removed because methods are blank | ready |
+| payment programs | `payment-programs.*` | `PaymentProgramController` | developer, owner, admin, accountant | payment_programs | payment_program | customer/supplier summaries | ready |
+| bank accounts | `bank-accounts.*` | `BankAccountController` | index/create/store: developer, owner, admin, accountant; status/serial: developer, owner, admin | bank_accounts | bank_account | manager removed from hidden finance controls | ready |
 | vouchers | `vouchers.*` | `VoucherController` | staff roles | vouchers | voucher | depends on payments/bank accounts/suppliers | needs-review |
-| CR/DR | `cr.*`, `dr.*` | `CRController`, `DRController` | staff roles | cr_dr | cr, dr | payment integrations | needs-review |
+| CR/DR | `cr.*`, `dr.*` | `CRController`, `DRController` | developer, owner, admin, accountant | cr_dr | cr, dr | payment integrations | ready |
 | daily ledger | `daily-ledger.index/create/store` | `DailyLedgerController` | create/store: developer, owner, admin, accountant | daily_ledger | daily_ledger | show/edit/update/destroy removed because methods are blank; writes are readonly-blocked | ready |
 | physical quantities | `physical-quantities.*` | `PhysicalQuantityController` | staff/store roles | stock | stock | report type preference | needs-review |
 | sales returns | `sales-returns.*` | `SalesReturnController` | staff roles | sales_returns | sales_return | stock impact | needs-review |
@@ -90,8 +90,8 @@ Custom and high-sensitivity writes remain inside the authenticated `readonly` an
 | `POST customer-payments/{payment}/split` | `CustomerPaymentController@split` | splits payment records | developer, owner, admin, accountant | blocked | ready |
 | `POST payment-programs.update-program` | `PaymentProgramController@updateProgram` | payment program update | developer, owner, admin, accountant | blocked | ready |
 | `POST payment-programs/{id}/mark-paid` | `PaymentProgramController@markPaid` | marks program paid | developer, owner, admin, accountant | blocked | ready |
-| `POST update-bank-account-status` | `BankAccountController@updateStatus` | bank account status toggle | developer, owner, manager, admin | blocked | ready |
-| `PUT/POST bank-accounts/{account}/update-serial` | `BankAccountController@updateSerial` | bank account display order | developer, owner, manager, admin | blocked | ready |
+| `POST update-bank-account-status` | `BankAccountController@updateStatus` | bank account status toggle | developer, owner, admin | blocked | ready |
+| `PUT/POST bank-accounts/{account}/update-serial` | `BankAccountController@updateSerial` | bank account display order | developer, owner, admin | blocked | ready |
 | `POST fabrics/issuePost` | `FabricController@issuePost` | fabric stock issue | developer, owner, admin, accountant, store_keeper | blocked | ready |
 | `POST fabrics/returnPost` | `FabricController@returnPost` | fabric stock return | developer, owner, admin, accountant, store_keeper | blocked | ready |
 | `POST update-employee-status` | `EmployeeController@updateStatus` | employee status toggle | developer, owner, manager, admin | blocked | ready |
@@ -108,17 +108,17 @@ Direct URL access must not be broader than desktop/mobile menu visibility for se
 | Area | Routes | Decision | Notes | Status |
 | --- | --- | --- | --- | --- |
 | users | `users.index` | guest removed from direct controller access | menu already hides Users from guest; manager/accountant direct access remains aligned with Show Users visibility | ready |
-| customer payments | `customer-payments.index` | guest removed from direct controller access | finance page is visible only to staff finance roles in menus; manager read access remains a product decision | ready |
-| supplier payments | `supplier-payments.index` | guest removed from direct controller access | route exposes supplier payment details through direct URL/AJAX | ready |
-| payment programs | `payment-programs.index` | guest removed from direct controller access | summaries/create/store already use narrower staff finance roles | ready |
-| bank accounts | `bank-accounts.index` | guest removed from direct controller access | bank account listing is finance-sensitive | ready |
+| customer payments | `customer-payments.index` | guest and manager removed from direct controller access | finance page is visible only to staff finance roles in menus | ready |
+| supplier payments | `supplier-payments.index` | guest and manager removed from direct controller access | route exposes supplier payment details through direct URL/AJAX | ready |
+| payment programs | `payment-programs.index` | guest and manager removed from direct controller access | summaries/create/store already use narrower staff finance roles | ready |
+| bank accounts | `bank-accounts.index` | guest and manager removed from direct controller access | bank account listing and controls are finance-sensitive | ready |
 | vouchers | `vouchers.index` | guest removed from direct controller access | voucher listing is finance-sensitive | ready |
-| employee payments | `employee-payments.index` | guest removed from direct controller access | payroll/payment listing is sensitive | ready |
-| CR/DR | `cr.index/create/store`, `dr.index/create/store` | guest removed; index actions now have explicit role gates | CR/DR menu is staff-finance only; writes remain readonly-blocked | ready |
+| employee payments | `employee-payments.index` | guest and manager removed from direct controller access | payroll/payment listing is sensitive | ready |
+| CR/DR | `cr.index/create/store`, `dr.index/create/store` | guest and manager removed; index actions have explicit role gates | CR/DR menu is staff-finance only; writes remain readonly-blocked | ready |
 | customer portal | `orders.*`, customer `reports/statement` | kept intentionally broader | customer role has explicit portal menu and controller scoping | needs-review |
 | supplier portal | `expenses`, `productions`, supplier `reports/statement` | kept intentionally broader | supplier role has explicit portal menu and controller scoping in places | needs-review |
 | reports | `reports/*` | not tightened in this pass | broad report access has record-level checks in places and needs a separate report-specific product decision | risky |
-| manager finance reads | finance index/list routes | not tightened in this pass | controller access is broader than menu visibility for some read pages; review with product owner before changing | needs-review |
+| manager finance reads | finance index/list routes | tightened where hidden from menu and clearly finance/payroll-sensitive | manager still keeps non-finance permissions such as users and attendance recording | ready |
 
 ## Report Permission Policy
 
@@ -126,14 +126,25 @@ Reports can expose cross-module finance, customer, supplier, stock, production, 
 
 | Route | Action | Decision | Portal behavior | Status |
 | --- | --- | --- | --- | --- |
-| `GET reports/statement` | `ReportController@statement` | guest removed; staff/store/customer/supplier access retained | customer/supplier users are forced to their linked customer/supplier statement | ready |
-| `POST reports/statement/get-names` | `ReportController@getNames` | guest removed; staff/store/customer/supplier access retained | customer/supplier users receive only their own linked name option | ready |
-| `GET reports/statement/record-details` | `ReportController@statementRecordDetails` | guest removed; portal record types are restricted | customer can fetch only invoice/customer payment details; supplier can fetch only expense/voucher/supplier payment details | ready |
+| `GET reports/statement` | `ReportController@statement` | guest, manager, and store_keeper removed; finance staff/customer/supplier access retained | customer/supplier users are forced to their linked customer/supplier statement | ready |
+| `POST reports/statement/get-names` | `ReportController@getNames` | guest, manager, and store_keeper removed; finance staff/customer/supplier access retained | customer/supplier users receive only their own linked name option | ready |
+| `GET reports/statement/record-details` | `ReportController@statementRecordDetails` | guest, manager, and store_keeper removed; portal record types are restricted | customer can fetch only invoice/customer payment details; supplier can fetch only expense/voucher/supplier payment details | ready |
 | `GET reports/pending-payments` | `ReportController@pendingPayments` | explicit role gate added: developer, owner, admin, accountant | no portal access; this is a finance-sensitive receivables report | ready |
 | `GET reports/article` | `ReportController@article` | guest removed; staff/store roles retained | no customer/supplier portal access | ready |
 | `GET reports/physical-quantity` | `ReportController@physicalQuantity` | guest removed; staff/store roles retained | no customer/supplier portal access | ready |
 | `GET/POST statement-adjustments/*` | `StatementAdjustmentController` | already restricted to developer, owner, admin, accountant | no portal access | ready |
-| report access for manager/store_keeper | selected report routes | not tightened further in this pass | direct access remains broader than report menu visibility for some read reports | needs-review |
+| report access for manager/store_keeper | `reports/article`, `reports/physical-quantity` | not tightened further in this pass | stock/report access may be operationally useful; owner decision needed before hiding direct URLs | needs-review |
+
+## Manager/Store Keeper Direct Access Review
+
+| Area | Decision | Notes | Status |
+| --- | --- | --- | --- |
+| hidden finance pages for manager | tightened | manager no longer direct-opens finance/payment/bank/voucher/CR/DR/employee payment pages that are hidden from the menu | ready |
+| bank account status/serial writes for manager | tightened | hidden finance controls are now developer, owner, admin only | ready |
+| finance statement routes for manager/store_keeper | tightened | statement, name lookup, and record-detail helpers now exclude manager/store_keeper unless portal customer/supplier rules apply | ready |
+| stock pages for store_keeper | kept | articles, physical quantities, fabrics, and stock reports appear operationally intended for store_keeper | ready |
+| production/fabric access | kept | current role policy suggests operational access; changing it needs owner decision | needs-review |
+| article/physical quantity reports for manager/store_keeper | kept for now | data is read-only but may expose customer/order/stock details; owner should confirm final policy | needs-review |
 
 ## Immediate Matrix Tasks
 
