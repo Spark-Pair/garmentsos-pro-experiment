@@ -107,10 +107,10 @@ class CustomerController extends Controller
         if (!$user) {
             // Upload the image if provided
             if ($request->hasFile('image_upload')) {
-                $image = $request->file('image_upload');
-                $image_name = time() . '.' . $image->getClientOriginalExtension();
-                $image->move(public_path('uploads/suppliers'), $image_name);
-                $data['image'] = $image_name;
+                $file = $request->file('image_upload');
+                $fileName = time() . '_' . $file->getClientOriginalName();
+                $file->storeAs('uploads/images', $fileName, 'public');
+                $data['image'] = $fileName;
             } else {
                 $data['image'] = "default_avatar.png";
             }

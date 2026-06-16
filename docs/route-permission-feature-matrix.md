@@ -210,6 +210,19 @@ Print/export/download endpoints are direct URLs or direct data endpoints and mus
 | `GET /backup-db` | SQLite database download | internal database backup download | developer, admin only; WAL-safe backup service route | ready |
 | index-page print buttons | client-side printable table HTML | inherits current page route policy | no extra download endpoint; direct access is controlled by each index controller | ready |
 
+## Upload Image File Exposure
+
+Uploaded client files are runtime data. They must not be shipped in release packages and must not be moved without a backup and migration plan.
+
+| Flow | Endpoint/action | Current storage path | Public URL pattern | Decision | Status |
+| --- | --- | --- | --- | --- | --- |
+| user profile image | `POST users` / `UserController@store` | `storage/app/public/uploads/images` | `/storage/uploads/images/{filename}` | role-gated and image/mime/size validated | ready |
+| customer profile image | `POST customers`, `PUT/PATCH customers/{customer}` | `storage/app/public/uploads/images` | `/storage/uploads/images/{filename}` | create path standardized away from legacy `public/uploads/suppliers`; existing files are not moved | ready |
+| supplier profile image | `PUT/PATCH suppliers/{supplier}` | `storage/app/public/uploads/images` | `/storage/uploads/images/{filename}` | role-gated and image/mime/size validated; create currently defaults profile image | ready |
+| employee profile image | `POST employees`, `PUT/PATCH employees/{employee}` | `storage/app/public/uploads/images` | `/storage/uploads/images/{filename}` | role-gated and image/mime/size validated | ready |
+| article image | `POST articles`, `PUT/PATCH articles/{article}`, `POST update-image` | `storage/app/public/uploads/images` | `/storage/uploads/images/{filename}` | role-gated and image/mime/size validated | ready |
+| legacy customer upload root | old direct `public/uploads/suppliers` files | `public/uploads/suppliers` | `/uploads/suppliers/{filename}` | preserve existing files until external runtime migration; new code must not write here | needs-review |
+
 ## Immediate Matrix Tasks
 
 - Keep resource routes restricted to implemented actions with `only([...])`.

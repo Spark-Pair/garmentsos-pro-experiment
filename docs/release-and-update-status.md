@@ -52,6 +52,13 @@ Release packages must include prepared app code, vendor, public build assets, mi
 
 Release packages must exclude `.env`, databases, WAL/SHM, uploads, logs, backups, storage runtime data, `node_modules`, tests, docs, scripts, and developer secrets.
 
+Current upload/runtime file note:
+
+- Active profile/article image uploads should write through the Laravel public disk under `storage/app/public/uploads/images`.
+- Legacy files may still exist under `public/uploads/suppliers`; preserve them until an explicit external-runtime migration phase.
+- New code must not write directly to `public/uploads`.
+- Release packages must continue excluding both `storage/app/**` and `public/uploads/**`.
+
 ## Next Release Pipeline Phase
 
 When release testing resumes, use fresh disposable paths and allow Composer/npm to finish. If the controlled workspace trial passes, the next phase should be ZIP artifact creator planning only.

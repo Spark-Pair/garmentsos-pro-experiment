@@ -75,6 +75,7 @@ Do not rename database columns, routes, or models for wording-only changes.
 
 - New uploads should use Laravel storage APIs.
 - Do not write new files to `public/uploads`.
+- Treat `public/uploads` as a legacy runtime location only; preserve it until an approved migration, but do not add new writes there.
 - Do not assume `public/storage` is valid without a readiness check.
 - Do not move existing uploads without a backup and migration plan.
 
