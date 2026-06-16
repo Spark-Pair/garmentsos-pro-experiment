@@ -35,8 +35,8 @@ Status values:
 | fabrics | `fabrics.*`, issue/return | `FabricController` | staff/store roles | fabrics | fabric | production dependency | needs-review |
 | production | `productions.*` | `ProductionController` | staff/store/supplier index access | production | production | supplier portal visibility | needs-review |
 | employees | `employees.*` | `EmployeeController` | staff roles | employees | employee | upload profile images | needs-review |
-| attendance | `attendances.create/store` | `AttendanceController` | developer, owner, admin, manager | attendance | attendance | attendance recording; readonly-blocked writes | ready |
-| payroll | `attendances.manage-salary`, `attendances.generate-slip` | `AttendanceController` | developer, owner, admin, accountant | attendance | attendance | salary/slip access; guest and manager blocked | ready |
+| attendance | `attendances.create/store` | `AttendanceController` | developer, owner, admin, manager | attendance | attendance | sidebar shows Record Attendance only to these roles | ready |
+| payroll | `attendances.manage-salary`, `attendances.generate-slip` | `AttendanceController` | developer, owner, admin, accountant | attendance | attendance | sidebar shows salary/slip links only to these roles | ready |
 | expenses | `expenses.*` | `ExpenseController` | staff plus supplier index access | expenses | expense | page titles need cleanup | needs-review |
 | utilities | `utility-bills.*`, `utility-accounts.*` | utility controllers | staff/store roles | utilities | utility | bills marked paid via PUT | needs-review |
 | logistics | `cargos.*`, `bilties.*` | cargo/bilty controllers | staff roles | logistics | cargo, bilty | resource blank actions should be reviewed | needs-review |
