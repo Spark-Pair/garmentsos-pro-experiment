@@ -173,11 +173,16 @@
                     $canManageSetups = in_array($authRole, ['developer', 'owner', 'admin', 'accountant', 'store_keeper'], true);
                     $canRecordAttendanceMobile = in_array($authRole, ['developer', 'owner', 'admin', 'manager'], true);
                     $canManagePayrollMobile = in_array($authRole, ['developer', 'owner', 'admin', 'accountant'], true);
+                    $canViewUsersMobile = in_array($authRole, ['developer', 'owner', 'manager', 'admin', 'accountant'], true);
+                    $canCreateUsersMobile = in_array($authRole, ['developer', 'owner', 'manager', 'admin'], true);
 
-                    $usersDropdown = [
-                        ['href' => route('users.index'), 'title' => 'Show Users'],
-                        ['href' => route('users.create'), 'title' => 'Add User'],
-                    ];
+                    $usersDropdown = [];
+                    if ($canViewUsersMobile) {
+                        $usersDropdown[] = ['href' => route('users.index'), 'title' => 'Show Users'];
+                    }
+                    if ($canCreateUsersMobile) {
+                        $usersDropdown[] = ['href' => route('users.create'), 'title' => 'Add User'];
+                    }
                     if ($authRole === 'developer') {
                         $usersDropdown[] = ['href' => route('permissions-report'), 'title' => 'Permissions Report'];
                     }
@@ -191,9 +196,11 @@
                         $attendanceDropdown[] = ['href' => route('attendances.create'), 'title' => 'Record Attendance'];
                     }
                 @endphp
-                @if ($canManageMainOfficeRecords)
+                @if (!empty($usersDropdown))
                     <x-mobile-menu-item title="Users" includesDropdown :dropdown="$usersDropdown" />
+                @endif
 
+                @if ($canManageMainOfficeRecords)
                     <x-mobile-menu-item title="Suppliers" includesDropdown :dropdown="[
                         ['href' => route('suppliers.index'), 'title' => 'Show Suppliers'],
                         ['href' => route('suppliers.create'), 'title' => 'Add Supplier'],
@@ -277,14 +284,19 @@
 <script>
     window.__sidebar = {
         menuData: [
-        @if (in_array(Auth::user()->role, ['developer', 'owner', 'admin', 'accountant']))
+        @php
+            $canViewUsers = in_array(Auth::user()->role, ['developer', 'owner', 'manager', 'admin', 'accountant'], true);
+            $canCreateUsers = in_array(Auth::user()->role, ['developer', 'owner', 'manager', 'admin'], true);
+            $userMenuActionCount = (int) $canViewUsers + (int) $canCreateUsers + (Auth::user()->role === 'developer' ? 1 : 0);
+        @endphp
+        @if ($canViewUsers || $canCreateUsers)
             {
                 id: "users",
                 name: "Users",
                 details: {
                     '': 'Manage your users',
                 },
-                bottomChip: '2 actions',
+                bottomChip: '{{ $userMenuActionCount }} {{ $userMenuActionCount === 1 ? 'action' : 'actions' }}',
                 svgIcon:'<svg class="size-5 fill-[var(--text-color)] group-hover:fill-[var(--primary-color)]" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1343.97 1363.9"><circle cx="671.99" cy="300.42" r="300.42"/><path d="M715.46,931.61H-214.71c-163.37,0-262-180.66-173.85-318.17C-253.7,403.21-17.93,263.9,250.38,263.9S754.46,403.21,889.31,613.44C977.52,751,878.83,931.61,715.46,931.61Z" transform="translate(421.61 432.3)"/></svg>',
                 noMargin: true,
                 onclick: 'openSubMenu(event, this)',
@@ -293,8 +305,12 @@
                     active: false,
                 },
                 subMenu: [
+                    @if ($canViewUsers)
                     {name: 'Show Users', href: "/users"},
+                    @endif
+                    @if ($canCreateUsers)
                     {name: 'Add User', href: "/users/create"},
+                    @endif
                     @if (Auth::user()->role === 'developer')
                         {name: 'Permissions Report', href: "/permissions-report"},
                     @endif

@@ -15,7 +15,7 @@ Status values:
 | auth | `POST login` | `AuthController@loginPost` | guest | core | none | subscription expiry middleware applies | ready |
 | home | `GET home` | `Controller@home` | authenticated | dashboard_cards later | dashboard | utility reminder visible | needs-review |
 | backups | `GET /backup-db` | `BackupController@downloadDatabase` | developer, admin | backups | none | WAL-safe snapshot route | ready |
-| users | `users.index/create/store` | `UserController` | developer, owner, manager, admin for create/store | users | none | reset/status endpoints separate | needs-review |
+| users | `users.index/create/store` | `UserController` | index: developer, owner, manager, admin, accountant; create/store: developer, owner, manager, admin | users | none | desktop/mobile Add User hidden from accountant | ready |
 | permission report | `permissions-report` | `PermissionReportController@index` | developer | users | none | developer-only audit | ready |
 | suppliers | `suppliers.*` | `SupplierController` | varies by action | suppliers | supplier | possible Supplier -> Vendor label | needs-review |
 | customers | `customers.*` | `CustomerController` | varies by action | customers | customer | possible Customer -> Party label | needs-review |
