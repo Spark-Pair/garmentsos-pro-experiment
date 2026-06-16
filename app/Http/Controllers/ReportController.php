@@ -25,7 +25,7 @@ class ReportController extends Controller
 {
     public function statement(Request $request)
     {
-        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'manager', 'admin', 'accountant', 'guest', 'store_keeper', 'customer', 'supplier'])) {
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'manager', 'admin', 'accountant', 'store_keeper', 'customer', 'supplier'])) {
             return $resp;
         }
 
@@ -95,7 +95,7 @@ class ReportController extends Controller
 
     public function statementRecordDetails(Request $request)
     {
-        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'manager', 'admin', 'accountant', 'guest', 'store_keeper', 'customer', 'supplier'])) {
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'manager', 'admin', 'accountant', 'store_keeper', 'customer', 'supplier'])) {
             return $resp;
         }
 
@@ -103,6 +103,14 @@ class ReportController extends Controller
             'type' => 'required|string|in:expense,voucher,supplier_payment,invoice,customer_payment',
             'id' => 'required|integer|min:1',
         ]);
+
+        if ($this->isCustomerRole() && !in_array($validated['type'], ['invoice', 'customer_payment'], true)) {
+            abort(403, 'You are not authorized to view this statement record.');
+        }
+
+        if ($this->isSupplierRole() && !in_array($validated['type'], ['expense', 'voucher', 'supplier_payment'], true)) {
+            abort(403, 'You are not authorized to view this statement record.');
+        }
 
         $payload = match ($validated['type']) {
             'expense' => $this->expenseStatementPayload((int) $validated['id']),
@@ -123,7 +131,7 @@ class ReportController extends Controller
     // fucntion get names based on category
     public function getNames(Request $request)
     {
-        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'manager', 'admin', 'accountant', 'guest', 'store_keeper', 'customer', 'supplier'])) {
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'manager', 'admin', 'accountant', 'store_keeper', 'customer', 'supplier'])) {
             return $resp;
         }
 
@@ -207,6 +215,10 @@ class ReportController extends Controller
     }
     public function pendingPayments(Request $request)
     {
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin', 'accountant'])) {
+            return $resp;
+        }
+
         $cities_options = Setup::where('type', 'city')
             ->orderBy('title')
             ->get()
@@ -311,7 +323,7 @@ class ReportController extends Controller
 
     public function article(Request $request)
     {
-        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'manager', 'admin', 'accountant', 'guest', 'store_keeper'])) {
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'manager', 'admin', 'accountant', 'store_keeper'])) {
             return $resp;
         }
 
@@ -565,7 +577,7 @@ class ReportController extends Controller
 
     public function physicalQuantity(Request $request, PhysicalQuantityReportService $physicalQuantityReportService)
     {
-        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'manager', 'admin', 'accountant', 'guest', 'store_keeper'])) {
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'manager', 'admin', 'accountant', 'store_keeper'])) {
             return $resp;
         }
 

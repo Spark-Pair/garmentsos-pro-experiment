@@ -40,7 +40,7 @@ Status values:
 | expenses | `expenses.*` | `ExpenseController` | staff plus supplier index access | expenses | expense | page titles need cleanup | needs-review |
 | utilities | `utility-bills.*`, `utility-accounts.*` | utility controllers | staff/store roles | utilities | utility | bills marked paid via PUT | needs-review |
 | logistics | `cargos.*`, `bilties.*` | cargo/bilty controllers | staff roles | logistics | cargo, bilty | resource blank actions should be reviewed | needs-review |
-| reports | `reports/*` | `ReportController` | broad roles, record-level checks in places | reports | report | reads many modules; high dependency risk | risky |
+| reports | `reports/*` | `ReportController` | varies by report; portal statement access scoped by role | reports | report | reads many modules; high dependency risk | risky |
 | AJAX helpers | `get-*`, `set-*` | base `Controller` | authenticated route group; mixed validation | varies | varies | active helpers remain grouped under auth/readonly/dbTransaction; dead helpers removed | needs-review |
 
 ## Helper/AJAX Endpoint Permissions
@@ -119,6 +119,21 @@ Direct URL access must not be broader than desktop/mobile menu visibility for se
 | supplier portal | `expenses`, `productions`, supplier `reports/statement` | kept intentionally broader | supplier role has explicit portal menu and controller scoping in places | needs-review |
 | reports | `reports/*` | not tightened in this pass | broad report access has record-level checks in places and needs a separate report-specific product decision | risky |
 | manager finance reads | finance index/list routes | not tightened in this pass | controller access is broader than menu visibility for some read pages; review with product owner before changing | needs-review |
+
+## Report Permission Policy
+
+Reports can expose cross-module finance, customer, supplier, stock, production, and payment data. Report routes must therefore be reviewed separately from ordinary index pages.
+
+| Route | Action | Decision | Portal behavior | Status |
+| --- | --- | --- | --- | --- |
+| `GET reports/statement` | `ReportController@statement` | guest removed; staff/store/customer/supplier access retained | customer/supplier users are forced to their linked customer/supplier statement | ready |
+| `POST reports/statement/get-names` | `ReportController@getNames` | guest removed; staff/store/customer/supplier access retained | customer/supplier users receive only their own linked name option | ready |
+| `GET reports/statement/record-details` | `ReportController@statementRecordDetails` | guest removed; portal record types are restricted | customer can fetch only invoice/customer payment details; supplier can fetch only expense/voucher/supplier payment details | ready |
+| `GET reports/pending-payments` | `ReportController@pendingPayments` | explicit role gate added: developer, owner, admin, accountant | no portal access; this is a finance-sensitive receivables report | ready |
+| `GET reports/article` | `ReportController@article` | guest removed; staff/store roles retained | no customer/supplier portal access | ready |
+| `GET reports/physical-quantity` | `ReportController@physicalQuantity` | guest removed; staff/store roles retained | no customer/supplier portal access | ready |
+| `GET/POST statement-adjustments/*` | `StatementAdjustmentController` | already restricted to developer, owner, admin, accountant | no portal access | ready |
+| report access for manager/store_keeper | selected report routes | not tightened further in this pass | direct access remains broader than report menu visibility for some read reports | needs-review |
 
 ## Immediate Matrix Tasks
 
