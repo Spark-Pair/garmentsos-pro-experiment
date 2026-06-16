@@ -192,8 +192,6 @@ class EmployeeController extends Controller
             $filePath = $file->storeAs('uploads/images', $fileName, 'public'); // Store in public disk
 
             $data['profile_picture'] = $fileName; // Save the file path in the database
-        } else {
-            $data['profile_picture'] = "default_avatar.png";
         }
 
         // return $data;

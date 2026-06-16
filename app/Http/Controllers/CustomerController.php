@@ -189,19 +189,15 @@ class CustomerController extends Controller
         $user = User::where('username', $customer->user->username)->first();
 
         if ($user) {
-            $profileImage = "default_avatar.png";
             if ($request->hasFile('image_upload')) {
                 $file = $request->file('image_upload');
                 $fileName = time() . '_' . $file->getClientOriginalName();
                 $filePath = $file->storeAs('uploads/images', $fileName, 'public'); // Store in public disk
 
-                $profileImage = $fileName; // Save the file path in the database
+                $user->update([
+                    'profile_picture' => $fileName,
+                ]);
             }
-
-            // Update the user
-            $user->update([
-                'profile_picture' => $profileImage,
-            ]);
         } else {
             return redirect()->back()->with('error', 'This user does not exist.')->withInput();
         }
