@@ -13,7 +13,7 @@ class AttendanceController extends Controller
 {
     public function create()
     {
-        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'manager', 'admin', 'accountant', 'guest'])) {
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin', 'manager'])) {
             return $resp;
         }
 
@@ -25,7 +25,7 @@ class AttendanceController extends Controller
      */
     public function store(Request $request)
     {
-        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'manager', 'admin', 'accountant', 'guest'])) {
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin', 'manager'])) {
             return $resp;
         }
 
@@ -70,7 +70,7 @@ class AttendanceController extends Controller
 
     public function manageSalary()
     {
-        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'manager', 'admin', 'accountant', 'guest'])) {
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin', 'accountant'])) {
             return $resp;
         }
 
@@ -89,7 +89,7 @@ class AttendanceController extends Controller
 
     public function manageSalaryPost(Request $request)
     {
-        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'manager', 'admin', 'accountant', 'guest'])) {
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin', 'accountant'])) {
             return $resp;
         }
 
@@ -114,11 +114,19 @@ class AttendanceController extends Controller
 
     public function generateSlip()
     {
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin', 'accountant'])) {
+            return $resp;
+        }
+
         return view('attendances.generate-slip');
     }
 
     public function generateSlipPost(Request $request)
     {
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin', 'accountant'])) {
+            return $resp;
+        }
+
         $month = Carbon::parse($request->month . '-01');
         $currentMonth = $month->month;
         $currentYear = $month->year;

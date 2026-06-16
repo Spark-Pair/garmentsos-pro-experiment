@@ -35,7 +35,8 @@ Status values:
 | fabrics | `fabrics.*`, issue/return | `FabricController` | staff/store roles | fabrics | fabric | production dependency | needs-review |
 | production | `productions.*` | `ProductionController` | staff/store/supplier index access | production | production | supplier portal visibility | needs-review |
 | employees | `employees.*` | `EmployeeController` | staff roles | employees | employee | upload profile images | needs-review |
-| attendance | `attendances/*` | `AttendanceController` | broad staff roles | attendance | attendance | salary slip flow | needs-review |
+| attendance | `attendances.create/store` | `AttendanceController` | developer, owner, admin, manager | attendance | attendance | attendance recording; readonly-blocked writes | ready |
+| payroll | `attendances.manage-salary`, `attendances.generate-slip` | `AttendanceController` | developer, owner, admin, accountant | attendance | attendance | salary/slip access; guest and manager blocked | ready |
 | expenses | `expenses.*` | `ExpenseController` | staff plus supplier index access | expenses | expense | page titles need cleanup | needs-review |
 | utilities | `utility-bills.*`, `utility-accounts.*` | utility controllers | staff/store roles | utilities | utility | bills marked paid via PUT | needs-review |
 | logistics | `cargos.*`, `bilties.*` | cargo/bilty controllers | staff roles | logistics | cargo, bilty | resource blank actions should be reviewed | needs-review |
@@ -94,8 +95,9 @@ Custom and high-sensitivity writes remain inside the authenticated `readonly` an
 | `POST fabrics/issuePost` | `FabricController@issuePost` | fabric stock issue | developer, owner, admin, accountant, store_keeper | blocked | ready |
 | `POST fabrics/returnPost` | `FabricController@returnPost` | fabric stock return | developer, owner, admin, accountant, store_keeper | blocked | ready |
 | `POST update-employee-status` | `EmployeeController@updateStatus` | employee status toggle | developer, owner, manager, admin | blocked | ready |
-| `POST attendances/manage-salary` | `AttendanceController@manageSalaryPost` | salary adjustment | developer, owner, manager, admin, accountant, guest | blocked | needs-review |
-| `POST attendances/generate-slip` | `AttendanceController@generateSlipPost` | salary slip generation | route group + controller flow | blocked | needs-review |
+| `POST attendances/store` | `AttendanceController@store` | attendance record import/upsert | developer, owner, admin, manager | blocked | ready |
+| `POST attendances/manage-salary` | `AttendanceController@manageSalaryPost` | salary adjustment | developer, owner, admin, accountant | blocked | ready |
+| `POST attendances/generate-slip` | `AttendanceController@generateSlipPost` | salary slip generation | developer, owner, admin, accountant | blocked | ready |
 | `PUT utility-bills/{utilityBill}/mark-paid` | `UtilityBillController@markPaid` | marks utility bill paid | developer, owner, admin, accountant | blocked | ready |
 | `POST daily-ledger` | `DailyLedgerController@store` | creates daily cash ledger record | developer, owner, admin, accountant | blocked | ready |
 
