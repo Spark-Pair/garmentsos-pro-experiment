@@ -167,37 +167,63 @@
                 <x-mobile-menu-item href="/" title="Home" active="{{ request()->is('home') }}" />
 
                 @php
+                    $authRole = Auth::user()->role;
+                    $canManageMainOfficeRecords = in_array($authRole, ['developer', 'owner', 'admin', 'accountant'], true);
+                    $canManageArticleRecords = in_array($authRole, ['developer', 'owner', 'admin', 'accountant', 'store_keeper'], true);
+                    $canManageSetups = in_array($authRole, ['developer', 'owner', 'admin', 'accountant', 'store_keeper'], true);
+                    $canRecordAttendanceMobile = in_array($authRole, ['developer', 'owner', 'admin', 'manager'], true);
+                    $canManagePayrollMobile = in_array($authRole, ['developer', 'owner', 'admin', 'accountant'], true);
+
                     $usersDropdown = [
                         ['href' => route('users.index'), 'title' => 'Show Users'],
                         ['href' => route('users.create'), 'title' => 'Add User'],
                     ];
-                    if (Auth::user()->role === 'developer') {
+                    if ($authRole === 'developer') {
                         $usersDropdown[] = ['href' => route('permissions-report'), 'title' => 'Permissions Report'];
                     }
+
+                    $attendanceDropdown = [];
+                    if ($canManagePayrollMobile) {
+                        $attendanceDropdown[] = ['href' => route('attendances.generate-slip'), 'title' => 'Generate Slip'];
+                        $attendanceDropdown[] = ['href' => route('attendances.manage-salary'), 'title' => 'Manage Salary'];
+                    }
+                    if ($canRecordAttendanceMobile) {
+                        $attendanceDropdown[] = ['href' => route('attendances.create'), 'title' => 'Record Attendance'];
+                    }
                 @endphp
-                <x-mobile-menu-item title="Users" includesDropdown :dropdown="$usersDropdown" />
+                @if ($canManageMainOfficeRecords)
+                    <x-mobile-menu-item title="Users" includesDropdown :dropdown="$usersDropdown" />
 
-                <x-mobile-menu-item title="Suppliers" includesDropdown :dropdown="[
-                    ['href' => route('suppliers.index'), 'title' => 'Show Suppliers'],
-                    ['href' => route('suppliers.create'), 'title' => 'Add Supplier'],
-                ]" />
+                    <x-mobile-menu-item title="Suppliers" includesDropdown :dropdown="[
+                        ['href' => route('suppliers.index'), 'title' => 'Show Suppliers'],
+                        ['href' => route('suppliers.create'), 'title' => 'Add Supplier'],
+                    ]" />
 
-                <x-mobile-menu-item title="Customer" includesDropdown :dropdown="[
-                    ['href' => route('customers.index'), 'title' => 'Show Customers'],
-                    ['href' => route('customers.create'), 'title' => 'Add Customer'],
-                ]" />
+                    <x-mobile-menu-item title="Customer" includesDropdown :dropdown="[
+                        ['href' => route('customers.index'), 'title' => 'Show Customers'],
+                        ['href' => route('customers.create'), 'title' => 'Add Customer'],
+                    ]" />
+                @endif
 
-                <x-mobile-menu-item title="Articles" includesDropdown :dropdown="[
-                    ['href' => route('articles.index'), 'title' => 'Show Articles'],
-                    ['href' => route('articles.create'), 'title' => 'Add Article'],
-                ]" />
+                @if ($canManageArticleRecords)
+                    <x-mobile-menu-item title="Articles" includesDropdown :dropdown="[
+                        ['href' => route('articles.index'), 'title' => 'Show Articles'],
+                        ['href' => route('articles.create'), 'title' => 'Add Article'],
+                    ]" />
+                @endif
 
-                <x-mobile-menu-item title="Orders" includesDropdown :dropdown="[
-                    ['href' => route('orders.index'), 'title' => 'Show Orders'],
-                    ['href' => route('payment-programs.index'), 'title' => 'Show Payment Prg.'],
-                    ['href' => route('orders.create'), 'title' => 'Generate Order'],
-                    ['href' => route('payment-programs.create'), 'title' => 'Add Payment Prg.'],
-                ]" />
+                @if ($canManageMainOfficeRecords)
+                    <x-mobile-menu-item title="Orders" includesDropdown :dropdown="[
+                        ['href' => route('orders.index'), 'title' => 'Show Orders'],
+                        ['href' => route('payment-programs.index'), 'title' => 'Show Payment Prg.'],
+                        ['href' => route('orders.create'), 'title' => 'Generate Order'],
+                        ['href' => route('payment-programs.create'), 'title' => 'Add Payment Prg.'],
+                    ]" />
+                @endif
+
+                @if (!empty($attendanceDropdown))
+                    <x-mobile-menu-item title="Attendance" includesDropdown :dropdown="$attendanceDropdown" />
+                @endif
             </div>
 
             <!-- Divider -->
@@ -220,8 +246,10 @@
 
             <!-- Additional Links -->
             <div class="flex flex-col space-y-2 w-full mt-2">
-                <x-mobile-menu-item href="{{ route('setups.index') }}" title="Setups"
-                    active="{{ request()->is('setups') }}" />
+                @if ($canManageSetups)
+                    <x-mobile-menu-item href="{{ route('setups.index') }}" title="Setups"
+                        active="{{ request()->is('setups') }}" />
+                @endif
 
                 <x-mobile-menu-item title="Theme" asButton="true" id="themeToggleMobile" />
 
