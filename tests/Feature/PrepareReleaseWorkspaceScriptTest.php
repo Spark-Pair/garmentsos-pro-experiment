@@ -124,7 +124,25 @@ class PrepareReleaseWorkspaceScriptTest extends TestCase
         $this->assertSame(1, $exitCode);
         $this->assertSame('dry_run', $report['phase']);
         $this->assertDirectoryDoesNotExist($workspace);
+        $this->assertDirectoryDoesNotExist($workspace.'-build-runtime');
         $this->assertDirectoryDoesNotExist($staging);
+        $this->assertSame([], $this->shimRecords());
+    }
+
+    public function test_dry_run_failure_does_not_create_runtime_or_logs(): void
+    {
+        $source = $this->createValidSource();
+        unlink($source.'/composer.lock');
+        $workspace = $this->newPath('blocked-runtime-workspace');
+        $staging = $this->newPath('blocked-runtime-staging');
+
+        [$exitCode, $report] = $this->runOrchestrator($source, $workspace, $staging);
+
+        $this->assertSame(1, $exitCode);
+        $this->assertSame('dry_run', $report['phase']);
+        $this->assertDirectoryDoesNotExist($workspace);
+        $this->assertDirectoryDoesNotExist($workspace.'-build-runtime');
+        $this->assertDirectoryDoesNotExist($workspace.'-build-runtime/logs');
         $this->assertSame([], $this->shimRecords());
     }
 
@@ -144,6 +162,44 @@ class PrepareReleaseWorkspaceScriptTest extends TestCase
         $this->assertDirectoryExists($workspace.'-build-runtime');
         $this->assertDirectoryDoesNotExist($staging);
         $this->assertFileExists($workspace.'-build-runtime/logs/03-composer-install.log');
+    }
+
+    public function test_composer_validate_success_is_followed_by_composer_install(): void
+    {
+        $source = $this->createValidSource();
+        $workspace = $this->newPath('composer-order-workspace');
+        $staging = $this->newPath('composer-order-staging');
+
+        [$exitCode] = $this->runOrchestrator($source, $workspace, $staging, 'composer_install');
+        $labels = array_column($this->shimRecords(), 'label');
+
+        $this->assertSame(1, $exitCode);
+        $this->assertSame(['prepare_source', 'composer_validate', 'composer_install'], $labels);
+        $this->assertFileExists($workspace.'-build-runtime/logs/03-composer-install.log');
+    }
+
+    public function test_exception_after_composer_validate_reports_current_phase(): void
+    {
+        $source = $this->createValidSource();
+        $workspace = $this->newPath('composer-exception-workspace');
+        $staging = $this->newPath('composer-exception-staging');
+
+        [$exitCode, $report] = $this->runOrchestrator(
+            $source,
+            $workspace,
+            $staging,
+            null,
+            ['GARMENTSOS_TEST_BLOCK_COMPOSER_INSTALL_LOG' => '1']
+        );
+        $labels = array_column($this->shimRecords(), 'label');
+
+        $this->assertSame(1, $exitCode);
+        $this->assertSame('ERROR', $report['status']);
+        $this->assertSame('composer_install', $report['phase']);
+        $this->assertSame('composer_install', $report['command_label']);
+        $this->assertArrayHasKey('exception_class', $report);
+        $this->assertStringEndsWith('03-composer-install.log', str_replace('\\', '/', $report['log_path']));
+        $this->assertSame(['prepare_source', 'composer_validate'], $labels);
     }
 
     public function test_failed_npm_build_preserves_node_modules_and_stops_checker(): void
@@ -201,7 +257,8 @@ class PrepareReleaseWorkspaceScriptTest extends TestCase
         string $source,
         string $workspace,
         string $staging,
-        ?string $failLabel = null
+        ?string $failLabel = null,
+        array $extraEnvironment = []
     ): array {
         $environment = [
             'PATH' => str_replace('/', '\\', self::$shimDirectory).PATH_SEPARATOR.getenv('PATH'),
@@ -212,6 +269,8 @@ class PrepareReleaseWorkspaceScriptTest extends TestCase
         if ($failLabel !== null) {
             $environment['GARMENTSOS_TEST_FAIL_LABEL'] = $failLabel;
         }
+
+        $environment = array_merge($environment, $extraEnvironment);
 
         $process = new Process([
             'powershell.exe', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass',
@@ -360,6 +419,13 @@ class Shim {
         Record(args, label);
         string fail = Environment.GetEnvironmentVariable("GARMENTSOS_TEST_FAIL_LABEL") ?? "";
         if (String.Equals(fail, label, StringComparison.OrdinalIgnoreCase)) return 9;
+
+        if (exe == "composer" && label == "composer_validate" &&
+            Environment.GetEnvironmentVariable("GARMENTSOS_TEST_BLOCK_COMPOSER_INSTALL_LOG") == "1") {
+            string db = Environment.GetEnvironmentVariable("DB_DATABASE") ?? "";
+            string runtime = Path.GetDirectoryName(db) ?? "";
+            EnsureDirectory(Path.Combine(runtime, "logs", "03-composer-install.log"));
+        }
 
         if (exe == "php") {
             if (args.Length > 1 && Path.GetFileName(args[0]).Equals("artisan", StringComparison.OrdinalIgnoreCase)) {

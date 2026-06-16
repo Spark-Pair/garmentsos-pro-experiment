@@ -12,6 +12,28 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+$script:CurrentPhase = 'input'
+$script:CurrentCommandLabel = ''
+$script:CurrentLogPath = ''
+
+trap {
+    $report = @{
+        status = 'ERROR'
+        phase = $script:CurrentPhase
+        message = 'Workspace preparation failed unexpectedly.'
+        exception_class = $_.Exception.GetType().FullName
+    }
+
+    if ($script:CurrentCommandLabel -ne '') {
+        $report.command_label = $script:CurrentCommandLabel
+    }
+
+    if ($script:CurrentLogPath -ne '') {
+        $report.log_path = $script:CurrentLogPath
+    }
+
+    Write-JsonAndExit $report 1
+}
 
 function Write-JsonAndExit {
     param([hashtable]$Report, [int]$ExitCode)
@@ -48,6 +70,7 @@ function Stop-Operation {
     if ($CommandLabel -ne '') {
         $report.command_label = $CommandLabel
         $report.command_exit_code = $CommandExitCode
+        $report.exit_code = $CommandExitCode
     }
 
     if ($LogPath -ne '') {
@@ -289,7 +312,7 @@ function New-ControlledEnvironment {
     $environment['NPM_CONFIG_CACHE'] = Join-Path -Path $RuntimePath -ChildPath 'npm-cache'
     $environment['GARMENTSOS_COMMAND_LABEL'] = $CommandLabel
 
-    foreach ($testName in @('GARMENTSOS_TEST_REAL_PHP', 'GARMENTSOS_TEST_SHIM_LOG', 'GARMENTSOS_TEST_FAIL_LABEL')) {
+    foreach ($testName in @('GARMENTSOS_TEST_REAL_PHP', 'GARMENTSOS_TEST_SHIM_LOG', 'GARMENTSOS_TEST_FAIL_LABEL', 'GARMENTSOS_TEST_BLOCK_COMPOSER_INSTALL_LOG')) {
         $testValue = [System.Environment]::GetEnvironmentVariable($testName)
 
         if ($null -ne $testValue) {
@@ -315,6 +338,10 @@ function Invoke-StructuredProcess {
         Stop-Operation 'command_validation' 'A command did not match the hardcoded allowlist.' $Label 1 $LogPath
     }
 
+    $script:CurrentPhase = $Label
+    $script:CurrentCommandLabel = $Label
+    $script:CurrentLogPath = $LogPath
+
     $startInfo = New-Object System.Diagnostics.ProcessStartInfo
     $startInfo.FileName = $Executable
     $startInfo.Arguments = (($Arguments | ForEach-Object { Quote-ProcessArgument $_ }) -join ' ')
@@ -331,6 +358,15 @@ function Invoke-StructuredProcess {
 
     $process = New-Object System.Diagnostics.Process
     $process.StartInfo = $startInfo
+
+    if ($LogPath -ne '') {
+        $logDirectory = Split-Path -Path $LogPath -Parent
+        if ($logDirectory -ne '' -and -not (Test-Path -LiteralPath $logDirectory -PathType Container)) {
+            $null = New-Item -ItemType Directory -Path $logDirectory
+        }
+
+        [System.IO.File]::WriteAllText($LogPath, '', [System.Text.Encoding]::UTF8)
+    }
 
     if (-not $process.Start()) {
         Stop-Operation 'command_start' 'A command could not be started.' $Label 1 $LogPath
@@ -508,6 +544,9 @@ foreach ($scriptName in @(
     }
 }
 
+$script:CurrentPhase = 'dry_run'
+$script:CurrentCommandLabel = 'dry_run'
+$script:CurrentLogPath = ''
 $dryRunScript = Join-Path $sourcePath 'scripts\prepare-release-workspace-dry-run.ps1'
 $dryRunArguments = @(
     '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', $dryRunScript,
@@ -540,6 +579,9 @@ if ($dryRunProcess.ExitCode -ne 0 -or $dryRunReport.status -ne 'SAFE') {
     Stop-Operation 'dry_run' 'Dry-run did not approve workspace preparation.' 'dry_run' $dryRunProcess.ExitCode
 }
 
+$script:CurrentPhase = 'tool_resolution'
+$script:CurrentCommandLabel = ''
+$script:CurrentLogPath = ''
 $sourceHashesBefore = Get-PreparationSourceHashes $sourcePath
 $phpExecutable = Resolve-Application 'php.exe'
 
@@ -567,6 +609,9 @@ if ($prepareResult.exit_code -ne 0) {
     Stop-Operation 'prepare_source' 'Source preparation failed.' 'prepare_source' $prepareResult.exit_code
 }
 
+$script:CurrentPhase = 'runtime_create'
+$script:CurrentCommandLabel = ''
+$script:CurrentLogPath = ''
 $runtimePath = Get-CanonicalCandidate (Join-Path (Split-Path $workspacePath -Parent) ((Split-Path $workspacePath -Leaf) + '-build-runtime'))
 
 if ((Test-PathsOverlap $runtimePath $sourcePath) -or
@@ -658,6 +703,9 @@ if ($postCheckResult.exit_code -ne 0) {
     Stop-Operation 'post_build_check' 'Prepared workspace failed prerequisite validation.' 'post_build_check' $postCheckResult.exit_code $postCheckLog
 }
 
+$script:CurrentPhase = 'stage_release'
+$script:CurrentCommandLabel = 'stage_release'
+$script:CurrentLogPath = ''
 $stageArguments = @(
     (Join-Path $sourcePath 'scripts\stage-release.php'),
     "--source=$workspacePath",
@@ -677,6 +725,9 @@ if ($stageResult.exit_code -ne 0) {
     Stop-Operation 'stage_release' 'Release staging failed.' 'stage_release' $stageResult.exit_code $stageLog
 }
 
+$script:CurrentPhase = 'source_verification'
+$script:CurrentCommandLabel = ''
+$script:CurrentLogPath = ''
 $sourceHashesAfter = Get-PreparationSourceHashes $sourcePath
 
 if (-not (Test-HashMapsEqual $sourceHashesBefore $sourceHashesAfter)) {
