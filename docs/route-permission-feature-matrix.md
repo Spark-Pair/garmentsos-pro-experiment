@@ -29,7 +29,7 @@ Status values:
 | bank accounts | `bank-accounts.*` | `BankAccountController` | staff roles | bank_accounts | bank_account | serial/status endpoints | needs-review |
 | vouchers | `vouchers.*` | `VoucherController` | staff roles | vouchers | voucher | depends on payments/bank accounts/suppliers | needs-review |
 | CR/DR | `cr.*`, `dr.*` | `CRController`, `DRController` | staff roles | cr_dr | cr, dr | payment integrations | needs-review |
-| daily ledger | `daily-ledger.index/create/store` | `DailyLedgerController` | authenticated staff route group | daily_ledger | daily_ledger | show/edit/update/destroy removed because methods are blank | ready |
+| daily ledger | `daily-ledger.index/create/store` | `DailyLedgerController` | create/store: developer, owner, admin, accountant | daily_ledger | daily_ledger | show/edit/update/destroy removed because methods are blank; writes are readonly-blocked | ready |
 | physical quantities | `physical-quantities.*` | `PhysicalQuantityController` | staff/store roles | stock | stock | report type preference | needs-review |
 | sales returns | `sales-returns.*` | `SalesReturnController` | staff roles | sales_returns | sales_return | stock impact | needs-review |
 | fabrics | `fabrics.*`, issue/return | `FabricController` | staff/store roles | fabrics | fabric | production dependency | needs-review |
@@ -73,6 +73,31 @@ Readonly policy:
 | `POST set-physical-quantity-report-type` | `Controller@setPhysicalQuantityReportType` | safe preference update | auth + readonly allowlist | updates `users.physical_quantity_report_type` only | ready |
 | `POST get-payments-by-method` | missing `Controller@getPaymentsByMethod` | dead helper | removed | route pointed to a missing method and had no UI references | ready |
 | `POST set-cr-type` | missing `Controller@setCRType` | dead helper | removed | route pointed to a missing method and had no UI references | ready |
+
+## Sensitive Business Write Endpoints
+
+Custom and high-sensitivity writes remain inside the authenticated `readonly` and `dbTransaction` middleware group. Core business writes must also have an explicit controller role gate.
+
+| Endpoint | Controller action | Business change | Role protection | Readonly behavior | Status |
+| --- | --- | --- | --- | --- | --- |
+| `POST update-user-status` | `UserController@updateStatus` | activates/deactivates users | developer, owner, manager, admin | blocked | ready |
+| `POST users.reset-password` | `UserController@resetPassword` | resets user passwords and sessions | developer, owner, admin | blocked | ready |
+| `POST update-supplier-category` | `SupplierController@updateSupplierCategory` | supplier category changes | developer, owner, admin, accountant | blocked | ready |
+| `POST update-image` | `ArticleController@updateImage` | article image change | developer, owner, admin, accountant, store_keeper | blocked | ready |
+| `POST add-rate` | `ArticleController@addRate` | article rate creation | developer, owner, admin, accountant, store_keeper | blocked | ready |
+| `POST customer-payments/{id}/clear` | `CustomerPaymentController@clear` | creates payment clear record | developer, owner, admin, accountant | blocked | ready |
+| `POST customer-payments/{payment}/split` | `CustomerPaymentController@split` | splits payment records | developer, owner, admin, accountant | blocked | ready |
+| `POST payment-programs.update-program` | `PaymentProgramController@updateProgram` | payment program update | developer, owner, admin, accountant | blocked | ready |
+| `POST payment-programs/{id}/mark-paid` | `PaymentProgramController@markPaid` | marks program paid | developer, owner, admin, accountant | blocked | ready |
+| `POST update-bank-account-status` | `BankAccountController@updateStatus` | bank account status toggle | developer, owner, manager, admin | blocked | ready |
+| `PUT/POST bank-accounts/{account}/update-serial` | `BankAccountController@updateSerial` | bank account display order | developer, owner, manager, admin | blocked | ready |
+| `POST fabrics/issuePost` | `FabricController@issuePost` | fabric stock issue | developer, owner, admin, accountant, store_keeper | blocked | ready |
+| `POST fabrics/returnPost` | `FabricController@returnPost` | fabric stock return | developer, owner, admin, accountant, store_keeper | blocked | ready |
+| `POST update-employee-status` | `EmployeeController@updateStatus` | employee status toggle | developer, owner, manager, admin | blocked | ready |
+| `POST attendances/manage-salary` | `AttendanceController@manageSalaryPost` | salary adjustment | developer, owner, manager, admin, accountant, guest | blocked | needs-review |
+| `POST attendances/generate-slip` | `AttendanceController@generateSlipPost` | salary slip generation | route group + controller flow | blocked | needs-review |
+| `PUT utility-bills/{utilityBill}/mark-paid` | `UtilityBillController@markPaid` | marks utility bill paid | developer, owner, admin, accountant | blocked | ready |
+| `POST daily-ledger` | `DailyLedgerController@store` | creates daily cash ledger record | developer, owner, admin, accountant | blocked | ready |
 
 ## Immediate Matrix Tasks
 

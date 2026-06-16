@@ -148,6 +148,10 @@ class DailyLedgerController extends Controller
      */
     public function create()
     {
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin', 'accountant'])) {
+            return $resp;
+        }
+
         $totalDeposit = DailyLedgerDeposit::sum('amount');
         $totalUse = DailyLedgerUse::sum('amount');
         $balance = $totalDeposit - $totalUse;
@@ -159,6 +163,10 @@ class DailyLedgerController extends Controller
      */
     public function store(Request $request)
     {
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin', 'accountant'])) {
+            return $resp;
+        }
+
         $type = Auth::user()->daily_ledger_type;
 
         $commonRules = [
