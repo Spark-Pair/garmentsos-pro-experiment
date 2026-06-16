@@ -26,7 +26,7 @@ class InvoiceController extends Controller
      */
     public function index(Request $request)
     {
-        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'manager', 'admin', 'accountant', 'guest'])) {
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'manager', 'admin', 'accountant'])) {
             return $resp;
         }
 
@@ -428,6 +428,10 @@ class InvoiceController extends Controller
 
     public function print()
     {
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin', 'accountant'])) {
+            return $resp;
+        }
+
         $invoiceNumbers = session('invoiceNumbers');
 
         if (!$invoiceNumbers) {

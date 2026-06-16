@@ -16,7 +16,7 @@ class ExpenseController extends Controller
      */
     public function index(Request $request)
     {
-        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin', 'accountant', 'guest', 'supplier'])) {
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin', 'accountant', 'supplier'])) {
             return $resp;
         }
         $authLayout = $this->getAuthLayout($request->route()->getName(), 'table');

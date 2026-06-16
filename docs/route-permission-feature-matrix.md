@@ -17,12 +17,12 @@ Status values:
 | backups | `GET /backup-db` | `BackupController@downloadDatabase` | developer, admin | backups | none | WAL-safe snapshot route | ready |
 | users | `users.index/create/store` | `UserController` | index: developer, owner, manager, admin, accountant; create/store: developer, owner, manager, admin | users | none | desktop/mobile Add User hidden from accountant | ready |
 | permission report | `permissions-report` | `PermissionReportController@index` | developer | users | none | developer-only audit | ready |
-| suppliers | `suppliers.*` | `SupplierController` | varies by action | suppliers | supplier | possible Supplier -> Vendor label | needs-review |
-| customers | `customers.*` | `CustomerController` | varies by action | customers | customer | possible Customer -> Party label | needs-review |
-| articles | `articles.*` | `ArticleController` | varies by action | articles | article | possible Article -> Design label | needs-review |
+| suppliers | `suppliers.*` | `SupplierController` | index: developer, owner, manager, admin, accountant; create/store/edit/update: developer, owner, admin, accountant | suppliers | supplier | possible Supplier -> Vendor label | ready |
+| customers | `customers.*` | `CustomerController` | index: developer, owner, manager, admin, accountant; create/store/edit/update: developer, owner, admin, accountant | customers | customer | possible Customer -> Party label | ready |
+| articles | `articles.*` | `ArticleController` | index: developer, owner, manager, admin, accountant, store_keeper; create/store/edit/update: developer, owner, admin, accountant, store_keeper | articles | article | possible Article -> Design label | ready |
 | orders | `orders.*` | `OrderController` | staff plus customer portal for create/store/index | orders | order | depends on customers/articles | needs-review |
-| shipments | `shipments.*` | `ShipmentController` | staff roles | shipments | shipment | can be disabled for some clients; invoice dependency must be reviewed | risky |
-| invoices | `invoices.*`, `print-invoices` | `InvoiceController` | staff roles | invoices | invoice | depends on orders/shipments/customers/articles | needs-review |
+| shipments | `shipments.*` | `ShipmentController` | index: developer, owner, manager, admin, accountant; create/store/edit/update: developer, owner, admin, accountant | shipments | shipment | can be disabled for some clients; invoice dependency must be reviewed | risky |
+| invoices | `invoices.*`, `print-invoices` | `InvoiceController` | index: developer, owner, manager, admin, accountant; create/store/print: developer, owner, admin, accountant | invoices | invoice | depends on orders/shipments/customers/articles | ready |
 | customer payments | `customer-payments.*` | `CustomerPaymentController` | developer, owner, admin, accountant | payments | payment | clear/split endpoints are write operations | ready |
 | supplier payments | `supplier-payments.index` | `SupplierPaymentController@index` | developer, owner, admin, accountant | payments | payment | create/store/show/edit/update/destroy removed because methods are blank | ready |
 | payment programs | `payment-programs.*` | `PaymentProgramController` | developer, owner, admin, accountant | payment_programs | payment_program | customer/supplier summaries | ready |
@@ -30,16 +30,16 @@ Status values:
 | vouchers | `vouchers.*` | `VoucherController` | staff roles | vouchers | voucher | depends on payments/bank accounts/suppliers | needs-review |
 | CR/DR | `cr.*`, `dr.*` | `CRController`, `DRController` | developer, owner, admin, accountant | cr_dr | cr, dr | payment integrations | ready |
 | daily ledger | `daily-ledger.index/create/store` | `DailyLedgerController` | create/store: developer, owner, admin, accountant | daily_ledger | daily_ledger | show/edit/update/destroy removed because methods are blank; writes are readonly-blocked | ready |
-| physical quantities | `physical-quantities.*` | `PhysicalQuantityController` | staff/store roles | stock | stock | report type preference | needs-review |
+| physical quantities | `physical-quantities.*` | `PhysicalQuantityController` | index: developer, owner, manager, admin, accountant, store_keeper; create/store: developer, owner, admin, accountant, store_keeper | stock | stock | report type preference | ready |
 | sales returns | `sales-returns.*` | `SalesReturnController` | staff roles | sales_returns | sales_return | stock impact | needs-review |
-| fabrics | `fabrics.*`, issue/return | `FabricController` | staff/store roles | fabrics | fabric | production dependency | needs-review |
-| production | `productions.*` | `ProductionController` | staff/store/supplier index access | production | production | supplier portal visibility | needs-review |
-| employees | `employees.*` | `EmployeeController` | staff roles | employees | employee | upload profile images | needs-review |
+| fabrics | `fabrics.*`, issue/return | `FabricController` | index: developer, owner, manager, admin, accountant, store_keeper; writes: developer, owner, admin, accountant, store_keeper | fabrics | fabric | production dependency | ready |
+| production | `productions.*` | `ProductionController` | index: developer, owner, manager, admin, accountant, store_keeper, supplier; create/store: developer, owner, manager, admin, accountant, store_keeper | production | production | supplier portal index visibility preserved | ready |
+| employees | `employees.*` | `EmployeeController` | index: developer, owner, manager, admin, accountant; create/store: developer, owner, admin, accountant; edit/update: developer, owner, admin | employees | employee | upload profile images | ready |
 | attendance | `attendances.create/store` | `AttendanceController` | developer, owner, admin, manager | attendance | attendance | desktop and mobile menus show Record Attendance only to these roles | ready |
 | payroll | `attendances.manage-salary`, `attendances.generate-slip` | `AttendanceController` | developer, owner, admin, accountant | attendance | attendance | desktop and mobile menus show salary/slip links only to these roles | ready |
-| expenses | `expenses.*` | `ExpenseController` | staff plus supplier index access | expenses | expense | page titles need cleanup | needs-review |
+| expenses | `expenses.*` | `ExpenseController` | index: developer, owner, admin, accountant, supplier; create/store/edit/update: developer, owner, admin, accountant | expenses | expense | supplier portal index visibility preserved | ready |
 | utilities | `utility-bills.*`, `utility-accounts.*` | utility controllers | staff/store roles | utilities | utility | bills marked paid via PUT | needs-review |
-| logistics | `cargos.*`, `bilties.*` | cargo/bilty controllers | staff roles | logistics | cargo, bilty | resource blank actions should be reviewed | needs-review |
+| logistics | `cargos.*`, `bilties.*` | cargo/bilty controllers | cargos index: developer, owner, manager, admin, accountant; cargo writes and bilty routes: developer, owner, admin, accountant | logistics | cargo, bilty | bilty controller now has explicit role gates | ready |
 | reports | `reports/*` | `ReportController` | varies by report; portal statement access scoped by role | reports | report | reads many modules; high dependency risk | risky |
 | AJAX helpers | `get-*`, `set-*` | base `Controller` | authenticated route group; mixed validation | varies | varies | active helpers remain grouped under auth/readonly/dbTransaction; dead helpers removed | needs-review |
 
@@ -145,6 +145,22 @@ Reports can expose cross-module finance, customer, supplier, stock, production, 
 | stock pages for store_keeper | kept | articles, physical quantities, fabrics, and stock reports appear operationally intended for store_keeper | ready |
 | production/fabric access | kept | current role policy suggests operational access; changing it needs owner decision | needs-review |
 | article/physical quantity reports for manager/store_keeper | kept for now | data is read-only but may expose customer/order/stock details; owner should confirm final policy | needs-review |
+
+## Guest Direct Access Review
+
+Plain `guest` is an internal limited role, not a customer/supplier portal identity. Customer and supplier portal behavior remains controlled by the separate `customer` and `supplier` roles.
+
+| Area | Decision | Notes | Status |
+| --- | --- | --- | --- |
+| master data indexes | tightened | guest removed from suppliers, customers, articles, employees | ready |
+| operational indexes | tightened | guest removed from orders, shipments, invoices, cargos, fabrics, physical quantities, productions | ready |
+| invoice printing | tightened | `print-invoices` now has an explicit finance role gate | ready |
+| bilty routes | tightened | index/create/store now have explicit finance/logistics role gates | ready |
+| employee create form | tightened | create now has an explicit role gate matching store policy | ready |
+| production writes | tightened | guest removed from production create/store; store_keeper/staff access preserved | ready |
+| supplier portal | preserved | supplier can still access supplier-scoped expenses and productions index | ready |
+| customer portal | preserved | customer can still access customer-scoped orders | ready |
+| remaining guest access | none outside auth/login after this pass | use dedicated portal roles for client-facing access | ready |
 
 ## Immediate Matrix Tasks
 

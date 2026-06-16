@@ -14,7 +14,7 @@ class EmployeeController extends Controller
      */
     public function index(Request $request)
     {
-        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'manager', 'admin', 'accountant', 'guest'])) {
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'manager', 'admin', 'accountant'])) {
             return $resp;
         }
 
@@ -63,6 +63,10 @@ class EmployeeController extends Controller
      */
     public function create()
     {
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin', 'accountant'])) {
+            return $resp;
+        }
+
         $all_types = [];
 
         $staff_types = Setup::where('type', 'staff_type')->get();

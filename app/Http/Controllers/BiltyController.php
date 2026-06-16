@@ -13,6 +13,10 @@ class BiltyController extends Controller
      */
     public function index(Request $request)
     {
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin', 'accountant'])) {
+            return $resp;
+        }
+
         // $bilties = Bilty::with('invoice.customer.city')->get();
         $authLayout = $this->getAuthLayout($request->route()->getName(), 'table');
 
@@ -31,6 +35,10 @@ class BiltyController extends Controller
      */
     public function create()
     {
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin', 'accountant'])) {
+            return $resp;
+        }
+
         $invoices = Invoice::with('customer.city')
             ->doesntHave('bilty')
             ->get()
@@ -66,6 +74,10 @@ class BiltyController extends Controller
      */
     public function store(Request $request)
     {
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin', 'accountant'])) {
+            return $resp;
+        }
+
         $request->validate([
             'date' => 'required|date',
             'invoices_array' => 'required|json',

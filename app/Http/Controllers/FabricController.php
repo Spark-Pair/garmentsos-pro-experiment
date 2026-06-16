@@ -19,7 +19,7 @@ class FabricController extends Controller
      */
     public function index(Request $request)
     {
-        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'manager', 'admin', 'accountant', 'guest', 'store_keeper'])) {
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'manager', 'admin', 'accountant', 'store_keeper'])) {
             return $resp;
         }
         $authLayout = $this->getAuthLayout($request->route()->getName(), 'table');

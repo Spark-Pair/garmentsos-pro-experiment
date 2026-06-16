@@ -21,7 +21,7 @@ class ProductionController extends Controller
      */
     public function index(Request $request)
     {
-        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'manager', 'admin', 'accountant', 'guest', 'store_keeper', 'supplier'])) {
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'manager', 'admin', 'accountant', 'store_keeper', 'supplier'])) {
             return $resp;
         }
         $authLayout = $this->getAuthLayout($request->route()->getName(), 'table');
@@ -55,7 +55,7 @@ class ProductionController extends Controller
      */
     public function create()
     {
-        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'manager', 'admin', 'accountant', 'guest', 'store_keeper'])) {
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'manager', 'admin', 'accountant', 'store_keeper'])) {
             return $resp;
         }
 
@@ -137,7 +137,7 @@ class ProductionController extends Controller
      */
     public function store(Request $request)
     {
-        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'manager', 'admin', 'accountant', 'guest', 'store_keeper'])) {
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'manager', 'admin', 'accountant', 'store_keeper'])) {
             return $resp;
         }
 

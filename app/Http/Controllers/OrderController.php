@@ -23,7 +23,7 @@ class OrderController extends Controller
      */
     public function index(Request $request)
     {
-        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'manager', 'admin', 'accountant', 'guest', 'customer', 'store_keeper'])) {
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'manager', 'admin', 'accountant', 'customer', 'store_keeper'])) {
             return $resp;
         }
 
