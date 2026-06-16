@@ -101,6 +101,25 @@ Custom and high-sensitivity writes remain inside the authenticated `readonly` an
 | `PUT utility-bills/{utilityBill}/mark-paid` | `UtilityBillController@markPaid` | marks utility bill paid | developer, owner, admin, accountant | blocked | ready |
 | `POST daily-ledger` | `DailyLedgerController@store` | creates daily cash ledger record | developer, owner, admin, accountant | blocked | ready |
 
+## Controller/Menu Permission Alignment
+
+Direct URL access must not be broader than desktop/mobile menu visibility for sensitive admin, finance, and payroll pages unless the broader access is an intentional portal behavior.
+
+| Area | Routes | Decision | Notes | Status |
+| --- | --- | --- | --- | --- |
+| users | `users.index` | guest removed from direct controller access | menu already hides Users from guest; manager/accountant direct access remains aligned with Show Users visibility | ready |
+| customer payments | `customer-payments.index` | guest removed from direct controller access | finance page is visible only to staff finance roles in menus; manager read access remains a product decision | ready |
+| supplier payments | `supplier-payments.index` | guest removed from direct controller access | route exposes supplier payment details through direct URL/AJAX | ready |
+| payment programs | `payment-programs.index` | guest removed from direct controller access | summaries/create/store already use narrower staff finance roles | ready |
+| bank accounts | `bank-accounts.index` | guest removed from direct controller access | bank account listing is finance-sensitive | ready |
+| vouchers | `vouchers.index` | guest removed from direct controller access | voucher listing is finance-sensitive | ready |
+| employee payments | `employee-payments.index` | guest removed from direct controller access | payroll/payment listing is sensitive | ready |
+| CR/DR | `cr.index/create/store`, `dr.index/create/store` | guest removed; index actions now have explicit role gates | CR/DR menu is staff-finance only; writes remain readonly-blocked | ready |
+| customer portal | `orders.*`, customer `reports/statement` | kept intentionally broader | customer role has explicit portal menu and controller scoping | needs-review |
+| supplier portal | `expenses`, `productions`, supplier `reports/statement` | kept intentionally broader | supplier role has explicit portal menu and controller scoping in places | needs-review |
+| reports | `reports/*` | not tightened in this pass | broad report access has record-level checks in places and needs a separate report-specific product decision | risky |
+| manager finance reads | finance index/list routes | not tightened in this pass | controller access is broader than menu visibility for some read pages; review with product owner before changing | needs-review |
+
 ## Immediate Matrix Tasks
 
 - Keep resource routes restricted to implemented actions with `only([...])`.

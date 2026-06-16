@@ -19,6 +19,10 @@ class DRController extends Controller
      */
     public function index(Request $request)
     {
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'manager', 'admin', 'accountant'])) {
+            return $resp;
+        }
+
         // $drs = DR::with('customer.city')->orderBy('id', 'desc')->get();
         $authLayout = $this->getAuthLayout($request->route()->getName(), 'table');
 
@@ -37,7 +41,7 @@ class DRController extends Controller
      */
     public function create(Request $request)
     {
-        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'manager', 'admin', 'accountant', 'guest'])) {
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'manager', 'admin', 'accountant'])) {
             return $resp;
         }
 
@@ -76,7 +80,7 @@ class DRController extends Controller
      */
     public function store(Request $request)
     {
-        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'manager', 'admin', 'accountant', 'guest'])) {
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'manager', 'admin', 'accountant'])) {
             return $resp;
         }
 
