@@ -87,6 +87,7 @@ class CustomerController extends Controller
             'username' => 'required|string|min:6|max:255|regex:/^[a-z0-9]+$/|unique:users,username',
             'password' => 'required|string|min:3',
             'phone_number' => 'required|string|max:255',
+            'profile_picture' => 'nullable|image|mimes:jpg,jpeg,png,gif|max:2048',
             'image_upload' => 'nullable|image|mimes:jpg,jpeg,png,gif|max:2048',
             'date' => 'required|string',
             'category' => 'required|string|max:255',
@@ -106,8 +107,9 @@ class CustomerController extends Controller
 
         if (!$user) {
             // Upload the image if provided
-            if ($request->hasFile('image_upload')) {
-                $file = $request->file('image_upload');
+            $profileUpload = $request->file('profile_picture') ?? $request->file('image_upload');
+            if ($profileUpload) {
+                $file = $profileUpload;
                 $fileName = time() . '_' . $file->getClientOriginalName();
                 $file->storeAs('uploads/images', $fileName, 'public');
                 $data['image'] = $fileName;

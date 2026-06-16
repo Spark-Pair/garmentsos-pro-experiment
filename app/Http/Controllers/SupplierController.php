@@ -119,6 +119,7 @@ class SupplierController extends Controller
             'username' => 'required|string|min:6|max:255|regex:/^[a-z0-9]+$/|unique:users,username',
             'password' => 'required|string|min:3',
             'phone_number' => 'required|string|max:255',
+            'profile_picture' => 'nullable|image|mimes:jpg,jpeg,png,gif|max:2048',
             'image_upload' => 'nullable|image|mimes:jpg,jpeg,png,gif|max:2048',
             'date' => 'required|string',
             'categories_array' => 'required|json',
@@ -134,7 +135,14 @@ class SupplierController extends Controller
         // Create user
         $user = User::where('username', $request->username)->first();
         if (!$user) {
-            $data['image'] = "default_avatar.png";
+            $profileUpload = $request->file('profile_picture') ?? $request->file('image_upload');
+            if ($profileUpload) {
+                $fileName = time() . '_' . $profileUpload->getClientOriginalName();
+                $profileUpload->storeAs('uploads/images', $fileName, 'public');
+                $data['image'] = $fileName;
+            } else {
+                $data['image'] = "default_avatar.png";
+            }
 
             $user = User::create([
                 'name' => $data['supplier_name'],

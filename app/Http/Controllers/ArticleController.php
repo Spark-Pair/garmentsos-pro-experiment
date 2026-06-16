@@ -93,6 +93,10 @@ class ArticleController extends Controller
             'image_upload' => 'nullable|image|mimes:jpg,jpeg,png,gif|max:2048',
         ]);
 
+        if ($validator->fails()) {
+            return redirect()->back()->withErrors($validator)->withInput();
+        }
+
         // Prepare data for saving
         $data = [
             'article_no' => $request->article_no,
@@ -129,10 +133,6 @@ class ArticleController extends Controller
             $filePath = $file->storeAs('uploads/images', $fileName, 'public'); // Store in public disk
 
             $data['image'] = $fileName; // Save the file path in the database
-        }
-
-        if ($validator->fails()) {
-            return redirect()->back()->withErrors($validator)->withInput();
         }
 
         $article = Article::create($data);
@@ -198,6 +198,10 @@ class ArticleController extends Controller
             'image_upload' => 'nullable|image|mimes:jpg,jpeg,png,gif|max:2048',
         ]);
 
+        if ($validator->fails()) {
+            return redirect()->back()->withErrors($validator)->withInput()->with('error', 'Please check the form for errors.');
+        }
+
         // Prepare data for saving
         $data = [
             'article_no' => $request->article_no,
@@ -222,10 +226,6 @@ class ArticleController extends Controller
             $filePath = $file->storeAs('uploads/images', $fileName, 'public'); // Store in public disk
 
             $data['image'] = $fileName; // Save the file path in the database
-        }
-
-        if ($validator->fails()) {
-            return redirect()->back()->withErrors($validator)->withInput()->with('error', 'Please check the form for errors.');
         }
 
         $article->update($data);

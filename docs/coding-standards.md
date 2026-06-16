@@ -28,6 +28,7 @@ Do not expose empty resource methods. If an action is not supported, remove the 
 - Keep client-side validation as convenience only.
 - Validate IDs with `exists`.
 - Validate file uploads with extension, MIME, and size rules.
+- Validate requests before storing or deleting uploaded files.
 - Use decimal-compatible validation for money/quantity fields where the business allows decimals.
 
 ## Authorization
@@ -77,6 +78,7 @@ Do not rename database columns, routes, or models for wording-only changes.
 - Do not write new files to `public/uploads`.
 - Treat `public/uploads` as a legacy runtime location only; preserve it until an approved migration, but do not add new writes there.
 - Image update forms must preserve the existing filename when no replacement file is uploaded.
+- Create-form upload field names and controller validation keys must match; compatibility aliases should be explicit when needed.
 - Do not assume `public/storage` is valid without a readiness check.
 - Do not move existing uploads without a backup and migration plan.
 
