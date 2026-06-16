@@ -137,9 +137,9 @@ class EmployeeController extends Controller
      */
     public function edit(Employee $employee)
     {
-        if (!$this->checkRole(['developer', 'owner', 'admin'])) {
-            return redirect()->back()->with('error', 'You do not have permission to access this page.');
-        };
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin'])) {
+            return $resp;
+        }
 
         $category = $employee->category == 'staff' ? ['staff_type'] : ['worker_type'];
         $types = Setup::whereIn('type', $category)->get();

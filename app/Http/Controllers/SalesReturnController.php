@@ -21,6 +21,10 @@ class SalesReturnController extends Controller
      */
     public function index(Request $request)
     {
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin', 'accountant'])) {
+            return $resp;
+        }
+
         // $sales_returns = SalesReturn::with('article', 'invoice.customer.city')->orderBy('id', 'desc')->get();
         $authLayout = $this->getAuthLayout($request->route()->getName(), 'table');
 
@@ -39,6 +43,9 @@ class SalesReturnController extends Controller
      */
     public function create()
     {
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin', 'accountant'])) {
+            return $resp;
+        }
 
         $customers = Customer::whereHas('user', function ($query) {
                     $query->where('status', 'active');
@@ -223,6 +230,10 @@ class SalesReturnController extends Controller
 
     public function getDetails(Request $request)
     {
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin', 'accountant'])) {
+            return $resp;
+        }
+
         if ($request->customer_id && $request->getReturnLines) {
             $customer = Customer::find($request->customer_id);
 

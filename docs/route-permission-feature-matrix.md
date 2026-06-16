@@ -31,7 +31,7 @@ Status values:
 | CR/DR | `cr.*`, `dr.*` | `CRController`, `DRController` | developer, owner, admin, accountant | cr_dr | cr, dr | payment integrations | ready |
 | daily ledger | `daily-ledger.index/create/store` | `DailyLedgerController` | create/store: developer, owner, admin, accountant | daily_ledger | daily_ledger | show/edit/update/destroy removed because methods are blank; writes are readonly-blocked | ready |
 | physical quantities | `physical-quantities.*` | `PhysicalQuantityController` | index: developer, owner, manager, admin, accountant, store_keeper; create/store: developer, owner, admin, accountant, store_keeper | stock | stock | report type preference | ready |
-| sales returns | `sales-returns.*` | `SalesReturnController` | staff roles | sales_returns | sales_return | stock impact | needs-review |
+| sales returns | `sales-returns.*`, `sales-returns.get-details` | `SalesReturnController` | developer, owner, admin, accountant | sales_returns | sales_return | stock impact; index/create/helper now explicitly gated | ready |
 | fabrics | `fabrics.*`, issue/return | `FabricController` | index: developer, owner, manager, admin, accountant, store_keeper; writes: developer, owner, admin, accountant, store_keeper | fabrics | fabric | production dependency | ready |
 | production | `productions.*` | `ProductionController` | index: developer, owner, manager, admin, accountant, store_keeper, supplier; create/store: developer, owner, manager, admin, accountant, store_keeper | production | production | supplier portal index visibility preserved | ready |
 | employees | `employees.*` | `EmployeeController` | index: developer, owner, manager, admin, accountant; create/store: developer, owner, admin, accountant; edit/update: developer, owner, admin | employees | employee | upload profile images | ready |
@@ -161,6 +161,21 @@ Plain `guest` is an internal limited role, not a customer/supplier portal identi
 | supplier portal | preserved | supplier can still access supplier-scoped expenses and productions index | ready |
 | customer portal | preserved | customer can still access customer-scoped orders | ready |
 | remaining guest access | none outside auth/login after this pass | use dedicated portal roles for client-facing access | ready |
+
+## Permission Style Audit
+
+Routes inside the authenticated group should not rely on broad auth-only access when they expose business data or mutate records.
+
+| Area | Decision | Notes | Status |
+| --- | --- | --- | --- |
+| `CustomerPaymentController@split` | converted old-style `checkRole` to `denyIfNoRole` | role list unchanged: developer, owner, admin, accountant | ready |
+| `EmployeeController@edit` | converted old-style `checkRole` to `denyIfNoRole` | role list unchanged: developer, owner, admin | ready |
+| `OrderController@update` | converted old-style `checkRole` to `denyIfNoRole` | role list unchanged: developer, owner, admin, accountant | ready |
+| `SalesReturnController@index/create/getDetails` | explicit gates added | finance/business return data is no longer auth-only | ready |
+| `DRController@getPayments` | explicit gate added | helper exposes customer payment data for DR flow | ready |
+| `UtilityBillController@markPaid` | old-style check retained for now | endpoint returns JSON `403`; converting to redirect helper would change AJAX behavior | needs-review |
+| `NotificationController@index` | left auth-only | scoped to current user notifications and deletes only fetched current-user notifications | ready |
+| auth preference/session endpoints | left auth-only | theme/menu/activity updates are current-user preference/session operations | ready |
 
 ## Immediate Matrix Tasks
 

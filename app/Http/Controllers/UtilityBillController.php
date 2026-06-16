@@ -90,8 +90,7 @@ class UtilityBillController extends Controller
 
     public function markPaid(Request $request, UtilityBill $utilityBill)
     {
-        if(!$this->checkRole(['developer', 'owner', 'admin', 'accountant']))
-        {
+        if (!$this->checkRole(['developer', 'owner', 'admin', 'accountant'])) {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
 

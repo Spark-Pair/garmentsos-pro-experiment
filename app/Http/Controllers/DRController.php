@@ -188,6 +188,10 @@ class DRController extends Controller
 
     public function getPayments(Request $request)
     {
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin', 'accountant'])) {
+            return $resp;
+        }
+
         $payments = CustomerPayment::where('customer_id', $request->customer_id)->whereIn('method', ['cheque', 'slip'])->whereNull('d_r_id')->where('is_return', true)->get();
 
         return response()->json(['status' => 'success', 'data' => $payments]);

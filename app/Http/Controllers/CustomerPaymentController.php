@@ -791,9 +791,8 @@ class CustomerPaymentController extends Controller
 
     public function split(Request $request, CustomerPayment $payment)
     {
-        if (!$this->checkRole(['developer', 'owner', 'admin', 'accountant'])) {
-            return redirect(route('home'))
-                ->with('error', 'You do not have permission to access this page.');
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin', 'accountant'])) {
+            return $resp;
         }
 
         // ✅ Validation
