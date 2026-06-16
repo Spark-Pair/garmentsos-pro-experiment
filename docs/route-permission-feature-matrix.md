@@ -24,12 +24,12 @@ Status values:
 | shipments | `shipments.*` | `ShipmentController` | staff roles | shipments | shipment | can be disabled for some clients; invoice dependency must be reviewed | risky |
 | invoices | `invoices.*`, `print-invoices` | `InvoiceController` | staff roles | invoices | invoice | depends on orders/shipments/customers/articles | needs-review |
 | customer payments | `customer-payments.*` | `CustomerPaymentController` | staff roles | payments | payment | clear/split endpoints are write operations | needs-review |
-| supplier payments | `supplier-payments.*` | `SupplierPaymentController` | index implemented; resource exposes blank methods | payments | payment | restrict routes to implemented actions | incomplete |
+| supplier payments | `supplier-payments.index` | `SupplierPaymentController@index` | staff roles | payments | payment | create/store/show/edit/update/destroy removed because methods are blank | ready |
 | payment programs | `payment-programs.*` | `PaymentProgramController` | staff roles | payment_programs | payment_program | customer/supplier summaries | needs-review |
 | bank accounts | `bank-accounts.*` | `BankAccountController` | staff roles | bank_accounts | bank_account | serial/status endpoints | needs-review |
 | vouchers | `vouchers.*` | `VoucherController` | staff roles | vouchers | voucher | depends on payments/bank accounts/suppliers | needs-review |
 | CR/DR | `cr.*`, `dr.*` | `CRController`, `DRController` | staff roles | cr_dr | cr, dr | payment integrations | needs-review |
-| daily ledger | `daily-ledger.*` | `DailyLedgerController` | index/create/store implemented; blank show/edit/update/destroy | daily_ledger | daily_ledger | restrict routes to implemented actions | incomplete |
+| daily ledger | `daily-ledger.index/create/store` | `DailyLedgerController` | authenticated staff route group | daily_ledger | daily_ledger | show/edit/update/destroy removed because methods are blank | ready |
 | physical quantities | `physical-quantities.*` | `PhysicalQuantityController` | staff/store roles | stock | stock | report type preference | needs-review |
 | sales returns | `sales-returns.*` | `SalesReturnController` | staff roles | sales_returns | sales_return | stock impact | needs-review |
 | fabrics | `fabrics.*`, issue/return | `FabricController` | staff/store roles | fabrics | fabric | production dependency | needs-review |
@@ -44,7 +44,7 @@ Status values:
 
 ## Immediate Matrix Tasks
 
-- Convert incomplete resource routes to explicit `only([...])`.
+- Keep resource routes restricted to implemented actions with `only([...])`.
 - Add feature keys for modules not yet represented if needed.
 - Map every AJAX helper to a module and dependency list.
 - Align sidebar entries with this matrix after route protection exists.

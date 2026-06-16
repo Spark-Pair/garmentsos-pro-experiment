@@ -69,75 +69,75 @@ Route::group(['middleware' => ['auth', 'activeSession', 'subscriptionExpiry', 'r
 
     Route::post('update-theme', [AuthController::class, 'updateTheme']);
 
-    Route::resource('setups', SetupController::class);
+    Route::resource('setups', SetupController::class)->only(['index', 'create', 'store']);
     Route::get('permissions-report', [PermissionReportController::class, 'index'])->name('permissions-report');
 
-    Route::resource('suppliers', SupplierController::class);
+    Route::resource('suppliers', SupplierController::class)->only(['index', 'create', 'store', 'edit', 'update']);
     Route::post('update-supplier-category', [SupplierController::class, 'updateSupplierCategory'])->name('update-supplier-category');
 
-    Route::resource('customers', CustomerController::class);
+    Route::resource('customers', CustomerController::class)->only(['index', 'create', 'store', 'edit', 'update']);
 
-    Route::resource('articles', ArticleController::class);
+    Route::resource('articles', ArticleController::class)->only(['index', 'create', 'store', 'edit', 'update']);
     Route::post('update-image', [ArticleController::class, 'updateImage'])->name('update-image');
     Route::post('add-rate', [ArticleController::class, 'addRate'])->name('add-rate');
 
-    Route::resource('orders', OrderController::class);
+    Route::resource('orders', OrderController::class)->only(['index', 'create', 'store', 'edit', 'update']);
 
-    Route::resource('shipments', ShipmentController::class);
+    Route::resource('shipments', ShipmentController::class)->only(['index', 'create', 'store', 'edit', 'update']);
 
-    Route::resource('physical-quantities', PhysicalQuantityController::class);
+    Route::resource('physical-quantities', PhysicalQuantityController::class)->only(['index', 'create', 'store']);
 
-    Route::resource('invoices', InvoiceController::class);
+    Route::resource('invoices', InvoiceController::class)->only(['index', 'create', 'store']);
     Route::get('print-invoices', [InvoiceController::class, 'print'])->name('invoices.print');
 
-    Route::resource('customer-payments', CustomerPaymentController::class);
+    Route::resource('customer-payments', CustomerPaymentController::class)->only(['index', 'create', 'store', 'edit', 'update']);
     Route::post('customer-payments/{id}/clear', [CustomerPaymentController::class, 'clear'])->name('customer-payments.clear');
     Route::post('customer-payments/{payment}/split', [CustomerPaymentController::class, 'split'])->name('customer-payments.split');
 
-    Route::resource('supplier-payments', SupplierPaymentController::class);
+    Route::resource('supplier-payments', SupplierPaymentController::class)->only(['index']);
 
     Route::get('payment-programs/customer-summary', [PaymentProgramController::class, 'CustomerSummary'])->name('payment-programs.customer-summary');
     Route::get('payment-programs/supplier-summary', [PaymentProgramController::class, 'SupplierSummary'])->name('payment-programs.supplier-summary');
-    Route::resource('payment-programs', PaymentProgramController::class);
+    Route::resource('payment-programs', PaymentProgramController::class)->only(['index', 'create', 'store']);
     Route::post('payment-programs.update-program', [PaymentProgramController::class, 'updateProgram'])->name('payment-programs.update-program');
     Route::post('payment-programs/{id}/mark-paid', [PaymentProgramController::class, 'markPaid'])->name('payment-programs.mark-paid');
 
-    Route::resource('bank-accounts', BankAccountController::class);
+    Route::resource('bank-accounts', BankAccountController::class)->only(['index', 'create', 'store']);
     Route::post('update-bank-account-status', [BankAccountController::class, 'updateStatus'])->name('update-bank-account-status');
     Route::put('bank-accounts/{account}/update-serial', [BankAccountController::class, 'updateSerial'])->name('bank-accounts.update-serial');
     Route::post('bank-accounts/{account}/update-serial', [BankAccountController::class, 'updateSerial'])->name('bank-accounts.update-serial-post');
 
-    Route::resource('cargos', CargoController::class);
+    Route::resource('cargos', CargoController::class)->only(['index', 'create', 'store']);
 
-    Route::resource('bilties', BiltyController::class);
+    Route::resource('bilties', BiltyController::class)->only(['index', 'create', 'store']);
 
-    Route::resource('expenses', ExpenseController::class);
+    Route::resource('expenses', ExpenseController::class)->only(['index', 'create', 'store', 'edit', 'update']);
 
-    Route::resource('vouchers', VoucherController::class);
+    Route::resource('vouchers', VoucherController::class)->only(['index', 'create', 'store', 'edit', 'update']);
 
     Route::get('fabrics/issue', [FabricController::class, 'issue'])->name('fabrics.issue');
     Route::post('fabrics/issuePost', [FabricController::class, 'issuePost'])->name('fabrics.issuePost');
     Route::get('fabrics/return', [FabricController::class, 'return'])->name('fabrics.return');
     Route::post('fabrics/returnPost', [FabricController::class, 'returnPost'])->name('fabrics.returnPost');
-    Route::resource('fabrics', FabricController::class);
+    Route::resource('fabrics', FabricController::class)->only(['index', 'create', 'store']);
 
-    Route::resource('rates', RateController::class);
+    Route::resource('rates', RateController::class)->only(['index', 'create', 'store']);
 
-    Route::resource('productions', ProductionController::class);
+    Route::resource('productions', ProductionController::class)->only(['index', 'create', 'store']);
 
-    Route::resource('employees', EmployeeController::class);
+    Route::resource('employees', EmployeeController::class)->only(['index', 'create', 'store', 'edit', 'update']);
     Route::post('update-employee-status', [EmployeeController::class, 'updateStatus'])->name('update-employee-status');
 
-    Route::resource('employee-payments', EmployeePaymentController::class);
+    Route::resource('employee-payments', EmployeePaymentController::class)->only(['index', 'create', 'store']);
 
-    Route::resource('cr', CRController::class);
+    Route::resource('cr', CRController::class)->only(['index', 'create', 'store']);
 
     Route::get('dr/get-payments', [DRController::class, 'getPayments']);
-    Route::resource('dr', DRController::class);
+    Route::resource('dr', DRController::class)->only(['index', 'create', 'store']);
 
-    Route::resource('daily-ledger', DailyLedgerController::class);
+    Route::resource('daily-ledger', DailyLedgerController::class)->only(['index', 'create', 'store']);
 
-    Route::resource('sales-returns', SalesReturnController::class);
+    Route::resource('sales-returns', SalesReturnController::class)->only(['index', 'create', 'store']);
     Route::post('sales-returns/get-details', [SalesReturnController::class, 'getDetails'])->name('sales-returns.get-details');
     Route::resource('statement-adjustments', StatementAdjustmentController::class)->only(['create', 'store']);
     Route::post('statement-adjustments/first-transaction-date', [StatementAdjustmentController::class, 'firstTransactionDate'])->name('statement-adjustments.first-transaction-date');
@@ -152,7 +152,7 @@ Route::group(['middleware' => ['auth', 'activeSession', 'subscriptionExpiry', 'r
     Route::resource('utility-bills', UtilityBillController::class)->only(['index', 'create', 'store']);
     Route::put('utility-bills/{utilityBill}/mark-paid', [UtilityBillController::class, 'markPaid'])->name('utility-bills.mark-paid');
 
-    Route::resource('utility-accounts', UtilityAccountController::class);
+    Route::resource('utility-accounts', UtilityAccountController::class)->only(['index', 'create', 'store']);
 
     Route::post('get-order-details', [Controller::class, 'getOrderDetails'])->name('get-order-details');
     Route::post('get-category-data', [Controller::class, 'getCategoryData'])->name('get-category-data');
