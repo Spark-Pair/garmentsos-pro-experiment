@@ -194,6 +194,22 @@ Generic helper endpoints must not become a back door for customer/supplier porta
 | `GET dr/get-payments` | already explicitly gated | developer, owner, admin, accountant | ready |
 | report statement details | already portal-scoped | customer/supplier can access only their allowed statement record types | ready |
 
+## Print Export Download Policy
+
+Print/export/download endpoints are direct URLs or direct data endpoints and must not expose records more broadly than the underlying page policy. Client-side table printing from an already-authorized index page inherits that page's controller policy.
+
+| Endpoint | Output | Decision | Scope/roles | Status |
+| --- | --- | --- | --- | --- |
+| `GET print-invoices` | printable invoice HTML | internal finance print route | developer, owner, admin, accountant; no customer/supplier portal direct access | ready |
+| `GET reports/statement` | printable statement page/data | portal behavior preserved and scoped | finance staff can choose customer/supplier/bank account; customer/supplier users are forced to their linked party | ready |
+| `GET reports/statement/record-details` | statement detail JSON for print/modal context | portal record details scoped by owner | customer can only fetch own invoice/customer payment records; supplier can only fetch own expense/voucher/supplier payment records | ready |
+| `GET reports/pending-payments` | printable pending-payment report | internal finance report | developer, owner, admin, accountant only | ready |
+| `GET reports/article` | printable/exportable article report page | staff/store report | developer, owner, manager, admin, accountant, store_keeper | ready |
+| `GET reports/physical-quantity` | printable stock/physical quantity report | staff/store report | developer, owner, manager, admin, accountant, store_keeper | ready |
+| `GET/POST attendances/generate-slip` | salary slip page/data | payroll-sensitive print/data endpoint | developer, owner, admin, accountant only | ready |
+| `GET /backup-db` | SQLite database download | internal database backup download | developer, admin only; WAL-safe backup service route | ready |
+| index-page print buttons | client-side printable table HTML | inherits current page route policy | no extra download endpoint; direct access is controlled by each index controller | ready |
+
 ## Immediate Matrix Tasks
 
 - Keep resource routes restricted to implemented actions with `only([...])`.
