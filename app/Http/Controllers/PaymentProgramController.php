@@ -156,6 +156,16 @@ class PaymentProgramController extends Controller
             'remarks'=> 'nullable|string',
         ]);
 
+        $validator->after(function ($validator) use ($request) {
+            if (!in_array($request->category, ['supplier', 'self_account', 'customer'], true)) {
+                return;
+            }
+
+            if (!$request->sub_category || !$this->resolveSubCategoryModel($request->category, (int) $request->sub_category)) {
+                $validator->errors()->add('sub_category', 'Please select a valid sub category.');
+            }
+        });
+
         if ($validator->fails()) {
             return redirect()->back()->withErrors($validator)->withInput();
         }
@@ -228,6 +238,16 @@ class PaymentProgramController extends Controller
             'remarks' => 'nullable|string',
             'amount' => 'nullable|integer|min:1',
         ]);
+
+        $validator->after(function ($validator) use ($request) {
+            if (!in_array($request->category, ['supplier', 'self_account', 'customer'], true)) {
+                return;
+            }
+
+            if (!$request->sub_category || !$this->resolveSubCategoryModel($request->category, (int) $request->sub_category)) {
+                $validator->errors()->add('sub_category', 'Please select a valid sub category.');
+            }
+        });
 
         if ($validator->fails()) {
             return redirect()->back()->withErrors($validator)->with('error', $validator->errors()->first());

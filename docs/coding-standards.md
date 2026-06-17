@@ -30,6 +30,7 @@ Do not expose empty resource methods. If an action is not supported, remove the 
 - Validate file uploads with extension, MIME, and size rules.
 - Validate requests before storing or deleting uploaded files.
 - Use decimal-compatible validation for money/quantity fields where the business allows decimals.
+- Finance writes must validate related IDs before writing and reject zero/negative amounts unless the workflow explicitly documents otherwise.
 
 ## Authorization
 

@@ -171,7 +171,7 @@ class DailyLedgerController extends Controller
 
         $commonRules = [
             'date'   => 'required|date',
-            'amount' => 'required|integer',
+            'amount' => 'required|integer|min:1',
         ];
 
         if ($type === 'deposit') {

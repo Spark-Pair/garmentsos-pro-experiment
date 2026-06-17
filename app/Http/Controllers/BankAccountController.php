@@ -83,7 +83,7 @@ class BankAccountController extends Controller
         $validator = Validator::make($request->all(), [
             'category' => 'required|in:self,supplier,customer',
             'sub_category' => 'nullable|integer',
-            'bank_id' => 'required|string',
+            'bank_id' => 'required|integer|exists:setups,id',
             'account_title' => [
                 'required',
                 'string',
