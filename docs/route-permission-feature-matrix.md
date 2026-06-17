@@ -210,6 +210,38 @@ Print/export/download endpoints are direct URLs or direct data endpoints and mus
 | `GET /backup-db` | SQLite database download | internal database backup download | developer, admin only; WAL-safe backup service route | ready |
 | index-page print buttons | client-side printable table HTML | inherits current page route policy | no extra download endpoint; direct access is controlled by each index controller | ready |
 
+## Feature Guard Rollout
+
+Feature flags now protect direct module URLs with the existing `feature:*` middleware and hide the corresponding desktop/mobile menu entries.
+
+| Feature flag | Guarded route areas | Menu behavior | Notes | Status |
+| --- | --- | --- | --- | --- |
+| `backups` | `/backup-db` | Backup DB user-dropdown action hidden when disabled | route still keeps developer/admin authorization when enabled | ready |
+| `suppliers` | `suppliers.*`, `update-supplier-category` | supplier menu hidden when disabled | supplier helper dependencies remain separate | ready |
+| `customers` | `customers.*` | customer menu hidden when disabled | customer portal routes are not widened | ready |
+| `articles` | `articles.*`, `update-image`, `add-rate` | article menu hidden when disabled | stock/report dependencies need owner review before pruning | ready |
+| `orders` | `orders.*` | order links hidden when disabled | customer portal order links also hidden | ready |
+| `shipments` | `shipments.*` | shipment menu hidden when disabled | invoice dependency must be reviewed before pruning | ready |
+| `stock` | `physical-quantities.*` | physical quantity menu hidden when disabled | stock reports are under `reports` for now | ready |
+| `invoices` | `invoices.*`, `print-invoices` | invoice menu hidden when disabled | helper dependencies remain separate | ready |
+| `payments` | customer, supplier, and employee payment routes | payment menus hidden when disabled | payment program routes have their own flag | ready |
+| `payment_programs` | payment program summaries/resource/write actions | payment program links hidden when disabled | mobile order dropdown removes only payment-program entries | ready |
+| `bank_accounts` | bank account routes/status/serial | bank account menu hidden when disabled | finance helper dependencies remain separate | ready |
+| `vouchers` | `vouchers.*` | voucher menu hidden when disabled | supplier payment link is independently controlled by `payments` route guard | ready |
+| `expenses` | `expenses.*` | expense menus hidden when disabled | supplier portal expense link hidden when disabled | ready |
+| `fabrics` | fabric resource/issue/return routes | fabric menu hidden when disabled | production dependency must be reviewed before pruning | ready |
+| `production` | `productions.*` | production menu hidden when disabled | supplier portal production link hidden when disabled | ready |
+| `employees` | employee routes/status | employee menu hidden when disabled | employee payments are controlled by `payments` | ready |
+| `attendance` | attendance, salary, and slip routes | attendance/payroll menus hidden when disabled | role policy still applies when enabled | ready |
+| `daily_ledger` | daily ledger routes | daily ledger menu hidden when disabled | readonly still blocks writes when enabled | ready |
+| `cr_dr` | CR/DR routes and DR payment helper | CR/DR menus hidden when disabled | shared voucher detail helper remains dependency-aware later | ready |
+| `sales_returns` | sales return routes/detail helper | sales return menu hidden when disabled | stock dependency must be reviewed before pruning | ready |
+| `logistics` | cargo and bilty routes | cargo/bilty menus hidden when disabled | grouped under one logistics feature | ready |
+| `utilities` | utility bill/account routes and mark-paid | utility menus hidden when disabled | utility account helper remains dependency-aware later | ready |
+| `reports` | report routes and statement adjustments | report/statement menu links hidden when disabled | customer/supplier portal statement links also hidden | ready |
+
+Shared `get-*` and preference `set-*` helper routes are intentionally not blanket-wrapped in this rollout. Several helpers are used by multiple modules, so feature gating them needs a caller-by-caller dependency pass.
+
 ## Upload Image File Exposure
 
 Uploaded client files are runtime data. They must not be shipped in release packages and must not be moved without a backup and migration plan.

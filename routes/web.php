@@ -55,7 +55,7 @@ Route::get('subscription-expired', function () {
 })->name('subscription-expired');
 
 Route::group(['middleware' => ['auth', 'activeSession', 'subscriptionExpiry', 'readonly', 'dbTransaction']], function () {
-    Route::get('/backup-db', [BackupController::class, 'downloadDatabase']);
+    Route::get('/backup-db', [BackupController::class, 'downloadDatabase'])->middleware('feature:backups');
 
     Route::get('', function () {
         return redirect(route('home'));
@@ -72,87 +72,87 @@ Route::group(['middleware' => ['auth', 'activeSession', 'subscriptionExpiry', 'r
     Route::resource('setups', SetupController::class)->only(['index', 'create', 'store']);
     Route::get('permissions-report', [PermissionReportController::class, 'index'])->name('permissions-report');
 
-    Route::resource('suppliers', SupplierController::class)->only(['index', 'create', 'store', 'edit', 'update']);
-    Route::post('update-supplier-category', [SupplierController::class, 'updateSupplierCategory'])->name('update-supplier-category');
+    Route::resource('suppliers', SupplierController::class)->only(['index', 'create', 'store', 'edit', 'update'])->middleware('feature:suppliers');
+    Route::post('update-supplier-category', [SupplierController::class, 'updateSupplierCategory'])->middleware('feature:suppliers')->name('update-supplier-category');
 
-    Route::resource('customers', CustomerController::class)->only(['index', 'create', 'store', 'edit', 'update']);
+    Route::resource('customers', CustomerController::class)->only(['index', 'create', 'store', 'edit', 'update'])->middleware('feature:customers');
 
-    Route::resource('articles', ArticleController::class)->only(['index', 'create', 'store', 'edit', 'update']);
-    Route::post('update-image', [ArticleController::class, 'updateImage'])->name('update-image');
-    Route::post('add-rate', [ArticleController::class, 'addRate'])->name('add-rate');
+    Route::resource('articles', ArticleController::class)->only(['index', 'create', 'store', 'edit', 'update'])->middleware('feature:articles');
+    Route::post('update-image', [ArticleController::class, 'updateImage'])->middleware('feature:articles')->name('update-image');
+    Route::post('add-rate', [ArticleController::class, 'addRate'])->middleware('feature:articles')->name('add-rate');
 
-    Route::resource('orders', OrderController::class)->only(['index', 'create', 'store', 'edit', 'update']);
+    Route::resource('orders', OrderController::class)->only(['index', 'create', 'store', 'edit', 'update'])->middleware('feature:orders');
 
-    Route::resource('shipments', ShipmentController::class)->only(['index', 'create', 'store', 'edit', 'update']);
+    Route::resource('shipments', ShipmentController::class)->only(['index', 'create', 'store', 'edit', 'update'])->middleware('feature:shipments');
 
-    Route::resource('physical-quantities', PhysicalQuantityController::class)->only(['index', 'create', 'store']);
+    Route::resource('physical-quantities', PhysicalQuantityController::class)->only(['index', 'create', 'store'])->middleware('feature:stock');
 
-    Route::resource('invoices', InvoiceController::class)->only(['index', 'create', 'store']);
-    Route::get('print-invoices', [InvoiceController::class, 'print'])->name('invoices.print');
+    Route::resource('invoices', InvoiceController::class)->only(['index', 'create', 'store'])->middleware('feature:invoices');
+    Route::get('print-invoices', [InvoiceController::class, 'print'])->middleware('feature:invoices')->name('invoices.print');
 
-    Route::resource('customer-payments', CustomerPaymentController::class)->only(['index', 'create', 'store', 'edit', 'update']);
-    Route::post('customer-payments/{id}/clear', [CustomerPaymentController::class, 'clear'])->name('customer-payments.clear');
-    Route::post('customer-payments/{payment}/split', [CustomerPaymentController::class, 'split'])->name('customer-payments.split');
+    Route::resource('customer-payments', CustomerPaymentController::class)->only(['index', 'create', 'store', 'edit', 'update'])->middleware('feature:payments');
+    Route::post('customer-payments/{id}/clear', [CustomerPaymentController::class, 'clear'])->middleware('feature:payments')->name('customer-payments.clear');
+    Route::post('customer-payments/{payment}/split', [CustomerPaymentController::class, 'split'])->middleware('feature:payments')->name('customer-payments.split');
 
-    Route::resource('supplier-payments', SupplierPaymentController::class)->only(['index']);
+    Route::resource('supplier-payments', SupplierPaymentController::class)->only(['index'])->middleware('feature:payments');
 
-    Route::get('payment-programs/customer-summary', [PaymentProgramController::class, 'CustomerSummary'])->name('payment-programs.customer-summary');
-    Route::get('payment-programs/supplier-summary', [PaymentProgramController::class, 'SupplierSummary'])->name('payment-programs.supplier-summary');
-    Route::resource('payment-programs', PaymentProgramController::class)->only(['index', 'create', 'store']);
-    Route::post('payment-programs.update-program', [PaymentProgramController::class, 'updateProgram'])->name('payment-programs.update-program');
-    Route::post('payment-programs/{id}/mark-paid', [PaymentProgramController::class, 'markPaid'])->name('payment-programs.mark-paid');
+    Route::get('payment-programs/customer-summary', [PaymentProgramController::class, 'CustomerSummary'])->middleware('feature:payment_programs')->name('payment-programs.customer-summary');
+    Route::get('payment-programs/supplier-summary', [PaymentProgramController::class, 'SupplierSummary'])->middleware('feature:payment_programs')->name('payment-programs.supplier-summary');
+    Route::resource('payment-programs', PaymentProgramController::class)->only(['index', 'create', 'store'])->middleware('feature:payment_programs');
+    Route::post('payment-programs.update-program', [PaymentProgramController::class, 'updateProgram'])->middleware('feature:payment_programs')->name('payment-programs.update-program');
+    Route::post('payment-programs/{id}/mark-paid', [PaymentProgramController::class, 'markPaid'])->middleware('feature:payment_programs')->name('payment-programs.mark-paid');
 
-    Route::resource('bank-accounts', BankAccountController::class)->only(['index', 'create', 'store']);
-    Route::post('update-bank-account-status', [BankAccountController::class, 'updateStatus'])->name('update-bank-account-status');
-    Route::put('bank-accounts/{account}/update-serial', [BankAccountController::class, 'updateSerial'])->name('bank-accounts.update-serial');
-    Route::post('bank-accounts/{account}/update-serial', [BankAccountController::class, 'updateSerial'])->name('bank-accounts.update-serial-post');
+    Route::resource('bank-accounts', BankAccountController::class)->only(['index', 'create', 'store'])->middleware('feature:bank_accounts');
+    Route::post('update-bank-account-status', [BankAccountController::class, 'updateStatus'])->middleware('feature:bank_accounts')->name('update-bank-account-status');
+    Route::put('bank-accounts/{account}/update-serial', [BankAccountController::class, 'updateSerial'])->middleware('feature:bank_accounts')->name('bank-accounts.update-serial');
+    Route::post('bank-accounts/{account}/update-serial', [BankAccountController::class, 'updateSerial'])->middleware('feature:bank_accounts')->name('bank-accounts.update-serial-post');
 
-    Route::resource('cargos', CargoController::class)->only(['index', 'create', 'store']);
+    Route::resource('cargos', CargoController::class)->only(['index', 'create', 'store'])->middleware('feature:logistics');
 
-    Route::resource('bilties', BiltyController::class)->only(['index', 'create', 'store']);
+    Route::resource('bilties', BiltyController::class)->only(['index', 'create', 'store'])->middleware('feature:logistics');
 
-    Route::resource('expenses', ExpenseController::class)->only(['index', 'create', 'store', 'edit', 'update']);
+    Route::resource('expenses', ExpenseController::class)->only(['index', 'create', 'store', 'edit', 'update'])->middleware('feature:expenses');
 
-    Route::resource('vouchers', VoucherController::class)->only(['index', 'create', 'store', 'edit', 'update']);
+    Route::resource('vouchers', VoucherController::class)->only(['index', 'create', 'store', 'edit', 'update'])->middleware('feature:vouchers');
 
-    Route::get('fabrics/issue', [FabricController::class, 'issue'])->name('fabrics.issue');
-    Route::post('fabrics/issuePost', [FabricController::class, 'issuePost'])->name('fabrics.issuePost');
-    Route::get('fabrics/return', [FabricController::class, 'return'])->name('fabrics.return');
-    Route::post('fabrics/returnPost', [FabricController::class, 'returnPost'])->name('fabrics.returnPost');
-    Route::resource('fabrics', FabricController::class)->only(['index', 'create', 'store']);
+    Route::get('fabrics/issue', [FabricController::class, 'issue'])->middleware('feature:fabrics')->name('fabrics.issue');
+    Route::post('fabrics/issuePost', [FabricController::class, 'issuePost'])->middleware('feature:fabrics')->name('fabrics.issuePost');
+    Route::get('fabrics/return', [FabricController::class, 'return'])->middleware('feature:fabrics')->name('fabrics.return');
+    Route::post('fabrics/returnPost', [FabricController::class, 'returnPost'])->middleware('feature:fabrics')->name('fabrics.returnPost');
+    Route::resource('fabrics', FabricController::class)->only(['index', 'create', 'store'])->middleware('feature:fabrics');
 
     Route::resource('rates', RateController::class)->only(['index', 'create', 'store']);
 
-    Route::resource('productions', ProductionController::class)->only(['index', 'create', 'store']);
+    Route::resource('productions', ProductionController::class)->only(['index', 'create', 'store'])->middleware('feature:production');
 
-    Route::resource('employees', EmployeeController::class)->only(['index', 'create', 'store', 'edit', 'update']);
-    Route::post('update-employee-status', [EmployeeController::class, 'updateStatus'])->name('update-employee-status');
+    Route::resource('employees', EmployeeController::class)->only(['index', 'create', 'store', 'edit', 'update'])->middleware('feature:employees');
+    Route::post('update-employee-status', [EmployeeController::class, 'updateStatus'])->middleware('feature:employees')->name('update-employee-status');
 
-    Route::resource('employee-payments', EmployeePaymentController::class)->only(['index', 'create', 'store']);
+    Route::resource('employee-payments', EmployeePaymentController::class)->only(['index', 'create', 'store'])->middleware('feature:payments');
 
-    Route::resource('cr', CRController::class)->only(['index', 'create', 'store']);
+    Route::resource('cr', CRController::class)->only(['index', 'create', 'store'])->middleware('feature:cr_dr');
 
-    Route::get('dr/get-payments', [DRController::class, 'getPayments']);
-    Route::resource('dr', DRController::class)->only(['index', 'create', 'store']);
+    Route::get('dr/get-payments', [DRController::class, 'getPayments'])->middleware('feature:cr_dr');
+    Route::resource('dr', DRController::class)->only(['index', 'create', 'store'])->middleware('feature:cr_dr');
 
-    Route::resource('daily-ledger', DailyLedgerController::class)->only(['index', 'create', 'store']);
+    Route::resource('daily-ledger', DailyLedgerController::class)->only(['index', 'create', 'store'])->middleware('feature:daily_ledger');
 
-    Route::resource('sales-returns', SalesReturnController::class)->only(['index', 'create', 'store']);
-    Route::post('sales-returns/get-details', [SalesReturnController::class, 'getDetails'])->name('sales-returns.get-details');
-    Route::resource('statement-adjustments', StatementAdjustmentController::class)->only(['create', 'store']);
-    Route::post('statement-adjustments/first-transaction-date', [StatementAdjustmentController::class, 'firstTransactionDate'])->name('statement-adjustments.first-transaction-date');
+    Route::resource('sales-returns', SalesReturnController::class)->only(['index', 'create', 'store'])->middleware('feature:sales_returns');
+    Route::post('sales-returns/get-details', [SalesReturnController::class, 'getDetails'])->middleware('feature:sales_returns')->name('sales-returns.get-details');
+    Route::resource('statement-adjustments', StatementAdjustmentController::class)->only(['create', 'store'])->middleware('feature:reports');
+    Route::post('statement-adjustments/first-transaction-date', [StatementAdjustmentController::class, 'firstTransactionDate'])->middleware('feature:reports')->name('statement-adjustments.first-transaction-date');
 
-    Route::get('attendances/create', [AttendanceController::class, 'create'])->name('attendances.create');
-    Route::post('attendances/store', [AttendanceController::class, 'store'])->name('attendances.store');
-    Route::get('attendances/manage-salary', [AttendanceController::class, 'manageSalary'])->name('attendances.manage-salary');
-    Route::post('attendances/manage-salary', [AttendanceController::class, 'manageSalaryPost'])->name('attendances.manage-salary-post');
-    Route::get('attendances/generate-slip', [AttendanceController::class, 'generateSlip'])->name('attendances.generate-slip');
-    Route::post('attendances/generate-slip', [AttendanceController::class, 'generateSlipPost'])->name('attendances.generate-slip-post');
+    Route::get('attendances/create', [AttendanceController::class, 'create'])->middleware('feature:attendance')->name('attendances.create');
+    Route::post('attendances/store', [AttendanceController::class, 'store'])->middleware('feature:attendance')->name('attendances.store');
+    Route::get('attendances/manage-salary', [AttendanceController::class, 'manageSalary'])->middleware('feature:attendance')->name('attendances.manage-salary');
+    Route::post('attendances/manage-salary', [AttendanceController::class, 'manageSalaryPost'])->middleware('feature:attendance')->name('attendances.manage-salary-post');
+    Route::get('attendances/generate-slip', [AttendanceController::class, 'generateSlip'])->middleware('feature:attendance')->name('attendances.generate-slip');
+    Route::post('attendances/generate-slip', [AttendanceController::class, 'generateSlipPost'])->middleware('feature:attendance')->name('attendances.generate-slip-post');
 
-    Route::resource('utility-bills', UtilityBillController::class)->only(['index', 'create', 'store']);
-    Route::put('utility-bills/{utilityBill}/mark-paid', [UtilityBillController::class, 'markPaid'])->name('utility-bills.mark-paid');
+    Route::resource('utility-bills', UtilityBillController::class)->only(['index', 'create', 'store'])->middleware('feature:utilities');
+    Route::put('utility-bills/{utilityBill}/mark-paid', [UtilityBillController::class, 'markPaid'])->middleware('feature:utilities')->name('utility-bills.mark-paid');
 
-    Route::resource('utility-accounts', UtilityAccountController::class)->only(['index', 'create', 'store']);
+    Route::resource('utility-accounts', UtilityAccountController::class)->only(['index', 'create', 'store'])->middleware('feature:utilities');
 
     Route::post('get-order-details', [Controller::class, 'getOrderDetails'])->name('get-order-details');
     Route::post('get-category-data', [Controller::class, 'getCategoryData'])->name('get-category-data');
@@ -169,12 +169,12 @@ Route::group(['middleware' => ['auth', 'activeSession', 'subscriptionExpiry', 'r
     Route::post('set-statement-type', [Controller::class, 'setStatementType'])->name('set-statement-type');
     Route::post('set-physical-quantity-report-type', [Controller::class, 'setPhysicalQuantityReportType'])->name('set-physical-quantity-report-type');
 
-    Route::get('reports/statement', [ReportController::class, 'statement'])->name('reports.statement');
-    Route::post('reports/statement/get-names', [ReportController::class, 'getNames'])->name('reports.statement.get-names');
-    Route::get('reports/statement/record-details', [ReportController::class, 'statementRecordDetails'])->name('reports.statement.record-details');
-    Route::get('reports/pending-payments', [ReportController::class, 'pendingPayments'])->name('reports.pending-payments');
-    Route::get('reports/article', [ReportController::class, 'article'])->name('reports.article');
-    Route::get('reports/physical-quantity', [ReportController::class, 'physicalQuantity'])->name('reports.physical-quantity');
+    Route::get('reports/statement', [ReportController::class, 'statement'])->middleware('feature:reports')->name('reports.statement');
+    Route::post('reports/statement/get-names', [ReportController::class, 'getNames'])->middleware('feature:reports')->name('reports.statement.get-names');
+    Route::get('reports/statement/record-details', [ReportController::class, 'statementRecordDetails'])->middleware('feature:reports')->name('reports.statement.record-details');
+    Route::get('reports/pending-payments', [ReportController::class, 'pendingPayments'])->middleware('feature:reports')->name('reports.pending-payments');
+    Route::get('reports/article', [ReportController::class, 'article'])->middleware('feature:reports')->name('reports.article');
+    Route::get('reports/physical-quantity', [ReportController::class, 'physicalQuantity'])->middleware('feature:reports')->name('reports.physical-quantity');
     Route::get('notifications', [NotificationController::class, 'index'])->name('notifications.index');
 
     Route::post('logout', [AuthController::class, 'logout'])->name('logout');

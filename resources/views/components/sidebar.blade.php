@@ -5,6 +5,8 @@
     if (file_exists($svgPath) && is_readable($svgPath)) {
         $logoSvg = file_get_contents($svgPath);
     }
+
+    $features = app(\App\Support\FeatureManager::class);
 @endphp
 
 <!-- Logout Modal -->
@@ -127,7 +129,7 @@
                             </a>
                         </li>
                     @endif
-                    @if (in_array(Auth::user()->role, ['developer', 'admin']))
+                    @if (in_array(Auth::user()->role, ['developer', 'admin']) && $features->enabled('backups'))
                         <!-- rates -->
                         <li>
                             <button id="backupDB" type="button" role="menuitem" onclick="backupDB()"
@@ -188,11 +190,11 @@
                     }
 
                     $attendanceDropdown = [];
-                    if ($canManagePayrollMobile) {
+                    if ($features->enabled('attendance') && $canManagePayrollMobile) {
                         $attendanceDropdown[] = ['href' => route('attendances.generate-slip'), 'title' => 'Generate Slip'];
                         $attendanceDropdown[] = ['href' => route('attendances.manage-salary'), 'title' => 'Manage Salary'];
                     }
-                    if ($canRecordAttendanceMobile) {
+                    if ($features->enabled('attendance') && $canRecordAttendanceMobile) {
                         $attendanceDropdown[] = ['href' => route('attendances.create'), 'title' => 'Record Attendance'];
                     }
                 @endphp
@@ -200,32 +202,40 @@
                     <x-mobile-menu-item title="Users" includesDropdown :dropdown="$usersDropdown" />
                 @endif
 
-                @if ($canManageMainOfficeRecords)
+                @if ($canManageMainOfficeRecords && $features->enabled('suppliers'))
                     <x-mobile-menu-item title="Suppliers" includesDropdown :dropdown="[
                         ['href' => route('suppliers.index'), 'title' => 'Show Suppliers'],
                         ['href' => route('suppliers.create'), 'title' => 'Add Supplier'],
                     ]" />
+                @endif
 
+                @if ($canManageMainOfficeRecords && $features->enabled('customers'))
                     <x-mobile-menu-item title="Customer" includesDropdown :dropdown="[
                         ['href' => route('customers.index'), 'title' => 'Show Customers'],
                         ['href' => route('customers.create'), 'title' => 'Add Customer'],
                     ]" />
                 @endif
 
-                @if ($canManageArticleRecords)
+                @if ($canManageArticleRecords && $features->enabled('articles'))
                     <x-mobile-menu-item title="Articles" includesDropdown :dropdown="[
                         ['href' => route('articles.index'), 'title' => 'Show Articles'],
                         ['href' => route('articles.create'), 'title' => 'Add Article'],
                     ]" />
                 @endif
 
-                @if ($canManageMainOfficeRecords)
-                    <x-mobile-menu-item title="Orders" includesDropdown :dropdown="[
-                        ['href' => route('orders.index'), 'title' => 'Show Orders'],
-                        ['href' => route('payment-programs.index'), 'title' => 'Show Payment Prg.'],
-                        ['href' => route('orders.create'), 'title' => 'Generate Order'],
-                        ['href' => route('payment-programs.create'), 'title' => 'Add Payment Prg.'],
-                    ]" />
+                @php
+                    $ordersDropdown = [];
+                    if ($features->enabled('orders')) {
+                        $ordersDropdown[] = ['href' => route('orders.index'), 'title' => 'Show Orders'];
+                        $ordersDropdown[] = ['href' => route('orders.create'), 'title' => 'Generate Order'];
+                    }
+                    if ($features->enabled('payment_programs')) {
+                        $ordersDropdown[] = ['href' => route('payment-programs.index'), 'title' => 'Show Payment Prg.'];
+                        $ordersDropdown[] = ['href' => route('payment-programs.create'), 'title' => 'Add Payment Prg.'];
+                    }
+                @endphp
+                @if ($canManageMainOfficeRecords && !empty($ordersDropdown))
+                    <x-mobile-menu-item title="Orders" includesDropdown :dropdown="$ordersDropdown" />
                 @endif
 
                 @if (!empty($attendanceDropdown))
@@ -318,7 +328,7 @@
             },
         @endif
 
-        @if (in_array(Auth::user()->role, ['developer', 'owner', 'admin', 'accountant']))
+        @if (in_array(Auth::user()->role, ['developer', 'owner', 'admin', 'accountant']) && $features->enabled('suppliers'))
             {
                 id: "suppliers",
                 name: "Suppliers",
@@ -340,7 +350,7 @@
             },
         @endif
 
-        @if (in_array(Auth::user()->role, ['developer', 'owner', 'admin', 'accountant']))
+        @if (in_array(Auth::user()->role, ['developer', 'owner', 'admin', 'accountant']) && $features->enabled('vouchers'))
             {
                 id: "vouchers",
                 name: "Vouchers",
@@ -358,12 +368,14 @@
                 subMenu: [
                     {name: 'Show Vouchers', href: "/vouchers"},
                     {name: 'Add Voucher', href: "/vouchers/create"},
+                    @if ($features->enabled('payments'))
                     {name: 'Show Payments', href: "/supplier-payments"},
+                    @endif
                 ]
             },
         @endif
 
-        @if (in_array(Auth::user()->role, ['developer', 'owner', 'admin', 'accountant']))
+        @if (in_array(Auth::user()->role, ['developer', 'owner', 'admin', 'accountant']) && $features->enabled('customers'))
             {
                 id: "customers",
                 name: "Customers",
@@ -385,7 +397,7 @@
             },
         @endif
 
-        @if (in_array(Auth::user()->role, ['developer', 'owner', 'admin', 'accountant']))
+        @if (in_array(Auth::user()->role, ['developer', 'owner', 'admin', 'accountant']) && $features->enabled('payments'))
             {
                 id: "customer-payments",
                 name: "Payments",
@@ -407,7 +419,7 @@
             },
         @endif
 
-        @if (in_array(Auth::user()->role, ['developer', 'owner', 'admin', 'accountant', 'store_keeper']))
+        @if (in_array(Auth::user()->role, ['developer', 'owner', 'admin', 'accountant', 'store_keeper']) && $features->enabled('articles'))
             {
                 id: "articles",
                 name: "Articles",
@@ -429,7 +441,7 @@
             },
         @endif
 
-        @if (in_array(Auth::user()->role, ['developer', 'owner', 'admin', 'accountant', 'store_keeper']))
+        @if (in_array(Auth::user()->role, ['developer', 'owner', 'admin', 'accountant', 'store_keeper']) && $features->enabled('stock'))
             {
                 id: "physical-quantities",
                 name: "Physical Quantities",
@@ -451,7 +463,7 @@
             },
         @endif
 
-        @if (in_array(Auth::user()->role, ['developer', 'owner', 'admin', 'accountant']))
+        @if (in_array(Auth::user()->role, ['developer', 'owner', 'admin', 'accountant']) && $features->enabled('orders'))
             {
                 id: "orders",
                 name: "Orders",
@@ -473,7 +485,7 @@
             },
         @endif
 
-        @if (in_array(Auth::user()->role, ['developer', 'owner', 'admin', 'accountant']))
+        @if (in_array(Auth::user()->role, ['developer', 'owner', 'admin', 'accountant']) && $features->enabled('payment_programs'))
             {
                 id: "payment-programs",
                 name: "Payment Programs",
@@ -497,7 +509,7 @@
             },
         @endif
 
-        @if (in_array(Auth::user()->role, ['developer', 'owner', 'admin', 'accountant']))
+        @if (in_array(Auth::user()->role, ['developer', 'owner', 'admin', 'accountant']) && $features->enabled('shipments'))
             {
                 id: "shipments",
                 name: "Shipments",
@@ -519,7 +531,7 @@
             },
         @endif
 
-        @if (in_array(Auth::user()->role, ['developer', 'owner', 'admin', 'accountant']))
+        @if (in_array(Auth::user()->role, ['developer', 'owner', 'admin', 'accountant']) && $features->enabled('expenses'))
             {
                 id: "expenses",
                 name: "Expenses",
@@ -541,7 +553,7 @@
             },
         @endif
 
-        @if (in_array(Auth::user()->role, ['developer', 'owner', 'admin', 'accountant']))
+        @if (in_array(Auth::user()->role, ['developer', 'owner', 'admin', 'accountant']) && $features->enabled('invoices'))
             {
                 id: "invoices",
                 name: "Invoices",
@@ -563,7 +575,7 @@
             },
         @endif
 
-        @if (in_array(Auth::user()->role, ['developer', 'owner', 'admin', 'accountant']))
+        @if (in_array(Auth::user()->role, ['developer', 'owner', 'admin', 'accountant']) && $features->enabled('logistics'))
             {
                 id: "cargos",
                 name: "Cargos",
@@ -585,7 +597,7 @@
             },
         @endif
 
-        @if (in_array(Auth::user()->role, ['developer', 'owner', 'admin', 'accountant']))
+        @if (in_array(Auth::user()->role, ['developer', 'owner', 'admin', 'accountant']) && $features->enabled('logistics'))
             {
                 id: "bilties",
                 name: "Bilties",
@@ -607,7 +619,7 @@
             },
         @endif
 
-        @if (in_array(Auth::user()->role, ['developer', 'owner', 'admin', 'accountant']))
+        @if (in_array(Auth::user()->role, ['developer', 'owner', 'admin', 'accountant']) && $features->enabled('bank_accounts'))
             {
                 id: "bank-accounts",
                 name: "Bank Accounts",
@@ -629,7 +641,7 @@
             },
         @endif
 
-        @if (in_array(Auth::user()->role, ['developer', 'owner', 'admin', 'accountant', 'store_keeper']))
+        @if (in_array(Auth::user()->role, ['developer', 'owner', 'admin', 'accountant', 'store_keeper']) && $features->enabled('fabrics'))
             {
                 id: "fabrics",
                 name: "Fabrics",
@@ -653,7 +665,7 @@
             },
         @endif
 
-        @if (in_array(Auth::user()->role, ['developer', 'owner', 'admin', 'accountant']))
+        @if (in_array(Auth::user()->role, ['developer', 'owner', 'admin', 'accountant']) && $features->enabled('employees'))
             {
                 id: "employees",
                 name: "Employees",
@@ -675,7 +687,7 @@
             },
         @endif
 
-        @if (in_array(Auth::user()->role, ['developer', 'owner', 'admin', 'accountant']))
+        @if (in_array(Auth::user()->role, ['developer', 'owner', 'admin', 'accountant']) && $features->enabled('payments'))
             {
                 id: "employee-payments",
                 name: "Employee Payments",
@@ -698,6 +710,7 @@
         @endif
 
         @if (Auth::user()->role === 'customer')
+            @if ($features->enabled('orders'))
             {
                 id: "orders",
                 name: "Orders",
@@ -717,6 +730,8 @@
                     {name: 'Generate Order', href: "/orders/create"},
                 ]
             },
+            @endif
+            @if ($features->enabled('reports'))
             {
                 id: "statement",
                 name: "Statement",
@@ -729,9 +744,11 @@
                 onclick: 'window.location.href=\"/reports/statement\"',
                 oncontextmenu: 'window.location.href=\"/reports/statement\"',
             },
+            @endif
         @endif
 
         @if (Auth::user()->role === 'supplier')
+            @if ($features->enabled('expenses'))
             {
                 id: "expenses",
                 name: "Expenses",
@@ -744,6 +761,8 @@
                 onclick: 'window.location.href=\"/expenses\"',
                 oncontextmenu: 'window.location.href=\"/expenses\"',
             },
+            @endif
+            @if ($features->enabled('production'))
             {
                 id: "productions",
                 name: "Productions",
@@ -756,6 +775,8 @@
                 onclick: 'window.location.href=\"/productions\"',
                 oncontextmenu: 'window.location.href=\"/productions\"',
             },
+            @endif
+            @if ($features->enabled('reports'))
             {
                 id: "statement",
                 name: "Statement",
@@ -768,9 +789,10 @@
                 onclick: 'window.location.href=\"/reports/statement\"',
                 oncontextmenu: 'window.location.href=\"/reports/statement\"',
             },
+            @endif
         @endif
 
-        @if (in_array(Auth::user()->role, ['developer', 'owner', 'admin', 'accountant']))
+        @if (in_array(Auth::user()->role, ['developer', 'owner', 'admin', 'accountant']) && $features->enabled('daily_ledger'))
             {
                 id: "daily-ledger",
                 name: "Daily Ledger",
@@ -792,7 +814,7 @@
             },
         @endif
 
-        @if (in_array(Auth::user()->role, ['developer', 'owner', 'admin', 'accountant']))
+        @if (in_array(Auth::user()->role, ['developer', 'owner', 'admin', 'accountant']) && $features->enabled('cr_dr'))
             {
                 id: "cr",
                 name: "CR",
@@ -814,7 +836,7 @@
             },
         @endif
 
-        @if (in_array(Auth::user()->role, ['developer', 'owner', 'admin', 'accountant']))
+        @if (in_array(Auth::user()->role, ['developer', 'owner', 'admin', 'accountant']) && $features->enabled('cr_dr'))
             {
                 id: "dr",
                 name: "DR",
@@ -836,7 +858,7 @@
             },
         @endif
 
-        @if (in_array(Auth::user()->role, ['developer', 'owner', 'admin', 'accountant']))
+        @if (in_array(Auth::user()->role, ['developer', 'owner', 'admin', 'accountant']) && $features->enabled('reports'))
             {
                 id: "reports",
                 name: "Reports",
@@ -861,7 +883,7 @@
             },
         @endif
 
-        @if (in_array(Auth::user()->role, ['developer', 'owner', 'admin', 'accountant']))
+        @if (in_array(Auth::user()->role, ['developer', 'owner', 'admin', 'accountant']) && $features->enabled('production'))
             {
                 id: "productions",
                 name: "Productions",
@@ -883,7 +905,7 @@
             },
         @endif
 
-        @if (in_array(Auth::user()->role, ['developer', 'owner', 'admin', 'accountant']))
+        @if (in_array(Auth::user()->role, ['developer', 'owner', 'admin', 'accountant']) && $features->enabled('sales_returns'))
             {
                 id: "sales-returns",
                 name: "Sales Return",
@@ -910,7 +932,7 @@
             $canManagePayroll = in_array(Auth::user()->role, ['developer', 'owner', 'admin', 'accountant'], true);
             $attendanceActionCount = (int) $canRecordAttendance + ($canManagePayroll ? 2 : 0);
         @endphp
-        @if ($canRecordAttendance || $canManagePayroll)
+        @if ($features->enabled('attendance') && ($canRecordAttendance || $canManagePayroll))
             {
                 id: "attendances",
                 name: "Attendance",
@@ -937,7 +959,7 @@
             },
         @endif
 
-        @if (in_array(Auth::user()->role, ['developer', 'owner', 'admin', 'accountant']))
+        @if (in_array(Auth::user()->role, ['developer', 'owner', 'admin', 'accountant']) && $features->enabled('utilities'))
             {
                 id: "utility-bills",
                 name: "Utility Bills",
@@ -959,7 +981,7 @@
             },
         @endif
 
-        @if (in_array(Auth::user()->role, ['developer', 'owner', 'admin', 'accountant']))
+        @if (in_array(Auth::user()->role, ['developer', 'owner', 'admin', 'accountant']) && $features->enabled('utilities'))
             {
                 id: "utility-accounts",
                 name: "Utility Accounts",

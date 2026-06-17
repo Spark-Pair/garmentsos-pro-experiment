@@ -42,9 +42,15 @@ Use feature flags to hide and block access.
 
 Example:
 
-Client A has Shipments disabled. Sidebar should hide Shipments, and shipment routes should be blocked once route guards are applied.
+Client A has Shipments disabled. Sidebar hides Shipments, and shipment routes are blocked by the `feature:shipments` middleware.
 
 Feature flags do not remove code from packages by themselves.
+
+Current rollout:
+
+- Module routes are guarded with the matching `feature:*` middleware.
+- Desktop and mobile menu entries check the same feature flags before rendering module links.
+- Shared AJAX/helper routes are not broadly guarded yet because several are cross-module dependencies. Guard those only after each caller dependency is mapped.
 
 ## Module Manifest
 
