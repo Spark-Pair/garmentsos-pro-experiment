@@ -9,7 +9,9 @@ use App\Models\SupplierPayment;
 use App\Models\Voucher;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\ValidationException;
 
 class CRController extends Controller
 {
@@ -188,8 +190,8 @@ class CRController extends Controller
             'voucher_no' => 'required|string',
             'voucher_id' => 'required|integer|exists:vouchers,id',
             'c_r_no' => 'required|string',
-            'returnPayments' => 'required|string',
-            'newPayments' => 'required|string',
+            'returnPayments' => 'required|json',
+            'newPayments' => 'required|json',
         ]);
 
         // Check for validation errors
@@ -197,13 +199,19 @@ class CRController extends Controller
             return redirect()->back()->withErrors($validator)->withInput();
         }
 
+        $returnPayments = $this->decodeJsonArray($request->returnPayments, 'returnPayments');
+        $newPayments = $this->decodeJsonArray($request->newPayments, 'newPayments');
+        $voucher = Voucher::findOrFail($request->voucher_id);
+
+        $this->validateCrPayload($voucher, $returnPayments, $newPayments);
+
         $data = [
             'date' => $request->date,
             'voucher_no' => $request->voucher_no,
             'voucher_id' => $request->voucher_id,
             'c_r_no' => $request->c_r_no,
-            'return_payments' => json_decode($request->returnPayments ?? '[]'),
-            'new_payments' => json_decode($request->newPayments ?? '[]'),
+            'return_payments' => $returnPayments,
+            'new_payments' => $newPayments,
         ];
 
         if (!str_starts_with($data['c_r_no'], 'CR-')) {
@@ -225,6 +233,7 @@ class CRController extends Controller
             return redirect()->back()->with('error', 'Payments not added.');
         }
 
+        DB::transaction(function () use (&$data, $voucher) {
         foreach($data['return_payments'] as $payment) {
             SupplierPayment::find($payment->id)->update(['is_return' => true]);
             CustomerPayment::find($payment->payment_id)->update(['is_return' => true]);
@@ -251,7 +260,7 @@ class CRController extends Controller
                 }
 
                 $newSupplierPayment = SupplierPayment::create([
-                    'supplier_id'      => Voucher::find($data['voucher_id'])->supplier_id,
+                    'supplier_id'      => $voucher->supplier_id,
                     'date'             => $data['date'],
                     'method'           => $payment->method . ' | CR',
                     'amount'           => $payment->amount,
@@ -267,6 +276,7 @@ class CRController extends Controller
 
         $cr->new_payments = $data['new_payments'];
         $cr->save(); // 👈 dubara save karenge taake new_payments update ho jaye
+        });
 
         return redirect()->route('cr.create')->with('success', 'CR Generated successfully.');
     }
@@ -301,5 +311,98 @@ class CRController extends Controller
     public function destroy(string $id)
     {
         //
+    }
+
+    private function decodeJsonArray(string $json, string $field): array
+    {
+        $decoded = json_decode($json);
+
+        if (!is_array($decoded)) {
+            throw ValidationException::withMessages([
+                $field => 'Invalid payment payload.',
+            ]);
+        }
+
+        return $decoded;
+    }
+
+    private function validateCrPayload(Voucher $voucher, array $returnPayments, array $newPayments): void
+    {
+        if (empty($returnPayments) || empty($newPayments)) {
+            throw ValidationException::withMessages([
+                'returnPayments' => 'Payments not selected and payments not added.',
+            ]);
+        }
+
+        $returnTotal = 0;
+        foreach ($returnPayments as $index => $payment) {
+            $rowNumber = $index + 1;
+            $supplierPaymentId = (int) ($payment->id ?? 0);
+            $customerPaymentId = (int) ($payment->payment_id ?? 0);
+
+            $supplierPayment = SupplierPayment::whereKey($supplierPaymentId)
+                ->where('voucher_id', $voucher->id)
+                ->first();
+            $customerPayment = CustomerPayment::find($customerPaymentId);
+
+            if (!$supplierPayment || !$customerPayment) {
+                throw ValidationException::withMessages([
+                    'returnPayments' => "Selected return payment row {$rowNumber} is invalid.",
+                ]);
+            }
+
+            $returnTotal += (float) $supplierPayment->amount;
+        }
+
+        $newTotal = 0;
+        foreach ($newPayments as $index => $payment) {
+            $rowNumber = $index + 1;
+            $method = (string) ($payment->method ?? '');
+            $amount = $payment->amount ?? null;
+
+            if (!in_array($method, ['Payment Program', 'Self Cheque', 'Cheque', 'Slip'], true)) {
+                throw ValidationException::withMessages([
+                    'newPayments' => "New payment row {$rowNumber} has an invalid method.",
+                ]);
+            }
+
+            if ($amount === null || !is_numeric($amount) || (float) $amount <= 0) {
+                throw ValidationException::withMessages([
+                    'newPayments' => "New payment row {$rowNumber} amount must be greater than zero.",
+                ]);
+            }
+
+            if (empty($payment->data_value)) {
+                throw ValidationException::withMessages([
+                    'newPayments' => "New payment row {$rowNumber} has an invalid reference.",
+                ]);
+            }
+
+            if ($method === 'Payment Program' && !SupplierPayment::whereKey($payment->data_value)->whereNull('voucher_id')->exists()) {
+                throw ValidationException::withMessages([
+                    'newPayments' => "New payment row {$rowNumber} has an invalid payment program.",
+                ]);
+            }
+
+            if (in_array($method, ['Cheque', 'Slip'], true) && !CustomerPayment::whereKey($payment->data_value)->exists()) {
+                throw ValidationException::withMessages([
+                    'newPayments' => "New payment row {$rowNumber} has an invalid customer payment.",
+                ]);
+            }
+
+            if ($method === 'Self Cheque' && !BankAccount::whereKey($payment->bank_account_id ?? null)->exists()) {
+                throw ValidationException::withMessages([
+                    'newPayments' => "New payment row {$rowNumber} has an invalid bank account.",
+                ]);
+            }
+
+            $newTotal += (float) $amount;
+        }
+
+        if (abs($returnTotal - $newTotal) > 0.01) {
+            throw ValidationException::withMessages([
+                'newPayments' => 'The total added amount must match the total selected amount.',
+            ]);
+        }
     }
 }

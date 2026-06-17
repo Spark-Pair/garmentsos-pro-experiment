@@ -7,7 +7,9 @@ use App\Models\CustomerPayment;
 use App\Models\DR;
 use App\Models\Setup;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\ValidationException;
 
 class DRController extends Controller
 {
@@ -87,8 +89,8 @@ class DRController extends Controller
         $validator = Validator::make($request->all(), [
             'customer_id' => 'required|integer|exists:customers,id',
             'date' => 'required|date',
-            'returnPayments' => 'required|string',
-            'newPayments' => 'required|string',
+            'returnPayments' => 'required|json',
+            'newPayments' => 'required|json',
         ]);
 
         // Check for validation errors
@@ -96,11 +98,16 @@ class DRController extends Controller
             return redirect()->back()->withErrors($validator)->withInput();
         }
 
+        $returnPayments = $this->decodeJsonArray($request->returnPayments, 'returnPayments');
+        $newPayments = $this->decodeJsonArray($request->newPayments, 'newPayments');
+
+        $this->validateDrPayload((int) $request->customer_id, $returnPayments, $newPayments);
+
         $data = [
             'customer_id' => $request->customer_id,
             'date' => $request->date,
-            'return_payments' => json_decode($request->returnPayments ?? '[]'),
-            'new_payments_data' => json_decode($request->newPayments ?? '[]'),
+            'return_payments' => $returnPayments,
+            'new_payments_data' => $newPayments,
         ];
 
         $returnEmpty = empty($data['return_payments']);
@@ -118,38 +125,41 @@ class DRController extends Controller
             return redirect()->back()->with('error', 'Payments not added.');
         }
 
-        $data['new_payments'] = [];
+        DB::transaction(function () use (&$data) {
+            $data['new_payments'] = [];
+            $data['d_r_no'] = 'DR-PENDING-' . uniqid();
 
-        $dr = new DR($data);
-        $dr->save(); // 👈 pehle save karenge taake $dr->id mil jaye
-        $dr->d_r_no = 'DR-' . $dr->id;
-        $dr->save(); // 👈 pehle save karenge taake $dr->id mil jaye
+            $dr = new DR($data);
+            $dr->save(); // 👈 pehle save karenge taake $dr->id mil jaye
+            $dr->d_r_no = 'DR-' . $dr->id;
+            $dr->save(); // 👈 pehle save karenge taake $dr->id mil jaye
 
-        foreach($data['return_payments'] as $paymentId) {
-            CustomerPayment::find($paymentId)->update(['clear_date' => $data['date'], 'd_r_id' => $dr->id]);
-        }
+            foreach($data['return_payments'] as $paymentId) {
+                CustomerPayment::find($paymentId)->update(['clear_date' => $data['date'], 'd_r_id' => $dr->id]);
+            }
 
-        foreach ($data['new_payments_data'] as $payment) {
-            $newPayment = CustomerPayment::create([
-                'customer_id'     => $data['customer_id'],
-                'date'            => $payment->date ?? $data['date'],
-                'type'            => 'DR',
-                'method'          => strtolower($payment->method),
-                'amount'          => $payment->amount,
-                'cheque_no'          => $payment->cheque_no ?? null,
-                'slip_no'          => $payment->slip_no ?? null,
-                'transaction_id'          => $payment->transaction_id ?? null,
-                'cheque_date'          => $payment->cheque_date ?? null,
-                'slip_date'          => $payment->slip_date ?? null,
-                'bank_id'          => $payment->bank_id ?? null,
-                'remarks'          => $payment->remarks ?? null,
-            ]);
+            foreach ($data['new_payments_data'] as $payment) {
+                $newPayment = CustomerPayment::create([
+                    'customer_id'     => $data['customer_id'],
+                    'date'            => $payment->date ?? $data['date'],
+                    'type'            => 'DR',
+                    'method'          => strtolower($payment->method),
+                    'amount'          => $payment->amount,
+                    'cheque_no'          => $payment->cheque_no ?? null,
+                    'slip_no'          => $payment->slip_no ?? null,
+                    'transaction_id'          => $payment->transaction_id ?? null,
+                    'cheque_date'          => $payment->cheque_date ?? null,
+                    'slip_date'          => $payment->slip_date ?? null,
+                    'bank_id'          => $payment->bank_id ?? null,
+                    'remarks'          => $payment->remarks ?? null,
+                ]);
 
-            $data['new_payments'][] = $newPayment->id;
-        }
+                $data['new_payments'][] = $newPayment->id;
+            }
 
-        $dr->new_payments = $data['new_payments'];
-        $dr->save(); // 👈 dubara save karenge taake new_payments update ho jaye
+            $dr->new_payments = $data['new_payments'];
+            $dr->save(); // 👈 dubara save karenge taake new_payments update ho jaye
+        });
 
         return redirect()->route('dr.create')->with('success', 'DR Generated successfully.');
     }
@@ -195,5 +205,107 @@ class DRController extends Controller
         $payments = CustomerPayment::where('customer_id', $request->customer_id)->whereIn('method', ['cheque', 'slip'])->whereNull('d_r_id')->where('is_return', true)->get();
 
         return response()->json(['status' => 'success', 'data' => $payments]);
+    }
+
+    private function decodeJsonArray(string $json, string $field): array
+    {
+        $decoded = json_decode($json);
+
+        if (!is_array($decoded)) {
+            throw ValidationException::withMessages([
+                $field => 'Invalid payment payload.',
+            ]);
+        }
+
+        return $decoded;
+    }
+
+    private function validateDrPayload(int $customerId, array $returnPayments, array $newPayments): void
+    {
+        if (empty($returnPayments) || empty($newPayments)) {
+            throw ValidationException::withMessages([
+                'returnPayments' => 'Payments not selected and payments not added.',
+            ]);
+        }
+
+        $returnTotal = 0;
+        foreach ($returnPayments as $index => $paymentId) {
+            $rowNumber = $index + 1;
+            $payment = CustomerPayment::whereKey($paymentId)
+                ->where('customer_id', $customerId)
+                ->whereIn('method', ['cheque', 'slip'])
+                ->whereNull('d_r_id')
+                ->where('is_return', true)
+                ->first();
+
+            if (!$payment) {
+                throw ValidationException::withMessages([
+                    'returnPayments' => "Selected return payment row {$rowNumber} is invalid.",
+                ]);
+            }
+
+            $returnTotal += (float) $payment->amount;
+        }
+
+        $newTotal = 0;
+        foreach ($newPayments as $index => $payment) {
+            $rowNumber = $index + 1;
+            $method = (string) ($payment->method ?? '');
+            $amount = $payment->amount ?? null;
+
+            if (!in_array($method, ['cash', 'cheque', 'slip', 'online'], true)) {
+                throw ValidationException::withMessages([
+                    'newPayments' => "New payment row {$rowNumber} has an invalid method.",
+                ]);
+            }
+
+            if ($amount === null || !is_numeric($amount) || (float) $amount <= 0) {
+                throw ValidationException::withMessages([
+                    'newPayments' => "New payment row {$rowNumber} amount must be greater than zero.",
+                ]);
+            }
+
+            if ($method === 'cheque') {
+                if (empty($payment->cheque_no) || empty($payment->cheque_date) || !strtotime((string) $payment->cheque_date)) {
+                    throw ValidationException::withMessages([
+                        'newPayments' => "New payment row {$rowNumber} must include valid cheque details.",
+                    ]);
+                }
+
+                if (!Setup::whereKey($payment->bank_id ?? null)->exists()) {
+                    throw ValidationException::withMessages([
+                        'newPayments' => "New payment row {$rowNumber} has an invalid bank.",
+                    ]);
+                }
+            }
+
+            if ($method === 'slip' && (empty($payment->slip_no) || empty($payment->slip_date) || !strtotime((string) $payment->slip_date))) {
+                throw ValidationException::withMessages([
+                    'newPayments' => "New payment row {$rowNumber} must include valid slip details.",
+                ]);
+            }
+
+            if ($method === 'online') {
+                if (empty($payment->transaction_id) || empty($payment->date) || !strtotime((string) $payment->date)) {
+                    throw ValidationException::withMessages([
+                        'newPayments' => "New payment row {$rowNumber} must include valid online payment details.",
+                    ]);
+                }
+
+                if (!Setup::whereKey($payment->bank_id ?? null)->exists()) {
+                    throw ValidationException::withMessages([
+                        'newPayments' => "New payment row {$rowNumber} has an invalid bank.",
+                    ]);
+                }
+            }
+
+            $newTotal += (float) $amount;
+        }
+
+        if (abs($returnTotal - $newTotal) > 0.01) {
+            throw ValidationException::withMessages([
+                'newPayments' => 'The total added amount must match the total selected amount.',
+            ]);
+        }
     }
 }

@@ -31,6 +31,8 @@ Do not expose empty resource methods. If an action is not supported, remove the 
 - Validate requests before storing or deleting uploaded files.
 - Use decimal-compatible validation for money/quantity fields where the business allows decimals.
 - Finance writes must validate related IDs before writing and reject zero/negative amounts unless the workflow explicitly documents otherwise.
+- Nested finance JSON payloads must be decoded and validated row-by-row before any linked payment records are created, deleted, detached, or marked returned.
+- If one nested finance row is invalid, the whole request should fail before mutation; update/rebuild flows should run only after validation passes.
 
 ## Authorization
 

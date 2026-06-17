@@ -260,6 +260,7 @@ class VoucherController extends Controller
         }
 
         $paymentDetailsArray = json_decode($request->payment_details_array, true) ?? [];
+        $this->validateVoucherPaymentRows($paymentDetailsArray);
         $this->assertVoucherPaymentsAreUnique($paymentDetailsArray);
 
         DB::transaction(function () use ($request, $paymentDetailsArray) {
@@ -667,6 +668,7 @@ class VoucherController extends Controller
         }
 
         $requestPayments = json_decode($request->payment_details_array, true);
+        $this->validateVoucherPaymentRows($requestPayments ?? []);
         $this->assertVoucherPaymentsAreUnique($requestPayments ?? [], $voucher);
 
         DB::transaction(function () use ($voucher, $requestPayments) {
@@ -941,5 +943,113 @@ class VoucherController extends Controller
     private function normalizeVoucherPaymentMethod(?string $method): string
     {
         return strtolower(str_replace([' ', '_', '.'], '', (string) $method));
+    }
+
+    private function validateVoucherPaymentRows(array $paymentDetailsArray): void
+    {
+        if (empty($paymentDetailsArray)) {
+            throw ValidationException::withMessages([
+                'payment_details_array' => 'Please add at least one payment row.',
+            ]);
+        }
+
+        foreach ($paymentDetailsArray as $index => $paymentDetails) {
+            $rowNumber = $index + 1;
+
+            if (!is_array($paymentDetails)) {
+                throw ValidationException::withMessages([
+                    'payment_details_array' => "Payment row {$rowNumber} is invalid.",
+                ]);
+            }
+
+            $method = $this->normalizeVoucherPaymentMethod($paymentDetails['method'] ?? '');
+            $amount = $paymentDetails['amount'] ?? null;
+
+            if ($amount === null || !is_numeric($amount) || (float) $amount <= 0) {
+                throw ValidationException::withMessages([
+                    'payment_details_array' => "Payment row {$rowNumber} amount must be greater than zero.",
+                ]);
+            }
+
+            if (!in_array($method, ['cash', 'adjustment', 'cheque', 'slip', 'selfcheque', 'atm', 'program', 'preturn', 'purchasereturn'], true)) {
+                throw ValidationException::withMessages([
+                    'payment_details_array' => "Payment row {$rowNumber} has an invalid payment method.",
+                ]);
+            }
+
+            if (!empty($paymentDetails['self_account_id']) && !BankAccount::whereKey($paymentDetails['self_account_id'])->exists()) {
+                throw ValidationException::withMessages([
+                    'payment_details_array' => "Payment row {$rowNumber} has an invalid self account.",
+                ]);
+            }
+
+            if (!empty($paymentDetails['bank_account_id']) && !BankAccount::whereKey($paymentDetails['bank_account_id'])->exists()) {
+                throw ValidationException::withMessages([
+                    'payment_details_array' => "Payment row {$rowNumber} has an invalid bank account.",
+                ]);
+            }
+
+            if ($method === 'cheque' && empty($paymentDetails['cheque_id'])) {
+                throw ValidationException::withMessages([
+                    'payment_details_array' => "Payment row {$rowNumber} must select a cheque.",
+                ]);
+            }
+
+            if ($method === 'cheque' && !empty($paymentDetails['cheque_id']) && !CustomerPayment::whereKey($paymentDetails['cheque_id'])->exists()) {
+                throw ValidationException::withMessages([
+                    'payment_details_array' => "Payment row {$rowNumber} has an invalid cheque.",
+                ]);
+            }
+
+            if ($method === 'slip' && empty($paymentDetails['slip_id'])) {
+                throw ValidationException::withMessages([
+                    'payment_details_array' => "Payment row {$rowNumber} must select a slip.",
+                ]);
+            }
+
+            if ($method === 'slip' && !empty($paymentDetails['slip_id']) && !CustomerPayment::whereKey($paymentDetails['slip_id'])->exists()) {
+                throw ValidationException::withMessages([
+                    'payment_details_array' => "Payment row {$rowNumber} has an invalid slip.",
+                ]);
+            }
+
+            if ($method === 'program') {
+                $paymentId = (int) ($paymentDetails['payment_id'] ?? $paymentDetails['id'] ?? 0);
+                if ($paymentId <= 0 || !SupplierPayment::whereKey($paymentId)->exists()) {
+                    throw ValidationException::withMessages([
+                        'payment_details_array' => "Payment row {$rowNumber} has an invalid program payment.",
+                    ]);
+                }
+            }
+
+            if (in_array($method, ['preturn', 'purchasereturn'], true)) {
+                $expenseId = (int) ($paymentDetails['expense_id'] ?? 0);
+                if ($expenseId <= 0 || !Expense::whereKey($expenseId)->exists()) {
+                    throw ValidationException::withMessages([
+                        'payment_details_array' => "Payment row {$rowNumber} has an invalid purchase return.",
+                    ]);
+                }
+            }
+
+            if ($method === 'selfcheque') {
+                if (empty($paymentDetails['cheque_no']) || empty($paymentDetails['cheque_date'])) {
+                    throw ValidationException::withMessages([
+                        'payment_details_array' => "Payment row {$rowNumber} must include self cheque details.",
+                    ]);
+                }
+
+                if (!strtotime((string) $paymentDetails['cheque_date'])) {
+                    throw ValidationException::withMessages([
+                        'payment_details_array' => "Payment row {$rowNumber} has an invalid cheque date.",
+                    ]);
+                }
+            }
+
+            if ($method === 'atm' && empty($paymentDetails['reff_no'])) {
+                throw ValidationException::withMessages([
+                    'payment_details_array' => "Payment row {$rowNumber} must include an ATM reference.",
+                ]);
+            }
+        }
     }
 }
