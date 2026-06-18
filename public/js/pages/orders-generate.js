@@ -85,7 +85,6 @@
                             Category: item.category,
                             Season: item.season,
                             Size: item.size,
-                            Unit: `${item.pcs_per_packet} Pcs/Pkt`,
                         },
                         data: item,
                         onclick: 'generateQuantityModal(this)',
@@ -161,13 +160,13 @@
                     },
                     {
                         category: 'input',
-                        label: 'Order Can Be Created',
+                        label: 'Orderable Quantity',
                         value: `${formatNumbersDigitLess(data.orderable_quantity)} Pcs | ${formatNumbersWithDigits(data.orderable_quantity_packets)} Pkts`,
                         disabled: true,
                     },
                     {
                         category: 'input',
-                        label: 'Current Stock / Invoiceable',
+                        label: 'Invoiceable Quantity (Current Stock)',
                         value: `${formatNumbersDigitLess(data.current_stock)} Pcs | ${formatNumbersWithDigits(data.current_stock_packets)} Pkts`,
                         disabled: true,
                     },
