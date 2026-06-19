@@ -84,6 +84,10 @@
             let ogMaxCottonCount = 0;
             let allCustomers = [];
             let maxCottonCount = 0;
+            const previousApplyFilters =
+                typeof window.applyFilters === "function"
+                    ? window.applyFilters
+                    : null;
             const previousClearAllSearchFields =
                 typeof window.clearAllSearchFields === "function"
                     ? window.clearAllSearchFields
@@ -102,11 +106,61 @@
                 return Array.from(modal.querySelectorAll("[data-filter-path]"));
             }
 
+            function getCustomerModal() {
+                return document.getElementById("modalForm");
+            }
+
+            function getCustomerFilterTrigger() {
+                return getCustomerModal()?.querySelector("#search-form .dropdown-trigger") || null;
+            }
+
+            function getCustomerFilterMenu() {
+                return getCustomerFilterTrigger()?.nextElementSibling || null;
+            }
+
+            function isCustomerFilterMenuOpen() {
+                const menu = getCustomerFilterMenu();
+                return !!menu && !menu.classList.contains("hidden");
+            }
+
+            function focusFirstCustomerFilterField() {
+                const menu = getCustomerFilterMenu();
+                if (!menu) return;
+
+                const firstField = menu.querySelector("[data-filter-path]");
+                if (!firstField) return;
+
+                if (firstField.classList.contains("dbInput")) {
+                    const targetId = firstField.getAttribute("data-for") || firstField.id;
+                    const visibleInput = menu.querySelector(`#${CSS.escape(targetId)}`);
+                    visibleInput?.focus();
+                    visibleInput?.select?.();
+                    return;
+                }
+
+                firstField.focus();
+                firstField.select?.();
+            }
+
+            function openCustomerFilterAndFocusFirstField() {
+                const trigger = getCustomerFilterTrigger();
+                if (!trigger) return;
+
+                if (!isCustomerFilterMenuOpen()) {
+                    trigger.click();
+                }
+
+                window.setTimeout(focusFirstCustomerFilterField, 60);
+            }
+
+            function toggleCustomerFilterPanel() {
+                getCustomerFilterTrigger()?.click();
+            }
+
             function applyCustomerFiltersFromModal() {
-                if (!allCustomers.length) return;
+                if (!getCustomerModal() || !Array.isArray(allCustomers)) return;
 
                 const filterInputs = getModalFilterInputs();
-                if (!filterInputs.length) return;
 
                 const filteredCustomers = allCustomers.filter((customer) => {
                     return filterInputs.every((input) => {
@@ -124,26 +178,49 @@
                 updateSelectedCount();
                 addListeners();
                 updateCustomerRowsState();
+                closeAllDropdowns();
             }
 
-            function bindModalFilterEvents() {
-                const filterInputs = getModalFilterInputs();
-                if (!filterInputs.length) return;
+            function clearModalSelectField(field, modal) {
+                if (!field.classList.contains("dbInput")) return;
 
-                filterInputs.forEach((input) => {
-                    const eventType =
-                        input.tagName === "SELECT" || input.type === "date" ? "change" : "input";
+                const targetId = field.getAttribute("data-for");
+                if (!targetId) return;
 
-                    input.addEventListener(eventType, applyCustomerFiltersFromModal);
-                });
+                const visibleInput = modal.querySelector(`#${CSS.escape(targetId)}`);
+                const defaultOption = modal.querySelector(
+                    `.optionsDropdown li[data-for="${CSS.escape(targetId)}"][data-value=""]`
+                );
+
+                if (visibleInput) {
+                    visibleInput.value = defaultOption?.textContent.trim() || "";
+                }
+
+                modal
+                    .querySelectorAll(`.optionsDropdown li[data-for="${CSS.escape(targetId)}"]`)
+                    .forEach((option) => {
+                        option.classList.toggle("selected", option === defaultOption);
+                        option.classList.remove("hidden");
+                    });
             }
+
+            window.applyFilters = function applyShipmentCustomerFilters() {
+                if (getCustomerModal()) {
+                    applyCustomerFiltersFromModal();
+                    return;
+                }
+
+                previousApplyFilters?.();
+            };
 
             window.clearAllSearchFields = function clearAllShipmentCustomerSearchFields() {
+                const modal = getCustomerModal();
                 const filterInputs = getModalFilterInputs();
 
-                if (filterInputs.length) {
+                if (modal && filterInputs.length) {
                     filterInputs.forEach((field) => {
                         field.value = "";
+                        clearModalSelectField(field, modal);
                     });
 
                     applyCustomerFiltersFromModal();
@@ -154,6 +231,44 @@
                     previousClearAllSearchFields();
                 }
             };
+
+            document.addEventListener("keydown", (event) => {
+                if (!getCustomerModal()) return;
+
+                const activeElement = document.activeElement;
+                const isTypingTarget =
+                    activeElement &&
+                    (activeElement.tagName === "INPUT" ||
+                        activeElement.tagName === "TEXTAREA" ||
+                        activeElement.isContentEditable);
+
+                if (
+                    event.key === "`" &&
+                    !event.altKey &&
+                    !event.ctrlKey &&
+                    !event.metaKey &&
+                    !isTypingTarget
+                ) {
+                    event.preventDefault();
+                    openCustomerFilterAndFocusFirstField();
+                    return;
+                }
+
+                if (!event.altKey || event.ctrlKey || event.metaKey) return;
+
+                const shortcutKey = event.key.toLowerCase();
+
+                if (shortcutKey === "f") {
+                    event.preventDefault();
+                    toggleCustomerFilterPanel();
+                } else if (shortcutKey === "s") {
+                    event.preventDefault();
+                    applyCustomerFiltersFromModal();
+                } else if (shortcutKey === "c") {
+                    event.preventDefault();
+                    window.clearAllSearchFields();
+                }
+            });
 
             shipmentNoDom.addEventListener("keydown", (e) => {
                 if (e.key === "Enter") {
@@ -266,7 +381,6 @@
                 };
 
                 createModal(modalData, animate);
-                bindModalFilterEvents();
             }
 
             function generateTableBody(data) {

@@ -133,14 +133,20 @@
                     },
                     {
                         category: 'input',
-                        label: 'Available Stock - Pcs.',
-                        value: formatNumbersDigitLess(data.available_stock),
+                        label: 'Orderable Quantity',
+                        value: `${formatNumbersDigitLess(data.orderable_quantity)} Pcs | ${formatNumbersWithDigits(data.orderable_quantity_packets)} Pkts`,
                         disabled: true,
                     },
                     {
                         category: 'input',
-                        label: 'Current Stock - Pcs.',
-                        value: formatNumbersDigitLess(data.physical_quantity),
+                        label: 'Invoiceable Quantity (Current Stock)',
+                        value: `${formatNumbersDigitLess(data.current_stock)} Pcs | ${formatNumbersWithDigits(data.current_stock_packets)} Pkts`,
+                        disabled: true,
+                    },
+                    {
+                        category: 'input',
+                        label: 'Unit',
+                        value: `${formatNumbersDigitLess(data.pcs_per_packet)} Pcs per Packet`,
                         disabled: true,
                     },
                     {
@@ -150,7 +156,7 @@
                         type: 'number',
                         label: 'Quantity - Pcs.',
                         placeholder: 'Enter quantity in pcs.',
-                        max: Number(data.available_stock || 0),
+                        max: Number(data.orderable_quantity || 0),
                         required: true,
                         oninput: 'checkMax(this)',
                     },

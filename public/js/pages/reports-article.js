@@ -19,7 +19,12 @@
                 ? totalPcs / unit
                 : parseFormattedNumber(packets);
 
-            return `${formatNumbersDigitLess(unit)}U | ${formatNumbersWithDigits(totalPackets, 2, 0)}Pk | ${formatNumbersDigitLess(totalPcs)}Pc`;
+            return `${formatNumbersWithDigits(totalPackets, 2, 0)}Pk | ${formatNumbersDigitLess(totalPcs)}Pc`;
+        }
+
+        function formatArticleUnit(pcsPerPacket) {
+            const unit = parseFormattedNumber(pcsPerPacket);
+            return unit ? `${formatNumbersDigitLess(unit)}U` : '-';
         }
 
         window.createRow = function createRow(data) {
@@ -28,33 +33,34 @@
                 class="item row relative group flex items-center border-b border-[var(--h-bg-color)] items-center py-2 cursor-pointer hover:bg-[var(--h-secondary-bg-color)] transition-all fade-in ease-in-out text-xs"
                 data-json='${jsonAttr(data)}'>
 
-                <span class="w-[9%]">${data.article_no}</span>
+                <span class="w-[8%]">${data.article_no}</span>
                 <span class="grow text-left">${data.customer_name}</span>
-                <span class="w-[11%]">${data.order_date}</span>
-                <span class="w-[10%]">${data.order_no}</span>
-                <span class="w-[13%]" data-sort-value="${parseFormattedNumber(data.order_quantity)}">${formatArticleQuantity(data.order_quantity, data.pcs_per_packet)}</span>
-                <span class="w-[11%]">${data.invoice_date}</span>
-                <span class="w-[10%]">${data.invoice_no}</span>
-                <span class="w-[13%]" data-sort-value="${parseFormattedNumber(data.invoice_quantity)}">${formatArticleQuantity(data.invoice_quantity, data.pcs_per_packet)}</span>
+                <span class="w-[10%]">${data.reff_date}</span>
+                <span class="w-[9%]">${data.reff_no}</span>
+                <span class="w-[12%]" data-sort-value="${parseFormattedNumber(data.reff_quantity)}">${formatArticleQuantity(data.reff_quantity, data.pcs_per_packet)}</span>
+                <span class="w-[6%]" data-sort-value="${parseFormattedNumber(data.pcs_per_packet)}">${formatArticleUnit(data.pcs_per_packet)}</span>
+                <span class="w-[10%]">${data.invoice_date}</span>
+                <span class="w-[9%]">${data.invoice_no}</span>
+                <span class="w-[12%]" data-sort-value="${parseFormattedNumber(data.invoice_quantity)}">${formatArticleQuantity(data.invoice_quantity, data.pcs_per_packet)}</span>
             </div>`;
         };
 
         window.renderCalculation = function renderCalculation(data) {
-            const totalOrderQuantityDom = document.querySelector('#calc-bottom > .total-order-quantity .text-right');
+            const totalReffQuantityDom = document.querySelector('#calc-bottom > .total-reff-quantity .text-right');
             const totalInvoiceQuantityDom = document.querySelector('#calc-bottom > .total-invoice-quantity .text-right');
 
-            if (totalOrderQuantityDom) {
-                totalOrderQuantityDom.innerText = formatArticleQuantity(
-                    data.total_order_quantity ?? 0,
-                    data.total_unit ?? 0,
-                    data.total_order_packets ?? null
+            if (totalReffQuantityDom) {
+                totalReffQuantityDom.innerText = formatArticleQuantity(
+                    data.total_reff_quantity ?? 0,
+                    0,
+                    data.total_reff_packets ?? null
                 );
             }
 
             if (totalInvoiceQuantityDom) {
                 totalInvoiceQuantityDom.innerText = formatArticleQuantity(
                     data.total_invoice_quantity ?? 0,
-                    data.total_unit ?? 0,
+                    0,
                     data.total_invoice_packets ?? null
                 );
             }

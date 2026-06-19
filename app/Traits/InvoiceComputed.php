@@ -15,6 +15,11 @@ trait InvoiceComputed
                 'description' => $invoiceArticle->description,
                 'invoice_pcs' => (int) ($invoiceArticle->invoice_pcs ?? 0),
                 'returned_pcs' => (int) $this->salesReturns
+                    ->where('type', 'return')
+                    ->where('article_id', $invoiceArticle->article_id)
+                    ->sum('quantity'),
+                'adjusted_pcs' => (int) $this->salesReturns
+                    ->where('type', 'adjustment')
                     ->where('article_id', $invoiceArticle->article_id)
                     ->sum('quantity'),
                 'ordered_pcs' => (int) ($invoiceArticle->ordered_pcs ?? 0),

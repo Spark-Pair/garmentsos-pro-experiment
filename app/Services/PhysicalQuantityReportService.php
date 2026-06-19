@@ -3,8 +3,6 @@
 namespace App\Services;
 
 use App\Models\Article;
-use App\Models\InvoiceArticles;
-use App\Models\OrderArticles;
 use App\Models\PhysicalQuantity;
 use App\Models\ShipmentArticles;
 use Illuminate\Database\Eloquent\Builder;
@@ -13,6 +11,10 @@ use Illuminate\Support\Collection;
 
 class PhysicalQuantityReportService
 {
+    public function __construct(private readonly ArticleStockService $stockService)
+    {
+    }
+
     public function getIndexRows(Request|array $filters = [], ?int $limit = null): Collection
     {
         $query = PhysicalQuantity::with('article')
@@ -128,40 +130,24 @@ class PhysicalQuantityReportService
             ->groupBy('article_id')
             ->map(fn (Collection $items) => $items->pluck('shipment.city')->filter()->unique()->values());
 
-        $orderedPcsMap = OrderArticles::query()
-            ->whereIn('article_id', $articleIds)
-            ->selectRaw('article_id, SUM(ordered_pcs) as ordered_pcs')
-            ->groupBy('article_id')
-            ->pluck('ordered_pcs', 'article_id');
-
-        $invoicePcsMap = InvoiceArticles::query()
-            ->whereIn('article_id', $articleIds)
-            ->selectRaw('article_id, SUM(invoice_pcs) as invoice_pcs')
-            ->groupBy('article_id')
-            ->pluck('invoice_pcs', 'article_id');
+        $stockMap = $this->stockService->summaries($articleIds);
 
         return $rows
             ->groupBy('article_id')
-            ->map(function (Collection $items) use ($shipmentCitiesMap, $orderedPcsMap, $invoicePcsMap) {
+            ->map(function (Collection $items) use ($shipmentCitiesMap, $stockMap) {
                 /** @var \App\Models\PhysicalQuantity $model */
                 $model = $items->first();
                 $article = $model->article;
-                $returnPackets = (float) $items
-                    ->filter(fn ($item) => $this->isSalesReturnQuantity($item))
-                    ->sum('packets');
-                $receivedPackets = (float) $items
-                    ->reject(fn ($item) => $this->isSalesReturnQuantity($item))
-                    ->sum('packets');
-                $pcsPerPacket = (float) ($article->pcs_per_packet ?: 0);
-                $totalPcs = (float) ($article->quantity + $article->extra_pcs);
-                $totalPackets = $pcsPerPacket > 0 ? ($totalPcs / $pcsPerPacket) : 0;
-                $orderedPcs = (float) ($orderedPcsMap->get($model->article_id) ?? 0);
-                $orderedPackets = $pcsPerPacket > 0 ? ($orderedPcs / $pcsPerPacket) : 0;
-                $soldPcs = (float) ($invoicePcsMap->get($model->article_id) ?? 0);
-                $soldPackets = $pcsPerPacket > 0 ? ($soldPcs / $pcsPerPacket) : 0;
-                $stockInPackets = $receivedPackets + $returnPackets;
-                $currentStockPackets = max(0, $stockInPackets - $soldPackets);
-                $remainingPackets = max(0, $totalPackets - $receivedPackets);
+                $stock = $stockMap->get($model->article_id, []);
+                $totalPcs = (float) ($stock['total_quantity_pcs'] ?? 0);
+                $totalPackets = (float) ($stock['total_quantity_packets'] ?? 0);
+                $orderedPackets = (float) ($stock['ordered_quantity_packets'] ?? 0);
+                $receivedPackets = (float) ($stock['received_quantity_packets'] ?? 0);
+                $invoicedPackets = (float) ($stock['invoiced_quantity_packets'] ?? 0);
+                $returnPackets = (float) ($stock['return_quantity_packets'] ?? 0);
+                $adjustmentPackets = (float) ($stock['adjustment_quantity_packets'] ?? 0);
+                $currentStockPackets = (float) ($stock['current_stock_packets'] ?? 0);
+                $remainingPackets = (float) ($stock['remaining_quantity_packets'] ?? 0);
                 $shipment = $this->resolveShipment($shipmentCitiesMap->get($model->article_id, collect()));
 
                 return [
@@ -172,17 +158,21 @@ class PhysicalQuantityReportService
                     'total_quantity' => floor($totalPcs / 12) . ' - Dz. | ' . $totalPackets . ' - Pkts.',
                     'ordered_quantity' => $this->formatPacketQuantity($orderedPackets),
                     'received_quantity' => $this->formatPacketQuantity($receivedPackets),
+                    'invoiced_quantity' => $this->formatPacketQuantity($invoicedPackets),
                     'return_quantity' => $this->formatPacketQuantity($returnPackets),
+                    'adjustment_quantity' => $this->formatPacketQuantity($adjustmentPackets),
                     'current_stock' => $this->formatPacketQuantity($currentStockPackets),
-                    'a_category' => $items->where('category', 'a')->sum('packets') . ' - Pkts.',
-                    'b_category' => $items->where('category', 'b')->sum('packets') . ' - Pkts.',
-                    'c_category' => $items->where('category', 'c')->sum('packets') . ' - Pkts.',
+                    'a_category' => $this->formatPacketQuantity((float) ($stock['a_category_packets'] ?? 0)) . ' - Pkts.',
+                    'b_category' => $this->formatPacketQuantity((float) ($stock['b_category_packets'] ?? 0)) . ' - Pkts.',
+                    'c_category' => $this->formatPacketQuantity((float) ($stock['c_category_packets'] ?? 0)) . ' - Pkts.',
                     'remaining_quantity' => $this->formatPacketQuantity($remainingPackets),
                     'shipment' => $shipment,
                     'total_packets_numeric' => $totalPackets,
                     'ordered_packets_numeric' => $orderedPackets,
                     'received_packets_numeric' => $receivedPackets,
+                    'invoiced_packets_numeric' => $invoicedPackets,
                     'return_packets_numeric' => $returnPackets,
+                    'adjustment_packets_numeric' => $adjustmentPackets,
                     'current_stock_packets_numeric' => $currentStockPackets,
                     'remaining_packets_numeric' => $remainingPackets,
                     'onclick' => 'generateModal(this)',

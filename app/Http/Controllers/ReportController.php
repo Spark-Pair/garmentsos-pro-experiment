@@ -316,11 +316,11 @@ class ReportController extends Controller
         }
 
         if ($request->ajax()) {
-            $orderStartDate = $request->order_date_range_start
-                ? Carbon::parse($request->order_date_range_start)->startOfDay()
+            $reffStartDate = $request->reff_date_range_start
+                ? Carbon::parse($request->reff_date_range_start)->startOfDay()
                 : null;
-            $orderEndDate = $request->order_date_range_end
-                ? Carbon::parse($request->order_date_range_end)->endOfDay()
+            $reffEndDate = $request->reff_date_range_end
+                ? Carbon::parse($request->reff_date_range_end)->endOfDay()
                 : null;
             $invoiceStartDate = $request->invoice_date_range_start
                 ? Carbon::parse($request->invoice_date_range_start)->startOfDay()
@@ -332,6 +332,8 @@ class ReportController extends Controller
             $invoiceArticles = InvoiceArticles::with([
                 'article',
                 'invoice.customer.city',
+                'invoice.order.articles',
+                'invoice.shipment.articles',
             ]);
 
             $orderArticles = OrderArticles::with([
@@ -362,12 +364,16 @@ class ReportController extends Controller
                 });
             }
 
-            if ($request->order_no) {
+            if ($request->reff_no) {
                 $invoiceArticles->whereHas('invoice', function ($q) use ($request) {
-                    $q->where('order_no', 'like', "%{$request->order_no}%");
+                    $q->where(function ($referenceQuery) use ($request) {
+                        $referenceQuery
+                            ->where('order_no', 'like', "%{$request->reff_no}%")
+                            ->orWhere('shipment_no', 'like', "%{$request->reff_no}%");
+                    });
                 });
                 $orderArticles->whereHas('order', function ($q) use ($request) {
-                    $q->where('order_no', 'like', "%{$request->order_no}%");
+                    $q->where('order_no', 'like', "%{$request->reff_no}%");
                 });
             }
 
@@ -383,14 +389,14 @@ class ReportController extends Controller
                 });
             }
 
-            if ($orderStartDate || $orderEndDate) {
-                $orderArticles->whereHas('order', function ($q) use ($orderStartDate, $orderEndDate) {
-                    if ($orderStartDate && $orderEndDate) {
-                        $q->whereBetween('date', [$orderStartDate, $orderEndDate]);
-                    } elseif ($orderStartDate) {
-                        $q->whereDate('date', '>=', $orderStartDate);
-                    } elseif ($orderEndDate) {
-                        $q->whereDate('date', '<=', $orderEndDate);
+            if ($reffStartDate || $reffEndDate) {
+                $orderArticles->whereHas('order', function ($q) use ($reffStartDate, $reffEndDate) {
+                    if ($reffStartDate && $reffEndDate) {
+                        $q->whereBetween('date', [$reffStartDate, $reffEndDate]);
+                    } elseif ($reffStartDate) {
+                        $q->whereDate('date', '>=', $reffStartDate);
+                    } elseif ($reffEndDate) {
+                        $q->whereDate('date', '<=', $reffEndDate);
                     }
                 });
             }
@@ -459,16 +465,16 @@ class ReportController extends Controller
                     return [
                         'id' => 'order-' . $orderArticle->id,
                         'article_no' => $article?->article_no,
-                        'order_no' => $order?->order_no ?? '-',
+                        'reff_no' => $order?->order_no ?? '-',
                         'invoice_no' => $invoiceInfo ? ($invoiceInfo['invoice_nos']->implode(', ') ?: '-') : '-',
                         'customer_name' => $formatCustomer($customer),
-                        'order_date' => $order?->date?->format('d-M-Y, D') ?? '-',
-                        'order_date_raw' => $order?->date?->format('Y-m-d H:i:s'),
+                        'reff_date' => $order?->date?->format('d-M-Y, D') ?? '-',
+                        'reff_date_raw' => $order?->date?->format('Y-m-d H:i:s'),
                         'invoice_date' => $invoiceInfo ? ($invoiceInfo['invoice_dates']->implode(', ') ?: '-') : '-',
                         'invoice_date_raw' => $invoiceInfo['invoice_date_raw'] ?? null,
                         'sort_date_raw' => $invoiceInfo['invoice_date_raw'] ?? $order?->date?->format('Y-m-d H:i:s'),
                         'pcs_per_packet' => (float) ($article?->pcs_per_packet ?? 0),
-                        'order_quantity' => (int) ($orderArticle->ordered_pcs ?? 0),
+                        'reff_quantity' => (int) ($orderArticle->ordered_pcs ?? 0),
                         'invoice_quantity' => $invoiceInfo['invoice_quantity'] ?? 0,
                         'quantity' => (int) ($orderArticle->ordered_pcs ?? 0),
                     ];
@@ -476,33 +482,48 @@ class ReportController extends Controller
                 ->filter()
                 ->values();
 
-            $invoiceOnlyData = $invoiceArticleRecords->filter(function ($invoiceArticle) use ($matchedOrderKeys, $orderStartDate, $orderEndDate, $rowKey) {
+            $invoiceOnlyData = $invoiceArticleRecords->filter(function ($invoiceArticle) use ($matchedOrderKeys, $reffStartDate, $reffEndDate, $rowKey) {
                 $invoice = $invoiceArticle->invoice;
                 $key = $rowKey($invoice?->order_no, $invoiceArticle->article_id, $invoice?->customer_id);
+                $referenceDate = $invoice?->order?->date ?? $invoice?->shipment?->date;
+                $isUnmatched = blank($invoice?->order_no) || !$matchedOrderKeys->contains($key);
 
-                return (blank($invoice?->order_no) || !$matchedOrderKeys->contains($key))
-                    && !$orderStartDate
-                    && !$orderEndDate;
+                if (!$isUnmatched) {
+                    return false;
+                }
+
+                if ($reffStartDate && (!$referenceDate || $referenceDate->lt($reffStartDate))) {
+                    return false;
+                }
+
+                if ($reffEndDate && (!$referenceDate || $referenceDate->gt($reffEndDate))) {
+                    return false;
+                }
+
+                return true;
             })->map(function ($invoiceArticle) use ($formatCustomer) {
                 $invoice = $invoiceArticle->invoice;
                 $customer = $invoice?->customer;
                 $article = $invoiceArticle->article;
+                $reference = $invoice?->order ?? $invoice?->shipment;
+                $referenceArticle = $reference?->articles
+                    ?->firstWhere('article_id', $invoiceArticle->article_id);
 
                 return [
                     'id' => 'invoice-' . $invoiceArticle->id,
                     'article_no' => $article?->article_no,
-                    'order_no' => $invoice?->order_no ?? '-',
+                    'reff_no' => $invoice?->order_no ?? $invoice?->shipment_no ?? '-',
                     'invoice_no' => $invoice?->invoice_no ?? '-',
                     'customer_name' => $formatCustomer($customer),
-                    'order_date' => '-',
-                    'order_date_raw' => null,
+                    'reff_date' => $reference?->date?->format('d-M-Y, D') ?? '-',
+                    'reff_date_raw' => $reference?->date?->format('Y-m-d H:i:s'),
                     'invoice_date' => $invoice?->date?->format('d-M-Y, D') ?? '-',
                     'invoice_date_raw' => $invoice?->date?->format('Y-m-d H:i:s'),
                     'sort_date_raw' => $invoice?->date?->format('Y-m-d H:i:s'),
                     'pcs_per_packet' => (float) ($article?->pcs_per_packet ?? 0),
-                    'order_quantity' => 0,
+                    'reff_quantity' => (int) ($referenceArticle?->ordered_pcs ?? $referenceArticle?->shipment_pcs ?? 0),
                     'invoice_quantity' => (int) ($invoiceArticle->invoice_pcs ?? 0),
-                    'quantity' => 0,
+                    'quantity' => (int) ($referenceArticle?->ordered_pcs ?? $referenceArticle?->shipment_pcs ?? 0),
                 ];
             });
 
@@ -515,32 +536,25 @@ class ReportController extends Controller
                 $data = $data->take((int) $request->limit)->values();
             }
 
-            $totalOrderQuantity = $data->sum('order_quantity');
+            $totalReffQuantity = $data->sum('reff_quantity');
             $totalInvoiceQuantity = $data->sum('invoice_quantity');
-            $totalOrderPackets = $data->sum(fn ($row) => ($row['pcs_per_packet'] ?? 0) > 0
-                ? ((float) ($row['order_quantity'] ?? 0) / (float) $row['pcs_per_packet'])
+            $totalReffPackets = $data->sum(fn ($row) => ($row['pcs_per_packet'] ?? 0) > 0
+                ? ((float) ($row['reff_quantity'] ?? 0) / (float) $row['pcs_per_packet'])
                 : 0);
             $totalInvoicePackets = $data->sum(fn ($row) => ($row['pcs_per_packet'] ?? 0) > 0
                 ? ((float) ($row['invoice_quantity'] ?? 0) / (float) $row['pcs_per_packet'])
                 : 0);
-            $units = $data
-                ->pluck('pcs_per_packet')
-                ->filter(fn ($unit) => (float) $unit > 0)
-                ->map(fn ($unit) => (float) $unit)
-                ->unique()
-                ->values();
 
             $authLayout = $this->getAuthLayout($request->route()->getName(), 'table');
             return response()->json([
                 'data' => $data,
                 'authLayout' => $authLayout,
                 'calculations' => [
-                    'total_quantity' => $totalOrderQuantity,
-                    'total_order_quantity' => $totalOrderQuantity,
+                    'total_quantity' => $totalReffQuantity,
+                    'total_reff_quantity' => $totalReffQuantity,
                     'total_invoice_quantity' => $totalInvoiceQuantity,
-                    'total_order_packets' => $totalOrderPackets,
+                    'total_reff_packets' => $totalReffPackets,
                     'total_invoice_packets' => $totalInvoicePackets,
-                    'total_unit' => $units->count() === 1 ? $units->first() : 0,
                 ],
             ]);
         }

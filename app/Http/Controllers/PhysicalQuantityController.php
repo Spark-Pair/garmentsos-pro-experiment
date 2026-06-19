@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Article;
 use App\Models\PhysicalQuantity;
 use App\Services\PhysicalQuantityReportService;
+use App\Services\ArticleStockService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 
@@ -110,38 +111,30 @@ class PhysicalQuantityController extends Controller
             return $resp;
         }
 
-        $articles = Article::withSum('physicalQuantity', 'packets')
+        $articles = Article::query()
             // ->whereHas('production.work', function ($q) {
             //     $q->where('title', 'CMT');
             // })
             ->orderByDesc('id')
             ->get();
 
-        $articles = $articles->filter(function ($article) {
-            $physicalPackets = (float) ($article['physical_quantity_sum_packets'] ?? 0);
+        $stockMap = app(ArticleStockService::class)->summaries($articles->pluck('id'));
 
-            $article['physical_packets'] = $physicalPackets;
-            $article['physical_quantity'] = $physicalPackets
-                ? $physicalPackets * $article->pcs_per_packet
-                : 0;
+        $articles = $articles->filter(function ($article) use ($stockMap) {
+            $stock = $stockMap->get($article->id, []);
+            $article['physical_packets'] = (float) ($stock['received_quantity_packets'] ?? 0);
+            $article['physical_quantity'] = (int) ($stock['received_quantity_pcs'] ?? 0);
 
             $article['category'] = ucfirst(str_replace('_', ' ', $article['category']));
             $article['season']   = ucfirst(str_replace('_', ' ', $article['season']));
             $article['size']     = ucfirst(str_replace('_', '-', $article['size']));
 
-            $totalOrdered  = $article->quantity + $article->extra_pcs;
-            $article['total_quantity'] = $totalOrdered;
-            $article['total_packets'] = $article->pcs_per_packet
-                ? ($totalOrdered / $article->pcs_per_packet)
-                : 0;
+            $article['total_quantity'] = (int) ($stock['total_quantity_pcs'] ?? 0);
+            $article['total_packets'] = (float) ($stock['total_quantity_packets'] ?? 0);
+            $article['remaining_quantity'] = (int) ($stock['remaining_quantity_pcs'] ?? 0);
+            $article['remaining_packets'] = (float) ($stock['remaining_quantity_packets'] ?? 0);
 
-            $remaining     = $totalOrdered - $article['physical_quantity'];
-            $article['remaining_quantity'] = $remaining;
-            $article['remaining_packets'] = $article->pcs_per_packet
-                ? ($remaining / $article->pcs_per_packet)
-                : 0;
-
-            return $remaining > 0;
+            return $article['remaining_quantity'] > 0;
         })
             ->map(fn ($article) => [
                 'id' => $article->id,

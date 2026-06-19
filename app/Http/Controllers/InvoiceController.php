@@ -458,7 +458,7 @@ class InvoiceController extends Controller
             ->keyBy('id');
 
         foreach ($invoiceQuantities as $articleId => $invoicePcs) {
-            $availablePcs = (int) ($stockMap->get((int) $articleId)['available_stock_pcs'] ?? 0);
+            $availablePcs = (int) ($stockMap->get((int) $articleId)['current_stock_pcs'] ?? 0);
 
             if ((int) $invoicePcs > $availablePcs) {
                 $articleNo = $articlesById->get((int) $articleId)?->article_no ?? $articleId;

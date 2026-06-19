@@ -64,6 +64,7 @@ class SalesReturnController extends Controller
             'customer_id' => 'required|integer|exists:customers,id',
             'date' => 'required|date',
             'returns_data' => 'required|json',
+            'type' => 'required|in:return,adjustment',
         ]);
 
         if ($validator->fails()) {
@@ -137,6 +138,7 @@ class SalesReturnController extends Controller
                 $salesReturn = SalesReturn::create([
                     'article_id' => $articleId,
                     'invoice_id' => $invoiceId,
+                    'type' => $data['type'],
                     'date' => $data['date'],
                     'quantity' => $quantity,
                     'amount' => $amount,
@@ -147,7 +149,7 @@ class SalesReturnController extends Controller
                     'date' => $data['date'],
                     'article_id' => $articleId,
                     'packets' => $quantity / $pcsPerPacket,
-                    'category' => 'sales_return',
+                    'category' => $data['type'] === 'adjustment' ? 'adjustment' : 'sales_return',
                 ];
 
                 if ($physicalQuantityLinksSalesReturn) {
@@ -155,6 +157,14 @@ class SalesReturnController extends Controller
                 }
 
                 PhysicalQuantity::create($physicalQuantityData);
+
+                if ($data['type'] === 'adjustment' && $invoiceArticle->invoice?->order) {
+                    $this->reduceOrderDispatch(
+                        $invoiceArticle->invoice->order,
+                        $articleId,
+                        $quantity
+                    );
+                }
 
                 $totalAmount += $amount;
             }
@@ -171,8 +181,8 @@ class SalesReturnController extends Controller
                 'type' => 'sales_return',
                 'method' => 'return',
                 'amount' => $totalAmount,
-                'reff_no' => 'SR-' . ($createdReturnIds[0] ?? now()->format('YmdHis')),
-                'remarks' => 'Sales return',
+                'reff_no' => ($data['type'] === 'adjustment' ? 'ADJ-' : 'SR-') . ($createdReturnIds[0] ?? now()->format('YmdHis')),
+                'remarks' => $data['type'] === 'adjustment' ? 'Sales adjustment' : 'Sales return',
             ]);
         });
 
@@ -346,5 +356,33 @@ class SalesReturnController extends Controller
                     ->filter();
             })
             ->values();
+    }
+
+    private function reduceOrderDispatch($order, int $articleId, int $quantity): void
+    {
+        $remaining = $quantity;
+        $lines = $order->articles()
+            ->where('article_id', $articleId)
+            ->where('dispatched_pcs', '>', 0)
+            ->orderByDesc('id')
+            ->get();
+
+        foreach ($lines as $line) {
+            if ($remaining <= 0) {
+                break;
+            }
+
+            $reduction = min($remaining, (int) $line->dispatched_pcs);
+            $line->decrement('dispatched_pcs', $reduction);
+            $remaining -= $reduction;
+        }
+
+        $order->load('articles');
+        $orderedPcs = (int) $order->articles->sum('ordered_pcs');
+        $dispatchedPcs = (int) $order->articles->sum('dispatched_pcs');
+        $order->status = $dispatchedPcs <= 0
+            ? 'pending'
+            : ($dispatchedPcs < $orderedPcs ? 'partially_invoiced' : 'invoiced');
+        $order->save();
     }
 }

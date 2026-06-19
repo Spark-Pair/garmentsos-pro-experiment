@@ -15,6 +15,7 @@ trait SalesReturnComputed
             'customer' => $this->invoice->customer->customer_name . ' | ' . $this->invoice->customer->city->title,
             'article_no' => $this->article->article_no,
             'invoice_no' => $this->invoice->invoice_no,
+            'type' => $this->type,
             'quantity' => $this->quantity,
             'amount' => \App\Support\Money::format($this->amount),
         ];

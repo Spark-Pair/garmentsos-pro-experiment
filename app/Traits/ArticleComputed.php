@@ -2,9 +2,7 @@
 
 namespace App\Traits;
 
-use App\Models\OrderArticles;
-use App\Models\Setup;
-use App\Models\ShipmentArticles;
+use App\Services\ArticleStockService;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 
 trait ArticleComputed
@@ -16,7 +14,9 @@ trait ArticleComputed
                 return (float) $this->attributes['ordered_pcs'];
             }
 
-            return $this->orderArticles()->sum('ordered_pcs');
+            return (float) (app(ArticleStockService::class)
+                ->summaries([$this->id])
+                ->get($this->id, [])['ordered_quantity_pcs'] ?? 0);
         });
     }
 
@@ -27,31 +27,16 @@ trait ArticleComputed
                 return (float) $this->attributes['sold_pcs'];
             }
 
-            // 1️⃣ dispatched pcs from orders
-            $dispatchedFromOrders = $this->orderArticles()
-                ->sum('dispatched_pcs');
-
-            // 2️⃣ shipment pcs x cotton_count
-            $shipmentSold = $this->shipmentArticles()
-                ->with('shipment.invoices')
-                ->get()
-                ->sum(function ($shipmentArticle) {
-
-                    if (!$shipmentArticle->shipment) {
-                        return 0;
-                    }
-
-                    return $shipmentArticle->shipment->invoices->sum(function ($invoice) use ($shipmentArticle) {
-                        return $shipmentArticle->shipment_pcs * ($invoice->cotton_count ?? 1);
-                    });
-                });
-
-            return max(0, $dispatchedFromOrders + $shipmentSold);
+            return (float) (app(ArticleStockService::class)
+                ->summaries([$this->id])
+                ->get($this->id, [])['invoiced_quantity_pcs'] ?? 0);
         });
     }
 
     public function toFormattedArray()
     {
+        $stock = app(ArticleStockService::class)->summaries([$this->id])->get($this->id, []);
+
         return [
             'id' => $this->id,
             'image' => $this->image == 'no_image_icon.png' ? '/images/no_image_icon.png' : '/storage/uploads/images/' . $this->image,
@@ -69,8 +54,8 @@ trait ArticleComputed
             'processed_by'=> $this->processed_by ? ucwords($this->processed_by) : '-',
             'fabric_type'=> $this->fabric_type,
             'quantity'=> $this->quantity,
-            'current_stock'=> $this->quantity - $this->ordered_quantity,
-            'ordered_quantity'=> $this->ordered_quantity,
+            'current_stock'=> (int) ($stock['current_stock_pcs'] ?? 0),
+            'ordered_quantity'=> (int) ($stock['ordered_quantity_pcs'] ?? 0),
             'ready_date'=> $this->date,
             'rates_array'=> $this->rates_array,
             'oncontextmenu' => "generateContextMenu(event)",

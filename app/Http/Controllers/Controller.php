@@ -8,12 +8,10 @@ use App\Models\CR;
 use App\Models\Customer;
 use App\Models\CustomerPayment;
 use App\Models\Employee;
-use App\Models\InvoiceArticles;
 use App\Models\Order;
-use App\Models\OrderArticles;
 use App\Models\PaymentProgram;
-use App\Models\PhysicalQuantity;
 use App\Models\Shipment;
+use App\Services\ArticleStockService;
 use App\Models\Supplier;
 use App\Models\UtilityAccount;
 use App\Models\UtilityBill;
@@ -63,60 +61,7 @@ class Controller extends BaseController
 
     protected function articleStockMap($articleIds, ?int $excludeOrderId = null)
     {
-        $articleIds = collect($articleIds)
-            ->filter()
-            ->map(fn ($id) => (int) $id)
-            ->unique()
-            ->values();
-
-        if ($articleIds->isEmpty()) {
-            return collect();
-        }
-
-        $articles = Article::query()
-            ->whereIn('id', $articleIds)
-            ->get(['id', 'pcs_per_packet'])
-            ->keyBy('id');
-
-        $physicalPackets = PhysicalQuantity::query()
-            ->whereIn('article_id', $articleIds)
-            ->selectRaw('article_id, SUM(packets) as packets')
-            ->groupBy('article_id')
-            ->pluck('packets', 'article_id');
-
-        $invoicePcs = InvoiceArticles::query()
-            ->whereIn('article_id', $articleIds)
-            ->selectRaw('article_id, SUM(invoice_pcs) as invoice_pcs')
-            ->groupBy('article_id')
-            ->pluck('invoice_pcs', 'article_id');
-
-        $orderLines = OrderArticles::query()
-            ->whereIn('article_id', $articleIds)
-            ->when($excludeOrderId, fn ($query) => $query->where('order_id', '!=', $excludeOrderId))
-            ->get(['article_id', 'ordered_pcs', 'dispatched_pcs']);
-
-        $openOrderPcs = $orderLines
-            ->groupBy('article_id')
-            ->map(fn ($lines) => $lines->sum(fn ($line) => max(0, (int) $line->ordered_pcs - (int) $line->dispatched_pcs)));
-
-        return $articleIds->mapWithKeys(function (int $articleId) use ($articles, $physicalPackets, $invoicePcs, $openOrderPcs) {
-            $unit = (float) ($articles->get($articleId)?->pcs_per_packet ?? 0);
-            $physicalPcs = $unit > 0 ? ((float) ($physicalPackets->get($articleId) ?? 0) * $unit) : 0;
-            $soldPcs = (float) ($invoicePcs->get($articleId) ?? 0);
-            $reservedPcs = (float) ($openOrderPcs->get($articleId) ?? 0);
-            $currentStockPcs = max(0, floor($physicalPcs - $soldPcs));
-            $availableStockPcs = max(0, floor($currentStockPcs - $reservedPcs));
-
-            return [
-                $articleId => [
-                    'physical_pcs' => $physicalPcs,
-                    'sold_pcs' => $soldPcs,
-                    'open_order_pcs' => $reservedPcs,
-                    'current_stock_pcs' => $currentStockPcs,
-                    'available_stock_pcs' => $availableStockPcs,
-                ],
-            ];
-        });
+        return app(ArticleStockService::class)->summaries($articleIds, $excludeOrderId);
     }
 
     public function home() {
@@ -291,7 +236,7 @@ class Controller extends BaseController
                 $orderedArticle->total_quantity_in_packets = 0;
 
                 if (($article->pcs_per_packet ?? 0) > 0) {
-                    $availablePcs = (float) ($stockMap->get($article->id)['available_stock_pcs'] ?? 0);
+                    $availablePcs = (float) ($stockMap->get($article->id)['current_stock_pcs'] ?? 0);
 
                     $orderedPackets = ($orderedArticle->ordered_pcs ?? 0) / $article->pcs_per_packet;
                     $invoiceQty = max(0, (int) ($orderedArticle->dispatched_pcs ?? 0));
@@ -453,7 +398,7 @@ class Controller extends BaseController
                 return response()->json(['error' => 'Master unit is missing for article: ' . $article['article_no']]);
             }
 
-            $availableStock = (int) ($stockMap->get((int) $article['id'])['available_stock_pcs'] ?? 0);
+            $availableStock = (int) ($stockMap->get((int) $article['id'])['current_stock_pcs'] ?? 0);
             $articleData['article'] = $article;
             $articleData['available_stock'] = $availableStock;
 
