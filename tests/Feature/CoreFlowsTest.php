@@ -53,6 +53,36 @@ class CoreFlowsTest extends TestCase
         $response->assertStatus(200);
     }
 
+    public function test_setups_can_store_multiple_null_short_titles(): void
+    {
+        $this->actingDeveloper();
+
+        $firstResponse = $this->post(route('setups.store'), [
+            'type' => 'fabric',
+            'title' => 'Cotton',
+            'short_title' => '',
+        ]);
+
+        $secondResponse = $this->post(route('setups.store'), [
+            'type' => 'fabric',
+            'title' => 'Linen',
+            'short_title' => '   ',
+        ]);
+
+        $firstResponse->assertSessionHasNoErrors();
+        $secondResponse->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('setups', [
+            'type' => 'fabric',
+            'title' => 'Cotton',
+            'short_title' => null,
+        ]);
+        $this->assertDatabaseHas('setups', [
+            'type' => 'fabric',
+            'title' => 'Linen',
+            'short_title' => null,
+        ]);
+    }
+
     public function test_payment_program_mark_paid_updates_status(): void
     {
         $user = $this->actingDeveloper();

@@ -56,9 +56,11 @@ class SetupController extends Controller
             return $resp;
         }
 
+        $shortTitle = trim((string) $request->input('short_title'));
+
         $request->merge([
             'title' => trim((string) $request->input('title')),
-            'short_title' => trim((string) $request->input('short_title')),
+            'short_title' => $shortTitle !== '' ? $shortTitle : null,
             'type' => trim((string) $request->input('type')),
         ]);
         
