@@ -90,7 +90,7 @@
                         $secondaryLabel = $activeReportType === 'stock' ? 'Current' : 'Remaining';
                     @endphp
                     @forelse ($data['pages'] as $page)
-                        @php 
+                        @php
                             $serial = 1; // har page pe reset
                         @endphp
                         <div class="preview-page w-[210mm] h-[297mm] mx-auto overflow-hidden relative bg-white p-[0.19in] rounded-md">
@@ -116,7 +116,7 @@
                                         <div class="right">
                                             <div>
                                                 <h1 class="text-lg font-medium text-[var(--primary-color)] pr-2 capitalize">{{ $reportHeading }}</h1>
-                                                <div class="total-bill leading-none mt-0.5 text-xs">Total Records: {{ $data['rows']->count() }} | Print Date: {{ $today = now()->format('d-M-Y'); }}</div>
+                                                <div class="total-bill leading-none mt-0.5 text-xs">Total Records: {{ $data['rows']->count() }} | Print Date: {{ $today = now()->format('d-M-Y') }}</div>
                                             </div>
                                         </div>
                                     </div>
