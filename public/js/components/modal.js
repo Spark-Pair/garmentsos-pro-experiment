@@ -834,7 +834,14 @@ function createModal(data, animate = 'animate') {
 
     if (data.bottomActions) {
         data.bottomActions.forEach(action => {
-            if (action.id.includes('edit')) {
+            if (action.link) {
+                clutter += `
+                    <a id="${action.id}-in-modal" href="${action.link}"
+                        class="px-4 py-2 bg-[var(--secondary-bg-color)] border border-gray-600 text-[var(--secondary-text)] rounded-lg hover:bg-[var(--h-bg-color)] transition-all duration-300 ease-in-out cursor-pointer hover:scale-[0.95]">
+                        ${action.text}
+                    </a>
+                `;
+            } else if (action.id.includes('edit')) {
                 clutter += `
                     <a id="${action.id}-in-modal" href="${window.location.pathname}/${action.dataId}/edit"
                         class="px-4 py-2 bg-[var(--secondary-bg-color)] border border-gray-600 text-[var(--secondary-text)] rounded-lg hover:bg-[var(--h-bg-color)] transition-all duration-300 ease-in-out cursor-pointer hover:scale-[0.95]">
@@ -1010,9 +1017,13 @@ function renderTableBody(tableBody) {
 
 function returnCardsInModal(data) {
     let cardsHTML = '';
+    const cardRenderer = data.cards.useBaseCard && typeof window.baseCreateCard === 'function'
+        ? window.baseCreateCard
+        : createCard;
+
     if (data.cards.data.length > 0) {
         data.cards.data.forEach(item => {
-            cardsHTML += createCard(item);
+            cardsHTML += cardRenderer(item);
         });
     } else {
         cardsHTML= `

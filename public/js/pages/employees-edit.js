@@ -19,16 +19,6 @@
             }
         }
 
-        window.formatPhoneNo = function formatPhoneNo(input) {
-            let value = input.value.replace(/\D/g, "");
-
-            if (value.length > 4) {
-                value = value.slice(0, 4) + "-" + value.slice(4, 11);
-            }
-
-            input.value = value;
-        };
-
         window.formatCnicNo = function formatCnicNo(input) {
             let value = input.value.replace(/\D/g, "");
 

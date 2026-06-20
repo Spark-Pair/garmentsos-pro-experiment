@@ -63,7 +63,7 @@ function initCustomerPaymentsIndex() {
                     label: 'Clear Date',
                     type: 'date',
                     min: (data.cheque_date || data.slip_date)?.split('T')[0],
-                    max: new Date().toISOString().split('T')[0],
+                    max: localDateString(),
                     required: true,
                 },
                 {

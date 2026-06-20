@@ -180,6 +180,26 @@
             });
         }
 
+        function openStatementAdjustmentModal(data) {
+            if (!data) return;
+
+            createModal({
+                id: "modalForm",
+                name: data.name,
+                details: {
+                    Date: data.date,
+                    Category: data.category,
+                    Entry: data.entry_type,
+                    Transaction: data.direction,
+                    Amount: data.amount,
+                    Remarks: data.remarks,
+                },
+                bottomActions: [
+                    { id: "edit", text: "Edit Balance Entry", dataId: data.id, link: `/statement-adjustments/${data.id}/edit` },
+                ],
+            });
+        }
+
         function renderStatementRecordModal(payload) {
             if (payload?.type === "expense") {
                 openExpenseStatementModal(payload.data);
@@ -203,6 +223,11 @@
 
             if (payload?.type === "customer_payment") {
                 openCustomerPaymentStatementModal(payload.data);
+                return;
+            }
+
+            if (payload?.type === "statement_adjustment") {
+                openStatementAdjustmentModal(payload.data);
             }
         }
 
@@ -381,9 +406,8 @@
                 );
                 if (!selectedName) return;
 
-                const rawRegDate = new Date(selectedName.dataset.regDate);
-                const d = new Date(rawRegDate);
-                regDate = d.toISOString().split("T")[0];
+                const rawRegDate = parseLocalDate(selectedName.dataset.regDate);
+                regDate = localDateString(rawRegDate);
                 dateFrom.min = regDate;
                 const todayLocal = new Date();
 
@@ -432,13 +456,6 @@
             }
         };
 
-        const formatDateLocal = d => {
-            const y = d.getFullYear();
-            const m = String(d.getMonth() + 1).padStart(2, "0");
-            const day = String(d.getDate()).padStart(2, "0");
-            return `${y}-${m}-${day}`;
-        };
-
         function isLastDayOfMonth(date) {
             return date.getDate() === new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
         }
@@ -450,7 +467,7 @@
             switch (rangeValue) {
                 case "custom":
                     dateFrom.value = regDate;
-                    dateTo.value = new Date().toISOString().split("T")[0];
+                    dateTo.value = localDateString();
                     dateFrom.disabled = false;
                     dateTo.disabled = false;
                     return;
@@ -483,8 +500,8 @@
                     return;
             }
 
-            dateFrom.value = formatDateLocal(from);
-            dateTo.value = formatDateLocal(to);
+            dateFrom.value = localDateString(from);
+            dateTo.value = localDateString(to);
             dateFrom.disabled = true;
             dateTo.disabled = true;
         };
@@ -508,7 +525,7 @@
                     category: category,
                     id: id,
                     date_from: dateFromVal !== "" ? dateFromVal : regDate,
-                    date_to: dateToVal !== "" ? dateToVal : today.toISOString().split("T")[0],
+                    date_to: dateToVal !== "" ? dateToVal : localDateString(today),
                 },
                 success: function (response) {
                     renderStatement(response);

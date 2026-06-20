@@ -104,6 +104,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        date_default_timezone_set(config('app.timezone', 'Asia/Karachi'));
+
         // SQLite hardening for production stability (locking, FKs).
         // Applies only when the default connection is sqlite.
         if (config('database.default') === 'sqlite') {

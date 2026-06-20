@@ -108,7 +108,7 @@
         let modalData = {
             id: 'menuModal',
             class: 'h-[80%] w-full',
-            cards: { name: 'Menu', count: 3, data: menuData },
+            cards: { name: 'Menu', count: 3, data: menuData, useBaseCard: true },
             basicSearch: true,
             onBasicSearch: 'menuBasicSearch(this.value)',
             info: `Enabled: ${getMenuShortcuts().length}/${typeof maxShortcutsLimit !== 'undefined' ? maxShortcutsLimit : 7}`,

@@ -3,20 +3,6 @@
         const config = window.__employeesCreate || {};
         const allTypes = config.allTypes || {};
 
-        function formatPhoneNo(input) {
-            let value = input.value.replace(/\D/g, "");
-
-            if (value.length > 4) {
-                value = value.slice(0, 4) + "-" + value.slice(4, 11);
-            }
-
-            input.value = value;
-        }
-
-        document.getElementById("phone_number")?.addEventListener("input", function () {
-            formatPhoneNo(this);
-        });
-
         function formatCnicNo(input) {
             let value = input.value.replace(/\D/g, "");
 

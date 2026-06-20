@@ -750,6 +750,28 @@
 
         @if (in_array(Auth::user()->role, ['developer', 'owner', 'admin', 'accountant']))
             {
+                id: "balance-entries",
+                name: "Balance Entries",
+                details: {
+                    '': 'Manage balance entries',
+                },
+                bottomChip: '2 actions',
+                svgIcon:'<svg class="size-5 fill-[var(--text-color)] group-hover:fill-[var(--primary-color)]" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640"><path d="M192 64C156.7 64 128 92.7 128 128L128 512C128 547.3 156.7 576 192 576L448 576C483.3 576 512 547.3 512 512L512 234.5C512 217.5 505.3 201.2 493.3 189.2L386.7 82.7C374.7 70.7 358.5 64 341.5 64L192 64zM453.5 240L360 240C346.7 240 336 229.3 336 216L336 122.5L453.5 240zM224 304L416 304C429.3 304 440 314.7 440 328C440 341.3 429.3 352 416 352L224 352C210.7 352 200 341.3 200 328C200 314.7 210.7 304 224 304zM224 400L416 400C429.3 400 440 410.7 440 424C440 437.3 429.3 448 416 448L224 448C210.7 448 200 437.3 200 424C200 410.7 210.7 400 224 400z"/></svg>',
+                noMargin: true,
+                onclick: 'openSubMenu(event, this)',
+                oncontextmenu: 'openSubMenu(event, this)',
+                switchBtn: {
+                    active: false,
+                },
+                subMenu: [
+                    {name: 'Show Balance Entries', href: "/statement-adjustments"},
+                    {name: 'Add Balance Entry', href: "/statement-adjustments/create"},
+                ]
+            },
+        @endif
+
+        @if (in_array(Auth::user()->role, ['developer', 'owner', 'admin', 'accountant']))
+            {
                 id: "cr",
                 name: "CR",
                 details: {
@@ -812,7 +834,6 @@
                     {name: 'Physical Quantity', href: "/reports/physical-quantity"},
                     {name: 'Statement', href: "/reports/statement"},
                     {name: 'Pending Payments', href: "/reports/pending-payments"},
-                    {name: 'Balance Entries', href: "/statement-adjustments/create"},
                 ]
             },
         @endif

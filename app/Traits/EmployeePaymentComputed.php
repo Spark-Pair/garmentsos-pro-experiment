@@ -47,15 +47,10 @@ trait EmployeePaymentComputed
                 $start = $value['start'] ?? null;
                 $end   = $value['end'] ?? null;
 
-                if (!$start || !$end) return $query->where('method', 'cash');
+                if (!$start || !$end) return $query;
 
-
-                return $query->where(function ($q) use ($start, $end) {
-                    // 1️⃣ slip_date exists
-                    $q->Where(function ($q) use ($start, $end) {
-                        $q->whereBetween('date', [$start.' 00:00:00', $end.' 23:59:59']);
-                    });
-                });
+                \App\Support\DateRange::apply($query, 'date', $start, $end);
+                return $query;
 
             default:
                 return $query->where($key, 'like', "%$value%");

@@ -2,6 +2,7 @@
 
 namespace App\Traits;
 
+use App\Support\DateRange;
 use Illuminate\Http\Request;
 
 trait Filterable
@@ -40,6 +41,8 @@ trait Filterable
 
             if (method_exists($this, 'scopeApplyModelFilters')) {
                 $query->applyModelFilters($key, $value);
+            } elseif (is_array($value) && isset($value['start'], $value['end'])) {
+                DateRange::apply($query, $key, $value['start'], $value['end']);
             } else {
                 $query->where($key, 'like', "%{$value}%");
             }

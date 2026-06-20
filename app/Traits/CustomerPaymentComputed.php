@@ -817,19 +817,22 @@ trait CustomerPaymentComputed
                     // 1️⃣ slip_date exists
                     $q->where(function ($q) use ($start, $end) {
                         $q->whereNotNull('slip_date')
-                        ->whereBetween('slip_date', [$start.' 00:00:00', $end.' 23:59:59']);
+                        ->whereDate('slip_date', '>=', $start)
+                        ->whereDate('slip_date', '<=', $end);
                     })
                     // 2️⃣ slip_date null, cheque_date exists
                     ->orWhere(function ($q) use ($start, $end) {
                         $q->whereNull('slip_date')
                         ->whereNotNull('cheque_date')
-                        ->whereBetween('cheque_date', [$start.' 00:00:00', $end.' 23:59:59']);
+                        ->whereDate('cheque_date', '>=', $start)
+                        ->whereDate('cheque_date', '<=', $end);
                     })
                     // 3️⃣ slip_date null, cheque_date null, fallback to date
                     ->orWhere(function ($q) use ($start, $end) {
                         $q->whereNull('slip_date')
                         ->whereNull('cheque_date')
-                        ->whereBetween('date', [$start.' 00:00:00', $end.' 23:59:59']);
+                        ->whereDate('date', '>=', $start)
+                        ->whereDate('date', '<=', $end);
                     });
                 });
 
@@ -839,7 +842,10 @@ trait CustomerPaymentComputed
 
                 if (!$start || !$end) return $query;
 
-                return $query->whereBetween('created_at', [$start.' 00:00:00', $end.' 23:59:59']);
+                return $query->whereBetween('created_at', [
+                    \Carbon\Carbon::parse($start)->startOfDay(),
+                    \Carbon\Carbon::parse($end)->endOfDay(),
+                ]);
 
             default:
                 return $query->where($key, 'like', "%$value%");

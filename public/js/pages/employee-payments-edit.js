@@ -16,7 +16,7 @@
         selectedCustomerData = null;
         let selectedProgramData = {};
         let selectedCustomer;
-        const today = new Date().toISOString().split('T')[0];
+        const today = localDateString();
 
         function renderTemplate(template, data) {
             let html = template || '';

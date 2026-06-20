@@ -73,7 +73,7 @@ function initVouchersEdit() {
 
     let selectedSupplier;
 
-    const today = new Date().toISOString().split('T')[0];
+    const today = localDateString();
 
     window.trackSupplierState = function() {
         balanceDom.value = '';

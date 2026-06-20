@@ -16,29 +16,55 @@ use Illuminate\Support\Facades\Validator;
 
 class StatementAdjustmentController extends Controller
 {
+    public function index(Request $request)
+    {
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin', 'accountant'])) {
+            return $resp;
+        }
+
+        $authLayout = $this->getAuthLayout($request->route()->getName(), 'table');
+
+        if ($request->ajax()) {
+            $entries = StatementAdjustment::with('adjustable')
+                ->orderByDesc('date')
+                ->orderByDesc('id')
+                ->applyFilters($request);
+
+            return response()->json(['data' => $entries, 'authLayout' => $authLayout]);
+        }
+
+        $categoryOptions = $this->categoryOptions();
+        $entryTypeOptions = $this->entryTypeOptions();
+        $directionOptions = $this->directionOptions();
+
+        return view('statement-adjustments.index', compact('authLayout', 'categoryOptions', 'entryTypeOptions', 'directionOptions'));
+    }
+
     public function create()
     {
         if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin', 'accountant'])) {
             return $resp;
         }
 
-        $categoryOptions = [
-            'customer' => ['text' => 'Customer'],
-            'supplier' => ['text' => 'Supplier'],
-            'bank_account' => ['text' => 'Bank Account'],
-        ];
-
-        $entryTypeOptions = [
-            'opening_balance' => ['text' => 'Opening Balance'],
-            'adjustment' => ['text' => 'Adjustment'],
-        ];
-
-        $directionOptions = [
-            'plus' => ['text' => 'Debit'],
-            'minus' => ['text' => 'Credit'],
-        ];
+        $categoryOptions = $this->categoryOptions();
+        $entryTypeOptions = $this->entryTypeOptions();
+        $directionOptions = $this->directionOptions();
 
         return view('statement-adjustments.create', compact('categoryOptions', 'entryTypeOptions', 'directionOptions'));
+    }
+
+    public function edit(StatementAdjustment $statementAdjustment)
+    {
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin', 'accountant'])) {
+            return $resp;
+        }
+
+        $categoryOptions = $this->categoryOptions();
+        $entryTypeOptions = $this->entryTypeOptions();
+        $directionOptions = $this->directionOptions();
+        $category = $this->categoryFromClass($statementAdjustment->adjustable_type);
+
+        return view('statement-adjustments.edit', compact('statementAdjustment', 'categoryOptions', 'entryTypeOptions', 'directionOptions', 'category'));
     }
 
     public function firstTransactionDate(Request $request)
@@ -118,6 +144,89 @@ class StatementAdjustmentController extends Controller
         return redirect()->route('statement-adjustments.create')->with('success', 'Opening balance / adjustment added successfully.');
     }
 
+    public function update(Request $request, StatementAdjustment $statementAdjustment)
+    {
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin', 'accountant'])) {
+            return $resp;
+        }
+
+        $validator = Validator::make($request->all(), [
+            'category' => 'required|in:customer,supplier,bank_account',
+            'adjustable_id' => 'required|integer',
+            'date' => 'required|date',
+            'entry_type' => 'required|in:opening_balance,adjustment',
+            'direction' => 'required|in:plus,minus',
+            'amount' => 'required|numeric|min:0.01',
+            'remarks' => 'nullable|string|max:255',
+        ]);
+
+        if ($validator->fails()) {
+            return redirect()->back()->withErrors($validator)->withInput();
+        }
+
+        $modelClass = $this->resolveAdjustableClass($request->category);
+        $adjustable = $modelClass::find($request->adjustable_id);
+
+        if (!$adjustable) {
+            return redirect()->back()->withErrors(['adjustable_id' => 'Selected record not found.'])->withInput();
+        }
+
+        $resolvedDate = $request->date;
+        if ($request->entry_type === 'opening_balance') {
+            $openingBalanceDate = $this->resolveOpeningBalanceDate($request->category, $adjustable);
+            if ($openingBalanceDate) {
+                $resolvedDate = $openingBalanceDate->toDateString();
+            }
+        }
+
+        $statementAdjustment->adjustable()->associate($adjustable);
+        $statementAdjustment->fill([
+            'date' => $resolvedDate,
+            'entry_type' => $request->entry_type,
+            'direction' => $request->direction,
+            'amount' => $request->amount,
+            'remarks' => $request->remarks,
+        ]);
+        $statementAdjustment->save();
+
+        return redirect()->route('statement-adjustments.index')->with('success', 'Balance entry updated successfully.');
+    }
+
+    private function categoryOptions(): array
+    {
+        return [
+            'customer' => ['text' => 'Customer'],
+            'supplier' => ['text' => 'Supplier'],
+            'bank_account' => ['text' => 'Bank Account'],
+        ];
+    }
+
+    private function entryTypeOptions(): array
+    {
+        return [
+            'opening_balance' => ['text' => 'Opening Balance'],
+            'adjustment' => ['text' => 'Adjustment'],
+        ];
+    }
+
+    private function directionOptions(): array
+    {
+        return [
+            'plus' => ['text' => 'Debit'],
+            'minus' => ['text' => 'Credit'],
+        ];
+    }
+
+    private function categoryFromClass(string $class): string
+    {
+        return match ($class) {
+            Customer::class => 'customer',
+            Supplier::class => 'supplier',
+            BankAccount::class => 'bank_account',
+            default => '',
+        };
+    }
+
     private function resolveAdjustableClass(string $category): string
     {
         return match ($category) {
@@ -165,8 +274,6 @@ class StatementAdjustmentController extends Controller
         }
 
         if ($category === 'bank_account' && $adjustable instanceof BankAccount) {
-            $adjustMin = $adjustable->statementAdjustments()->min('date');
-
             if ($adjustable->category === 'self') {
                 $normalMin = CustomerPayment::query()
                     ->where('bank_account_id', $adjustable->id)
@@ -188,7 +295,7 @@ class StatementAdjustmentController extends Controller
                     mode: 'slip'
                 );
 
-                return $this->minCarbonDate([$normalMin, $outflowMin, $chequeVoucherMin, $slipVoucherMin, $adjustMin]);
+                return $this->minCarbonDate([$normalMin, $outflowMin, $chequeVoucherMin, $slipVoucherMin]);
             }
 
             $clearMin = PaymentClear::query()
@@ -196,7 +303,7 @@ class StatementAdjustmentController extends Controller
                 ->where('method', '!=', 'cash')
                 ->min('clear_date');
 
-            return $this->minCarbonDate([$clearMin, $adjustMin]);
+            return $this->minCarbonDate([$clearMin]);
         }
 
         return null;

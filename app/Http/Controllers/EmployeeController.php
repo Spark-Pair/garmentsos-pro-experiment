@@ -9,6 +9,8 @@ use Illuminate\Support\Facades\Validator;
 
 class EmployeeController extends Controller
 {
+    private const PHONE_RULE = ['required', 'string', 'max:255', 'regex:/^\+?[0-9][0-9\s\-()]*?(?:\s*,\s*\+?[0-9][0-9\s\-()]*)*$/'];
+
     /**
      * Display a listing of the resource.
      */
@@ -88,7 +90,7 @@ class EmployeeController extends Controller
             'type_id' => 'required|exists:setups,id',
             'employee_name' => 'required|string|unique:employees,employee_name',
             'urdu_title' => 'nullable|string',
-            'phone_number' => 'required|string',
+            'phone_number' => self::PHONE_RULE,
             'joining_date' => 'required|date',
             'cnic_no' => 'nullable|string',
             'salary' => 'nullable|integer|min:1',
@@ -163,7 +165,8 @@ class EmployeeController extends Controller
         $validator = Validator::make($request->all(), [
             'type_id' => 'required|integer|exists:setups,id',
             'urdu_title' => 'nullable|string|max:255',
-            'phone_number' => 'required|string|max:255',
+            'phone_number' => self::PHONE_RULE,
+            'joining_date' => 'required|date',
             'cnic_no' => 'nullable|string|max:255',
             'salary' => 'nullable|integer|min:1',
             'image_upload' => 'nullable|image|mimes:jpg,jpeg,png,gif|max:2048',
@@ -178,6 +181,7 @@ class EmployeeController extends Controller
             'type_id' => $request->type_id,
             'urdu_title' => $request->urdu_title,
             'phone_number' => $request->phone_number,
+            'joining_date' => $request->joining_date,
             'cnic_no' => $request->cnic_no,
             'salary' => $request->salary,
         ];

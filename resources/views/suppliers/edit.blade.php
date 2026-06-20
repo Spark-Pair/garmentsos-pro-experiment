@@ -53,6 +53,21 @@
                         value="{{ $supplier->phone_number }}"
                         placeholder="Enter phone number"
                         required
+                        dataValidate="required|phone"
+                    />
+
+                    {{-- supplier_joining_date --}}
+                    <x-input
+                        label="Joining Date"
+                        name="date"
+                        id="date"
+                        value="{{ $supplier->date?->format('Y-m-d') }}"
+                        min="2024-01-01"
+                        validateMin
+                        max="{{ now()->toDateString() }}"
+                        validateMax
+                        type="date"
+                        required
                     />
                 </div>
             </div>

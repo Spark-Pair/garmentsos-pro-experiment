@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Traits\CustomerComputed;
 use App\Traits\Filterable;
+use App\Support\DateRange;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -106,41 +107,14 @@ class Customer extends Model
         $paymentsQuery = $this->payments()->where('type', '!=', 'DR');
         $adjustmentsQuery = $this->statementAdjustments();
 
-        // Normalize dates to start/end of day
-        if ($fromDate) {
-            $from = Carbon::parse($fromDate)->startOfDay();
-        }
-        if ($toDate) {
-            $to = Carbon::parse($toDate)->endOfDay();
-        }
-
-        // Handle different date scenarios
-        if (isset($from, $to)) {
-            if ($includeGivenDate) {
-                $invoicesQuery->whereBetween('date', [$from, $to]);
-                $paymentsQuery->whereBetween('date', [$from, $to]);
-                $adjustmentsQuery->whereBetween('date', [$from, $to]);
-            } else {
-                $invoicesQuery->where('date', '>', $from)->where('date', '<', $to);
-                $paymentsQuery->where('date', '>', $from)->where('date', '<', $to);
-                $adjustmentsQuery->where('date', '>', $from)->where('date', '<', $to);
-            }
-        } elseif (isset($from)) {
-            $operator = $includeGivenDate ? '>=' : '>';
-            $invoicesQuery->where('date', $operator, $from);
-            $paymentsQuery->where('date', $operator, $from);
-            $adjustmentsQuery->where('date', $operator, $from);
-        } elseif (isset($to)) {
-            $operator = $includeGivenDate ? '<=' : '<';
-            $invoicesQuery->where('date', $operator, $to);
-            $paymentsQuery->where('date', $operator, $to);
-            $adjustmentsQuery->where('date', $operator, $to);
-        }
+        DateRange::apply($invoicesQuery, 'date', $fromDate, $toDate, $includeGivenDate);
+        DateRange::apply($paymentsQuery, 'date', $fromDate, $toDate, $includeGivenDate);
+        DateRange::apply($adjustmentsQuery, 'date', $fromDate, $toDate, $includeGivenDate);
 
         // Calculate totals
         $totalInvoices = $invoicesQuery->sum('netAmount') ?? 0;
         $totalPayments = $paymentsQuery->sum('amount') ?? 0;
-        $adjustmentsNet = (float) $adjustmentsQuery->sum('net_amount');
+        $adjustmentsNet = (float) $adjustmentsQuery->get()->sum(fn($adjustment) => (float) $adjustment->net_amount);
 
         $balance = ($totalInvoices - $totalPayments) + $adjustmentsNet;
 
@@ -160,15 +134,15 @@ class Customer extends Model
 
         // --- Fetch invoices & payments ---
         $invoices = $this->invoices()
-            ->whereBetween('date', [$from, $to])
+            ->whereBetween(\Illuminate\Support\Facades\DB::raw('DATE(date)'), [$from->toDateString(), $to->toDateString()])
             ->get();
 
         $payments = $this->payments()
             ->where('type', '!=', 'DR')
-            ->whereBetween('date', [$from, $to])
+            ->whereBetween(\Illuminate\Support\Facades\DB::raw('DATE(date)'), [$from->toDateString(), $to->toDateString()])
             ->get();
         $adjustments = $this->statementAdjustments()
-            ->whereBetween('date', [$from, $to])
+            ->whereBetween(\Illuminate\Support\Facades\DB::raw('DATE(date)'), [$from->toDateString(), $to->toDateString()])
             ->get();
 
         $statement = collect();
@@ -185,6 +159,10 @@ class Customer extends Model
                 'payment' => $isPlus ? 0 : (float) $adjustment->amount,
                 'description' => $adjustment->remarks ?: $label,
                 'created_at' => $adjustment->created_at,
+                'source' => [
+                    'type' => 'statement_adjustment',
+                    'id' => $adjustment->id,
+                ],
             ];
         };
 

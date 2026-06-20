@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Traits\Filterable;
 use App\Traits\SupplierComputed;
+use App\Support\DateRange;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -130,25 +131,11 @@ class Supplier extends Model
             ]);
         }
 
-        // Inclusive date handling
-        if ($fromDate) $fromDate = Carbon::parse($fromDate)->startOfDay();
-        if ($toDate) $toDate = Carbon::parse($toDate)->endOfDay();
-
-        if ($fromDate && $toDate) {
-            $expenseQuery->whereBetween('date', [$fromDate, $toDate]);
-            $paymentsQuery->whereBetween('date', [$fromDate, $toDate]);
-            $adjustmentsQuery->whereBetween('date', [$fromDate, $toDate]);
-            if ($productionQuery) $productionQuery->whereBetween('receive_date', [$fromDate, $toDate]);
-        } elseif ($fromDate) {
-            $expenseQuery->where('date', '>=', $fromDate);
-            $paymentsQuery->where('date', '>=', $fromDate);
-            $adjustmentsQuery->where('date', '>=', $fromDate);
-            if ($productionQuery) $productionQuery->where('receive_date', '>=', $fromDate);
-        } elseif ($toDate) {
-            $expenseQuery->where('date', '<=', $toDate);
-            $paymentsQuery->where('date', '<=', $toDate);
-            $adjustmentsQuery->where('date', '<=', $toDate);
-            if ($productionQuery) $productionQuery->where('receive_date', '<=', $toDate);
+        DateRange::apply($expenseQuery, 'date', $fromDate, $toDate, $includeGivenDate);
+        DateRange::apply($paymentsQuery, 'date', $fromDate, $toDate, $includeGivenDate);
+        DateRange::apply($adjustmentsQuery, 'date', $fromDate, $toDate, $includeGivenDate);
+        if ($productionQuery) {
+            DateRange::apply($productionQuery, 'receive_date', $fromDate, $toDate, $includeGivenDate);
         }
 
         $totalExpense = $expenseQuery->sum('amount') ?? 0;
@@ -165,25 +152,25 @@ class Supplier extends Model
     public function getStatement($fromDate, $toDate, $type = 'general')
     {
         $type = $type ?: 'general';
-        $start = Carbon::parse($fromDate)->startOfDay();
-        $end   = Carbon::parse($toDate)->endOfDay();
+        $start = Carbon::parse($fromDate)->toDateString();
+        $end   = Carbon::parse($toDate)->toDateString();
 
         $openingBalance = $this->calculateBalance(null, $fromDate, false, false);
         $periodBalance  = $this->calculateBalance($fromDate, $toDate, false, true);
         $closingBalance = $openingBalance + $periodBalance;
 
-        $expenseQuery = $this->expenses()->whereBetween('date', [$start, $end]);
+        $expenseQuery = $this->expenses()->whereBetween(\Illuminate\Support\Facades\DB::raw('DATE(date)'), [$start, $end]);
         $paymentQuery = $this->payments()
-            ->whereBetween('date', [$start, $end])
+            ->whereBetween(\Illuminate\Support\Facades\DB::raw('DATE(date)'), [$start, $end])
             ->whereIn('method', [
                 'Cheque', 'Cash', 'Slip', 'ATM', 'Self Cheque', 'program', 'p. return', 'Adjustment'
             ]);
         $voucherQuery = Voucher::with('payments')
             ->where('supplier_id', $this->id)
-            ->whereBetween('date', [$start, $end]);
-        $adjustmentsQuery = $this->statementAdjustments()->whereBetween('date', [$start, $end]);
+            ->whereBetween(\Illuminate\Support\Facades\DB::raw('DATE(date)'), [$start, $end]);
+        $adjustmentsQuery = $this->statementAdjustments()->whereBetween(\Illuminate\Support\Facades\DB::raw('DATE(date)'), [$start, $end]);
         $productionQuery = $this->worker
-            ? $this->worker->productions()->whereBetween('receive_date', [$start, $end])
+            ? $this->worker->productions()->whereBetween(\Illuminate\Support\Facades\DB::raw('DATE(receive_date)'), [$start, $end])
             : null;
 
         $normalizeDateValue = function ($value) {
@@ -278,6 +265,10 @@ class Supplier extends Model
                 'payment' => $isPlus ? 0 : (float) $adjustment->amount,
                 'description' => $adjustment->remarks ?: $label,
                 'created_at' => $adjustment->created_at,
+                'source' => [
+                    'type' => 'statement_adjustment',
+                    'id' => $adjustment->id,
+                ],
             ];
         };
 

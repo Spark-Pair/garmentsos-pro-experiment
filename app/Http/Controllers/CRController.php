@@ -45,7 +45,7 @@ class CRController extends Controller
 
         $supplier_id = $request->supplier;
         $method = $request->method;
-        $maxDate = $request->max_date . ' 00:00:00';
+        $maxDate = $request->max_date;
         $payment_options = [];
 
         if (Auth::user()->c_r_type == 'voucher') {
@@ -71,7 +71,7 @@ class CRController extends Controller
         }
 
         if ($method === 'cheque') {
-            $cheques = CustomerPayment::whereNotNull('cheque_no')->with('customer.city')->whereDoesntHave('cheque')->whereNull('bank_account_id')->where('date', '<=', $maxDate)->get()->makeHidden('creator');
+            $cheques = CustomerPayment::whereNotNull('cheque_no')->with('customer.city')->whereDoesntHave('cheque')->whereNull('bank_account_id')->whereDate('date', '<=', $maxDate)->get()->makeHidden('creator');
 
             foreach ($cheques as $cheque) {
                 $payment_options[(int)$cheque->id] = [
@@ -80,7 +80,7 @@ class CRController extends Controller
                 ];
             }
         } else if ($method === 'slip') {
-            $slips = CustomerPayment::whereNotNull('slip_no')->with('customer.city')->whereDoesntHave('slip')->whereNull('bank_account_id')->where('date', '<=', $maxDate)->get()->makeHidden('creator');
+            $slips = CustomerPayment::whereNotNull('slip_no')->with('customer.city')->whereDoesntHave('slip')->whereNull('bank_account_id')->whereDate('date', '<=', $maxDate)->get()->makeHidden('creator');
 
             foreach ($slips as $slip) {
                 $payment_options[(int)$slip->id] = [
@@ -104,7 +104,7 @@ class CRController extends Controller
                 ->with('program.customer.city:id,title,short_title')
                 ->where('method', 'program')
                 ->whereNull('voucher_id')
-                ->where('date', '<=', $maxDate)
+                ->whereDate('date', '<=', $maxDate)
                 ->get();
 
             foreach ($payments as $payment) {

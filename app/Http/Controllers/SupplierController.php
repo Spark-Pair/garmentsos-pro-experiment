@@ -13,6 +13,8 @@ use Illuminate\Support\Facades\Validator;
 
 class SupplierController extends Controller
 {
+    private const PHONE_RULE = ['required', 'string', 'max:255', 'regex:/^\+?[0-9][0-9\s\-()]*?(?:\s*,\s*\+?[0-9][0-9\s\-()]*)*$/'];
+
     /**
      * Display a listing of the resource.
      */
@@ -118,9 +120,9 @@ class SupplierController extends Controller
             'person_name' => 'required|string|max:255',
             'username' => 'required|string|min:6|max:255|regex:/^[a-z0-9]+$/|unique:users,username',
             'password' => 'required|string|min:3',
-            'phone_number' => 'required|string|max:255',
+            'phone_number' => self::PHONE_RULE,
             'image_upload' => 'nullable|image|mimes:jpg,jpeg,png,gif|max:2048',
-            'date' => 'required|string',
+            'date' => 'required|date',
             'categories_array' => 'required|json',
         ]);
 
@@ -234,7 +236,9 @@ class SupplierController extends Controller
         }
 
         $validator = Validator::make($request->all(), [
-            'phone_number' => 'required|string|max:255',
+            'person_name' => 'required|string|max:255',
+            'phone_number' => self::PHONE_RULE,
+            'date' => 'required|date',
             'image_upload' => 'nullable|image|mimes:jpg,jpeg,png,gif|max:2048',
         ]);
 
@@ -265,7 +269,9 @@ class SupplierController extends Controller
 
         // Update the customer
         $supplier->update([
+            'person_name' => $request->person_name,
             'phone_number' => $request->phone_number,
+            'date' => $request->date,
         ]);
 
         // Update worker's phone if exists
@@ -273,6 +279,7 @@ class SupplierController extends Controller
         if ($worker) {
             $worker->update([
                 'phone_number' => $request->phone_number,
+                'joining_date' => $request->date,
             ]);
         }
 

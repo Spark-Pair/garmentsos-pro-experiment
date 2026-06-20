@@ -39,15 +39,23 @@ function validateInput(input, listner) {
             value = value.replace(/[^a-zA-Z0-9 .-|]/g, '');
         }
 
-        // phone = auto-format to 0000-0000000
+        // phone = one or more phone numbers separated by commas.
         if (rule === 'phone') {
-            value = value.replace(/\D/g, '');
-            if (value.length > 11) value = value.substring(0, 11);
-            if (value.length >= 5) {
-                value = value.substring(0, 4) + '-' + value.substring(4);
-            }
-            if (!/^\d{4}-\d{7}$/.test(value)) {
-                error = 'Phone number must be in format 0000-0000000';
+            value = value.replace(/[^\d+,\-()\s]/g, '');
+            value = value
+                .split(',')
+                .map(part => part.replace(/\s+/g, ' ').trim())
+                .filter((part, index, parts) => part !== '' || index === parts.length - 1)
+                .join(', ');
+
+            const phoneParts = value.split(',').map(part => part.trim()).filter(Boolean);
+            const isValid = phoneParts.length > 0 && phoneParts.every(part => {
+                const digits = part.replace(/\D/g, '');
+                return digits.length >= 7 && /^\+?[0-9][0-9\s\-()]*$/.test(part);
+            });
+
+            if (!isValid) {
+                error = 'Enter valid phone number(s), separated by commas.';
             }
         }
 

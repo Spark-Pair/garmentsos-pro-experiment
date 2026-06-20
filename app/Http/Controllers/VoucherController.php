@@ -87,7 +87,7 @@ class VoucherController extends Controller
         if ($request->ajax()) {
             $supplier_id = $request->supplier_id;
             $paymentMethod = $request->payment_method;
-            $date = $request->date . ' 00:00:00';
+            $date = $request->date;
             $payments_options = [];
             $supplierBalanceAtDate = 0;
 
@@ -128,7 +128,7 @@ class VoucherController extends Controller
                 })->values()->toArray();
             } else if ($paymentMethod == 'purchase_return') {
                 $expenses = Expense::where('supplier_id', $supplier_id)
-                    ->where('date', '>=', $date)
+                    ->whereDate('date', '>=', $date)
                     ->with('expenseSetups')
                     ->get();
 

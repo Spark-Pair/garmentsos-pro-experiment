@@ -13,13 +13,13 @@ use App\Models\OrderArticles;
 use App\Models\SupplierPayment;
 use App\Models\Supplier;
 use App\Models\Setup;
+use App\Models\StatementAdjustment;
 use App\Models\Voucher;
 use App\Services\PhysicalQuantityReportService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\FacadesLog;
 
 class ReportController extends Controller
 {
@@ -100,7 +100,7 @@ class ReportController extends Controller
         }
 
         $validated = $request->validate([
-            'type' => 'required|string|in:expense,voucher,supplier_payment,invoice,customer_payment',
+            'type' => 'required|string|in:expense,voucher,supplier_payment,invoice,customer_payment,statement_adjustment',
             'id' => 'required|integer|min:1',
         ]);
 
@@ -110,6 +110,7 @@ class ReportController extends Controller
             'supplier_payment' => $this->supplierPaymentStatementPayload((int) $validated['id']),
             'invoice' => $this->invoiceStatementPayload((int) $validated['id']),
             'customer_payment' => $this->customerPaymentStatementPayload((int) $validated['id']),
+            'statement_adjustment' => $this->statementAdjustmentPayload((int) $validated['id']),
             default => null,
         };
 
@@ -317,16 +318,16 @@ class ReportController extends Controller
 
         if ($request->ajax()) {
             $reffStartDate = $request->reff_date_range_start
-                ? Carbon::parse($request->reff_date_range_start)->startOfDay()
+                ? Carbon::parse($request->reff_date_range_start)->toDateString()
                 : null;
             $reffEndDate = $request->reff_date_range_end
-                ? Carbon::parse($request->reff_date_range_end)->endOfDay()
+                ? Carbon::parse($request->reff_date_range_end)->toDateString()
                 : null;
             $invoiceStartDate = $request->invoice_date_range_start
-                ? Carbon::parse($request->invoice_date_range_start)->startOfDay()
+                ? Carbon::parse($request->invoice_date_range_start)->toDateString()
                 : null;
             $invoiceEndDate = $request->invoice_date_range_end
-                ? Carbon::parse($request->invoice_date_range_end)->endOfDay()
+                ? Carbon::parse($request->invoice_date_range_end)->toDateString()
                 : null;
 
             $invoiceArticles = InvoiceArticles::with([
@@ -380,7 +381,7 @@ class ReportController extends Controller
             if ($invoiceStartDate || $invoiceEndDate) {
                 $invoiceArticles->whereHas('invoice', function ($q) use ($invoiceStartDate, $invoiceEndDate) {
                     if ($invoiceStartDate && $invoiceEndDate) {
-                        $q->whereBetween('date', [$invoiceStartDate, $invoiceEndDate]);
+                        $q->whereDate('date', '>=', $invoiceStartDate)->whereDate('date', '<=', $invoiceEndDate);
                     } elseif ($invoiceStartDate) {
                         $q->whereDate('date', '>=', $invoiceStartDate);
                     } elseif ($invoiceEndDate) {
@@ -392,7 +393,7 @@ class ReportController extends Controller
             if ($reffStartDate || $reffEndDate) {
                 $orderArticles->whereHas('order', function ($q) use ($reffStartDate, $reffEndDate) {
                     if ($reffStartDate && $reffEndDate) {
-                        $q->whereBetween('date', [$reffStartDate, $reffEndDate]);
+                        $q->whereDate('date', '>=', $reffStartDate)->whereDate('date', '<=', $reffEndDate);
                     } elseif ($reffStartDate) {
                         $q->whereDate('date', '>=', $reffStartDate);
                     } elseif ($reffEndDate) {
@@ -745,6 +746,17 @@ class ReportController extends Controller
         return [
             'type' => 'customer_payment',
             'data' => $payment->toFormattedArray(),
+        ];
+    }
+
+    private function statementAdjustmentPayload(int $id): ?array
+    {
+        $adjustment = StatementAdjustment::with('adjustable')->find($id);
+        if (!$adjustment) return null;
+
+        return [
+            'type' => 'statement_adjustment',
+            'data' => $adjustment->toFormattedArray(),
         ];
     }
 }

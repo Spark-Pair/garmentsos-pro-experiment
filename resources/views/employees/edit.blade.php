@@ -57,17 +57,25 @@
                     <x-input
                         label="Phone Number"
                         name="phone_number"
+                        id="phone_number"
                         value="{{ $employee->phone_number }}"
                         placeholder="Enter phone number"
                         required
-                        oninput="formatPhoneNo(this)"
+                        dataValidate="required|phone"
                     />
 
                     {{-- employee_joining_date --}}
                     <x-input
                         label="Joining Date"
-                        value="{{ $employee->joining_date->format('d-M-Y, D') }}"
-                        disabled
+                        name="joining_date"
+                        id="joining_date"
+                        value="{{ $employee->joining_date?->format('Y-m-d') }}"
+                        min="2024-01-01"
+                        validateMin
+                        max="{{ now()->toDateString() }}"
+                        validateMax
+                        type="date"
+                        required
                     />
 
                     {{-- employee_cnic --}}

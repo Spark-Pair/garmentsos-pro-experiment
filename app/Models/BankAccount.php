@@ -244,6 +244,10 @@ class BankAccount extends Model
                 'payment'     => $isPlus ? 0 : (float) $adjustment->amount,
                 'description' => $adjustment->remarks ?: $label,
                 'created_at'  => $adjustment->created_at,
+                'source'      => [
+                    'type' => 'statement_adjustment',
+                    'id'   => $adjustment->id,
+                ],
             ];
         };
 

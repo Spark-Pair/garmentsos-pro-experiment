@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Traits\EmployeeComputed;
 use App\Traits\Filterable;
+use App\Support\DateRange;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -76,28 +77,9 @@ class Employee extends Model
         $paymentsQuery = $this->payments();
         $salariesQuery = $this->salaries(); // 👈 new line
 
-        // Handle different date scenarios
-        if ($fromDate && $toDate) {
-            if ($includeGivenDate) {
-                $productionsQuery->whereBetween('date', [$fromDate, $toDate]);
-                $paymentsQuery->whereBetween('date', [$fromDate, $toDate]);
-                $salariesQuery->whereBetween('date', [$fromDate, $toDate]); // 👈 added
-            } else {
-                $productionsQuery->where('date', '>', $fromDate)->where('date', '<', $toDate);
-                $paymentsQuery->where('date', '>', $fromDate)->where('date', '<', $toDate);
-                $salariesQuery->where('date', '>', $fromDate)->where('date', '<', $toDate); // 👈 added
-            }
-        } elseif ($fromDate) {
-            $operator = $includeGivenDate ? '>=' : '>';
-            $productionsQuery->where('date', $operator, $fromDate);
-            $paymentsQuery->where('date', $operator, $fromDate);
-            $salariesQuery->where('date', $operator, $fromDate); // 👈 added
-        } elseif ($toDate) {
-            $operator = $includeGivenDate ? '<=' : '<';
-            $productionsQuery->where('date', $operator, $toDate);
-            $paymentsQuery->where('date', $operator, $toDate);
-            $salariesQuery->where('date', $operator, $toDate); // 👈 added
-        }
+        DateRange::apply($productionsQuery, 'date', $fromDate, $toDate, $includeGivenDate);
+        DateRange::apply($paymentsQuery, 'date', $fromDate, $toDate, $includeGivenDate);
+        DateRange::apply($salariesQuery, 'date', $fromDate, $toDate, $includeGivenDate);
 
         // Calculate totals
         $totalProductions = $productionsQuery->sum('netAmount') ?? 0;

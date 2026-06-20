@@ -152,7 +152,7 @@
                     }
 
                     dateInput.disabled = false;
-                    dateInput.value = new Date().toISOString().split("T")[0];
+                    dateInput.value = localDateString();
                     selectArticlesBtn.disabled = false;
                     removeReturnsAfterSelectedDate();
                     renderList();

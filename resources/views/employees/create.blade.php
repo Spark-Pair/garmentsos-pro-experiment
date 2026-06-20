@@ -67,6 +67,7 @@
                     id="phone_number"
                     placeholder="Enter phone number"
                     required
+                    dataValidate="required|phone"
                 />
 
                 {{-- employee_joining_date --}}

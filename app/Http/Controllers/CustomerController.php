@@ -14,6 +14,8 @@ use Illuminate\Validation\Rule;
 
 class CustomerController extends Controller
 {
+    private const PHONE_RULE = ['required', 'string', 'max:255', 'regex:/^\+?[0-9][0-9\s\-()]*?(?:\s*,\s*\+?[0-9][0-9\s\-()]*)*$/'];
+
     /**
      * Display a listing of the resource.
      */
@@ -86,9 +88,9 @@ class CustomerController extends Controller
             'urdu_title' => 'nullable|string|max:255',
             'username' => 'required|string|min:6|max:255|regex:/^[a-z0-9]+$/|unique:users,username',
             'password' => 'required|string|min:3',
-            'phone_number' => 'required|string|max:255',
+            'phone_number' => self::PHONE_RULE,
             'image_upload' => 'nullable|image|mimes:jpg,jpeg,png,gif|max:2048',
-            'date' => 'required|string',
+            'date' => 'required|date',
             'category' => 'required|string|max:255',
             'city' => 'required|integer|exists:setups,id',
             'address' => 'required|string|max:255',
@@ -175,7 +177,8 @@ class CustomerController extends Controller
         $validator = Validator::make($request->all(), [
             'person_name' => 'required|string|max:255',
             'urdu_title' => 'nullable|string|max:255',
-            'phone_number' => 'required|string|max:255',
+            'phone_number' => self::PHONE_RULE,
+            'date' => 'required|date',
             'category' => 'required|string|max:255',
             'address' => 'required|string|max:255',
             'image_upload' => 'nullable|image|mimes:jpg,jpeg,png,gif|max:2048',
@@ -211,6 +214,7 @@ class CustomerController extends Controller
             'person_name' => $request->person_name,
             'urdu_title' => $request->urdu_title,
             'phone_number' => $request->phone_number,
+            'date' => $request->date,
             'category' => $request->category,
             'address' => $request->address,
         ]);

@@ -122,3 +122,5 @@ function createCard(data) {
     clutter += '</div>'; // Close the card div
     return clutter;
 }
+
+window.baseCreateCard = window.baseCreateCard || createCard;

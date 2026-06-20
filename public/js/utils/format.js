@@ -1,7 +1,7 @@
 function formatDate(date, notDay, dbDate) {
     if (!date) return '';
 
-    const inputDate = new Date(date);
+    const inputDate = parseLocalDate(date);
     const day = inputDate.getDate().toString().padStart(2, '0');
     const monthNum = (inputDate.getMonth() + 1).toString().padStart(2, '0');
     const month = inputDate.toLocaleString('en-US', { month: 'short' });
@@ -15,6 +15,26 @@ function formatDate(date, notDay, dbDate) {
         formatted = `${year}-${monthNum}-${day}`;
     }
     return formatted;
+}
+
+function parseLocalDate(date) {
+    if (date instanceof Date) return date;
+
+    const value = String(date).trim();
+    const match = value.match(/^(\d{4})-(\d{2})-(\d{2})(?:\s|T|$)/);
+    if (match) {
+        return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+    }
+
+    return new Date(value);
+}
+
+function localDateString(date = new Date()) {
+    const inputDate = parseLocalDate(date);
+    const year = inputDate.getFullYear();
+    const month = String(inputDate.getMonth() + 1).padStart(2, '0');
+    const day = String(inputDate.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
 }
 
 function formatNumbersDigitLess(number) {

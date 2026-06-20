@@ -68,6 +68,11 @@ function sortTableByColumn(index, order, persist = false) {
         if (!s) return NaN;
         s = s.replace(/\b(?:mon|tue|wed|thu|fri|sat|sun|monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/gi, '').replace(/,/g, '').trim();
 
+        let m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})(?:\s|T|$)/);
+        if (m) {
+            return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])).getTime();
+        }
+
         const iso = Date.parse(s);
         if (!isNaN(iso)) return iso;
 
@@ -77,7 +82,7 @@ function sortTableByColumn(index, order, persist = false) {
             jul: 6, aug: 7, sep: 8, sept: 8, oct: 9, nov: 10, dec: 11
         };
 
-        let m = normalized.match(/^(\d{1,2})\s+([A-Za-z]{3,9})\s+(\d{2,4})$/);
+        m = normalized.match(/^(\d{1,2})\s+([A-Za-z]{3,9})\s+(\d{2,4})$/);
         if (m) {
             const day = Number(m[1]);
             const mon = months[m[2].slice(0,3).toLowerCase()];
