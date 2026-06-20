@@ -40,3 +40,10 @@ Use this checklist after changes to verify the app remains stable.
 - Package does not contain `.git/`, real `.env`, GitHub credentials, private keys, developer DB files, SQLite WAL/SHM files, dumps, backups, logs, tests, or dev-only files.
 - Existing client `.env`, database, uploads, and backups are preserved during update testing.
 - A database backup is created and verified before any update test.
+
+## 9) Licensing Foundation
+- `LICENSE_ENFORCEMENT_ENABLED=false` keeps existing app behavior unchanged.
+- Developer license status page loads for developer/admin users.
+- Signed license cache tampering is rejected in tests.
+- Installation fingerprint output is a hash/preview only, not raw machine details.
+- LAN/browser PCs are not treated as separate licensed devices.

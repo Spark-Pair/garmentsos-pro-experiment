@@ -11,6 +11,7 @@ use App\Http\Controllers\CRController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\CustomerPaymentController;
 use App\Http\Controllers\DailyLedgerController;
+use App\Http\Controllers\Developer\LicenseController;
 use App\Http\Controllers\DRController;
 use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\EmployeePaymentController;
@@ -116,6 +117,14 @@ Route::group(['middleware' => ['auth', 'activeSession', 'subscriptionExpiry', 'r
 
     Route::resource('setups', SetupController::class);
     Route::get('permissions-report', [PermissionReportController::class, 'index'])->name('permissions-report');
+    Route::get('developer/license', [LicenseController::class, 'status'])->name('developer.license.status');
+    Route::get('developer/license/activate', [LicenseController::class, 'activate'])->name('developer.license.activate');
+    Route::post('developer/license/activate', [LicenseController::class, 'activatePost'])->name('developer.license.activate.post');
+    Route::get('developer/license/offline', [LicenseController::class, 'offline'])->name('developer.license.offline');
+    Route::post('developer/license/offline/import', [LicenseController::class, 'importOffline'])->name('developer.license.offline.import');
+    Route::post('developer/license/refresh', [LicenseController::class, 'refresh'])->name('developer.license.refresh');
+    Route::get('developer/audit-logs', [LicenseController::class, 'auditLogs'])->name('developer.audit-logs');
+    Route::get('developer/backups', [LicenseController::class, 'backups'])->name('developer.backups');
 
     Route::resource('suppliers', SupplierController::class);
     Route::post('update-supplier-category', [SupplierController::class, 'updateSupplierCategory'])->name('update-supplier-category');

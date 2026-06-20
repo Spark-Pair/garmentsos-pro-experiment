@@ -49,3 +49,9 @@ If the client insists on keeping code locally:
 - Client packages must not include `.git/`, real `.env` files, GitHub credentials, private keys, developer databases, DB sidecar files, dumps, backups, logs, tests, or dev-only files.
 - Update packages must never overwrite a client database, client `.env`, uploads, or backups.
 - A local PHP/Laravel app on a client PC cannot be made 100% secret. Use practical controls: private repository, reviewed release package, generated client environment, no credentials in the app, signed updates in a future phase, and optional obfuscation later.
+
+## 10) Licensing Foundation
+- Licensing is documented in `docs/LICENSING.md`.
+- Keep `LICENSE_ENFORCEMENT_ENABLED=false` until a client is explicitly ready for activation and rollout.
+- Licensing is installation/server-based. LAN browser PCs are not separately licensed.
+- Store hashed installation fingerprints only; never persist raw machine identifiers.
