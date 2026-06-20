@@ -6,9 +6,12 @@ use App\Services\Licensing\LicenseStatus;
 use App\Services\AuditLogService;
 use App\Services\BackupService;
 use App\Services\Licensing\InstallationFingerprintService;
+use App\Services\Licensing\InstallationIdentityService;
+use App\Services\Licensing\LicenseService;
 use App\Services\Licensing\OfflineActivationService;
 use App\Services\Licensing\SignedLicenseFileService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
@@ -83,6 +86,40 @@ class LicensingFoundationTest extends TestCase
         $this->assertTrue($verified['valid']);
         $this->assertFalse($tampered['valid']);
         $this->assertSame('signature_mismatch', $tampered['reason']);
+    }
+
+    public function test_tampered_signed_license_cache_maps_to_blocked_status(): void
+    {
+        $keyPair = openssl_pkey_new([
+            'private_key_bits' => 2048,
+            'private_key_type' => OPENSSL_KEYTYPE_RSA,
+        ]);
+        $details = openssl_pkey_get_details($keyPair);
+
+        config(['licensing.public_key' => $details['key']]);
+        File::ensureDirectoryExists(dirname((string) config('licensing.cache_path')));
+        File::put((string) config('licensing.cache_path'), json_encode([
+            'payload' => ['status' => 'active'],
+            'signature' => base64_encode('invalid-signature'),
+        ]));
+
+        $status = app(LicenseService::class)->statusFromSignedCache();
+
+        $this->assertSame('tampered', $status->state);
+        $this->assertSame('blocked', $status->enforcement);
+    }
+
+    public function test_existing_invalid_identity_file_is_not_overwritten(): void
+    {
+        $path = (string) config('licensing.identity_path');
+        File::ensureDirectoryExists(dirname($path));
+        File::put($path, 'not-json');
+
+        $uuid = app(InstallationIdentityService::class)->current()->installation_uuid;
+
+        $this->assertTrue(Str::isUuid($uuid));
+        $this->assertSame('not-json', File::get($path));
+        $this->assertTrue(File::exists($path . '.recovery'));
     }
 
     public function test_offline_activation_service_generates_request_code_without_internet(): void

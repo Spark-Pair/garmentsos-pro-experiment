@@ -131,6 +131,34 @@ class LicenseService
         ]);
     }
 
+    public function statusFromSignedCache(): LicenseStatus
+    {
+        $result = $this->signedFiles->read();
+
+        if (($result['valid'] ?? false) === true) {
+            return LicenseStatus::valid('signed_cache', [
+                'message' => 'Signed license cache is valid.',
+            ]);
+        }
+
+        $reason = (string) ($result['reason'] ?? 'invalid');
+        if ($reason === 'missing') {
+            return LicenseStatus::problem(
+                'unactivated',
+                'blocked',
+                'No signed license cache is present.',
+                ['source' => 'signed_cache'],
+            );
+        }
+
+        return LicenseStatus::problem(
+            'tampered',
+            'blocked',
+            'Signed license cache is invalid or tampered.',
+            ['source' => 'signed_cache'],
+        );
+    }
+
     public function recordCheck(mixed $installation, ?License $license, string $type, LicenseStatus $status): void
     {
         LicenseCheck::create([

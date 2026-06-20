@@ -47,17 +47,41 @@ class InstallationIdentityService
         $path = (string) config('licensing.identity_path');
 
         if (File::exists($path)) {
-            try {
-                $document = json_decode((string) File::get($path), true, 512, JSON_THROW_ON_ERROR);
-                $uuid = (string) ($document['installation_uuid'] ?? '');
-                if (Str::isUuid($uuid)) {
-                    return $uuid;
-                }
-            } catch (JsonException) {
-                // Invalid local identity file falls through to a new identity.
+            $uuid = $this->readUuidFromPath($path);
+            if ($uuid !== null) {
+                return $uuid;
             }
+
+            $recoveryPath = $path . '.recovery';
+            $recoveryUuid = $this->readUuidFromPath($recoveryPath);
+            if ($recoveryUuid !== null) {
+                return $recoveryUuid;
+            }
+
+            return $this->writeUuid($recoveryPath);
         }
 
+        return $this->writeUuid($path);
+    }
+
+    protected function readUuidFromPath(string $path): ?string
+    {
+        if (!File::exists($path)) {
+            return null;
+        }
+
+        try {
+            $document = json_decode((string) File::get($path), true, 512, JSON_THROW_ON_ERROR);
+            $uuid = (string) ($document['installation_uuid'] ?? '');
+
+            return Str::isUuid($uuid) ? $uuid : null;
+        } catch (JsonException) {
+            return null;
+        }
+    }
+
+    protected function writeUuid(string $path): string
+    {
         $uuid = (string) Str::uuid();
         File::ensureDirectoryExists(dirname($path));
         File::put($path, json_encode([
