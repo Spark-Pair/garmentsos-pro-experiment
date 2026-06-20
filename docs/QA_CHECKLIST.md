@@ -34,3 +34,9 @@ Use this checklist after changes to verify the app remains stable.
 ## 7) Security
 - CSRF tokens present in forms.
 - Read‑only middleware is active for web routes.
+
+## 8) Release Package Safety
+- Package was prepared using `docs/RELEASE_PACKAGING.md`.
+- Package does not contain `.git/`, real `.env`, GitHub credentials, private keys, developer DB files, SQLite WAL/SHM files, dumps, backups, logs, tests, or dev-only files.
+- Existing client `.env`, database, uploads, and backups are preserved during update testing.
+- A database backup is created and verified before any update test.

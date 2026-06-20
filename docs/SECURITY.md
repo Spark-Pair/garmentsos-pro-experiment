@@ -43,3 +43,9 @@ If the client insists on keeping code locally:
 ## 8) Backups
 - Enable automated DB backups.
 - Store backups in encrypted storage with restricted access.
+
+## 9) Release Packaging
+- Follow `docs/RELEASE_PACKAGING.md` before preparing any client package.
+- Client packages must not include `.git/`, real `.env` files, GitHub credentials, private keys, developer databases, DB sidecar files, dumps, backups, logs, tests, or dev-only files.
+- Update packages must never overwrite a client database, client `.env`, uploads, or backups.
+- A local PHP/Laravel app on a client PC cannot be made 100% secret. Use practical controls: private repository, reviewed release package, generated client environment, no credentials in the app, signed updates in a future phase, and optional obfuscation later.
