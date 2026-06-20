@@ -318,17 +318,10 @@ class ReportController extends Controller
 
         if ($request->ajax()) {
             $reffStartDate = $request->reff_date_range_start
-<<<<<<< HEAD
-                ? Carbon::parse($request->reff_date_range_start)->toDateString()
-                : null;
-            $reffEndDate = $request->reff_date_range_end
-                ? Carbon::parse($request->reff_date_range_end)->toDateString()
-=======
                 ? Carbon::parse($request->reff_date_range_start)->startOfDay()
                 : null;
             $reffEndDate = $request->reff_date_range_end
                 ? Carbon::parse($request->reff_date_range_end)->endOfDay()
->>>>>>> dff19d0 (.)
                 : null;
             $invoiceStartDate = $request->invoice_date_range_start
                 ? Carbon::parse($request->invoice_date_range_start)->toDateString()
@@ -400,11 +393,7 @@ class ReportController extends Controller
             if ($reffStartDate || $reffEndDate) {
                 $orderArticles->whereHas('order', function ($q) use ($reffStartDate, $reffEndDate) {
                     if ($reffStartDate && $reffEndDate) {
-<<<<<<< HEAD
-                        $q->whereDate('date', '>=', $reffStartDate)->whereDate('date', '<=', $reffEndDate);
-=======
                         $q->whereBetween('date', [$reffStartDate, $reffEndDate]);
->>>>>>> dff19d0 (.)
                     } elseif ($reffStartDate) {
                         $q->whereDate('date', '>=', $reffStartDate);
                     } elseif ($reffEndDate) {
