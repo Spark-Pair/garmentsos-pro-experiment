@@ -123,6 +123,7 @@ Route::group(['middleware' => ['auth', 'activeSession', 'subscriptionExpiry', 'r
     Route::get('developer/license/offline', [LicenseController::class, 'offline'])->name('developer.license.offline');
     Route::post('developer/license/offline/import', [LicenseController::class, 'importOffline'])->name('developer.license.offline.import');
     Route::post('developer/license/refresh', [LicenseController::class, 'refresh'])->name('developer.license.refresh');
+    Route::post('developer/license/reactivation-request', [LicenseController::class, 'reactivationRequest'])->name('developer.license.reactivation-request');
     Route::get('developer/audit-logs', [LicenseController::class, 'auditLogs'])->name('developer.audit-logs');
     Route::get('developer/backups', [LicenseController::class, 'backups'])->name('developer.backups');
 

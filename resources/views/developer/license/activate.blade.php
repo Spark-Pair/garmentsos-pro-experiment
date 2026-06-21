@@ -6,7 +6,7 @@
     <div class="w-full max-w-2xl mx-auto space-y-6">
         <div>
             <h1 class="text-2xl font-semibold">Activate License</h1>
-            <p class="text-[var(--secondary-text)] mt-1">This skeleton is safe while enforcement is disabled.</p>
+            <p class="text-[var(--secondary-text)] mt-1">License key is sent for activation only and is not stored locally.</p>
         </div>
 
         <form method="POST" action="{{ route('developer.license.activate.post') }}"
@@ -15,7 +15,7 @@
 
             <div>
                 <label for="license_key" class="block text-sm font-medium mb-2">License Key</label>
-                <input id="license_key" name="license_key" type="text" value="{{ old('license_key') }}"
+                <input id="license_key" name="license_key" type="text"
                        class="w-full rounded border border-gray-700 bg-[var(--bg-color)] px-3 py-2 outline-none focus:border-[var(--primary-color)]"
                        autocomplete="off" required>
                 @error('license_key')

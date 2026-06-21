@@ -55,3 +55,5 @@ If the client insists on keeping code locally:
 - Keep `LICENSE_ENFORCEMENT_ENABLED=false` until a client is explicitly ready for activation and rollout.
 - Licensing is installation/server-based. LAN browser PCs are not separately licensed.
 - Store hashed installation fingerprints only; never persist raw machine identifiers.
+- Store only `license_key_hash`; do not store raw license keys after activation.
+- Verify signed license payloads with the public key before trusting or persisting license fields.

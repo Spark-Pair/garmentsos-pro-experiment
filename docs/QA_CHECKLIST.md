@@ -47,3 +47,6 @@ Use this checklist after changes to verify the app remains stable.
 - Signed license cache tampering is rejected in tests.
 - Installation fingerprint output is a hash/preview only, not raw machine details.
 - LAN/browser PCs are not treated as separate licensed devices.
+- Online activation stores only a license key hash, never the raw license key.
+- Offline signed license import rejects tampered, UUID-mismatched, or fingerprint-mismatched payloads.
+- Subscription refresh updates the signed cache only after signature validation.

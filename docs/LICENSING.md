@@ -56,9 +56,43 @@ auth, activeSession, ensureLicense, subscriptionExpiry, readonly, dbTransaction
 Phase 2A does not add it to the main production route group.
 
 ## Offline Activation
-Offline activation exports a request code containing the installation UUID and fingerprint hash. A future license server/tool signs a license response with a private key. The client app imports and verifies that signed response using `LICENSE_PUBLIC_KEY`.
+Offline activation exports a request code containing the installation UUID and fingerprint hash. A license server/tool signs a license response with a private key. The client app imports and verifies that signed response using `LICENSE_PUBLIC_KEY`.
 
 Private signing keys must never be shipped to client PCs.
+
+## Online Activation And Refresh
+Online activation sends the raw license key only for the activation request. The app stores only `license_key_hash` from the signed server response.
+
+Activation and refresh requests include:
+- installation UUID
+- installation fingerprint hash
+- installation mode
+- app name/version
+
+They must not include raw hardware identifiers, `.env`, `APP_KEY`, DB credentials, tokens, or private keys.
+
+Refresh sends the server license id, license key hash, installation UUID, fingerprint hash, and current signed payload hash. The server returns a new signed payload.
+
+## Signed Payload Verification
+The app verifies signed canonical JSON before trusting payload fields. The expected payload contains:
+- server license id
+- license key hash
+- client/business names
+- installation UUID and fingerprint hash
+- installation mode
+- license/subscription statuses
+- subscription/license expiry dates
+- offline grace/cache deadline
+- allowed modules/features/future brand ids
+- update channel
+- issued timestamp
+- signature version
+- payload hash
+
+Invalid signature, tampered payload, installation mismatch, fingerprint mismatch, expired cache, or suspicious dates map to blocked/tampered-style status for future enforcement.
+
+## Reactivation
+Reactivation request codes can be generated for legitimate server changes. The app does not self-approve reactivation. Approval must come from an online license response or imported signed payload.
 
 ## Data Safety
 - Do not overwrite client databases, `.env`, uploads, logs, or backups.

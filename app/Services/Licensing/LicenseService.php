@@ -4,6 +4,7 @@ namespace App\Services\Licensing;
 
 use App\Models\License;
 use App\Models\LicenseCheck;
+use App\Services\AuditLogService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 
@@ -14,6 +15,8 @@ class LicenseService
         protected InstallationFingerprintService $fingerprints,
         protected SignedLicenseFileService $signedFiles,
         protected LicenseActivationClient $activationClient,
+        protected LicensePayloadValidator $payloadValidator,
+        protected AuditLogService $auditLogs,
     ) {
     }
 
@@ -24,10 +27,6 @@ class LicenseService
 
     public function currentStatus(): LicenseStatus
     {
-        if (!$this->enabled()) {
-            return LicenseStatus::disabled();
-        }
-
         $installation = $this->identity->current();
         $license = License::query()
             ->where('app_installation_id', $installation->id)
@@ -79,6 +78,24 @@ class LicenseService
             );
         }
 
+        if ($license->subscription_status === 'grace' && $license->offline_grace_until) {
+            if (Carbon::now()->lessThanOrEqualTo($license->offline_grace_until)) {
+                return LicenseStatus::problem(
+                    'offline_grace',
+                    'none',
+                    'Offline grace is active. License server refresh is recommended.',
+                    $payload,
+                );
+            }
+
+            return LicenseStatus::problem(
+                'grace_expired',
+                $license->enforcement_mode ?: $this->defaultEnforcementMode(),
+                'Offline grace has expired.',
+                $payload,
+            );
+        }
+
         if (
             $license->subscription_status === 'expired'
             || ($license->subscription_expires_at && Carbon::now()->greaterThan($license->subscription_expires_at))
@@ -107,13 +124,19 @@ class LicenseService
 
     public function activate(string $licenseKey): LicenseStatus
     {
-        if (!$this->enabled()) {
-            return LicenseStatus::disabled();
-        }
-
         $installation = $this->identity->current();
         $fingerprintHash = $this->fingerprints->fingerprintHash();
-        $result = $this->activationClient->activate($licenseKey, $fingerprintHash);
+
+        $this->auditLogs->record('license.online_activation_attempted', [
+            'installation_uuid' => $this->identity->maskedUuid($installation),
+            'fingerprint_preview' => $this->fingerprints->fingerprintPreview(),
+        ]);
+
+        $result = $this->activationClient->activate($licenseKey, [
+            'installation_uuid' => $installation->installation_uuid,
+            'fingerprint_hash' => $fingerprintHash,
+            'installation_mode' => $installation->installation_mode,
+        ]);
 
         if (!($result['ok'] ?? false)) {
             $status = LicenseStatus::problem(
@@ -122,19 +145,110 @@ class LicenseService
                 $result['message'] ?? 'License activation failed.',
             );
             $this->recordCheck($installation, null, 'activation', $status);
+            $this->auditLogs->record('license.online_activation_failed', [
+                'reason' => $status->message,
+            ]);
 
             return $status;
         }
 
-        return LicenseStatus::valid('server', [
-            'message' => 'License activation response received.',
+        return $this->persistSignedDocument([
+            'payload' => $result['payload'] ?? null,
+            'signature' => $result['signature'] ?? null,
+        ], 'activation', 'server');
+    }
+
+    public function importSignedLicense(string $signedLicense, string $checkType = 'offline_activation'): LicenseStatus
+    {
+        $this->auditLogs->record('license.offline_import_attempted');
+
+        $decoded = $this->signedFiles->decodeDocument($signedLicense);
+        if (!($decoded['valid'] ?? false)) {
+            $status = LicenseStatus::problem('tampered', 'blocked', 'Signed license payload is invalid.');
+            $this->recordCheck($this->identity->current(), null, $checkType, $status);
+            $this->auditLogs->record('license.offline_import_failed', [
+                'reason' => $decoded['reason'] ?? 'invalid',
+            ]);
+
+            return $status;
+        }
+
+        return $this->persistSignedDocument($decoded['document'], $checkType, 'signed_import');
+    }
+
+    public function refresh(): LicenseStatus
+    {
+        $installation = $this->identity->current();
+        $license = License::query()
+            ->where('app_installation_id', $installation->id)
+            ->latest('id')
+            ->first();
+
+        $this->auditLogs->record('license.refresh_attempted');
+
+        if (!$license) {
+            $status = LicenseStatus::problem('unactivated', 'blocked', 'No license has been activated.');
+            $this->recordCheck($installation, null, 'online', $status);
+            $this->auditLogs->record('license.refresh_failed', ['reason' => 'unactivated']);
+
+            return $status;
+        }
+
+        $result = $this->activationClient->refresh([
+            'server_license_id' => $license->metadata['server_license_id'] ?? null,
+            'license_key_hash' => $license->license_key_hash,
+            'installation_uuid' => $installation->installation_uuid,
+            'fingerprint_hash' => $this->fingerprints->fingerprintHash(),
+            'signed_payload_hash' => $license->signed_payload_hash,
+            'app' => 'garmentsos-pro',
+            'app_version' => config('app.version', 'local'),
         ]);
+
+        if (!($result['ok'] ?? false)) {
+            $status = LicenseStatus::problem(
+                'network_error',
+                'none',
+                $result['message'] ?? 'License refresh failed.',
+            );
+            $this->recordCheck($installation, $license, 'online', $status);
+            $this->auditLogs->record('license.refresh_failed', [
+                'reason' => $status->message,
+            ]);
+
+            return $status;
+        }
+
+        return $this->persistSignedDocument([
+            'payload' => $result['payload'] ?? null,
+            'signature' => $result['signature'] ?? null,
+        ], 'online', 'server');
     }
 
     public function statusFromSignedCache(): LicenseStatus
     {
-        $result = $this->signedFiles->read();
+        $read = $this->signedFiles->read();
 
+        if (($read['valid'] ?? false) !== true) {
+            $reason = (string) ($read['reason'] ?? 'invalid');
+
+            if ($reason === 'missing') {
+                return LicenseStatus::problem(
+                    'unactivated',
+                    'blocked',
+                    'No signed license cache is present.',
+                    ['source' => 'signed_cache'],
+                );
+            }
+
+            return LicenseStatus::problem(
+                'tampered',
+                'blocked',
+                'Signed license cache is invalid or tampered.',
+                ['source' => 'signed_cache'],
+            );
+        }
+
+        $result = $this->payloadValidator->validatePayload($read['payload']);
         if (($result['valid'] ?? false) === true) {
             return LicenseStatus::valid('signed_cache', [
                 'message' => 'Signed license cache is valid.',
@@ -142,21 +256,90 @@ class LicenseService
         }
 
         $reason = (string) ($result['reason'] ?? 'invalid');
-        if ($reason === 'missing') {
-            return LicenseStatus::problem(
-                'unactivated',
-                'blocked',
-                'No signed license cache is present.',
-                ['source' => 'signed_cache'],
-            );
-        }
-
         return LicenseStatus::problem(
-            'tampered',
+            $this->statusStateForValidationFailure($reason),
             'blocked',
             'Signed license cache is invalid or tampered.',
             ['source' => 'signed_cache'],
         );
+    }
+
+    public function persistSignedDocument(array $document, string $checkType, string $source): LicenseStatus
+    {
+        $installation = $this->identity->current();
+        $result = $this->payloadValidator->validateDocument($document);
+
+        if (!($result['valid'] ?? false)) {
+            $status = LicenseStatus::problem(
+                $this->statusStateForValidationFailure((string) ($result['reason'] ?? 'invalid')),
+                'blocked',
+                'Signed license payload could not be verified.',
+                ['source' => $source],
+            );
+            $this->recordCheck($installation, null, $checkType, $status);
+            $this->auditLogs->record($this->auditEventForCheckType($checkType, false), [
+                'reason' => $result['reason'] ?? 'invalid',
+            ]);
+
+            return $status;
+        }
+
+        $payload = $result['payload'];
+        $installation->update([
+            'installation_mode' => $payload['installation_mode'],
+            'fingerprint_hash' => $payload['fingerprint_hash'],
+            'last_seen_at' => now(),
+            'metadata' => [
+                'signature_version' => $payload['signature_version'],
+            ],
+        ]);
+
+        $existingLicense = License::query()
+            ->where('app_installation_id', $installation->id)
+            ->latest('id')
+            ->first();
+
+        $license = License::updateOrCreate(
+            ['app_installation_id' => $installation->id],
+            [
+                'license_key_hash' => $payload['license_key_hash'],
+                'client_name' => $payload['client_name'],
+                'business_name' => $payload['business_name'],
+                'status' => $payload['license_status'],
+                'subscription_status' => $payload['subscription_status'],
+                'subscription_expires_at' => $payload['subscription_expires_at'],
+                'license_expires_at' => $payload['license_expires_at'],
+                'offline_grace_days' => (int) config('licensing.offline_grace_days', 7),
+                'offline_grace_until' => $payload['offline_grace_until'] ?? $payload['cache_until'],
+                'enforcement_mode' => 'readonly',
+                'allowed_modules' => $payload['allowed_modules'] ?? [],
+                'allowed_features' => $payload['allowed_features'] ?? [],
+                'allowed_brand_ids' => $payload['allowed_brand_ids'] ?? [],
+                'update_channel' => $payload['update_channel'],
+                'last_verified_at' => now(),
+                'last_online_check_at' => in_array($checkType, ['activation', 'online'], true)
+                    ? now()
+                    : $existingLicense?->last_online_check_at,
+                'signed_payload_hash' => $result['payload_hash'],
+                'metadata' => [
+                    'server_license_id' => $payload['server_license_id'],
+                    'signature_version' => $payload['signature_version'],
+                    'payload_hash' => $payload['payload_hash'],
+                ],
+            ],
+        );
+
+        $this->signedFiles->write($payload, (string) $document['signature']);
+
+        $status = $this->statusForLicense($license->fresh('installation'));
+        $this->recordCheck($installation, $license, $checkType, $status);
+        $this->auditLogs->record($this->auditEventForCheckType($checkType, true), [
+            'server_license_id' => $payload['server_license_id'],
+            'subscription_status' => $payload['subscription_status'],
+            'license_status' => $payload['license_status'],
+        ]);
+
+        return $status;
     }
 
     public function recordCheck(mixed $installation, ?License $license, string $type, LicenseStatus $status): void
@@ -179,5 +362,24 @@ class LicenseService
     protected function defaultEnforcementMode(): string
     {
         return (string) config('licensing.default_enforcement_mode', 'readonly');
+    }
+
+    protected function statusStateForValidationFailure(string $reason): string
+    {
+        return match ($reason) {
+            'installation_uuid_mismatch', 'fingerprint_mismatch' => 'installation_mismatch',
+            default => 'tampered',
+        };
+    }
+
+    protected function auditEventForCheckType(string $checkType, bool $success): string
+    {
+        $suffix = $success ? 'succeeded' : 'failed';
+
+        return match ($checkType) {
+            'activation' => 'license.online_activation_' . $suffix,
+            'online' => 'license.refresh_' . $suffix,
+            default => 'license.offline_import_' . $suffix,
+        };
     }
 }

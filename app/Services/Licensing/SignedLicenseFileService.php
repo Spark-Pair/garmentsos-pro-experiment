@@ -7,6 +7,11 @@ use JsonException;
 
 class SignedLicenseFileService
 {
+    public function __construct(
+        protected CanonicalJsonVerifier $verifier,
+    ) {
+    }
+
     public function read(): array
     {
         $path = $this->path();
@@ -35,28 +40,40 @@ class SignedLicenseFileService
         ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
     }
 
+    public function decodeDocument(string $signedLicense): array
+    {
+        $signedLicense = trim($signedLicense);
+
+        $decoded = base64_decode($signedLicense, true);
+        if ($decoded !== false) {
+            $signedLicense = $decoded;
+        }
+
+        try {
+            $document = json_decode($signedLicense, true, 512, JSON_THROW_ON_ERROR);
+        } catch (JsonException) {
+            return ['valid' => false, 'reason' => 'invalid_json'];
+        }
+
+        if (!is_array($document)) {
+            return ['valid' => false, 'reason' => 'invalid_schema'];
+        }
+
+        return ['valid' => true, 'document' => $document];
+    }
+
     public function verifyDocument(array $document): array
     {
         if (!isset($document['payload'], $document['signature']) || !is_array($document['payload'])) {
             return ['valid' => false, 'reason' => 'invalid_schema'];
         }
 
-        $publicKey = trim((string) config('licensing.public_key', ''));
-        if ($publicKey === '') {
-            return ['valid' => false, 'reason' => 'missing_public_key'];
-        }
-
-        $signature = base64_decode((string) $document['signature'], true);
-        if ($signature === false) {
-            return ['valid' => false, 'reason' => 'invalid_signature_encoding'];
+        $signatureResult = $this->verifier->verify($document['payload'], (string) $document['signature']);
+        if (!($signatureResult['valid'] ?? false)) {
+            return $signatureResult;
         }
 
         $canonicalPayload = $this->canonicalJson($document['payload']);
-        $result = openssl_verify($canonicalPayload, $signature, $publicKey, OPENSSL_ALGO_SHA256);
-
-        if ($result !== 1) {
-            return ['valid' => false, 'reason' => 'signature_mismatch'];
-        }
 
         return [
             'valid' => true,
@@ -68,24 +85,7 @@ class SignedLicenseFileService
 
     public function canonicalJson(array $payload): string
     {
-        $normalized = $this->sortKeysRecursive($payload);
-
-        return json_encode($normalized, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
-    }
-
-    protected function sortKeysRecursive(array $value): array
-    {
-        foreach ($value as $key => $item) {
-            if (is_array($item)) {
-                $value[$key] = $this->sortKeysRecursive($item);
-            }
-        }
-
-        if (!array_is_list($value)) {
-            ksort($value);
-        }
-
-        return $value;
+        return $this->verifier->canonicalJson($payload);
     }
 
     protected function path(): string

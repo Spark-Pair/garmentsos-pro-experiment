@@ -18,6 +18,10 @@ class AuditLogService
         'authorization',
         'env',
         'app_key',
+        'signed_license',
+        'signed_payload',
+        'signature',
+        'payload',
     ];
 
     public function sanitizeContext(array $context): array

@@ -3,15 +3,19 @@
 namespace App\Http\Controllers\Developer;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\ActivateLicenseRequest;
+use App\Http\Requests\ImportOfflineLicenseRequest;
+use App\Http\Requests\ReactivateLicenseRequest;
+use App\Http\Requests\RefreshLicenseRequest;
 use App\Models\AuditLog;
 use App\Models\BackupLog;
+use App\Models\License;
 use App\Services\BackupService;
 use App\Services\Licensing\InstallationFingerprintService;
 use App\Services\Licensing\InstallationIdentityService;
 use App\Services\Licensing\LicenseService;
 use App\Services\Licensing\OfflineActivationService;
 use App\Services\RestoreService;
-use Illuminate\Http\Request;
 
 class LicenseController extends Controller
 {
@@ -37,6 +41,7 @@ class LicenseController extends Controller
             'installationPreview' => $identity->maskedUuid($installation),
             'installationMode' => $installation->installation_mode,
             'licensingEnabled' => $licenses->enabled(),
+            'cacheStatus' => $licenses->statusFromSignedCache(),
         ]);
     }
 
@@ -49,28 +54,19 @@ class LicenseController extends Controller
         return view('developer.license.activate');
     }
 
-    public function activatePost(Request $request, LicenseService $licenses)
+    public function activatePost(ActivateLicenseRequest $request, LicenseService $licenses)
     {
         if ($resp = $this->denyIfNoRole(['developer', 'admin'])) {
             return $resp;
         }
 
-        $data = $request->validate([
-            'license_key' => ['required', 'string', 'max:255'],
-        ]);
+        $data = $request->validated();
 
         $status = $licenses->activate($data['license_key']);
-
-        if ($status->state === 'disabled') {
-            return redirect()
-                ->route('developer.license.status')
-                ->with('info', 'License enforcement is disabled. Activation was not attempted.');
-        }
 
         if (!$status->isAllowed()) {
             return redirect()
                 ->back()
-                ->withInput()
                 ->with('error', $status->message);
         }
 
@@ -87,33 +83,61 @@ class LicenseController extends Controller
 
         return view('developer.license.offline', [
             'requestCode' => $offline->requestCode(),
+            'reactivationCode' => null,
         ]);
     }
 
-    public function importOffline(Request $request)
+    public function importOffline(ImportOfflineLicenseRequest $request, LicenseService $licenses)
     {
         if ($resp = $this->denyIfNoRole(['developer', 'admin'])) {
             return $resp;
         }
 
-        $request->validate([
-            'signed_license' => ['required', 'string'],
-        ]);
+        $status = $licenses->importSignedLicense($request->validated('signed_license'));
+
+        if (!$status->isAllowed()) {
+            return redirect()
+                ->back()
+                ->with('error', $status->message);
+        }
 
         return redirect()
             ->route('developer.license.status')
-            ->with('info', 'Offline signed license import skeleton is ready; verification will be wired in a later phase.');
+            ->with('success', $status->message);
     }
 
-    public function refresh()
+    public function refresh(RefreshLicenseRequest $request, LicenseService $licenses)
     {
         if ($resp = $this->denyIfNoRole(['developer', 'admin'])) {
             return $resp;
         }
 
+        $status = $licenses->refresh();
+
+        if (!$status->isAllowed()) {
+            return redirect()
+                ->route('developer.license.status')
+                ->with('error', $status->message);
+        }
+
         return redirect()
             ->route('developer.license.status')
-            ->with('info', 'Subscription refresh skeleton is ready; online refresh will be wired in a later phase.');
+            ->with('success', $status->message);
+    }
+
+    public function reactivationRequest(ReactivateLicenseRequest $request, OfflineActivationService $offline)
+    {
+        if ($resp = $this->denyIfNoRole(['developer', 'admin'])) {
+            return $resp;
+        }
+
+        $license = License::latest('id')->first();
+        $code = $offline->reactivationRequestCode($request->validated('reason'), $license?->metadata ?? null);
+
+        return view('developer.license.offline', [
+            'requestCode' => $offline->requestCode(),
+            'reactivationCode' => $code,
+        ]);
     }
 
     public function auditLogs()
