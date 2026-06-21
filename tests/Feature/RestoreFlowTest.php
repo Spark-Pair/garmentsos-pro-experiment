@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Http\Middleware\CheckActiveSession;
 use App\Http\Middleware\SubscriptionExpiry;
 use App\Http\Middleware\VerifyCsrfToken;
+use App\Models\AuditLog;
 use App\Models\BackupLog;
 use App\Models\User;
 use App\Services\BackupService;
@@ -78,7 +79,8 @@ class RestoreFlowTest extends TestCase
         $response->assertRedirect(route('developer.backups.restore.show', $backup));
         $response->assertSessionHas('error');
         $this->assertSame('Changed Name', User::find($user->id)->name);
-        $this->assertDatabaseHas('audit_logs', ['event_type' => 'restore.blocked_disabled']);
+        $this->assertSame(0, BackupLog::where('action', 'restore')->count());
+        $this->assertSame(0, AuditLog::where('event_type', 'like', 'restore.%')->count());
     }
 
     public function test_developer_and_admin_can_view_restore_details(): void

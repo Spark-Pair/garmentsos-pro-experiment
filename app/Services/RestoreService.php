@@ -69,6 +69,15 @@ class RestoreService
 
     public function restore(BackupLog $backupLog, array $input): array
     {
+        if (!$this->enabled()) {
+            return [
+                'success' => false,
+                'code' => 'blocked_disabled',
+                'message' => 'Restore is disabled by configuration.',
+                'restore_log' => null,
+            ];
+        }
+
         $restoreLog = $this->backups->createLog('restore', 'pending', [
             'filename' => $backupLog->filename,
             'context' => [
@@ -76,12 +85,6 @@ class RestoreService
                 'restore_enabled' => $this->enabled(),
             ],
         ]);
-
-        if (!$this->enabled()) {
-            return $this->fail($restoreLog, 'restore.blocked_disabled', 'Restore is disabled by configuration.', [
-                'selected_backup_log_id' => $backupLog->id,
-            ]);
-        }
 
         $expectedPhrase = $this->confirmationPhrase($backupLog);
         if (($input['confirmation_phrase'] ?? '') !== $expectedPhrase) {
