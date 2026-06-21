@@ -8,14 +8,11 @@ use App\Http\Requests\ImportOfflineLicenseRequest;
 use App\Http\Requests\ReactivateLicenseRequest;
 use App\Http\Requests\RefreshLicenseRequest;
 use App\Models\AuditLog;
-use App\Models\BackupLog;
 use App\Models\License;
-use App\Services\BackupService;
 use App\Services\Licensing\InstallationFingerprintService;
 use App\Services\Licensing\InstallationIdentityService;
 use App\Services\Licensing\LicenseService;
 use App\Services\Licensing\OfflineActivationService;
-use App\Services\RestoreService;
 
 class LicenseController extends Controller
 {
@@ -151,15 +148,4 @@ class LicenseController extends Controller
         ]);
     }
 
-    public function backups(BackupService $backups, RestoreService $restore)
-    {
-        if ($resp = $this->denyIfNoRole(['developer', 'admin'])) {
-            return $resp;
-        }
-
-        return view('developer.license.backups', [
-            'logs' => BackupLog::latest('started_at')->limit(50)->get(),
-            'restoreRequirements' => $restore->requirements(),
-        ]);
-    }
 }

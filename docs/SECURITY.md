@@ -43,6 +43,8 @@ If the client insists on keeping code locally:
 ## 8) Backups
 - Enable automated DB backups.
 - Store backups in encrypted storage with restricted access.
+- Store application-created backups outside `public/` and require developer/admin authorization for downloads.
+- Verify backup checksums before trusting a backup file.
 
 ## 9) Release Packaging
 - Follow `docs/RELEASE_PACKAGING.md` before preparing any client package.

@@ -11,6 +11,7 @@ use App\Http\Controllers\CRController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\CustomerPaymentController;
 use App\Http\Controllers\DailyLedgerController;
+use App\Http\Controllers\Developer\BackupController;
 use App\Http\Controllers\Developer\LicenseController;
 use App\Http\Controllers\DRController;
 use App\Http\Controllers\EmployeeController;
@@ -36,11 +37,7 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\UtilityAccountController;
 use App\Http\Controllers\UtilityBillController;
 use App\Http\Controllers\VoucherController;
-use Illuminate\Support\Facades\Response;
 use Illuminate\Support\Facades\Route;
-use Illuminate\Support\Facades\File;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Http\Request;
 /*
 |--------------------------------------------------------------------------
 | Web Routes
@@ -58,51 +55,15 @@ Route::get('subscription-expired', function () {
     return view('subscription-expired'); // ya controller agar chahiye
 })->name('subscription-expired');
 
+Route::group(['middleware' => ['auth', 'activeSession', 'subscriptionExpiry', 'readonly']], function () {
+    Route::get('/backup-db', [BackupController::class, 'legacyDownload'])->name('backup-db');
+    Route::get('developer/backups', [BackupController::class, 'index'])->name('developer.backups');
+    Route::post('developer/backups', [BackupController::class, 'store'])->name('developer.backups.store');
+    Route::post('developer/backups/{backupLog}/verify', [BackupController::class, 'verify'])->name('developer.backups.verify');
+    Route::get('developer/backups/{backupLog}/download', [BackupController::class, 'download'])->name('developer.backups.download');
+});
+
 Route::group(['middleware' => ['auth', 'activeSession', 'subscriptionExpiry', 'readonly', 'dbTransaction']], function () {
-    Route::get('/backup-db', function () {
-        try {
-            $allowedRoles = ['developer', 'admin'];
-            if (!in_array(auth()->user()?->role, $allowedRoles, true)) {
-                return response('You do not have permission to download database backup.', 403);
-            }
-
-            if (config('database.default') !== 'sqlite') {
-                return response('Backup route currently supports sqlite only.', 400);
-            }
-
-            $sourcePath = (string) config('database.connections.sqlite.database', '');
-            if ($sourcePath === '') {
-                $sourcePath = (string) env('DB_DATABASE', '');
-            }
-            if ($sourcePath === '') {
-                $sourcePath = database_path('database.sqlite');
-            }
-
-            $isWindowsAbsolute = preg_match('/^[A-Za-z]:[\\\\\\/]/', $sourcePath) === 1;
-            $isUnixAbsolute = str_starts_with($sourcePath, '/');
-            if (!$isWindowsAbsolute && !$isUnixAbsolute) {
-                $sourcePath = base_path($sourcePath);
-            }
-
-            if (!$sourcePath || !File::exists($sourcePath)) {
-                return response('Database file not found for sqlite connection at: ' . $sourcePath, 404);
-            }
-
-            return Response::download($sourcePath, 'database.sqlite', [
-                'Content-Type' => 'application/octet-stream',
-                'Cache-Control' => 'no-store, no-cache, must-revalidate, max-age=0',
-            ]);
-        } catch (\Throwable $e) {
-            Log::error('DB backup failed', [
-                'message' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-                'user_id' => auth()->id(),
-            ]);
-
-            return response('Backup generation failed: ' . $e->getMessage(), 500);
-        }
-    });
-
     Route::get('', function () {
         return redirect(route('home'));
     });
@@ -125,7 +86,6 @@ Route::group(['middleware' => ['auth', 'activeSession', 'subscriptionExpiry', 'r
     Route::post('developer/license/refresh', [LicenseController::class, 'refresh'])->name('developer.license.refresh');
     Route::post('developer/license/reactivation-request', [LicenseController::class, 'reactivationRequest'])->name('developer.license.reactivation-request');
     Route::get('developer/audit-logs', [LicenseController::class, 'auditLogs'])->name('developer.audit-logs');
-    Route::get('developer/backups', [LicenseController::class, 'backups'])->name('developer.backups');
 
     Route::resource('suppliers', SupplierController::class);
     Route::post('update-supplier-category', [SupplierController::class, 'updateSupplierCategory'])->name('update-supplier-category');

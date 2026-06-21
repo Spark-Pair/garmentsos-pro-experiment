@@ -40,6 +40,9 @@ Use this checklist after changes to verify the app remains stable.
 - Package does not contain `.git/`, real `.env`, GitHub credentials, private keys, developer DB files, SQLite WAL/SHM files, dumps, backups, logs, tests, or dev-only files.
 - Existing client `.env`, database, uploads, and backups are preserved during update testing.
 - A database backup is created and verified before any update test.
+- Managed backups are stored outside `public/` and downloaded only through developer/admin protected routes.
+- Backup metadata and SHA-256 checksum are created and verification rejects invalid or tampered files.
+- Restore remains unavailable until the dedicated restore phase adds confirmation, emergency backup, validation, and rollback tests.
 
 ## 9) Licensing Foundation
 - `LICENSE_ENFORCEMENT_ENABLED=false` keeps existing app behavior unchanged.
