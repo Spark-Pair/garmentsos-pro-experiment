@@ -127,6 +127,27 @@ class LicensingActivationTest extends TestCase
         $this->assertSame('blocked', $status->enforcement);
     }
 
+    public function test_fingerprint_mismatch_blocks_before_subscription_expiry_readonly(): void
+    {
+        $installation = app(InstallationIdentityService::class)->current();
+        $license = License::create([
+            'app_installation_id' => $installation->id,
+            'license_key_hash' => hash('sha256', 'copied-installation'),
+            'status' => 'active',
+            'subscription_status' => 'expired',
+            'subscription_expires_at' => now()->subDay(),
+            'offline_grace_until' => now()->addDay(),
+            'enforcement_mode' => 'readonly',
+        ]);
+
+        $installation->update(['fingerprint_hash' => hash('sha256', 'other-server')]);
+
+        $status = app(LicenseService::class)->statusForLicense($license->fresh('installation'));
+
+        $this->assertSame('installation_mismatch', $status->state);
+        $this->assertSame('blocked', $status->enforcement);
+    }
+
     public function test_refresh_updates_signed_cache_and_subscription_dates(): void
     {
         app(LicenseService::class)->importSignedLicense(json_encode($this->signedDocument([

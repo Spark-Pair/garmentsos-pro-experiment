@@ -78,6 +78,17 @@ class LicenseService
             );
         }
 
+        $installation = $license->installation;
+
+        if (!$installation || $installation->fingerprint_hash !== $this->fingerprints->fingerprintHash()) {
+            return LicenseStatus::problem(
+                'installation_mismatch',
+                'blocked',
+                'This app installation does not match the activated license.',
+                $payload,
+            );
+        }
+
         if ($license->subscription_status === 'grace' && $license->offline_grace_until) {
             if (Carbon::now()->lessThanOrEqualTo($license->offline_grace_until)) {
                 return LicenseStatus::problem(
@@ -104,17 +115,6 @@ class LicenseService
                 'subscription_expired',
                 $license->enforcement_mode ?: $this->defaultEnforcementMode(),
                 'Subscription has expired. Read-only mode should be used when enforcement is enabled.',
-                $payload,
-            );
-        }
-
-        $installation = $license->installation;
-
-        if (!$installation || $installation->fingerprint_hash !== $this->fingerprints->fingerprintHash()) {
-            return LicenseStatus::problem(
-                'installation_mismatch',
-                'blocked',
-                'This app installation does not match the activated license.',
                 $payload,
             );
         }
