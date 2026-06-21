@@ -44,6 +44,11 @@ class BackupVerifier
                 return $metadataResult;
             }
 
+            $schemaResult = $this->verifyRequiredTables($path, $checksum);
+            if (!$schemaResult['valid']) {
+                return $schemaResult;
+            }
+
             return $this->result(true, 'valid', 'Backup verified successfully.', $checksum);
         } catch (RuntimeException $e) {
             return $this->result(false, 'unsafe_path', $e->getMessage());
@@ -71,6 +76,26 @@ class BackupVerifier
         }
 
         return $this->result(true, 'metadata_valid', 'Backup metadata verified.', $checksum);
+    }
+
+    protected function verifyRequiredTables(string $path, string $checksum): array
+    {
+        $requiredTables = ['migrations', 'users'];
+
+        try {
+            $pdo = new \PDO('sqlite:' . $path);
+            $statement = $pdo->query("SELECT name FROM sqlite_master WHERE type = 'table'");
+            $tables = $statement ? $statement->fetchAll(\PDO::FETCH_COLUMN) : [];
+        } catch (\Throwable) {
+            return $this->result(false, 'schema_unreadable', 'Backup SQLite schema could not be read.', $checksum);
+        }
+
+        $missing = array_values(array_diff($requiredTables, $tables));
+        if ($missing !== []) {
+            return $this->result(false, 'schema_missing_tables', 'Backup is missing required application tables.', $checksum);
+        }
+
+        return $this->result(true, 'schema_valid', 'Backup schema verified.', $checksum);
     }
 
     protected function result(bool $valid, string $code, string $message, ?string $checksum = null): array

@@ -40,6 +40,20 @@ class BackupStorageService
         return $this->tempPath() . DIRECTORY_SEPARATOR . $filename . '.tmp';
     }
 
+    public function restoreStagingFilePath(string $filename): string
+    {
+        $this->assertSafeFilename($filename);
+
+        return $this->tempPath() . DIRECTORY_SEPARATOR . 'restore_' . now()->format('Ymd_His') . '_' . Str::lower(Str::random(8)) . '_' . $filename;
+    }
+
+    public function restoreRollbackFilePath(string $filename): string
+    {
+        $this->assertSafeFilename($filename);
+
+        return $this->tempPath() . DIRECTORY_SEPARATOR . 'rollback_' . now()->format('Ymd_His') . '_' . Str::lower(Str::random(8)) . '_' . $filename;
+    }
+
     public function finalFilePath(string $filename): string
     {
         $this->assertSafeFilename($filename);
@@ -84,7 +98,7 @@ class BackupStorageService
         $this->ensureDirectoryExists();
 
         return BackupLog::query()
-            ->whereIn('action', ['manual_backup', 'legacy_download_backup'])
+            ->whereIn('action', ['manual_backup', 'legacy_download_backup', 'emergency_restore_backup'])
             ->where('status', 'success')
             ->whereNotNull('path')
             ->whereNotNull('filename')

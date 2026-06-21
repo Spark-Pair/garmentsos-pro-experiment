@@ -20,11 +20,11 @@ class BackupService
     ) {
     }
 
-    public function createManualBackup(string $action = 'manual_backup'): array
+    public function createManualBackup(string $action = 'manual_backup', bool $useLock = true): array
     {
-        $lock = Cache::lock('garmentsos:backup:create', (int) config('backup.lock_seconds', 300));
+        $lock = Cache::lock((string) config('backup.lock_key', 'garmentsos:backup-restore'), (int) config('backup.lock_seconds', 300));
 
-        $lockAcquired = $lock->get();
+        $lockAcquired = !$useLock || $lock->get();
 
         if (!$lockAcquired) {
             return [
@@ -150,7 +150,7 @@ class BackupService
                 'message' => 'Backup failed safely. No database files were overwritten.',
             ];
         } finally {
-            if ($lockAcquired) {
+            if ($useLock && $lockAcquired) {
                 $lock->release();
             }
         }

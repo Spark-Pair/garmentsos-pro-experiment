@@ -24,4 +24,12 @@ return [
     'max_list_items' => 100,
 
     'lock_seconds' => 300,
+
+    'lock_key' => 'garmentsos:backup-restore',
+
+    'restore' => [
+        'enabled' => env('BACKUP_RESTORE_ENABLED', false),
+        'confirmation_prefix' => 'RESTORE BACKUP',
+        'require_staging_tested' => true,
+    ],
 ];

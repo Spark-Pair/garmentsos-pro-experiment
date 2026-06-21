@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Phase 3A adds safe backup creation, verification, listing, and permission-protected download for GarmentsOS PRO. Restore is intentionally not implemented in this phase.
+Phase 3A added safe backup creation, verification, listing, and permission-protected download for GarmentsOS PRO. Phase 3B adds a guarded restore workflow foundation.
 
 ## Production Safety
 
@@ -11,6 +11,7 @@ Phase 3A adds safe backup creation, verification, listing, and permission-protec
 - Do not store backups under `public/`.
 - Do not expose direct public backup URLs.
 - Do not test restore on production first.
+- Restore is disabled by default and must be explicitly enabled only after staging/copy testing.
 
 ## Private Backup Storage
 
@@ -64,17 +65,31 @@ The legacy `/backup-db` endpoint is preserved for existing UI compatibility, but
 
 ## Restore
 
-Restore is not implemented in Phase 3A.
+Restore is guarded and disabled by default:
 
-Future restore work must require:
+```text
+BACKUP_RESTORE_ENABLED=false
+```
+
+When explicitly enabled, restore requires:
 
 - explicit confirmation
+- exact typed phrase: `RESTORE BACKUP {backupLogId}`
+- staging/copy tested checkbox
+- managed `BackupLog` ID only
+- no arbitrary filesystem path input
 - emergency backup before restore
-- validation before overwrite
+- emergency backup verification before DB replacement
+- selected backup verification before restore
+- restore/backup lock to prevent overlap
+- SQLite sidecar handling after DB connection is closed
+- post-restore validation
 - rollback plan
 - staging/copy test before production use
 - audit logging
 
+Restore is not part of updater flow and must not run automatically.
+
 ## Update And Migration Rule
 
-Before update, migration, restore, or cloud migration work, create and verify a backup first. Update packages must never overwrite client databases, uploads, backups, or environment files.
+Before update, migration, restore, or cloud migration work, create and verify a backup first. Update packages must never overwrite client databases, uploads, backups, or environment files. Restore must be tested on a copy/staging database before any client production use.

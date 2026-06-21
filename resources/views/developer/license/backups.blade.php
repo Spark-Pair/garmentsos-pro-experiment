@@ -38,8 +38,9 @@
         <div class="bg-[var(--secondary-bg-color)] border border-gray-700 rounded-lg p-5">
             <h2 class="text-lg font-semibold mb-3">Restore Status</h2>
             <ul class="space-y-2 text-[var(--secondary-text)]">
-                <li>Restore implementation: Not available in Phase 3A</li>
+                <li>Restore enabled: {{ $restoreRequirements['restore_enabled'] ? 'Yes' : 'No' }}</li>
                 <li>Confirmation required: {{ $restoreRequirements['confirmation_required'] ? 'Yes' : 'No' }}</li>
+                <li>Staging/copy test confirmation required: {{ $restoreRequirements['staging_tested_required'] ? 'Yes' : 'No' }}</li>
                 <li>Emergency backup before restore: {{ $restoreRequirements['emergency_backup_before_restore'] ? 'Yes' : 'No' }}</li>
                 <li>Public backups allowed: {{ $restoreRequirements['public_backups_allowed'] ? 'Yes' : 'No' }}</li>
             </ul>
@@ -79,6 +80,10 @@
                                     <a href="{{ route('developer.backups.download', $log) }}"
                                         class="px-3 py-1 bg-[var(--secondary-color)] text-white rounded hover:opacity-90">
                                         Download
+                                    </a>
+                                    <a href="{{ route('developer.backups.restore.show', $log) }}"
+                                        class="px-3 py-1 bg-red-900/70 text-white rounded hover:opacity-90">
+                                        Restore
                                     </a>
                                 </div>
                             </td>

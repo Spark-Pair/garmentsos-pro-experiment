@@ -45,6 +45,8 @@ If the client insists on keeping code locally:
 - Store backups in encrypted storage with restricted access.
 - Store application-created backups outside `public/` and require developer/admin authorization for downloads.
 - Verify backup checksums before trusting a backup file.
+- Keep restore disabled by default and enable it only for a controlled, tested support operation.
+- Restore must require typed confirmation, staging/copy test confirmation, emergency backup, and audit logging.
 
 ## 9) Release Packaging
 - Follow `docs/RELEASE_PACKAGING.md` before preparing any client package.

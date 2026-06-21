@@ -42,7 +42,11 @@ Use this checklist after changes to verify the app remains stable.
 - A database backup is created and verified before any update test.
 - Managed backups are stored outside `public/` and downloaded only through developer/admin protected routes.
 - Backup metadata and SHA-256 checksum are created and verification rejects invalid or tampered files.
-- Restore remains unavailable until the dedicated restore phase adds confirmation, emergency backup, validation, and rollback tests.
+- Restore is disabled by default unless `BACKUP_RESTORE_ENABLED=true`.
+- Restore requires exact typed confirmation and staging/copy tested checkbox.
+- Restore creates and verifies an emergency backup before replacing SQLite DB files.
+- Restore rejects arbitrary paths and uses managed backup log IDs only.
+- Restore is not wired into updater flow.
 
 ## 9) Licensing Foundation
 - `LICENSE_ENFORCEMENT_ENABLED=false` keeps existing app behavior unchanged.
