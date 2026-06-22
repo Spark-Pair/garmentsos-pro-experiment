@@ -17,6 +17,7 @@ Phase 5A adds a developer/admin settings foundation for safe local customization
 
 ## Safety Rules
 - Do not store secrets, tokens, passwords, private keys, `.env` values, or database credentials in settings.
+- Settings writes reject common secret-looking values before persistence.
 - Do not use label overrides for HTML or JavaScript.
 - Settings writes are limited to developer/admin users and protected by normal web auth and CSRF middleware.
 - Setting changes are audited through sanitized audit logs.

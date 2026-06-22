@@ -71,5 +71,6 @@ If the client insists on keeping code locally:
 ## 12) Developer Settings Foundation
 - Developer settings are documented in `docs/DEVELOPER_SETTINGS.md`.
 - Do not store secrets, credentials, `.env` values, tokens, private keys, or database credentials in settings tables.
+- Settings writes reject common secret-looking values before persistence, but release review should still verify settings do not contain sensitive material.
 - Label and branding text must remain plain text and be rendered escaped.
 - Module and feature settings are foundation-only until server-side enforcement is implemented in a later reviewed phase.

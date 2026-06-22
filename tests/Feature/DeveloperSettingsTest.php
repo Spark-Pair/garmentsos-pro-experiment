@@ -112,6 +112,34 @@ class DeveloperSettingsTest extends TestCase
         $this->assertDatabaseMissing('label_overrides', ['label_key' => 'article.plural']);
     }
 
+    public function test_secret_like_label_value_rejected(): void
+    {
+        $this->actingAs($this->user('developer'))
+            ->from(route('developer.settings'))
+            ->post(route('developer.settings.labels.save'), [
+                'label_key' => 'article.plural',
+                'override_text' => 'token=ghp_12345678901234567890',
+            ])
+            ->assertRedirect(route('developer.settings'))
+            ->assertSessionHas('error');
+
+        $this->assertDatabaseMissing('label_overrides', ['label_key' => 'article.plural']);
+    }
+
+    public function test_secret_like_branding_value_rejected(): void
+    {
+        $this->actingAs($this->user('developer'))
+            ->from(route('developer.settings'))
+            ->post(route('developer.settings.branding.save'), [
+                'key' => 'client_name',
+                'value' => 'APP_KEY=base64:secret',
+            ])
+            ->assertRedirect(route('developer.settings'))
+            ->assertSessionHas('error');
+
+        $this->assertDatabaseMissing('branding_settings', ['key' => 'client_name']);
+    }
+
     public function test_settings_cache_invalidates_after_update(): void
     {
         $this->actingAs($this->user('developer'));

@@ -11,6 +11,7 @@ class BrandingSettingsService
     public function __construct(
         protected SettingsCacheService $cache,
         protected AuditLogService $auditLogs,
+        protected SettingsValueGuard $valueGuard,
     ) {
     }
 
@@ -80,5 +81,7 @@ class BrandingSettingsService
         if (mb_strlen($value) > 120 || $value !== strip_tags($value)) {
             throw new \InvalidArgumentException('Branding text must be plain text up to 120 characters.');
         }
+
+        $this->valueGuard->assertNoSecretLikeValue($value);
     }
 }

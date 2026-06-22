@@ -11,6 +11,7 @@ class LabelSettingsService
     public function __construct(
         protected SettingsCacheService $cache,
         protected AuditLogService $auditLogs,
+        protected SettingsValueGuard $valueGuard,
     ) {
     }
 
@@ -80,5 +81,7 @@ class LabelSettingsService
         if ($text === '' || mb_strlen($text) > 80 || $text !== strip_tags($text)) {
             throw new \InvalidArgumentException('Label text must be plain text from 1 to 80 characters.');
         }
+
+        $this->valueGuard->assertNoSecretLikeValue($text);
     }
 }
