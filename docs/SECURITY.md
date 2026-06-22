@@ -60,4 +60,10 @@ If the client insists on keeping code locally:
 - Licensing is installation/server-based. LAN browser PCs are not separately licensed.
 - Store hashed installation fingerprints only; never persist raw machine identifiers.
 - Store only `license_key_hash`; do not store raw license keys after activation.
+
+## 11) Updater Foundation
+- Updater details are documented in `docs/UPDATER.md`.
+- Keep `UPDATER_ENABLED=false` until the update server, signed manifests, and package verification are tested.
+- Never place GitHub credentials, private repo URLs, deploy keys, update server secrets, or signing private keys on client PCs.
+- Update packages must never include client databases, `.env`, backups, logs, private storage, or secrets.
 - Verify signed license payloads with the public key before trusting or persisting license fields.

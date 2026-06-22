@@ -57,3 +57,11 @@ Use this checklist after changes to verify the app remains stable.
 - Online activation stores only a license key hash, never the raw license key.
 - Offline signed license import rejects tampered, UUID-mismatched, or fingerprint-mismatched payloads.
 - Subscription refresh updates the signed cache only after signature validation.
+
+## 10) Updater Foundation
+- `UPDATER_ENABLED=false` keeps updater network checks disabled by default.
+- Client package contains no GitHub tokens, deploy keys, private repo URLs, update secrets, or signing private keys.
+- Update manifests require signature verification before trust.
+- Update packages are checksum/signature verified before future apply.
+- Update package verification rejects `.env`, database files, WAL/SHM files, backups, logs, private storage, Git metadata, secrets, absolute paths, and path traversal.
+- Phase 4A has no apply/install route and no automatic update behavior.

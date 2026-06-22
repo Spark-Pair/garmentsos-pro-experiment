@@ -14,6 +14,7 @@ use App\Http\Controllers\DailyLedgerController;
 use App\Http\Controllers\Developer\BackupController;
 use App\Http\Controllers\Developer\LicenseController;
 use App\Http\Controllers\Developer\RestoreController;
+use App\Http\Controllers\Developer\UpdateController;
 use App\Http\Controllers\DRController;
 use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\EmployeePaymentController;
@@ -64,6 +65,8 @@ Route::group(['middleware' => ['auth', 'activeSession', 'subscriptionExpiry', 'r
     Route::get('developer/backups/{backupLog}/download', [BackupController::class, 'download'])->name('developer.backups.download');
     Route::get('developer/backups/{backupLog}/restore', [RestoreController::class, 'show'])->name('developer.backups.restore.show');
     Route::post('developer/backups/{backupLog}/restore', [RestoreController::class, 'store'])->name('developer.backups.restore.store');
+    Route::get('developer/updater', [UpdateController::class, 'index'])->name('developer.updater');
+    Route::post('developer/updater/check', [UpdateController::class, 'check'])->name('developer.updater.check');
 });
 
 Route::group(['middleware' => ['auth', 'activeSession', 'subscriptionExpiry', 'readonly', 'dbTransaction']], function () {
