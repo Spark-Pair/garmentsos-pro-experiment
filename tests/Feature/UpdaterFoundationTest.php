@@ -146,6 +146,9 @@ class UpdaterFoundationTest extends TestCase
             'database/database.sqlite' => 'forbidden_file',
             'database/database.sqlite-wal' => 'forbidden_file',
             'database/database.sqlite-shm' => 'forbidden_file',
+            'database/client.dump' => 'forbidden_file',
+            'logs/laravel.log' => 'forbidden_directory',
+            'keys/signing.key' => 'forbidden_file',
             '../evil.php' => 'path_traversal',
             '/absolute.php' => 'absolute_path',
             'C:/absolute.php' => 'absolute_path',
@@ -186,6 +189,17 @@ class UpdaterFoundationTest extends TestCase
         $this->assertFileExists($result['path']);
         $this->assertStringStartsWith(storage_path('app/' . $this->tempPath), $result['path']);
         $this->assertStringNotContainsString(public_path(), $result['path']);
+    }
+
+    public function test_download_refuses_when_updater_disabled(): void
+    {
+        Http::fake();
+
+        $result = app(UpdateDownloadService::class)->download('https://updates.example.test/package.zip');
+
+        $this->assertFalse($result['success']);
+        $this->assertSame('disabled', $result['code']);
+        Http::assertNothingSent();
     }
 
     public function test_unauthorized_users_are_blocked_from_updater_routes(): void

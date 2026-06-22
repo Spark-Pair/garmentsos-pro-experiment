@@ -19,6 +19,7 @@ class UpdatePackageVerifier
         'storage/app/private/',
         'storage/app/backups/',
         'storage/app/private/backups/',
+        'logs/',
         'backups/',
         'backup/',
     ];
@@ -106,7 +107,15 @@ class UpdatePackageVerifier
             return 'forbidden_file';
         }
 
-        if (str_ends_with($lower, '.sqlite-wal') || str_ends_with($lower, '.sqlite-shm') || str_ends_with($lower, '.pem')) {
+        if (
+            str_ends_with($lower, '.sqlite-wal')
+            || str_ends_with($lower, '.sqlite-shm')
+            || str_ends_with($lower, '.sql')
+            || str_ends_with($lower, '.dump')
+            || str_ends_with($lower, '.bak')
+            || str_ends_with($lower, '.pem')
+            || str_ends_with($lower, '.key')
+        ) {
             return 'forbidden_file';
         }
 

@@ -14,6 +14,10 @@ class UpdateDownloadService
 
     public function download(string $url): array
     {
+        if (!(bool) config('updater.enabled', false)) {
+            return $this->result(false, 'disabled', 'Updater is disabled by configuration.');
+        }
+
         $urlParts = parse_url($url);
         $scheme = $urlParts['scheme'] ?? '';
         $host = $urlParts['host'] ?? '';
