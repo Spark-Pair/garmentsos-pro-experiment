@@ -7,7 +7,7 @@
         <div>
             <h1 class="text-xl md:text-2xl font-semibold">Developer Settings</h1>
             <p class="text-sm text-[var(--secondary-text)] mt-1">
-                Local settings foundation. Module and feature enforcement are not active in this phase.
+                Local settings foundation. Phase 5B route enforcement is wired only for Articles.
             </p>
         </div>
 
@@ -125,8 +125,30 @@
                         <div class="font-semibold">{{ $module['label'] }}</div>
                         <div class="mt-1 text-xs font-mono">{{ $module['key'] }}</div>
                         <div class="mt-2 text-sm text-[var(--secondary-text)]">{{ $module['description'] }}</div>
-                        <div class="mt-3 text-sm">Default visible: {{ $module['enabled'] ? 'Yes' : 'No' }}</div>
-                        <div class="text-xs text-[var(--secondary-text)]">Route blocking is not implemented in Phase 5A.</div>
+                        <div class="mt-3 text-sm">Effective enabled: {{ $module['effective_enabled'] ? 'Yes' : 'No' }}</div>
+                        <div class="text-sm">Sidebar visible: {{ $module['effective_visible_in_sidebar'] ? 'Yes' : 'No' }}</div>
+                        <div class="text-xs text-[var(--secondary-text)]">
+                            {{ $module['key'] === 'articles' ? 'Articles route blocking is enabled as the Phase 5B proof.' : 'Route blocking is not wired for this module yet.' }}
+                        </div>
+                        @if ($module['key'] === 'articles')
+                            <form method="POST" action="{{ route('developer.settings.modules.save') }}" class="mt-3 space-y-2">
+                                @csrf
+                                <input type="hidden" name="module_key" value="articles">
+                                <input type="hidden" name="enabled" value="0">
+                                <input type="hidden" name="visible_in_sidebar" value="0">
+                                <label class="flex items-center gap-2 text-sm">
+                                    <input type="checkbox" name="enabled" value="1" @checked($module['enabled'])>
+                                    Enabled
+                                </label>
+                                <label class="flex items-center gap-2 text-sm">
+                                    <input type="checkbox" name="visible_in_sidebar" value="1" @checked($module['visible_in_sidebar'])>
+                                    Show in sidebar
+                                </label>
+                                <button type="submit" class="rounded-md bg-[var(--primary-color)] px-3 py-2 text-sm text-white">
+                                    Save Articles Module
+                                </button>
+                            </form>
+                        @endif
                     </div>
                 @endforeach
             </div>

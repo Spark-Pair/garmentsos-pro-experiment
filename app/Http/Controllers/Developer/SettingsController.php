@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Developer;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Developer\SaveBrandingSettingRequest;
 use App\Http\Requests\Developer\SaveLabelOverrideRequest;
+use App\Http\Requests\Developer\SaveModuleSettingRequest;
 use App\Services\Settings\BrandingSettingsService;
 use App\Services\Settings\FeatureFlagService;
 use App\Services\Settings\LabelSettingsService;
@@ -70,5 +71,22 @@ class SettingsController extends Controller
         }
 
         return redirect()->route('developer.settings')->with('success', 'Branding setting saved.');
+    }
+
+    public function saveModule(SaveModuleSettingRequest $request, ModuleSettingsService $modules): RedirectResponse
+    {
+        $data = $request->validated();
+
+        try {
+            $modules->save(
+                $data['module_key'],
+                (bool) $data['enabled'],
+                (bool) ($data['visible_in_sidebar'] ?? $data['enabled']),
+            );
+        } catch (\InvalidArgumentException $e) {
+            return redirect()->route('developer.settings')->with('error', $e->getMessage());
+        }
+
+        return redirect()->route('developer.settings')->with('success', 'Module setting saved.');
     }
 }

@@ -187,14 +187,16 @@
                     ['href' => route('customers.create'), 'title' => 'Add Customer'],
                 ]" />
 
-                @php
-                    $articleMenuTitle = label_text('article.plural', 'Articles');
-                    $articleDropdown = [
-                        ['href' => route('articles.index'), 'title' => label_text('article.show', 'Show Articles')],
-                        ['href' => route('articles.create'), 'title' => label_text('article.add', 'Add Article')],
-                    ];
-                @endphp
-                <x-mobile-menu-item :title="$articleMenuTitle" includesDropdown :dropdown="$articleDropdown" />
+                @if (module_enabled('articles'))
+                    @php
+                        $articleMenuTitle = label_text('article.plural', 'Articles');
+                        $articleDropdown = [
+                            ['href' => route('articles.index'), 'title' => label_text('article.show', 'Show Articles')],
+                            ['href' => route('articles.create'), 'title' => label_text('article.add', 'Add Article')],
+                        ];
+                    @endphp
+                    <x-mobile-menu-item :title="$articleMenuTitle" includesDropdown :dropdown="$articleDropdown" />
+                @endif
 
                 <x-mobile-menu-item title="Orders" includesDropdown :dropdown="[
                     ['href' => route('orders.index'), 'title' => 'Show Orders'],
@@ -367,7 +369,7 @@
             },
         @endif
 
-        @if (in_array(Auth::user()->role, ['developer', 'owner', 'admin', 'accountant', 'store_keeper']))
+        @if (module_enabled('articles') && in_array(Auth::user()->role, ['developer', 'owner', 'admin', 'accountant', 'store_keeper']))
             {
                 id: "articles",
                 name: "Articles",

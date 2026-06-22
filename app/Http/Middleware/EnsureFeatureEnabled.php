@@ -1,0 +1,29 @@
+<?php
+
+namespace App\Http\Middleware;
+
+use App\Services\Settings\FeatureFlagService;
+use Closure;
+use Illuminate\Http\Request;
+use Symfony\Component\HttpFoundation\Response;
+
+class EnsureFeatureEnabled
+{
+    public function handle(Request $request, Closure $next, string $featureKey): Response
+    {
+        if (app(FeatureFlagService::class)->enabled($featureKey)) {
+            return $next($request);
+        }
+
+        $message = 'This feature is currently disabled.';
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'status' => 'feature_disabled',
+                'message' => $message,
+            ], 403);
+        }
+
+        return redirect()->route('home')->with('error', $message);
+    }
+}

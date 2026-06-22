@@ -73,4 +73,6 @@ If the client insists on keeping code locally:
 - Do not store secrets, credentials, `.env` values, tokens, private keys, or database credentials in settings tables.
 - Settings writes reject common secret-looking values before persistence, but release review should still verify settings do not contain sensitive material.
 - Label and branding text must remain plain text and be rendered escaped.
-- Module and feature settings are foundation-only until server-side enforcement is implemented in a later reviewed phase.
+- Sidebar hiding is not security by itself; Phase 5B adds server-side Article route blocking with `moduleEnabled:articles`.
+- Other modules are not route-blocked until reviewed and wired module-by-module.
+- Feature flag middleware should be applied only to reviewed, named feature routes/actions.

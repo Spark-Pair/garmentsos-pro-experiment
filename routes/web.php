@@ -97,15 +97,16 @@ Route::group(['middleware' => ['auth', 'activeSession', 'subscriptionExpiry', 'r
     Route::post('developer/settings/labels', [SettingsController::class, 'saveLabel'])->name('developer.settings.labels.save');
     Route::post('developer/settings/labels/{key}/reset', [SettingsController::class, 'resetLabel'])->name('developer.settings.labels.reset');
     Route::post('developer/settings/branding', [SettingsController::class, 'saveBranding'])->name('developer.settings.branding.save');
+    Route::post('developer/settings/modules', [SettingsController::class, 'saveModule'])->name('developer.settings.modules.save');
 
     Route::resource('suppliers', SupplierController::class);
     Route::post('update-supplier-category', [SupplierController::class, 'updateSupplierCategory'])->name('update-supplier-category');
 
     Route::resource('customers', CustomerController::class);
 
-    Route::resource('articles', ArticleController::class);
-    Route::post('update-image', [ArticleController::class, 'updateImage'])->name('update-image');
-    Route::post('add-rate', [ArticleController::class, 'addRate'])->name('add-rate');
+    Route::resource('articles', ArticleController::class)->middleware('moduleEnabled:articles');
+    Route::post('update-image', [ArticleController::class, 'updateImage'])->middleware('moduleEnabled:articles')->name('update-image');
+    Route::post('add-rate', [ArticleController::class, 'addRate'])->middleware('moduleEnabled:articles')->name('add-rate');
 
     Route::resource('orders', OrderController::class);
 

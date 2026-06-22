@@ -47,6 +47,23 @@ class FeatureFlagService
         return false;
     }
 
+    public function effectiveState(string $key): array
+    {
+        foreach ($this->all() as $flag) {
+            if ($flag['key'] === $key) {
+                return $flag;
+            }
+        }
+
+        return [
+            'key' => $key,
+            'label' => $key,
+            'description' => '',
+            'enabled' => false,
+            'has_override' => false,
+        ];
+    }
+
     public function save(string $key, bool $enabled): FeatureFlag
     {
         if (!array_key_exists($key, $this->registry())) {
