@@ -14,6 +14,7 @@ use App\Http\Controllers\DailyLedgerController;
 use App\Http\Controllers\Developer\BackupController;
 use App\Http\Controllers\Developer\LicenseController;
 use App\Http\Controllers\Developer\RestoreController;
+use App\Http\Controllers\Developer\SettingsController;
 use App\Http\Controllers\Developer\UpdateController;
 use App\Http\Controllers\DRController;
 use App\Http\Controllers\EmployeeController;
@@ -92,6 +93,10 @@ Route::group(['middleware' => ['auth', 'activeSession', 'subscriptionExpiry', 'r
     Route::post('developer/license/refresh', [LicenseController::class, 'refresh'])->name('developer.license.refresh');
     Route::post('developer/license/reactivation-request', [LicenseController::class, 'reactivationRequest'])->name('developer.license.reactivation-request');
     Route::get('developer/audit-logs', [LicenseController::class, 'auditLogs'])->name('developer.audit-logs');
+    Route::get('developer/settings', [SettingsController::class, 'index'])->name('developer.settings');
+    Route::post('developer/settings/labels', [SettingsController::class, 'saveLabel'])->name('developer.settings.labels.save');
+    Route::post('developer/settings/labels/{key}/reset', [SettingsController::class, 'resetLabel'])->name('developer.settings.labels.reset');
+    Route::post('developer/settings/branding', [SettingsController::class, 'saveBranding'])->name('developer.settings.branding.save');
 
     Route::resource('suppliers', SupplierController::class);
     Route::post('update-supplier-category', [SupplierController::class, 'updateSupplierCategory'])->name('update-supplier-category');

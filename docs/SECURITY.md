@@ -67,3 +67,9 @@ If the client insists on keeping code locally:
 - Never place GitHub credentials, private repo URLs, deploy keys, update server secrets, or signing private keys on client PCs.
 - Update packages must never include client databases, `.env`, backups, logs, private storage, or secrets.
 - Verify signed license payloads with the public key before trusting or persisting license fields.
+
+## 12) Developer Settings Foundation
+- Developer settings are documented in `docs/DEVELOPER_SETTINGS.md`.
+- Do not store secrets, credentials, `.env` values, tokens, private keys, or database credentials in settings tables.
+- Label and branding text must remain plain text and be rendered escaped.
+- Module and feature settings are foundation-only until server-side enforcement is implemented in a later reviewed phase.

@@ -187,10 +187,14 @@
                     ['href' => route('customers.create'), 'title' => 'Add Customer'],
                 ]" />
 
-                <x-mobile-menu-item title="Articles" includesDropdown :dropdown="[
-                    ['href' => route('articles.index'), 'title' => 'Show Articles'],
-                    ['href' => route('articles.create'), 'title' => 'Add Article'],
-                ]" />
+                @php
+                    $articleMenuTitle = label_text('article.plural', 'Articles');
+                    $articleDropdown = [
+                        ['href' => route('articles.index'), 'title' => label_text('article.show', 'Show Articles')],
+                        ['href' => route('articles.create'), 'title' => label_text('article.add', 'Add Article')],
+                    ];
+                @endphp
+                <x-mobile-menu-item :title="$articleMenuTitle" includesDropdown :dropdown="$articleDropdown" />
 
                 <x-mobile-menu-item title="Orders" includesDropdown :dropdown="[
                     ['href' => route('orders.index'), 'title' => 'Show Orders'],

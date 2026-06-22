@@ -65,3 +65,10 @@ Use this checklist after changes to verify the app remains stable.
 - Update packages are checksum/signature verified before future apply.
 - Update package verification rejects `.env`, database files, WAL/SHM files, backups, logs, private storage, Git metadata, secrets, absolute paths, and path traversal.
 - Phase 4A has no apply/install route and no automatic update behavior.
+
+## 11) Developer Settings Foundation
+- Missing settings keep existing labels, branding, modules, and feature behavior unchanged.
+- Developer/admin users can view the settings screen; other roles cannot change settings.
+- Label overrides accept plain text only, reject HTML, can be reset, and invalidate cache.
+- Sidebar Article labels use safe fallback labels when no override exists.
+- Module and feature listings do not block business routes in Phase 5A.
