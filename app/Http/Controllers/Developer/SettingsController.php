@@ -7,8 +7,10 @@ use App\Http\Requests\Developer\SaveBrandingSettingRequest;
 use App\Http\Requests\Developer\SaveLabelOverrideRequest;
 use App\Http\Requests\Developer\SaveModuleSettingRequest;
 use App\Services\Settings\BrandingSettingsService;
+use App\Services\Settings\FeatureAvailabilityService;
 use App\Services\Settings\FeatureFlagService;
 use App\Services\Settings\LabelSettingsService;
+use App\Services\Settings\ModuleAvailabilityService;
 use App\Services\Settings\ModuleSettingsService;
 use Illuminate\Http\RedirectResponse;
 
@@ -16,8 +18,8 @@ class SettingsController extends Controller
 {
     public function index(
         LabelSettingsService $labels,
-        ModuleSettingsService $modules,
-        FeatureFlagService $features,
+        ModuleAvailabilityService $modules,
+        FeatureAvailabilityService $features,
         BrandingSettingsService $branding,
     ) {
         if ($resp = $this->denyIfNoRole(['developer', 'admin'])) {

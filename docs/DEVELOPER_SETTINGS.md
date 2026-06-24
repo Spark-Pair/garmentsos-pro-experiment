@@ -10,6 +10,9 @@ Phase 5A adds a developer/admin settings foundation for safe local customization
 - Phase 5B enforces only the `articles` module as the first module visibility and route-blocking proof.
 - Other modules may be listed in settings but are not route-blocked yet.
 - Sidebar hiding is not security by itself; direct URL access is blocked by `moduleEnabled:articles` middleware for the Article proof routes.
+- License restrictions win over local settings when licensing is enabled and a license declares allowed modules/features.
+- Local settings cannot enable a module or feature that is not included in the active license.
+- Missing local settings or missing license restriction lists preserve current staged behavior.
 
 ## Not Implemented In Phase 5A
 - Full module route blocking.
@@ -25,6 +28,7 @@ Phase 5A adds a developer/admin settings foundation for safe local customization
 - Settings writes are limited to developer/admin users and protected by normal web auth and CSRF middleware.
 - Setting changes are audited through sanitized audit logs.
 - Module enforcement must expand module-by-module only after each route map is reviewed.
+- No automatic global module lockdown has been added.
 
 ## Future Work
 - Add explicit module/feature enforcement middleware only after a separate review.

@@ -76,3 +76,5 @@ If the client insists on keeping code locally:
 - Sidebar hiding is not security by itself; Phase 5B adds server-side Article route blocking with `moduleEnabled:articles`.
 - Other modules are not route-blocked until reviewed and wired module-by-module.
 - Feature flag middleware should be applied only to reviewed, named feature routes/actions.
+- License module/feature restrictions take precedence over local developer settings when a license declares allowed modules/features.
+- Local settings cannot bypass license-disallowed modules or features.

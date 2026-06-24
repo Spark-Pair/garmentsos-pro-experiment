@@ -127,6 +127,14 @@
                         <div class="mt-2 text-sm text-[var(--secondary-text)]">{{ $module['description'] }}</div>
                         <div class="mt-3 text-sm">Effective enabled: {{ $module['effective_enabled'] ? 'Yes' : 'No' }}</div>
                         <div class="text-sm">Sidebar visible: {{ $module['effective_visible_in_sidebar'] ? 'Yes' : 'No' }}</div>
+                        <div class="text-sm">License: {{ is_null($module['license_allowed']) ? 'Unrestricted' : ($module['license_allowed'] ? 'Allowed' : 'Restricted') }}</div>
+                        <div class="text-sm">Local: {{ is_null($module['local_enabled']) ? 'Default' : ($module['local_enabled'] ? 'Enabled' : 'Disabled') }}</div>
+                        <div class="text-xs text-[var(--secondary-text)]">Reason: {{ $module['reason'] }}</div>
+                        @if ($module['reason'] === 'disabled_by_license' && $module['local_enabled'] === true)
+                            <div class="mt-2 rounded-md bg-yellow-100 px-3 py-2 text-xs text-yellow-800">
+                                Local settings cannot enable a module that is restricted by the active license.
+                            </div>
+                        @endif
                         <div class="text-xs text-[var(--secondary-text)]">
                             {{ $module['key'] === 'articles' ? 'Articles route blocking is enabled as the Phase 5B proof.' : 'Route blocking is not wired for this module yet.' }}
                         </div>
@@ -162,8 +170,11 @@
                         <div class="font-semibold">{{ $feature['label'] }}</div>
                         <div class="mt-1 text-xs font-mono">{{ $feature['key'] }}</div>
                         <div class="mt-2 text-sm text-[var(--secondary-text)]">{{ $feature['description'] }}</div>
-                        <div class="mt-3 text-sm">Default enabled: {{ $feature['enabled'] ? 'Yes' : 'No' }}</div>
-                        <div class="text-xs text-[var(--secondary-text)]">Feature enforcement is not wired in Phase 5A.</div>
+                        <div class="mt-3 text-sm">Effective enabled: {{ $feature['effective_enabled'] ? 'Yes' : 'No' }}</div>
+                        <div class="text-sm">License: {{ is_null($feature['license_allowed']) ? 'Unrestricted' : ($feature['license_allowed'] ? 'Allowed' : 'Restricted') }}</div>
+                        <div class="text-sm">Local: {{ is_null($feature['local_enabled']) ? 'Default' : ($feature['local_enabled'] ? 'Enabled' : 'Disabled') }}</div>
+                        <div class="text-xs text-[var(--secondary-text)]">Reason: {{ $feature['reason'] }}</div>
+                        <div class="text-xs text-[var(--secondary-text)]">Feature enforcement is foundation-only unless explicitly wired to a reviewed route.</div>
                     </div>
                 @endforeach
             </div>

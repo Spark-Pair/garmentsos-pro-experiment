@@ -2,7 +2,7 @@
 
 namespace App\Http\Middleware;
 
-use App\Services\Settings\ModuleSettingsService;
+use App\Services\Settings\ModuleAvailabilityService;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -11,11 +11,15 @@ class EnsureModuleEnabled
 {
     public function handle(Request $request, Closure $next, string $moduleKey): Response
     {
-        if (app(ModuleSettingsService::class)->enabled($moduleKey)) {
+        $state = app(ModuleAvailabilityService::class)->effectiveState($moduleKey);
+
+        if ($state['available']) {
             return $next($request);
         }
 
-        $message = 'This module is currently disabled.';
+        $message = $state['reason'] === 'disabled_by_license'
+            ? 'This module is not included in the active license.'
+            : 'This module is currently disabled.';
 
         if ($request->expectsJson()) {
             return response()->json([
