@@ -97,7 +97,7 @@ class FeatureAvailabilityService
             return ['allowed' => null, 'unavailable' => true];
         }
 
-        if (!$status->isAllowed() && $status->features === []) {
+        if (!$status->isAllowed()) {
             return ['allowed' => null, 'unavailable' => true];
         }
 

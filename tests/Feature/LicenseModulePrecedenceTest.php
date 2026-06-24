@@ -133,6 +133,22 @@ class LicenseModulePrecedenceTest extends TestCase
         $this->assertSame('licensing_unavailable', app(ModuleAvailabilityService::class)->effectiveState('articles')['reason']);
     }
 
+    public function test_blocked_license_status_does_not_create_new_module_lockout(): void
+    {
+        config(['licensing.enabled' => true]);
+        $license = $this->createLicense(['orders']);
+        $license->update(['status' => 'blocked']);
+
+        $this->actingAs($this->user('developer'))
+            ->get(route('articles.index'))
+            ->assertOk();
+
+        $state = app(ModuleAvailabilityService::class)->effectiveState('articles');
+        $this->assertTrue($state['available']);
+        $this->assertNull($state['license_allowed']);
+        $this->assertSame('licensing_unavailable', $state['reason']);
+    }
+
     public function test_sidebar_hides_articles_when_disabled_by_license_or_locally(): void
     {
         config(['licensing.enabled' => true]);

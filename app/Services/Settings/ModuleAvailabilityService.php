@@ -118,7 +118,7 @@ class ModuleAvailabilityService
             return ['allowed' => null, 'unavailable' => true];
         }
 
-        if (!$status->isAllowed() && $status->modules === []) {
+        if (!$status->isAllowed()) {
             return ['allowed' => null, 'unavailable' => true];
         }
 
