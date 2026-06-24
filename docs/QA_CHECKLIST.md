@@ -71,9 +71,9 @@ Use this checklist after changes to verify the app remains stable.
 - Developer/admin users can view the settings screen; other roles cannot change settings.
 - Label overrides accept plain text only, reject HTML, can be reset, and invalidate cache.
 - Sidebar Article labels use safe fallback labels when no override exists.
-- Phase 5B blocks only Article routes when the `articles` module is disabled.
-- Disabled Articles are hidden in both mobile and desktop sidebar menus.
-- Other modules are not route-blocked until their route maps are reviewed in later phases.
+- Route blocking is currently enforced only for `articles`, `customers`, and `suppliers`.
+- Disabled Articles, Customers, and Suppliers are hidden in both mobile and desktop sidebar menus.
+- Shared routes and finance/order/stock/report modules are not route-blocked until their route maps are reviewed in later phases.
 - Feature flag middleware exists as foundation; do not wire it to business workflows without a separate review.
 - License-disallowed modules/features remain blocked even if local developer settings are enabled.
 - Missing local settings or missing license restriction lists preserve current staged behavior.

@@ -136,12 +136,12 @@
                             </div>
                         @endif
                         <div class="text-xs text-[var(--secondary-text)]">
-                            {{ $module['key'] === 'articles' ? 'Articles route blocking is enabled as the Phase 5B proof.' : 'Route blocking is not wired for this module yet.' }}
+                            {{ in_array($module['key'], ['articles', 'customers', 'suppliers'], true) ? 'Route blocking is enabled for this module.' : 'Route blocking is not wired for this module yet.' }}
                         </div>
-                        @if ($module['key'] === 'articles')
+                        @if (in_array($module['key'], ['articles', 'customers', 'suppliers'], true))
                             <form method="POST" action="{{ route('developer.settings.modules.save') }}" class="mt-3 space-y-2">
                                 @csrf
-                                <input type="hidden" name="module_key" value="articles">
+                                <input type="hidden" name="module_key" value="{{ $module['key'] }}">
                                 <input type="hidden" name="enabled" value="0">
                                 <input type="hidden" name="visible_in_sidebar" value="0">
                                 <label class="flex items-center gap-2 text-sm">
@@ -153,7 +153,7 @@
                                     Show in sidebar
                                 </label>
                                 <button type="submit" class="rounded-md bg-[var(--primary-color)] px-3 py-2 text-sm text-white">
-                                    Save Articles Module
+                                    Save {{ $module['label'] }} Module
                                 </button>
                             </form>
                         @endif

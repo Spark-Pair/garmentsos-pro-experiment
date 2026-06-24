@@ -99,10 +99,10 @@ Route::group(['middleware' => ['auth', 'activeSession', 'subscriptionExpiry', 'r
     Route::post('developer/settings/branding', [SettingsController::class, 'saveBranding'])->name('developer.settings.branding.save');
     Route::post('developer/settings/modules', [SettingsController::class, 'saveModule'])->name('developer.settings.modules.save');
 
-    Route::resource('suppliers', SupplierController::class);
-    Route::post('update-supplier-category', [SupplierController::class, 'updateSupplierCategory'])->name('update-supplier-category');
+    Route::resource('suppliers', SupplierController::class)->middleware('moduleEnabled:suppliers');
+    Route::post('update-supplier-category', [SupplierController::class, 'updateSupplierCategory'])->middleware('moduleEnabled:suppliers')->name('update-supplier-category');
 
-    Route::resource('customers', CustomerController::class);
+    Route::resource('customers', CustomerController::class)->middleware('moduleEnabled:customers');
 
     Route::resource('articles', ArticleController::class)->middleware('moduleEnabled:articles');
     Route::post('update-image', [ArticleController::class, 'updateImage'])->middleware('moduleEnabled:articles')->name('update-image');

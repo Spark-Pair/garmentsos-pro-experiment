@@ -7,9 +7,9 @@ Phase 5A adds a developer/admin settings foundation for safe local customization
 - Missing settings preserve existing behavior through config defaults and fallback helpers.
 - Label overrides are plain text and rendered with escaped Blade output.
 - Phase 5A introduced sidebar Article label overrides as the first runtime proof integration.
-- Phase 5B enforces only the `articles` module as the first module visibility and route-blocking proof.
+- Route blocking is currently enforced only for `articles`, `customers`, and `suppliers`.
 - Other modules may be listed in settings but are not route-blocked yet.
-- Sidebar hiding is not security by itself; direct URL access is blocked by `moduleEnabled:articles` middleware for the Article proof routes.
+- Sidebar hiding is not security by itself; direct URL access is blocked by `moduleEnabled:*` middleware for reviewed module routes.
 - License restrictions win over local settings when licensing is enabled and a license declares allowed modules/features.
 - Local settings cannot enable a module or feature that is not included in the active license.
 - Missing local settings or missing license restriction lists preserve current staged behavior.
@@ -28,6 +28,7 @@ Phase 5A adds a developer/admin settings foundation for safe local customization
 - Settings writes are limited to developer/admin users and protected by normal web auth and CSRF middleware.
 - Setting changes are audited through sanitized audit logs.
 - Module enforcement must expand module-by-module only after each route map is reviewed.
+- Shared helper routes and finance/order/stock/report workflows remain intentionally delayed until separate route-map reviews.
 - No automatic global module lockdown has been added.
 
 ## Future Work

@@ -98,7 +98,7 @@ class ModuleFeatureEnforcementTest extends TestCase
         $this->actingAs($this->user('developer'))
             ->get(route('developer.settings'))
             ->assertOk()
-            ->assertSee('Articles route blocking is enabled as the Phase 5B proof.');
+            ->assertSee('Route blocking is enabled for this module.');
     }
 
     public function test_guest_auth_behavior_still_applies_before_module_block(): void

@@ -177,15 +177,19 @@
                 @endphp
                 <x-mobile-menu-item title="Users" includesDropdown :dropdown="$usersDropdown" />
 
-                <x-mobile-menu-item title="Suppliers" includesDropdown :dropdown="[
-                    ['href' => route('suppliers.index'), 'title' => 'Show Suppliers'],
-                    ['href' => route('suppliers.create'), 'title' => 'Add Supplier'],
-                ]" />
+                @if (module_enabled('suppliers'))
+                    <x-mobile-menu-item title="Suppliers" includesDropdown :dropdown="[
+                        ['href' => route('suppliers.index'), 'title' => 'Show Suppliers'],
+                        ['href' => route('suppliers.create'), 'title' => 'Add Supplier'],
+                    ]" />
+                @endif
 
-                <x-mobile-menu-item title="Customer" includesDropdown :dropdown="[
-                    ['href' => route('customers.index'), 'title' => 'Show Customers'],
-                    ['href' => route('customers.create'), 'title' => 'Add Customer'],
-                ]" />
+                @if (module_enabled('customers'))
+                    <x-mobile-menu-item title="Customer" includesDropdown :dropdown="[
+                        ['href' => route('customers.index'), 'title' => 'Show Customers'],
+                        ['href' => route('customers.create'), 'title' => 'Add Customer'],
+                    ]" />
+                @endif
 
                 @if (module_enabled('articles'))
                     @php
@@ -280,7 +284,7 @@
             },
         @endif
 
-        @if (in_array(Auth::user()->role, ['developer', 'owner', 'admin', 'accountant']))
+        @if (module_enabled('suppliers') && in_array(Auth::user()->role, ['developer', 'owner', 'admin', 'accountant']))
             {
                 id: "suppliers",
                 name: "Suppliers",
@@ -325,7 +329,7 @@
             },
         @endif
 
-        @if (in_array(Auth::user()->role, ['developer', 'owner', 'admin', 'accountant']))
+        @if (module_enabled('customers') && in_array(Auth::user()->role, ['developer', 'owner', 'admin', 'accountant']))
             {
                 id: "customers",
                 name: "Customers",
