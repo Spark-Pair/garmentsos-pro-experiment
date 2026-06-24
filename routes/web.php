@@ -198,12 +198,12 @@ Route::group(['middleware' => ['auth', 'activeSession', 'subscriptionExpiry', 'r
     Route::post('set-statement-type', [Controller::class, 'setStatementType'])->name('set-statement-type');
     Route::post('set-physical-quantity-report-type', [Controller::class, 'setPhysicalQuantityReportType'])->name('set-physical-quantity-report-type');
 
-    Route::get('reports/statement', [ReportController::class, 'statement'])->name('reports.statement');
+    Route::get('reports/statement', [ReportController::class, 'statement'])->middleware('moduleEnabled:reports')->name('reports.statement');
     Route::post('reports/statement/get-names', [ReportController::class, 'getNames'])->name('reports.statement.get-names');
-    Route::get('reports/statement/record-details', [ReportController::class, 'statementRecordDetails'])->name('reports.statement.record-details');
-    Route::get('reports/pending-payments', [ReportController::class, 'pendingPayments'])->name('reports.pending-payments');
-    Route::get('reports/article', [ReportController::class, 'article'])->name('reports.article');
-    Route::get('reports/physical-quantity', [ReportController::class, 'physicalQuantity'])->name('reports.physical-quantity');
+    Route::get('reports/statement/record-details', [ReportController::class, 'statementRecordDetails'])->middleware('moduleEnabled:reports')->name('reports.statement.record-details');
+    Route::get('reports/pending-payments', [ReportController::class, 'pendingPayments'])->middleware('moduleEnabled:reports')->name('reports.pending-payments');
+    Route::get('reports/article', [ReportController::class, 'article'])->middleware('moduleEnabled:reports')->name('reports.article');
+    Route::get('reports/physical-quantity', [ReportController::class, 'physicalQuantity'])->middleware('moduleEnabled:reports')->name('reports.physical-quantity');
     Route::get('notifications', [NotificationController::class, 'index'])->name('notifications.index');
 
     Route::post('logout', [AuthController::class, 'logout'])->name('logout');

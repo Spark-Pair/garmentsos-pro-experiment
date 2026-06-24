@@ -683,8 +683,9 @@
                     {name: 'Generate Order', href: "/orders/create"},
                 ]
             },
-            {
-                id: "statement",
+            @if (module_enabled('reports'))
+                {
+                    id: "statement",
                 name: "Statement",
                 details: {
                     '': 'View your statement',
@@ -694,7 +695,8 @@
                 noMargin: true,
                 onclick: 'window.location.href=\"/reports/statement\"',
                 oncontextmenu: 'window.location.href=\"/reports/statement\"',
-            },
+                },
+            @endif
         @endif
 
         @if (Auth::user()->role === 'supplier')
@@ -722,8 +724,9 @@
                 onclick: 'window.location.href=\"/productions\"',
                 oncontextmenu: 'window.location.href=\"/productions\"',
             },
-            {
-                id: "statement",
+            @if (module_enabled('reports'))
+                {
+                    id: "statement",
                 name: "Statement",
                 details: {
                     '': 'View your statement',
@@ -733,7 +736,8 @@
                 noMargin: true,
                 onclick: 'window.location.href=\"/reports/statement\"',
                 oncontextmenu: 'window.location.href=\"/reports/statement\"',
-            },
+                },
+            @endif
         @endif
 
         @if (in_array(Auth::user()->role, ['developer', 'owner', 'admin', 'accountant']))
@@ -824,7 +828,7 @@
             },
         @endif
 
-        @if (in_array(Auth::user()->role, ['developer', 'owner', 'admin', 'accountant']))
+        @if (module_enabled('reports') && in_array(Auth::user()->role, ['developer', 'owner', 'admin', 'accountant']))
             {
                 id: "reports",
                 name: "Reports",

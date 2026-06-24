@@ -136,9 +136,9 @@
                             </div>
                         @endif
                         <div class="text-xs text-[var(--secondary-text)]">
-                            {{ in_array($module['key'], ['articles', 'customers', 'suppliers'], true) ? 'Route blocking is enabled for this module.' : 'Route blocking is not wired for this module yet.' }}
+                            {{ in_array($module['key'], ['articles', 'customers', 'suppliers', 'reports'], true) ? 'Route blocking is enabled for this module.' : 'Route blocking is not wired for this module yet.' }}
                         </div>
-                        @if (in_array($module['key'], ['articles', 'customers', 'suppliers'], true))
+                        @if (in_array($module['key'], ['articles', 'customers', 'suppliers', 'reports'], true))
                             <form method="POST" action="{{ route('developer.settings.modules.save') }}" class="mt-3 space-y-2">
                                 @csrf
                                 <input type="hidden" name="module_key" value="{{ $module['key'] }}">
