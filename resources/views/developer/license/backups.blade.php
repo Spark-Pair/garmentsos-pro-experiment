@@ -14,33 +14,37 @@
         $missingTables = $missingTables ?? [];
     @endphp
 
-    <div class="w-full max-w-7xl mx-auto p-4 md:p-6 space-y-6 text-[var(--text-color)]">
-        <header class="{{ $panel }} p-5">
-            <div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-                <div>
-                    <p class="text-xs font-semibold uppercase tracking-wider text-[var(--secondary-text)]">System safety</p>
-                    <h1 class="mt-1 text-2xl font-semibold">Backup & Restore</h1>
-                    <p class="mt-2 max-w-3xl text-sm text-[var(--secondary-text)]">
+    <div class="w-[80%] mx-auto">
+        <x-search-header heading="Backup & Restore" />
+    </div>
+
+    <section class="text-center mx-auto">
+        <div class="show-box mx-auto w-[80%] h-[70vh] bg-[var(--secondary-bg-color)] border border-[var(--glass-border-color)]/20 rounded-xl shadow pt-8.5 relative">
+            <x-form-title-bar title="Backup & Restore" />
+
+            <div class="h-full overflow-y-auto my-scrollbar-2 px-4 pb-5 pt-12 text-left text-[var(--text-color)]">
+                <div class="mb-4 flex flex-col gap-3 rounded-lg border border-[var(--glass-border-color)]/10 bg-[var(--glass-border-color)]/5 p-4 md:flex-row md:items-start md:justify-between">
+                    <p class="max-w-3xl text-sm text-[var(--secondary-text)]">
                         Private, verified SQLite backups for developer/admin use. Backup files stay in private storage and downloads are permission protected.
                     </p>
+                    <form method="POST" action="{{ route('developer.backups.store') }}">
+                        @csrf
+                        <button type="submit" class="{{ $foundationReady ? $primaryButton : $disabledButton }}" @disabled(!$foundationReady)>
+                            <i class="fas fa-database mr-2"></i>Create Backup
+                        </button>
+                    </form>
                 </div>
-                <form method="POST" action="{{ route('developer.backups.store') }}">
-                    @csrf
-                    <button type="submit" class="{{ $foundationReady ? $primaryButton : $disabledButton }}" @disabled(!$foundationReady)>
-                        <i class="fas fa-database mr-2"></i>Create Backup
-                    </button>
-                </form>
-            </div>
-        </header>
+
+                <div class="space-y-4">
 
         @if (session('success'))
-            <div class="rounded-xl border border-[var(--border-success)] bg-[var(--bg-success)] px-4 py-3 text-sm text-[var(--text-success)]">
+            <div class="rounded-lg border border-[var(--border-success)] bg-[var(--bg-success)] px-4 py-3 text-sm text-[var(--text-success)]">
                 {{ session('success') }}
             </div>
         @endif
 
         @if (session('error'))
-            <div class="rounded-xl border border-[var(--border-error)] bg-[var(--bg-error)] px-4 py-3 text-sm text-[var(--text-error)]">
+            <div class="rounded-lg border border-[var(--border-error)] bg-[var(--bg-error)] px-4 py-3 text-sm text-[var(--text-error)]">
                 {{ session('error') }}
             </div>
         @endif
@@ -176,5 +180,8 @@
                 </table>
             </div>
         </section>
-    </div>
+                </div>
+            </div>
+        </div>
+    </section>
 @endsection

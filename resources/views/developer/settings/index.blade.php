@@ -13,42 +13,46 @@
         $inputClass = 'w-full rounded-lg border border-[var(--glass-border-color)]/20 bg-[var(--bg-color)] px-3 py-2 text-sm text-[var(--text-color)] outline-none focus:border-[var(--primary-color)]';
     @endphp
 
-    <div class="w-full max-w-7xl mx-auto p-4 md:p-6 space-y-6 text-[var(--text-color)]">
-        <header class="{{ $panel }} p-5">
-            <div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-                <div>
-                    <p class="text-xs font-semibold uppercase tracking-wider text-[var(--secondary-text)]">Developer tools</p>
-                    <h1 class="mt-1 text-2xl font-semibold">Developer Settings</h1>
-                    <p class="mt-2 max-w-3xl text-sm text-[var(--secondary-text)]">
-                        Local settings for branding, labels, modules, and feature foundations. Missing settings fall back to the current application defaults.
+    <div class="w-[80%] mx-auto">
+        <x-search-header heading="Developer Settings" />
+    </div>
+
+    <section class="text-center mx-auto">
+        <div class="show-box mx-auto w-[80%] h-[70vh] bg-[var(--secondary-bg-color)] border border-[var(--glass-border-color)]/20 rounded-xl shadow pt-8.5 relative">
+            <x-form-title-bar title="Developer Settings" />
+
+            <div class="h-full overflow-y-auto my-scrollbar-2 px-4 pb-5 pt-12 text-left text-[var(--text-color)]">
+                <div class="mb-4 flex flex-col gap-3 rounded-lg border border-[var(--glass-border-color)]/10 bg-[var(--glass-border-color)]/5 p-4 md:flex-row md:items-center md:justify-between">
+                    <p class="max-w-3xl text-sm text-[var(--secondary-text)]">
+                        Local settings for branding, labels, reviewed module route blocking, and feature foundations. Missing settings fall back to the current application defaults.
                     </p>
+                    <div class="flex flex-wrap gap-2">
+                        <a href="#branding" class="{{ $secondaryButton }}">Branding</a>
+                        <a href="#modules" class="{{ $secondaryButton }}">Modules</a>
+                        <a href="#labels" class="{{ $secondaryButton }}">Labels</a>
+                        <a href="#features" class="{{ $secondaryButton }}">Features</a>
+                    </div>
                 </div>
-                <div class="flex flex-wrap gap-2">
-                    <a href="#branding" class="{{ $secondaryButton }}">Branding</a>
-                    <a href="#modules" class="{{ $secondaryButton }}">Modules</a>
-                    <a href="#labels" class="{{ $secondaryButton }}">Labels</a>
-                    <a href="#features" class="{{ $secondaryButton }}">Features</a>
-                </div>
-            </div>
-        </header>
 
-        @if (session('success'))
-            <div class="rounded-xl border border-[var(--border-success)] bg-[var(--bg-success)] px-4 py-3 text-sm text-[var(--text-success)]">
-                {{ session('success') }}
-            </div>
-        @endif
+                @if (session('success'))
+                    <div class="mb-4 rounded-lg border border-[var(--border-success)] bg-[var(--bg-success)] px-4 py-3 text-sm text-[var(--text-success)]">
+                        {{ session('success') }}
+                    </div>
+                @endif
 
-        @if (session('error'))
-            <div class="rounded-xl border border-[var(--border-error)] bg-[var(--bg-error)] px-4 py-3 text-sm text-[var(--text-error)]">
-                {{ session('error') }}
-            </div>
-        @endif
+                @if (session('error'))
+                    <div class="mb-4 rounded-lg border border-[var(--border-error)] bg-[var(--bg-error)] px-4 py-3 text-sm text-[var(--text-error)]">
+                        {{ session('error') }}
+                    </div>
+                @endif
 
-        @if ($errors->any())
-            <div class="rounded-xl border border-[var(--border-error)] bg-[var(--bg-error)] px-4 py-3 text-sm text-[var(--text-error)]">
-                {{ $errors->first() }}
-            </div>
-        @endif
+                @if ($errors->any())
+                    <div class="mb-4 rounded-lg border border-[var(--border-error)] bg-[var(--bg-error)] px-4 py-3 text-sm text-[var(--text-error)]">
+                        {{ $errors->first() }}
+                    </div>
+                @endif
+
+                <div class="space-y-4">
 
         <section id="branding" class="{{ $panel }} overflow-hidden">
             <div class="border-b border-[var(--glass-border-color)]/10 p-5">
@@ -177,7 +181,7 @@
                             </div>
                             <div>
                                 <dt class="text-[var(--secondary-text)]">Route block</dt>
-                                <dd>{{ $isGuarded ? 'Reviewed' : 'Delayed' }}</dd>
+                                <dd>{{ $isGuarded ? 'Reviewed: route blocking active' : 'Foundation only' }}</dd>
                             </div>
                         </dl>
                         <p class="mt-3 text-xs text-[var(--secondary-text)]">Reason: {{ str_replace('_', ' ', $module['reason']) }}</p>
@@ -204,7 +208,7 @@
                             </form>
                         @else
                             <p class="mt-4 rounded-lg border border-[var(--glass-border-color)]/10 px-3 py-2 text-xs text-[var(--secondary-text)]">
-                                Foundation only. Route enforcement is not active for this module yet.
+                                Foundation only / not enforced yet. This module is shown for future planning, but route blocking is not active.
                             </p>
                         @endif
                     </article>
@@ -265,7 +269,7 @@
             <div class="border-b border-[var(--glass-border-color)]/10 p-5">
                 <h2 class="text-lg font-semibold">Feature Flags</h2>
                 <p class="mt-1 text-sm text-[var(--secondary-text)]">
-                    Foundation status only. Feature enforcement applies only where a reviewed route explicitly opts in.
+                    Foundation status only. Feature flags affect only routes/actions that explicitly use them.
                 </p>
             </div>
             <div class="grid gap-4 p-5 md:grid-cols-2">
@@ -302,5 +306,8 @@
                 @endforeach
             </div>
         </section>
-    </div>
+                </div>
+            </div>
+        </div>
+    </section>
 @endsection

@@ -11,7 +11,7 @@
 @endphp
 
 @section('content')
-    <div class="flex flex-col justify-center items-center tracking-wide">
+    <div class="flex min-h-[calc(100vh-13rem)] flex-col justify-center items-center tracking-wide py-8">
         <!-- Logo -->
         <div class="mb-5 p-4 shadow-sm border border-[var(--glass-border-color)]/20 rounded-3xl">
             <div class="logo w-45 rounded-xl overflow-hidden">

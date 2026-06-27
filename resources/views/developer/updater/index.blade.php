@@ -10,30 +10,34 @@
         $secondaryButton = 'inline-flex items-center justify-center rounded-lg border border-[var(--glass-border-color)]/20 bg-[var(--h-bg-color)] px-4 py-2 text-sm text-[var(--text-color)] transition-all duration-300 ease-in-out hover:bg-[var(--secondary-bg-color)] hover:scale-[0.98]';
     @endphp
 
-    <div class="w-full max-w-5xl mx-auto p-4 md:p-6 space-y-6 text-[var(--text-color)]">
-        <header class="{{ $panel }} p-5">
-            <div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-                <div>
-                    <p class="text-xs font-semibold uppercase tracking-wider text-[var(--secondary-text)]">Verification foundation</p>
-                    <h1 class="mt-1 text-2xl font-semibold">Updater</h1>
-                    <p class="mt-2 max-w-3xl text-sm text-[var(--secondary-text)]">
-                        Signed manifest and package verification only. Apply/install is intentionally not implemented.
+    <div class="w-[80%] mx-auto">
+        <x-search-header heading="Updater" />
+    </div>
+
+    <section class="text-center mx-auto">
+        <div class="show-box mx-auto w-[80%] h-[70vh] bg-[var(--secondary-bg-color)] border border-[var(--glass-border-color)]/20 rounded-xl shadow pt-8.5 relative">
+            <x-form-title-bar title="Updater" />
+
+            <div class="h-full overflow-y-auto my-scrollbar-2 px-4 pb-5 pt-12 text-left text-[var(--text-color)]">
+                <div class="mb-4 flex flex-col gap-3 rounded-lg border border-[var(--glass-border-color)]/10 bg-[var(--glass-border-color)]/5 p-4 md:flex-row md:items-start md:justify-between">
+                    <p class="max-w-3xl text-sm text-[var(--secondary-text)]">
+                        Verification foundation only. Signed manifest/package checks are available when configured; apply/install is intentionally not implemented.
                     </p>
+                    <span class="{{ $badge }} {{ $enabled ? 'border-[var(--border-warning)] bg-[var(--bg-warning)] text-[var(--text-warning)]' : 'border-[var(--glass-border-color)]/20 bg-[var(--glass-border-color)]/5 text-[var(--secondary-text)]' }}">
+                        {{ $enabled ? 'Updater enabled' : 'Updater disabled' }}
+                    </span>
                 </div>
-                <span class="{{ $badge }} {{ $enabled ? 'border-[var(--border-warning)] bg-[var(--bg-warning)] text-[var(--text-warning)]' : 'border-[var(--glass-border-color)]/20 bg-[var(--glass-border-color)]/5 text-[var(--secondary-text)]' }}">
-                    {{ $enabled ? 'Updater enabled' : 'Updater disabled' }}
-                </span>
-            </div>
-        </header>
+
+                <div class="space-y-4">
 
         @if (session('success'))
-            <div class="rounded-xl border border-[var(--border-success)] bg-[var(--bg-success)] px-4 py-3 text-sm text-[var(--text-success)]">
+            <div class="rounded-lg border border-[var(--border-success)] bg-[var(--bg-success)] px-4 py-3 text-sm text-[var(--text-success)]">
                 {{ session('success') }}
             </div>
         @endif
 
         @if (session('error'))
-            <div class="rounded-xl border border-[var(--border-error)] bg-[var(--bg-error)] px-4 py-3 text-sm text-[var(--text-error)]">
+            <div class="rounded-lg border border-[var(--border-error)] bg-[var(--bg-error)] px-4 py-3 text-sm text-[var(--text-error)]">
                 {{ session('error') }}
             </div>
         @endif
@@ -122,5 +126,8 @@
         <section class="rounded-xl border border-[var(--border-warning)] bg-[var(--bg-warning)] p-4 text-sm text-[var(--text-warning)]">
             Future update apply must create a verified backup first and must never overwrite client database, `.env`, backups, logs, private storage, or secrets.
         </section>
-    </div>
+                </div>
+            </div>
+        </div>
+    </section>
 @endsection

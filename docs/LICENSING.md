@@ -84,6 +84,9 @@ Refresh sends the server license id, license key hash, installation UUID, finger
 - Local disable blocks when the license allows or does not restrict the module.
 - Missing/default settings preserve current staged behavior.
 - LAN/browser client PCs are not individual licensed devices.
+- Active reviewed route-enforced modules are currently `articles`, `customers`, `suppliers`, `reports`, and `rates`.
+- Other module/settings entries are foundation-only until their route maps are separately reviewed and wired.
+- Feature flags affect only routes/actions that explicitly use them.
 
 ## Signed Payload Verification
 The app verifies signed canonical JSON before trusting payload fields. The expected payload contains:

@@ -6,13 +6,13 @@ This guide explains how code updates are prepared, reviewed, packaged, and appli
 ## Branch Workflow
 1. Work in a feature branch.
 2. Review and test the feature branch.
-3. Push the feature branch only after review.
+3. For experimental hardening work, push only to the `garmentsos-pro-experiment` remote/repository.
 4. Combine related reviewed branches through an integration branch when needed.
 5. Test on staging or a client-copy database.
 6. Merge to `main` only after explicit approval.
 7. Build a release/update package from approved code.
 
-Do not merge directly into `main`, push to `main`, or deploy unreviewed local changes.
+The stable `garmentsos-pro` repository should stay main-only/stable. Do not push experiment branches to the stable `origin` remote, merge directly into `main`, push to `main`, or deploy unreviewed local changes.
 
 ## Update Types
 

@@ -11,28 +11,39 @@
         $disabledButton = 'inline-flex items-center justify-center rounded-lg border border-[var(--glass-border-color)]/20 bg-[var(--h-bg-color)] px-4 py-2 text-sm text-[var(--secondary-text)] opacity-60 cursor-not-allowed';
         $foundationReady = $foundationReady ?? true;
         $missingTables = $missingTables ?? [];
-        $bannerType = match ($status->state) {
-            'valid' => 'border-[var(--border-success)] bg-[var(--bg-success)] text-[var(--text-success)]',
-            'subscription_expired', 'offline_grace' => 'border-[var(--border-warning)] bg-[var(--bg-warning)] text-[var(--text-warning)]',
-            default => 'border-[var(--border-error)] bg-[var(--bg-error)] text-[var(--text-error)]',
-        };
+        $inactiveButNotEnforced = !$licensingEnabled && in_array($status->state, ['no_license', 'blocked', 'tampered', 'setup_pending'], true);
+        $bannerType = $inactiveButNotEnforced
+            ? 'border-[var(--glass-border-color)]/20 bg-[var(--glass-border-color)]/5 text-[var(--secondary-text)]'
+            : match ($status->state) {
+                'valid' => 'border-[var(--border-success)] bg-[var(--bg-success)] text-[var(--text-success)]',
+                'subscription_expired', 'offline_grace' => 'border-[var(--border-warning)] bg-[var(--bg-warning)] text-[var(--text-warning)]',
+                default => 'border-[var(--border-error)] bg-[var(--bg-error)] text-[var(--text-error)]',
+            };
+        $displayMessage = $inactiveButNotEnforced
+            ? 'License not activated yet. Enforcement is disabled, so the app is not blocked.'
+            : ($status->message ?: 'License status calculated.');
+        $displayEnforcement = $inactiveButNotEnforced ? 'Not enforced' : ucfirst($status->enforcement);
     @endphp
 
-    <div class="w-full max-w-5xl mx-auto p-4 md:p-6 space-y-6 text-[var(--text-color)]">
-        <header class="{{ $panel }} p-5">
-            <div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-                <div>
-                    <p class="text-xs font-semibold uppercase tracking-wider text-[var(--secondary-text)]">Installation licensing</p>
-                    <h1 class="mt-1 text-2xl font-semibold">License Status</h1>
-                    <p class="mt-2 max-w-3xl text-sm text-[var(--secondary-text)]">
+    <div class="w-[80%] mx-auto">
+        <x-search-header heading="License Status" />
+    </div>
+
+    <section class="text-center mx-auto">
+        <div class="show-box mx-auto w-[80%] h-[70vh] bg-[var(--secondary-bg-color)] border border-[var(--glass-border-color)]/20 rounded-xl shadow pt-8.5 relative">
+            <x-form-title-bar title="License Status" />
+
+            <div class="h-full overflow-y-auto my-scrollbar-2 px-4 pb-5 pt-12 text-left text-[var(--text-color)]">
+                <div class="mb-4 flex flex-col gap-3 rounded-lg border border-[var(--glass-border-color)]/10 bg-[var(--glass-border-color)]/5 p-4 md:flex-row md:items-start md:justify-between">
+                    <p class="max-w-3xl text-sm text-[var(--secondary-text)]">
                         This license foundation binds the installed app/server, not each LAN browser or user PC. Raw machine details are not shown.
                     </p>
+                    <span class="{{ $badge }} {{ $licensingEnabled ? 'border-[var(--border-warning)] bg-[var(--bg-warning)] text-[var(--text-warning)]' : 'border-[var(--glass-border-color)]/20 bg-[var(--glass-border-color)]/5 text-[var(--secondary-text)]' }}">
+                        Enforcement {{ $licensingEnabled ? 'enabled' : 'disabled' }}
+                    </span>
                 </div>
-                <span class="{{ $badge }} {{ $licensingEnabled ? 'border-[var(--border-warning)] bg-[var(--bg-warning)] text-[var(--text-warning)]' : 'border-[var(--glass-border-color)]/20 bg-[var(--glass-border-color)]/5 text-[var(--secondary-text)]' }}">
-                    Enforcement {{ $licensingEnabled ? 'enabled' : 'disabled' }}
-                </span>
-            </div>
-        </header>
+
+                <div class="space-y-4">
 
         @if (!$foundationReady)
             <section class="rounded-xl border border-[var(--border-warning)] bg-[var(--bg-warning)] p-4 text-sm text-[var(--text-warning)]">
@@ -48,7 +59,7 @@
 
         <section class="{{ $panel }} p-5 space-y-5">
             <div class="rounded-xl border p-4 {{ $bannerType }}">
-                {{ $status->message ?: 'License status calculated.' }}
+                {{ $displayMessage }}
             </div>
 
             <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -58,7 +69,7 @@
                 </div>
                 <div class="rounded-lg border border-[var(--glass-border-color)]/10 bg-[var(--glass-border-color)]/5 p-3">
                     <div class="text-xs uppercase text-[var(--secondary-text)]">Action mode</div>
-                    <div class="mt-1 text-lg font-semibold">{{ ucfirst($status->enforcement) }}</div>
+                    <div class="mt-1 text-lg font-semibold">{{ $displayEnforcement }}</div>
                 </div>
                 <div class="rounded-lg border border-[var(--glass-border-color)]/10 bg-[var(--glass-border-color)]/5 p-3">
                     <div class="text-xs uppercase text-[var(--secondary-text)]">Signed cache</div>
@@ -88,7 +99,7 @@
 
             <div class="border-t border-[var(--glass-border-color)]/10 pt-4">
                 <div class="text-xs uppercase text-[var(--secondary-text)]">Message</div>
-                <div class="mt-1">{{ $status->message ?: 'No license message.' }}</div>
+                <div class="mt-1">{{ $displayMessage }}</div>
             </div>
 
             <div class="flex flex-wrap gap-3">
@@ -102,5 +113,8 @@
                 <a href="{{ route('home') }}" class="{{ $secondaryButton }}">Back</a>
             </div>
         </section>
-    </div>
+                </div>
+            </div>
+        </div>
+    </section>
 @endsection
