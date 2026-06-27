@@ -27,6 +27,12 @@ The app stores a persistent installation UUID under the local license storage ar
 - Offline grace valid: continue according to the last valid signed license.
 - Offline grace expired: block invalid/tampered/no-license cases; use read-only for subscription expiry by default.
 
+## Current Rollout State
+- `LICENSE_ENFORCEMENT_ENABLED=false` by default.
+- `ensureLicense` is registered as a middleware alias for future use but is not broadly wired into production routes.
+- Enable enforcement only after staging/client-copy testing and explicit approval.
+- The current foundation is installation/server based, not every browser or office PC based.
+
 ## Tables
 - `app_installations`: persistent installation UUID, mode, masked/sanitized fingerprint hash, status, and sanitized metadata.
 - `licenses`: local license/subscription record for the installation.
@@ -73,6 +79,12 @@ They must not include raw hardware identifiers, `.env`, `APP_KEY`, DB credential
 
 Refresh sends the server license id, license key hash, installation UUID, fingerprint hash, and current signed payload hash. The server returns a new signed payload.
 
+## Module Licensing
+- License disallow wins over local developer settings.
+- Local disable blocks when the license allows or does not restrict the module.
+- Missing/default settings preserve current staged behavior.
+- LAN/browser client PCs are not individual licensed devices.
+
 ## Signed Payload Verification
 The app verifies signed canonical JSON before trusting payload fields. The expected payload contains:
 - server license id
@@ -99,6 +111,12 @@ Reactivation request codes can be generated for legitimate server changes. The a
 - Back up before future update, migration, or restore operations.
 - Restore must require confirmation and create an emergency backup first in a future implementation phase.
 - Backups must not be public.
+
+## Secret And Log Safety
+- Do not show raw machine details, raw license keys, private keys, credentials, tokens, or `.env` values in UI/logs.
+- License private signing keys belong only on a future license server/signing tool.
+- Client PCs may contain a public verification key only.
+- Audit/license logs must stay sanitized.
 
 ## Local PHP Limitation
 A local PHP app on a client PC cannot be protected perfectly from a determined technical user. Licensing is practical protection against ordinary copy-paste use. Stronger protection can be added later with signed updates, obfuscation, compiled runtime, or cloud hosting.

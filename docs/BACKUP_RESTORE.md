@@ -7,6 +7,7 @@ Phase 3A added safe backup creation, verification, listing, and permission-prote
 ## Production Safety
 
 - Do not delete, overwrite, truncate, or recreate a client database during backup.
+- Create and verify a backup before migrations, updates, restore attempts, cloud migration, and major settings/license changes.
 - Do not copy or ship `database/database.sqlite`, `*.sqlite-wal`, `*.sqlite-shm`, DB dumps, or backup files in release packages.
 - Do not store backups under `public/`.
 - Do not expose direct public backup URLs.
@@ -89,6 +90,16 @@ When explicitly enabled, restore requires:
 - audit logging
 
 Restore is not part of updater flow and must not run automatically.
+
+## Recommended Restore Workflow
+1. Create a managed backup.
+2. Verify the backup/checksum.
+3. Copy the database/backup to staging or a client-copy environment.
+4. Test restore on the copy first.
+5. Confirm the restored app opens and key records match expectations.
+6. Only then consider production restore with explicit approval.
+
+Never test restore for the first time on the production/client DB.
 
 ## Update And Migration Rule
 

@@ -17,6 +17,9 @@ Use this checklist after changes to verify the app remains stable.
 - Sidebar renders and active nav highlights correctly.
 - Menu modal opens with `Ctrl + Space` and keyboard navigation works.
 - Home shortcut `Shift + Space` routes to home.
+- Home/welcome page is visually centered and balanced.
+- Long pages are not clipped at the top or bottom.
+- Footer does not overlap or squeeze content.
 
 ## 4) Core CRUD Flows
 - Customers, Suppliers, Orders, Payments, Vouchers can be created and edited.
@@ -67,6 +70,13 @@ Use this checklist after changes to verify the app remains stable.
 - Phase 4A has no apply/install route and no automatic update behavior.
 
 ## 11) Developer Settings Foundation
+- Developer Settings UI renders with compact cards, not raw/default tables.
+- Developer Settings page scrolls to the bottom and the header is visible.
+- License page renders without 500 and shows installation/server-based language.
+- Backup page renders without 500 and shows private/managed backup guidance.
+- Updater page renders disabled/verification-only state when disabled.
+- Restore page/details render a disabled/danger state when restore is disabled.
+- Layout top/bottom clipping is checked on `/`, `/developer/settings`, `/developer/license`, `/developer/backups`, and `/developer/updater`.
 - Missing settings keep existing labels, branding, modules, and feature behavior unchanged.
 - Developer/admin users can view the settings screen; other roles cannot change settings.
 - Label overrides accept plain text only, reject HTML, can be reset, and invalidate cache.
@@ -84,3 +94,7 @@ Use this checklist after changes to verify the app remains stable.
 - Feature flag middleware exists as foundation; do not wire it to business workflows without a separate review.
 - License-disallowed modules/features remain blocked even if local developer settings are enabled.
 - Missing local settings or missing license restriction lists preserve current staged behavior.
+
+## 12) Business Pages Unaffected
+- Orders, invoices, payments, vouchers, reports, stock-related pages, customers, and suppliers retain existing behavior after system-page changes.
+- Print preview still works and print templates/JS print builders are unchanged unless explicitly approved.
