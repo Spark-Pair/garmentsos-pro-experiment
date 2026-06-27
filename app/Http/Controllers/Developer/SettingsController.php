@@ -75,6 +75,21 @@ class SettingsController extends Controller
         return redirect()->route('developer.settings')->with('success', 'Branding setting saved.');
     }
 
+    public function resetBranding(string $key, BrandingSettingsService $branding): RedirectResponse
+    {
+        if ($resp = $this->denyIfNoRole(['developer', 'admin'])) {
+            return $resp;
+        }
+
+        try {
+            $branding->reset($key);
+        } catch (\InvalidArgumentException $e) {
+            return redirect()->route('developer.settings')->with('error', $e->getMessage());
+        }
+
+        return redirect()->route('developer.settings')->with('success', 'Branding setting reset.');
+    }
+
     public function saveModule(SaveModuleSettingRequest $request, ModuleSettingsService $modules): RedirectResponse
     {
         $data = $request->validated();

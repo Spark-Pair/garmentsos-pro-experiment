@@ -86,7 +86,10 @@
                         <tr>
                             <th class="px-3 py-2 font-semibold">Key</th>
                             <th class="px-3 py-2 font-semibold">Default</th>
+                            <th class="px-3 py-2 font-semibold">Effective</th>
+                            <th class="px-3 py-2 font-semibold">Source</th>
                             <th class="px-3 py-2 font-semibold">Value</th>
+                            <th class="px-3 py-2 font-semibold">Reset</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
@@ -94,12 +97,14 @@
                             <tr>
                                 <td class="px-3 py-2 font-mono text-xs">{{ $item['key'] }}</td>
                                 <td class="px-3 py-2">{{ $item['default'] }}</td>
+                                <td class="px-3 py-2">{{ $item['effective_value'] }}</td>
+                                <td class="px-3 py-2 font-mono text-xs">{{ $item['source'] }}</td>
                                 <td class="px-3 py-2">
                                     <form method="POST" action="{{ route('developer.settings.branding.save') }}" class="flex gap-2">
                                         @csrf
                                         <input type="hidden" name="key" value="{{ $item['key'] }}">
                                         <input
-                                            type="text"
+                                            type="{{ str_contains($item['key'], 'color') ? 'color' : 'text' }}"
                                             name="value"
                                             value="{{ $item['value'] }}"
                                             maxlength="120"
@@ -110,10 +115,27 @@
                                         </button>
                                     </form>
                                 </td>
+                                <td class="px-3 py-2">
+                                    <form method="POST" action="{{ route('developer.settings.branding.reset', $item['key']) }}">
+                                        @csrf
+                                        <button type="submit" class="rounded-md border border-gray-300 px-3 py-2 text-sm">
+                                            Reset
+                                        </button>
+                                    </form>
+                                </td>
                             </tr>
                         @endforeach
                     </tbody>
                 </table>
+            </div>
+            <div class="rounded-md border border-gray-300 dark:border-gray-700 p-4 text-sm">
+                <div class="font-semibold">{{ $branding['app_name']['effective_value'] ?? 'GarmentsOS PRO' }}</div>
+                <div class="text-[var(--secondary-text)]">{{ $branding['company_name']['effective_value'] ?? $client_company->name }}</div>
+                <div class="mt-2 flex items-center gap-2">
+                    <span class="inline-block h-5 w-5 rounded border border-gray-400" style="background: {{ $branding['theme_primary_color']['effective_value'] ?? '#2563eb' }}"></span>
+                    <span class="inline-block h-5 w-5 rounded border border-gray-400" style="background: {{ $branding['theme_secondary_color']['effective_value'] ?? '#1f2937' }}"></span>
+                    <span class="inline-block h-5 w-5 rounded border border-gray-400" style="background: {{ $branding['theme_accent_color']['effective_value'] ?? '#2563eb' }}"></span>
+                </div>
             </div>
         </section>
 

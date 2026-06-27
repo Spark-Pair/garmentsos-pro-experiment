@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Services\Settings\BrandingSettingsService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
@@ -15,7 +16,7 @@ class AppServiceProvider extends ServiceProvider
     {
         // Singleton for client_company
         app()->singleton('client_company', function () {
-            return (object) config('client_company');
+            return app(BrandingSettingsService::class)->clientCompany();
         });
 
         // Singleton for Pusher flag
@@ -121,6 +122,7 @@ class AppServiceProvider extends ServiceProvider
 
         // Share client company with all views
         View::share('client_company', app('client_company'));
+        View::share('branding', app(BrandingSettingsService::class)->effectiveValues());
 
         // Share Pusher enabled flag
         View::share('pusherEnabled', app('pusher.enabled'));

@@ -2,7 +2,8 @@
 @section('title', 'Login | ' . $client_company->name)
 @section('content')
     <div class="bg-[var(--secondary-bg-color)] p-10 rounded-xl shadow-md max-w-md w-full fade-in mx-auto">
-        <h4 class="text-xl font-semibold text-center text-[var(--primary-color)]">{{ $client_company->name }}</h4>
+        <h4 class="text-xl font-semibold text-center text-[var(--primary-color)]">{{ $branding['app_name'] ?? $client_company->name }}</h4>
+        <p class="text-sm text-center text-[var(--secondary-text)] mt-1">{{ $client_company->name }}</p>
         <h1 class="text-3xl font-bold text-center mt-2 text-[var(--primary-color)]">Login</h1>
 
         <form id="login-form" method="POST" action="{{ route('login') }}" class="space-y-4">
@@ -26,7 +27,7 @@
             />
 
             <!-- login Button -->
-            <button type="submit" class="bg-[var(--primary-color)] px-5 py-2 rounded-lg hover:bg-blue-600 transition-all duration-300 ease-in-out font-medium cursor-pointer hover:scale-[0.95]">Login</button>
+            <button type="submit" class="bg-[var(--primary-color)] px-5 py-2 rounded-lg hover:bg-[var(--h-primary-color)] transition-all duration-300 ease-in-out font-medium cursor-pointer hover:scale-[0.95]">Login</button>
         </form>
     </div>
 @endsection

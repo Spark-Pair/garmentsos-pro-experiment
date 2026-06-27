@@ -70,6 +70,11 @@ Use this checklist after changes to verify the app remains stable.
 - Missing settings keep existing labels, branding, modules, and feature behavior unchanged.
 - Developer/admin users can view the settings screen; other roles cannot change settings.
 - Label overrides accept plain text only, reject HTML, can be reset, and invalidate cache.
+- Branding overrides are text/color only in this phase and apply only to low-risk layout/sidebar/login/home surfaces.
+- Branding text must reject HTML/scripts/secrets, and branding colors must reject anything except strict `#RRGGBB` hex values.
+- Missing branding settings and missing branding settings tables must preserve current config-driven branding.
+- Branding settings must not write `.env`, upload logos, edit arbitrary logo paths, alter favicons/app icons/manifest, or change print templates/JS print builders.
+- SparkPair branding should remain unless removal is separately approved.
 - Sidebar Article labels use safe fallback labels when no override exists.
 - Route blocking is currently enforced only for `articles`, `customers`, `suppliers`, reviewed pure `reports` routes, and direct `rates` management routes.
 - Disabling `rates` must hide the desktop Rates link and block direct `rates.*` URLs only; `setups`, article `add-rate`, shared helpers, session setters, and saved-rate usage must remain unaffected.

@@ -7,6 +7,7 @@
     if (file_exists($svgPath) && is_readable($svgPath)) {
         $logoSvg = file_get_contents($svgPath);
     }
+    $homeAppName = $branding['app_name'] ?? $client_company->logo_text ?? 'GarmentsOS PRO';
 @endphp
 
 @section('content')
@@ -14,15 +15,22 @@
         <!-- Logo -->
         <div class="mb-5 p-4 shadow-sm border border-[var(--glass-border-color)]/20 rounded-3xl">
             <div class="logo w-45 rounded-xl overflow-hidden">
-                {!! $logoSvg !!}
+                @if ($logoSvg)
+                    {!! $logoSvg !!}
+                @else
+                    <div class="text-center text-2xl font-bold text-[var(--primary-color)]">{{ $homeAppName }}</div>
+                @endif
             </div>
         </div>
 
         <!-- Title & Subtitle -->
         <h1 class="text-4xl font-bold text-[var(--primary-color)] mb-2 text-center">Welcome to {{ $client_company->name }}!</h1>
         <p class="text-[var(--secondary-text)] text-center mb-4">
-            GarmentsOS | Track your progress and manage your tasks efficiently.
+            {{ $homeAppName }} | Track your progress and manage your tasks efficiently.
         </p>
+        @if (!empty($branding['print_footer_text']))
+            <p class="text-xs text-[var(--secondary-text)] text-center mb-4">{{ $branding['print_footer_text'] }}</p>
+        @endif
 
         <!-- Powered by Tag -->
         <div class="text-xs text-gray-500 italic">

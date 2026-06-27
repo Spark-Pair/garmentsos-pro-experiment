@@ -3,6 +3,14 @@
         ? Auth::user()->theme
         : (request()->cookie('theme')
             ?? (isset($_COOKIE['theme']) ? $_COOKIE['theme'] : (str_contains($_SERVER['HTTP_USER_AGENT'] ?? '', 'Dark') ? 'dark' : 'light')));
+    $rawBranding = $branding ?? [];
+    $effectiveBranding = collect($rawBranding)
+        ->mapWithKeys(fn ($value, $key) => [$key => is_array($value) ? ($value['effective_value'] ?? $value['value'] ?? null) : $value])
+        ->all();
+    $appName = $effectiveBranding['app_name'] ?? $client_company->logo_text ?? 'GarmentsOS PRO';
+    $primaryColor = $effectiveBranding['theme_primary_color'] ?? '#2563eb';
+    $secondaryColor = $effectiveBranding['theme_secondary_color'] ?? '#1f2937';
+    $accentColor = $effectiveBranding['theme_accent_color'] ?? '#2563eb';
 
     $appConfig = [
         'authenticated' => Auth::check(),
@@ -22,6 +30,7 @@
             : null,
         'routeName' => request()->route()?->getName(),
         'companyLogoBase' => url('/') . '/',
+        'branding' => $effectiveBranding,
         'notificationsUrl' => Auth::check() ? route('notifications.index') : null,
         'readonlySession' => (bool) session('readonly'),
     ];
@@ -33,8 +42,8 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <meta name="theme-color" content="#2563eb">
-    <meta name="description" content="GarmentsOS PRO – Garments Business Management Solution">
+    <meta name="theme-color" content="{{ $primaryColor }}">
+    <meta name="description" content="{{ $appName }} - Garments Business Management Solution">
     <link rel="manifest" href="/manifest.json">
     <title>@yield('title', $client_company->name)</title>
     <style>
@@ -57,8 +66,10 @@
             /* Default dark theme text color */
             --secondary-text: #d1d5db;
             /* Default dark theme secondary text */
-            --primary-color: #2563eb;
+            --primary-color: {{ $primaryColor }};
             --h-primary-color: #1f56cd;
+            --brand-secondary-color: {{ $secondaryColor }};
+            --brand-accent-color: {{ $accentColor }};
             /* Default dark theme primary color */
             --bg-warning: hsl(45, 50%, 30%);
             --bg-success: hsl(130, 50%, 30%);

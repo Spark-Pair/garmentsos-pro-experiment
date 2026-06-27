@@ -97,6 +97,7 @@ Route::group(['middleware' => ['auth', 'activeSession', 'subscriptionExpiry', 'r
     Route::post('developer/settings/labels', [SettingsController::class, 'saveLabel'])->name('developer.settings.labels.save');
     Route::post('developer/settings/labels/{key}/reset', [SettingsController::class, 'resetLabel'])->name('developer.settings.labels.reset');
     Route::post('developer/settings/branding', [SettingsController::class, 'saveBranding'])->name('developer.settings.branding.save');
+    Route::post('developer/settings/branding/{key}/reset', [SettingsController::class, 'resetBranding'])->name('developer.settings.branding.reset');
     Route::post('developer/settings/modules', [SettingsController::class, 'saveModule'])->name('developer.settings.modules.save');
 
     Route::resource('suppliers', SupplierController::class)->middleware('moduleEnabled:suppliers');

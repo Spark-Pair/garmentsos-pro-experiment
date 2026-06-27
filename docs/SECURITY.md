@@ -73,6 +73,10 @@ If the client insists on keeping code locally:
 - Do not store secrets, credentials, `.env` values, tokens, private keys, or database credentials in settings tables.
 - Settings writes reject common secret-looking values before persistence, but release review should still verify settings do not contain sensitive material.
 - Label and branding text must remain plain text and be rendered escaped.
+- Branding colors must be strict `#RRGGBB` hex values only; reject CSS functions, URLs, variables, HTML, quotes, and semicolons.
+- Branding settings must not write `.env`, expose logo upload, accept arbitrary logo paths, alter public icons/manifests, or touch print builders without a separate review.
+- Missing branding settings must preserve existing config-driven client/company branding.
+- SparkPair branding remains in place unless a separate approved phase changes it.
 - Sidebar hiding is not security by itself; server-side module route blocking is currently enforced for `articles`, `customers`, `suppliers`, reviewed pure `reports` routes, and direct `rates` management routes.
 - Shared helper/session setter routes, `setups`, article `add-rate`, saved-rate usage, ledger, statement-adjustment, payment, stock, and report-adjacent routes are not route-blocked until reviewed and wired module-by-module.
 - Feature flag middleware should be applied only to reviewed, named feature routes/actions.
