@@ -12,7 +12,9 @@ use App\Models\License;
 use App\Services\Licensing\InstallationFingerprintService;
 use App\Services\Licensing\InstallationIdentityService;
 use App\Services\Licensing\LicenseService;
+use App\Services\Licensing\LicenseStatus;
 use App\Services\Licensing\OfflineActivationService;
+use Illuminate\Support\Facades\Schema;
 
 class LicenseController extends Controller
 {
@@ -24,6 +26,29 @@ class LicenseController extends Controller
     {
         if ($resp = $this->denyIfNoRole(['developer', 'admin'])) {
             return $resp;
+        }
+
+        if (!$this->licenseTablesReady()) {
+            return view('developer.license.status', [
+                'status' => LicenseStatus::problem(
+                    'setup_pending',
+                    'none',
+                    'Licensing tables are not available yet. Run migrations on a verified staging/client-copy database before using activation.',
+                    ['source' => 'setup_check'],
+                ),
+                'fingerprintPreview' => $fingerprints->fingerprintPreview(),
+                'installationPreview' => $identity->maskedUuid(),
+                'installationMode' => $identity->installationMode(),
+                'licensingEnabled' => $licenses->enabled(),
+                'cacheStatus' => LicenseStatus::problem(
+                    'setup_pending',
+                    'none',
+                    'Signed cache checks are waiting for licensing tables.',
+                    ['source' => 'setup_check'],
+                ),
+                'foundationReady' => false,
+                'missingTables' => $this->missingLicenseTables(),
+            ]);
         }
 
         $installation = $identity->current();
@@ -39,6 +64,8 @@ class LicenseController extends Controller
             'installationMode' => $installation->installation_mode,
             'licensingEnabled' => $licenses->enabled(),
             'cacheStatus' => $licenses->statusFromSignedCache(),
+            'foundationReady' => true,
+            'missingTables' => [],
         ]);
     }
 
@@ -55,6 +82,12 @@ class LicenseController extends Controller
     {
         if ($resp = $this->denyIfNoRole(['developer', 'admin'])) {
             return $resp;
+        }
+
+        if (!$this->licenseTablesReady()) {
+            return redirect()
+                ->route('developer.license.status')
+                ->with('error', 'Licensing tables are not available yet. Run migrations on a verified staging/client-copy database before activation.');
         }
 
         $data = $request->validated();
@@ -90,6 +123,12 @@ class LicenseController extends Controller
             return $resp;
         }
 
+        if (!$this->licenseTablesReady()) {
+            return redirect()
+                ->route('developer.license.status')
+                ->with('error', 'Licensing tables are not available yet. Run migrations on a verified staging/client-copy database before importing a license.');
+        }
+
         $status = $licenses->importSignedLicense($request->validated('signed_license'));
 
         if (!$status->isAllowed()) {
@@ -107,6 +146,12 @@ class LicenseController extends Controller
     {
         if ($resp = $this->denyIfNoRole(['developer', 'admin'])) {
             return $resp;
+        }
+
+        if (!$this->licenseTablesReady()) {
+            return redirect()
+                ->route('developer.license.status')
+                ->with('error', 'Licensing tables are not available yet. Run migrations on a verified staging/client-copy database before refreshing.');
         }
 
         $status = $licenses->refresh();
@@ -128,7 +173,7 @@ class LicenseController extends Controller
             return $resp;
         }
 
-        $license = License::latest('id')->first();
+        $license = $this->licenseTablesReady() ? License::latest('id')->first() : null;
         $code = $offline->reactivationRequestCode($request->validated('reason'), $license?->metadata ?? null);
 
         return view('developer.license.offline', [
@@ -144,8 +189,23 @@ class LicenseController extends Controller
         }
 
         return view('developer.license.audit-logs', [
-            'logs' => AuditLog::latest('occurred_at')->limit(50)->get(),
+            'logs' => Schema::hasTable('audit_logs') ? AuditLog::latest('occurred_at')->limit(50)->get() : collect(),
+            'foundationReady' => Schema::hasTable('audit_logs'),
         ]);
     }
 
+    protected function licenseTablesReady(): bool
+    {
+        return $this->missingLicenseTables() === [];
+    }
+
+    protected function missingLicenseTables(): array
+    {
+        return array_values(array_filter([
+            'app_installations',
+            'licenses',
+            'license_checks',
+            'audit_logs',
+        ], fn (string $table) => !Schema::hasTable($table)));
+    }
 }

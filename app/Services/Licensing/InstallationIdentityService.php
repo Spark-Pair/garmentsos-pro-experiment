@@ -11,7 +11,7 @@ class InstallationIdentityService
 {
     public function current(): AppInstallation
     {
-        $uuid = $this->readOrCreateUuid();
+        $uuid = $this->uuid();
         $mode = $this->installationMode();
 
         return AppInstallation::firstOrCreate(
@@ -26,6 +26,11 @@ class InstallationIdentityService
                 ],
             ],
         );
+    }
+
+    public function uuid(): string
+    {
+        return $this->readOrCreateUuid();
     }
 
     public function installationMode(): string

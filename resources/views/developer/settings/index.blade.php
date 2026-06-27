@@ -64,54 +64,59 @@
             </div>
 
             <div class="grid gap-4 p-5 xl:grid-cols-[minmax(0,1fr)_20rem]">
-                <div class="overflow-x-auto">
-                    <table class="min-w-full text-sm">
-                        <thead class="bg-[var(--h-bg-color)] text-left">
-                            <tr>
-                                <th class="px-3 py-2 font-semibold">Key</th>
-                                <th class="px-3 py-2 font-semibold">Effective</th>
-                                <th class="px-3 py-2 font-semibold">Source</th>
-                                <th class="px-3 py-2 font-semibold">Value</th>
-                                <th class="px-3 py-2 font-semibold">Reset</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-[var(--glass-border-color)]/10">
-                            @foreach ($branding as $item)
-                                <tr>
-                                    <td class="px-3 py-3 align-top">
-                                        <div class="font-mono text-xs">{{ $item['key'] }}</div>
-                                        <div class="mt-1 text-xs text-[var(--secondary-text)]">Default: {{ $item['default'] ?: '-' }}</div>
-                                    </td>
-                                    <td class="px-3 py-3 align-top">{{ $item['effective_value'] ?: '-' }}</td>
-                                    <td class="px-3 py-3 align-top">
+                <div class="grid gap-3">
+                    @foreach ($branding as $item)
+                        @php
+                            $isColor = str_contains($item['key'], 'color');
+                        @endphp
+                        <article class="{{ $mutedPanel }} p-4">
+                            <div class="grid gap-4 lg:grid-cols-[minmax(12rem,1fr)_minmax(14rem,1.2fr)] lg:items-center">
+                                <div>
+                                    <div class="flex flex-wrap items-center gap-2">
+                                        <h3 class="font-semibold">{{ str_replace('_', ' ', $item['key']) }}</h3>
                                         <span class="{{ $badge }} border-[var(--glass-border-color)]/20 bg-[var(--glass-border-color)]/5 text-[var(--secondary-text)]">
                                             {{ str_replace('_', ' ', $item['source']) }}
                                         </span>
-                                    </td>
-                                    <td class="px-3 py-3 align-top">
-                                        <form method="POST" action="{{ route('developer.settings.branding.save') }}" class="flex min-w-64 flex-col gap-2 sm:flex-row">
-                                            @csrf
-                                            <input type="hidden" name="key" value="{{ $item['key'] }}">
-                                            <input
-                                                type="{{ str_contains($item['key'], 'color') ? 'color' : 'text' }}"
-                                                name="value"
-                                                value="{{ $item['value'] }}"
-                                                maxlength="120"
-                                                class="{{ $inputClass }} {{ str_contains($item['key'], 'color') ? 'h-10 w-20 p-1' : 'sm:w-56' }}"
-                                            >
-                                            <button type="submit" class="{{ $primaryButton }}">Save</button>
-                                        </form>
-                                    </td>
-                                    <td class="px-3 py-3 align-top">
-                                        <form method="POST" action="{{ route('developer.settings.branding.reset', $item['key']) }}">
-                                            @csrf
-                                            <button type="submit" class="{{ $secondaryButton }}">Reset</button>
-                                        </form>
-                                    </td>
-                                </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
+                                    </div>
+                                    <p class="mt-1 font-mono text-xs text-[var(--secondary-text)]">{{ $item['key'] }}</p>
+                                    <div class="mt-3 grid gap-2 text-xs md:grid-cols-2">
+                                        <div>
+                                            <div class="text-[var(--secondary-text)]">Default</div>
+                                            <div>{{ $item['default'] ?: '-' }}</div>
+                                        </div>
+                                        <div>
+                                            <div class="text-[var(--secondary-text)]">Effective</div>
+                                            <div class="flex items-center gap-2">
+                                                @if ($isColor)
+                                                    <span class="inline-block h-4 w-4 rounded border border-[var(--glass-border-color)]/20" style="background: {{ $item['effective_value'] ?: '#000000' }}"></span>
+                                                @endif
+                                                <span>{{ $item['effective_value'] ?: '-' }}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="flex flex-col gap-2 sm:flex-row lg:justify-end">
+                                    <form method="POST" action="{{ route('developer.settings.branding.save') }}" class="flex flex-1 flex-col gap-2 sm:flex-row lg:flex-none">
+                                        @csrf
+                                        <input type="hidden" name="key" value="{{ $item['key'] }}">
+                                        <input
+                                            type="{{ $isColor ? 'color' : 'text' }}"
+                                            name="value"
+                                            value="{{ $item['value'] }}"
+                                            maxlength="120"
+                                            class="{{ $inputClass }} {{ $isColor ? 'h-10 w-20 p-1' : 'sm:w-56' }}"
+                                        >
+                                        <button type="submit" class="{{ $primaryButton }}">Save</button>
+                                    </form>
+                                    <form method="POST" action="{{ route('developer.settings.branding.reset', $item['key']) }}">
+                                        @csrf
+                                        <button type="submit" class="{{ $secondaryButton }}">Reset</button>
+                                    </form>
+                                </div>
+                            </div>
+                        </article>
+                    @endforeach
                 </div>
 
                 <aside class="{{ $mutedPanel }} p-4">
@@ -214,46 +219,45 @@
                     Short, plain-text UI label overrides. Missing values use the existing labels.
                 </p>
             </div>
-            <div class="overflow-x-auto p-5">
-                <table class="min-w-full text-sm">
-                    <thead class="bg-[var(--h-bg-color)] text-left">
-                        <tr>
-                            <th class="px-3 py-2 font-semibold">Key</th>
-                            <th class="px-3 py-2 font-semibold">Default</th>
-                            <th class="px-3 py-2 font-semibold">Current</th>
-                            <th class="px-3 py-2 font-semibold">Override</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-[var(--glass-border-color)]/10">
-                        @foreach ($labels as $key => $default)
-                            <tr>
-                                <td class="px-3 py-3 font-mono text-xs">{{ $key }}</td>
-                                <td class="px-3 py-3">{{ $default }}</td>
-                                <td class="px-3 py-3">{{ label_text($key, $default) }}</td>
-                                <td class="px-3 py-3">
-                                    <div class="flex flex-col gap-2 md:flex-row">
-                                        <form method="POST" action="{{ route('developer.settings.labels.save') }}" class="flex min-w-64 flex-col gap-2 sm:flex-row">
-                                            @csrf
-                                            <input type="hidden" name="label_key" value="{{ $key }}">
-                                            <input
-                                                type="text"
-                                                name="override_text"
-                                                value="{{ label_text($key, $default) }}"
-                                                maxlength="80"
-                                                class="{{ $inputClass }} sm:w-48"
-                                            >
-                                            <button type="submit" class="{{ $primaryButton }}">Save</button>
-                                        </form>
-                                        <form method="POST" action="{{ route('developer.settings.labels.reset', $key) }}">
-                                            @csrf
-                                            <button type="submit" class="{{ $secondaryButton }}">Reset</button>
-                                        </form>
+            <div class="grid gap-3 p-5 md:grid-cols-2">
+                @foreach ($labels as $key => $default)
+                    <article class="{{ $mutedPanel }} p-4">
+                        <div class="flex flex-col gap-4">
+                            <div>
+                                <h3 class="font-semibold">{{ label_text($key, $default) }}</h3>
+                                <p class="mt-1 font-mono text-xs text-[var(--secondary-text)]">{{ $key }}</p>
+                                <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                                    <div>
+                                        <div class="text-[var(--secondary-text)]">Default</div>
+                                        <div>{{ $default }}</div>
                                     </div>
-                                </td>
-                            </tr>
-                        @endforeach
-                    </tbody>
-                </table>
+                                    <div>
+                                        <div class="text-[var(--secondary-text)]">Current</div>
+                                        <div>{{ label_text($key, $default) }}</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="flex flex-col gap-2 sm:flex-row">
+                                <form method="POST" action="{{ route('developer.settings.labels.save') }}" class="flex flex-1 flex-col gap-2 sm:flex-row">
+                                    @csrf
+                                    <input type="hidden" name="label_key" value="{{ $key }}">
+                                    <input
+                                        type="text"
+                                        name="override_text"
+                                        value="{{ label_text($key, $default) }}"
+                                        maxlength="80"
+                                        class="{{ $inputClass }} sm:w-48"
+                                    >
+                                    <button type="submit" class="{{ $primaryButton }}">Save</button>
+                                </form>
+                                <form method="POST" action="{{ route('developer.settings.labels.reset', $key) }}">
+                                    @csrf
+                                    <button type="submit" class="{{ $secondaryButton }}">Reset</button>
+                                </form>
+                            </div>
+                        </div>
+                    </article>
+                @endforeach
             </div>
         </section>
 

@@ -14,9 +14,8 @@ class InstallationFingerprintService
 
     public function fingerprintHash(): string
     {
-        $installation = $this->identity->current();
         $components = [
-            'installation_uuid' => $installation->installation_uuid,
+            'installation_uuid' => $this->identity->uuid(),
             'mode' => $this->identity->installationMode(),
         ];
 

@@ -13,6 +13,7 @@ use App\Services\BackupVerifier;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use RuntimeException;
 use Tests\TestCase;
@@ -94,6 +95,24 @@ class BackupFoundationTest extends TestCase
             ->assertSee('Private storage')
             ->assertSee('Restore Status')
             ->assertSee('No managed backups yet');
+    }
+
+    public function test_missing_backup_tables_render_friendly_pending_state_instead_of_500(): void
+    {
+        Schema::dropIfExists('backup_logs');
+        Schema::dropIfExists('audit_logs');
+        Schema::dropIfExists('app_installations');
+
+        $this->actingAs($this->user('developer'));
+
+        $this->get(route('developer.backups'))
+            ->assertOk()
+            ->assertSee('Backup setup is pending')
+            ->assertSee('Missing: app_installations, backup_logs, audit_logs');
+
+        $this->post(route('developer.backups.store'))
+            ->assertRedirect(route('developer.backups'))
+            ->assertSessionHas('error');
     }
 
     public function test_unauthorized_user_is_blocked_from_backup_page_and_download(): void

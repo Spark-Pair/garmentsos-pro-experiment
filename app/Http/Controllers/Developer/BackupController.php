@@ -9,6 +9,7 @@ use App\Services\BackupStorageService;
 use App\Services\BackupVerifier;
 use App\Services\RestoreService;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\Schema;
 use RuntimeException;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
@@ -20,9 +21,13 @@ class BackupController extends Controller
             return $resp;
         }
 
+        $foundationReady = $this->backupTablesReady();
+
         return view('developer.license.backups', [
-            'logs' => $storage->listManagedBackups(),
+            'logs' => $foundationReady ? $storage->listManagedBackups() : collect(),
             'restoreRequirements' => $restore->requirements(),
+            'foundationReady' => $foundationReady,
+            'missingTables' => $this->missingBackupTables(),
         ]);
     }
 
@@ -30,6 +35,12 @@ class BackupController extends Controller
     {
         if ($resp = $this->denyIfNoRole(['developer', 'admin'])) {
             return $resp;
+        }
+
+        if (!$this->backupTablesReady()) {
+            return redirect()
+                ->route('developer.backups')
+                ->with('error', 'Backup tables are not available yet. Run migrations on a verified staging/client-copy database before creating backups.');
         }
 
         $result = $backups->createManualBackup('manual_backup');
@@ -117,6 +128,10 @@ class BackupController extends Controller
             abort(403, 'You do not have permission to download database backup.');
         }
 
+        if (!$this->backupTablesReady()) {
+            abort(503, 'Backup tables are not available yet. Run migrations before creating backups.');
+        }
+
         $result = $backups->createManualBackup('legacy_download_backup');
 
         if (!$result['success']) {
@@ -127,5 +142,19 @@ class BackupController extends Controller
             'Content-Type' => 'application/octet-stream',
             'Cache-Control' => 'no-store, no-cache, must-revalidate, max-age=0',
         ]);
+    }
+
+    protected function backupTablesReady(): bool
+    {
+        return $this->missingBackupTables() === [];
+    }
+
+    protected function missingBackupTables(): array
+    {
+        return array_values(array_filter([
+            'app_installations',
+            'backup_logs',
+            'audit_logs',
+        ], fn (string $table) => !Schema::hasTable($table)));
     }
 }

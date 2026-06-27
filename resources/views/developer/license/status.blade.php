@@ -8,6 +8,9 @@
         $badge = 'inline-flex items-center rounded-lg border px-2.5 py-1 text-xs font-semibold';
         $primaryButton = 'inline-flex items-center justify-center rounded-lg bg-[var(--primary-color)] px-4 py-2 text-sm font-semibold text-white transition-all duration-300 ease-in-out hover:bg-[var(--h-primary-color)] hover:scale-[0.98]';
         $secondaryButton = 'inline-flex items-center justify-center rounded-lg border border-[var(--glass-border-color)]/20 bg-[var(--h-bg-color)] px-4 py-2 text-sm text-[var(--text-color)] transition-all duration-300 ease-in-out hover:bg-[var(--secondary-bg-color)] hover:scale-[0.98]';
+        $disabledButton = 'inline-flex items-center justify-center rounded-lg border border-[var(--glass-border-color)]/20 bg-[var(--h-bg-color)] px-4 py-2 text-sm text-[var(--secondary-text)] opacity-60 cursor-not-allowed';
+        $foundationReady = $foundationReady ?? true;
+        $missingTables = $missingTables ?? [];
         $bannerType = match ($status->state) {
             'valid' => 'border-[var(--border-success)] bg-[var(--bg-success)] text-[var(--text-success)]',
             'subscription_expired', 'offline_grace' => 'border-[var(--border-warning)] bg-[var(--bg-warning)] text-[var(--text-warning)]',
@@ -30,6 +33,18 @@
                 </span>
             </div>
         </header>
+
+        @if (!$foundationReady)
+            <section class="rounded-xl border border-[var(--border-warning)] bg-[var(--bg-warning)] p-4 text-sm text-[var(--text-warning)]">
+                <div class="font-semibold">Licensing setup is pending</div>
+                <p class="mt-1">
+                    The licensing foundation tables are not available in this local database yet. Run migrations only on a verified staging/client-copy database before using activation.
+                </p>
+                @if ($missingTables)
+                    <p class="mt-2 font-mono text-xs">Missing: {{ implode(', ', $missingTables) }}</p>
+                @endif
+            </section>
+        @endif
 
         <section class="{{ $panel }} p-5 space-y-5">
             <div class="rounded-xl border p-4 {{ $bannerType }}">
@@ -77,11 +92,11 @@
             </div>
 
             <div class="flex flex-wrap gap-3">
-                <a href="{{ route('developer.license.activate') }}" class="{{ $primaryButton }}">Activate License</a>
+                <a href="{{ $foundationReady ? route('developer.license.activate') : '#' }}" class="{{ $foundationReady ? $primaryButton : $disabledButton }}" @if (!$foundationReady) aria-disabled="true" @endif>Activate License</a>
                 <a href="{{ route('developer.license.offline') }}" class="{{ $secondaryButton }}">Offline / Reactivation</a>
                 <form method="POST" action="{{ route('developer.license.refresh') }}">
                     @csrf
-                    <button type="submit" class="{{ $secondaryButton }}">Refresh Subscription</button>
+                    <button type="submit" class="{{ $foundationReady ? $secondaryButton : $disabledButton }}" @disabled(!$foundationReady)>Refresh Subscription</button>
                 </form>
                 <a href="{{ route('developer.audit-logs') }}" class="{{ $secondaryButton }}">Audit Logs</a>
                 <a href="{{ route('home') }}" class="{{ $secondaryButton }}">Back</a>

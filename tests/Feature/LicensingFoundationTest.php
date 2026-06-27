@@ -3,12 +3,18 @@
 namespace Tests\Feature;
 
 use App\Http\Middleware\EnsureValidLicense;
+use App\Http\Middleware\CheckActiveSession;
+use App\Http\Middleware\SubscriptionExpiry;
+use App\Http\Middleware\VerifyCsrfToken;
 use App\Models\AppInstallation;
 use App\Models\License;
+use App\Models\User;
 use App\Services\Licensing\LicenseService;
 use App\Services\Licensing\InstallationFingerprintService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Str;
 use Tests\TestCase;
@@ -25,6 +31,8 @@ class LicensingFoundationTest extends TestCase
             'licensing.identity_path' => storage_path('framework/testing/license-' . Str::random(12) . '/installation.json'),
             'licensing.cache_path' => storage_path('framework/testing/license-' . Str::random(12) . '/license.json'),
         ]);
+
+        $this->withoutMiddleware([CheckActiveSession::class, SubscriptionExpiry::class, VerifyCsrfToken::class]);
     }
 
     public function test_licensing_disabled_middleware_passes_through(): void
@@ -119,5 +127,36 @@ class LicensingFoundationTest extends TestCase
     {
         $this->assertFalse(class_exists(\App\Models\LicenseDevice::class));
         $this->assertTrue(class_exists(AppInstallation::class));
+    }
+
+    public function test_missing_license_tables_render_friendly_pending_state_instead_of_500(): void
+    {
+        Schema::dropIfExists('license_checks');
+        Schema::dropIfExists('licenses');
+        Schema::dropIfExists('audit_logs');
+        Schema::dropIfExists('app_installations');
+
+        $this->actingAs($this->user('developer'));
+
+        $this->get(route('developer.license.status'))
+            ->assertOk()
+            ->assertSee('Licensing setup is pending')
+            ->assertSee('Setup pending')
+            ->assertSee('Missing: app_installations, licenses, license_checks, audit_logs');
+
+        $this->post(route('developer.license.refresh'))
+            ->assertRedirect(route('developer.license.status'))
+            ->assertSessionHas('error');
+    }
+
+    protected function user(string $role): User
+    {
+        return User::create([
+            'name' => Str::title($role) . ' User',
+            'username' => $role . '_' . Str::random(8),
+            'password' => Hash::make('password'),
+            'role' => $role,
+            'status' => 'active',
+        ]);
     }
 }

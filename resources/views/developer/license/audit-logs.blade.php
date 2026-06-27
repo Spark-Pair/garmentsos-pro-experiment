@@ -6,6 +6,7 @@
     @php
         $panel = 'bg-[var(--secondary-bg-color)] border border-[var(--glass-border-color)]/20 rounded-xl shadow-sm';
         $badge = 'inline-flex items-center rounded-lg border border-[var(--glass-border-color)]/20 bg-[var(--glass-border-color)]/5 px-2.5 py-1 text-xs font-semibold text-[var(--secondary-text)]';
+        $foundationReady = $foundationReady ?? true;
     @endphp
 
     <div class="w-full max-w-6xl mx-auto p-4 md:p-6 space-y-6 text-[var(--text-color)]">
@@ -21,6 +22,12 @@
                 <span class="{{ $badge }}">{{ $logs->count() }} events</span>
             </div>
         </header>
+
+        @if (!$foundationReady)
+            <section class="rounded-xl border border-[var(--border-warning)] bg-[var(--bg-warning)] p-4 text-sm text-[var(--text-warning)]">
+                Audit log tables are not available in this local database yet. Run migrations on a verified staging/client-copy database to enable audit history.
+            </section>
+        @endif
 
         <section class="{{ $panel }} overflow-hidden">
             <div class="overflow-x-auto">
