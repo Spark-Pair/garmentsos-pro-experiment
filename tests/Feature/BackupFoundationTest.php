@@ -84,6 +84,18 @@ class BackupFoundationTest extends TestCase
         $this->assertSame(1, BackupLog::where('status', 'success')->count());
     }
 
+    public function test_backup_page_renders_polished_safe_foundation_ui(): void
+    {
+        $this->actingAs($this->user('developer'));
+
+        $this->get(route('developer.backups'))
+            ->assertOk()
+            ->assertSee('Backup &amp; Restore', false)
+            ->assertSee('Private storage')
+            ->assertSee('Restore Status')
+            ->assertSee('No managed backups yet');
+    }
+
     public function test_unauthorized_user_is_blocked_from_backup_page_and_download(): void
     {
         $this->actingAs($this->user('guest'));

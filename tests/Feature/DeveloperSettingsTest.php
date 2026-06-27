@@ -43,7 +43,11 @@ class DeveloperSettingsTest extends TestCase
         $this->actingAs($this->user('developer'))
             ->get(route('developer.settings'))
             ->assertOk()
-            ->assertSee('Developer Settings');
+            ->assertSee('Developer Settings')
+            ->assertSee('Branding')
+            ->assertSee('Modules')
+            ->assertSee('Labels')
+            ->assertSee('Feature Flags');
 
         $this->actingAs($this->user('admin'))
             ->get(route('developer.settings'))
@@ -173,6 +177,36 @@ class DeveloperSettingsTest extends TestCase
             ->assertSee('Designs')
             ->assertSee('Show Designs')
             ->assertSee('Add Design');
+    }
+
+    public function test_developer_system_navigation_is_visible_only_to_developer_and_admin(): void
+    {
+        $this->actingAs($this->user('developer'));
+
+        $this->view('components.sidebar')
+            ->assertSee(route('developer.settings'))
+            ->assertSee(route('developer.license.status'))
+            ->assertSee(route('developer.backups'))
+            ->assertSee(route('developer.updater'))
+            ->assertSee('System')
+            ->assertSee('Developer Settings')
+            ->assertSee('License Status')
+            ->assertSee('Backups')
+            ->assertSee('Updater');
+
+        $this->actingAs($this->user('admin'));
+
+        $this->view('components.sidebar')
+            ->assertSee(route('developer.settings'))
+            ->assertSee(route('developer.backups'));
+
+        $this->actingAs($this->user('guest'));
+
+        $this->view('components.sidebar')
+            ->assertDontSee(route('developer.settings'))
+            ->assertDontSee(route('developer.license.status'))
+            ->assertDontSee(route('developer.backups'))
+            ->assertDontSee(route('developer.updater'));
     }
 
     public function test_no_module_route_blocking_active_in_phase_5a(): void

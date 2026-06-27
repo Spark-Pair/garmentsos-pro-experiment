@@ -177,7 +177,7 @@ class LicenseModulePrecedenceTest extends TestCase
         $this->actingAs($this->user('developer'))
             ->get(route('developer.settings'))
             ->assertOk()
-            ->assertSee('disabled_by_license');
+            ->assertSee('disabled by license');
     }
 
     public function test_orders_invoices_payments_and_reports_are_unaffected(): void

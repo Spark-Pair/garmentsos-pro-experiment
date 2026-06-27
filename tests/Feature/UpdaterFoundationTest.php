@@ -72,6 +72,18 @@ class UpdaterFoundationTest extends TestCase
         Http::assertNothingSent();
     }
 
+    public function test_updater_page_renders_disabled_verification_only_ui(): void
+    {
+        $this->actingAs($this->user('developer'));
+
+        $this->get(route('developer.updater'))
+            ->assertOk()
+            ->assertSee('Updater disabled')
+            ->assertSee('Apply/install')
+            ->assertSee('Not implemented')
+            ->assertSee('No manifest request is made');
+    }
+
     public function test_valid_manifest_is_accepted(): void
     {
         $result = app(UpdateManifestService::class)->validateManifest($this->signedManifest());

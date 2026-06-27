@@ -68,14 +68,15 @@ class BrandingSettingsTest extends TestCase
         $this->actingAs($this->user('developer'))
             ->get(route('developer.settings'))
             ->assertOk()
-            ->assertSee('Branding Text')
+            ->assertSee('Branding')
+            ->assertSee('Safe text/color only')
             ->assertSee('Effective')
             ->assertSee('Reset');
 
         $this->actingAs($this->user('admin'))
             ->get(route('developer.settings'))
             ->assertOk()
-            ->assertSee('Branding Text');
+            ->assertSee('Branding');
     }
 
     public function test_unauthorized_user_blocked_from_branding_settings(): void

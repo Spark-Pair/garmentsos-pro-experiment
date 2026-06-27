@@ -3,98 +3,163 @@
 @section('title', 'Backup & Restore | ' . $client_company->name)
 
 @section('content')
-    <div class="w-full max-w-5xl mx-auto space-y-6">
-        <div>
-            <h1 class="text-2xl font-semibold">Backup & Restore</h1>
-            <p class="text-[var(--secondary-text)] mt-1">Private, verified database backups for developer/admin use.</p>
-        </div>
+    @php
+        $panel = 'bg-[var(--secondary-bg-color)] border border-[var(--glass-border-color)]/20 rounded-xl shadow-sm';
+        $badge = 'inline-flex items-center rounded-lg border px-2.5 py-1 text-xs font-semibold';
+        $primaryButton = 'inline-flex items-center justify-center rounded-lg bg-[var(--primary-color)] px-4 py-2 text-sm font-semibold text-white transition-all duration-300 ease-in-out hover:bg-[var(--h-primary-color)] hover:scale-[0.98]';
+        $secondaryButton = 'inline-flex items-center justify-center rounded-lg border border-[var(--glass-border-color)]/20 bg-[var(--h-bg-color)] px-3 py-2 text-sm text-[var(--text-color)] transition-all duration-300 ease-in-out hover:bg-[var(--secondary-bg-color)] hover:scale-[0.98]';
+        $restoreEnabled = (bool) ($restoreRequirements['restore_enabled'] ?? false);
+    @endphp
+
+    <div class="w-full max-w-7xl mx-auto p-4 md:p-6 space-y-6 text-[var(--text-color)]">
+        <header class="{{ $panel }} p-5">
+            <div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                <div>
+                    <p class="text-xs font-semibold uppercase tracking-wider text-[var(--secondary-text)]">System safety</p>
+                    <h1 class="mt-1 text-2xl font-semibold">Backup & Restore</h1>
+                    <p class="mt-2 max-w-3xl text-sm text-[var(--secondary-text)]">
+                        Private, verified SQLite backups for developer/admin use. Backup files stay in private storage and downloads are permission protected.
+                    </p>
+                </div>
+                <form method="POST" action="{{ route('developer.backups.store') }}">
+                    @csrf
+                    <button type="submit" class="{{ $primaryButton }}">
+                        <i class="fas fa-database mr-2"></i>Create Backup
+                    </button>
+                </form>
+            </div>
+        </header>
 
         @if (session('success'))
-            <div class="bg-green-900/40 border border-green-700 rounded-lg p-3 text-green-100">
+            <div class="rounded-xl border border-[var(--border-success)] bg-[var(--bg-success)] px-4 py-3 text-sm text-[var(--text-success)]">
                 {{ session('success') }}
             </div>
         @endif
 
         @if (session('error'))
-            <div class="bg-red-900/40 border border-red-700 rounded-lg p-3 text-red-100">
+            <div class="rounded-xl border border-[var(--border-error)] bg-[var(--bg-error)] px-4 py-3 text-sm text-[var(--text-error)]">
                 {{ session('error') }}
             </div>
         @endif
 
-        <div class="bg-[var(--secondary-bg-color)] border border-gray-700 rounded-lg p-5 flex items-center justify-between gap-4">
-            <div>
-                <h2 class="text-lg font-semibold">Create Backup</h2>
-                <p class="text-[var(--secondary-text)] mt-1">Creates a private SQLite backup, checksum, metadata file, backup log, and audit log.</p>
+        <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+            <section class="{{ $panel }} p-5 xl:col-span-3">
+                <div class="flex items-start justify-between gap-3">
+                    <div>
+                        <h2 class="text-lg font-semibold">Backup Workflow</h2>
+                        <p class="mt-1 text-sm text-[var(--secondary-text)]">
+                            A backup creates a standalone SQLite copy, checksum, metadata, backup log, and audit log.
+                        </p>
+                    </div>
+                    <span class="{{ $badge }} border-[var(--border-success)] bg-[var(--bg-success)] text-[var(--text-success)]">Private storage</span>
+                </div>
+                <div class="mt-4 grid gap-3 text-sm md:grid-cols-3">
+                    <div class="rounded-lg border border-[var(--glass-border-color)]/10 bg-[var(--glass-border-color)]/5 p-3">
+                        <div class="font-semibold">Create</div>
+                        <div class="mt-1 text-[var(--secondary-text)]">Managed backup only.</div>
+                    </div>
+                    <div class="rounded-lg border border-[var(--glass-border-color)]/10 bg-[var(--glass-border-color)]/5 p-3">
+                        <div class="font-semibold">Verify</div>
+                        <div class="mt-1 text-[var(--secondary-text)]">SQLite validity and checksum.</div>
+                    </div>
+                    <div class="rounded-lg border border-[var(--glass-border-color)]/10 bg-[var(--glass-border-color)]/5 p-3">
+                        <div class="font-semibold">Download</div>
+                        <div class="mt-1 text-[var(--secondary-text)]">Developer/admin only.</div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="{{ $panel }} p-5 xl:col-span-2">
+                <div class="flex items-start justify-between gap-3">
+                    <div>
+                        <h2 class="text-lg font-semibold">Restore Status</h2>
+                        <p class="mt-1 text-sm text-[var(--secondary-text)]">Restore is separate from backup creation.</p>
+                    </div>
+                    <span class="{{ $badge }} {{ $restoreEnabled ? 'border-[var(--border-warning)] bg-[var(--bg-warning)] text-[var(--text-warning)]' : 'border-[var(--glass-border-color)]/20 bg-[var(--glass-border-color)]/5 text-[var(--secondary-text)]' }}">
+                        {{ $restoreEnabled ? 'Enabled' : 'Disabled' }}
+                    </span>
+                </div>
+                <dl class="mt-4 grid grid-cols-1 gap-2 text-sm">
+                    <div class="flex justify-between gap-3">
+                        <dt class="text-[var(--secondary-text)]">Typed confirmation</dt>
+                        <dd>{{ $restoreRequirements['confirmation_required'] ? 'Required' : 'Not required' }}</dd>
+                    </div>
+                    <div class="flex justify-between gap-3">
+                        <dt class="text-[var(--secondary-text)]">Staging/copy test</dt>
+                        <dd>{{ $restoreRequirements['staging_tested_required'] ? 'Required' : 'Not required' }}</dd>
+                    </div>
+                    <div class="flex justify-between gap-3">
+                        <dt class="text-[var(--secondary-text)]">Emergency backup</dt>
+                        <dd>{{ $restoreRequirements['emergency_backup_before_restore'] ? 'Required' : 'Not required' }}</dd>
+                    </div>
+                </dl>
+            </section>
+        </div>
+
+        <section class="{{ $panel }} overflow-hidden">
+            <div class="flex items-center justify-between border-b border-[var(--glass-border-color)]/10 p-5">
+                <div>
+                    <h2 class="text-lg font-semibold">Backup Logs</h2>
+                    <p class="mt-1 text-sm text-[var(--secondary-text)]">Filenames are shown for identification; private storage paths are not shown.</p>
+                </div>
+                <span class="{{ $badge }} border-[var(--glass-border-color)]/20 bg-[var(--glass-border-color)]/5 text-[var(--secondary-text)]">
+                    {{ $logs->count() }} records
+                </span>
             </div>
-            <form method="POST" action="{{ route('developer.backups.store') }}">
-                @csrf
-                <button type="submit"
-                    class="px-4 py-2 bg-[var(--secondary-color)] text-white rounded-lg hover:opacity-90">
-                    Create Backup
-                </button>
-            </form>
-        </div>
 
-        <div class="bg-[var(--secondary-bg-color)] border border-gray-700 rounded-lg p-5">
-            <h2 class="text-lg font-semibold mb-3">Restore Status</h2>
-            <ul class="space-y-2 text-[var(--secondary-text)]">
-                <li>Restore enabled: {{ $restoreRequirements['restore_enabled'] ? 'Yes' : 'No' }}</li>
-                <li>Confirmation required: {{ $restoreRequirements['confirmation_required'] ? 'Yes' : 'No' }}</li>
-                <li>Staging/copy test confirmation required: {{ $restoreRequirements['staging_tested_required'] ? 'Yes' : 'No' }}</li>
-                <li>Emergency backup before restore: {{ $restoreRequirements['emergency_backup_before_restore'] ? 'Yes' : 'No' }}</li>
-                <li>Public backups allowed: {{ $restoreRequirements['public_backups_allowed'] ? 'Yes' : 'No' }}</li>
-            </ul>
-        </div>
-
-        <div class="bg-[var(--secondary-bg-color)] border border-gray-700 rounded-lg overflow-hidden">
-            <table class="w-full text-sm">
-                <thead class="bg-[var(--h-bg-color)]">
-                    <tr>
-                        <th class="text-left p-3">Started</th>
-                        <th class="text-left p-3">Action</th>
-                        <th class="text-left p-3">Status</th>
-                        <th class="text-left p-3">File</th>
-                        <th class="text-left p-3">Size</th>
-                        <th class="text-left p-3">Checksum</th>
-                        <th class="text-left p-3">Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @forelse ($logs as $log)
-                        <tr class="border-t border-gray-700">
-                            <td class="p-3">{{ $log->started_at?->format('Y-m-d H:i') }}</td>
-                            <td class="p-3">{{ $log->action }}</td>
-                            <td class="p-3">{{ $log->status }}</td>
-                            <td class="p-3">{{ $log->filename ?? '-' }}</td>
-                            <td class="p-3">{{ $log->size_bytes ? number_format($log->size_bytes / 1024, 1) . ' KB' : '-' }}</td>
-                            <td class="p-3 font-mono text-xs">{{ $log->checksum ? substr($log->checksum, 0, 16) . '...' : '-' }}</td>
-                            <td class="p-3">
-                                <div class="flex flex-wrap gap-2">
-                                    <form method="POST" action="{{ route('developer.backups.verify', $log) }}">
-                                        @csrf
-                                        <button type="submit"
-                                            class="px-3 py-1 bg-[var(--h-bg-color)] rounded hover:opacity-90">
-                                            Verify
-                                        </button>
-                                    </form>
-                                    <a href="{{ route('developer.backups.download', $log) }}"
-                                        class="px-3 py-1 bg-[var(--secondary-color)] text-white rounded hover:opacity-90">
-                                        Download
-                                    </a>
-                                    <a href="{{ route('developer.backups.restore.show', $log) }}"
-                                        class="px-3 py-1 bg-red-900/70 text-white rounded hover:opacity-90">
-                                        Restore
-                                    </a>
-                                </div>
-                            </td>
-                        </tr>
-                    @empty
+            <div class="overflow-x-auto">
+                <table class="w-full min-w-[56rem] text-sm">
+                    <thead class="bg-[var(--h-bg-color)]">
                         <tr>
-                            <td colspan="7" class="p-3 text-[var(--secondary-text)]">No verified backup files yet.</td>
+                            <th class="text-left p-3">Started</th>
+                            <th class="text-left p-3">Action</th>
+                            <th class="text-left p-3">Status</th>
+                            <th class="text-left p-3">File</th>
+                            <th class="text-left p-3">Size</th>
+                            <th class="text-left p-3">Checksum</th>
+                            <th class="text-left p-3">Actions</th>
                         </tr>
-                    @endforelse
-                </tbody>
-            </table>
-        </div>
+                    </thead>
+                    <tbody class="divide-y divide-[var(--glass-border-color)]/10">
+                        @forelse ($logs as $log)
+                            @php
+                                $statusClass = match ($log->status) {
+                                    'success' => 'border-[var(--border-success)] bg-[var(--bg-success)] text-[var(--text-success)]',
+                                    'failed' => 'border-[var(--border-error)] bg-[var(--bg-error)] text-[var(--text-error)]',
+                                    default => 'border-[var(--border-warning)] bg-[var(--bg-warning)] text-[var(--text-warning)]',
+                                };
+                            @endphp
+                            <tr>
+                                <td class="p-3">{{ $log->started_at?->format('Y-m-d H:i') }}</td>
+                                <td class="p-3">{{ str_replace('_', ' ', $log->action) }}</td>
+                                <td class="p-3"><span class="{{ $badge }} {{ $statusClass }}">{{ ucfirst($log->status) }}</span></td>
+                                <td class="p-3">{{ $log->filename ?? '-' }}</td>
+                                <td class="p-3">{{ $log->size_bytes ? number_format($log->size_bytes / 1024, 1) . ' KB' : '-' }}</td>
+                                <td class="p-3 font-mono text-xs">{{ $log->checksum ? substr($log->checksum, 0, 16) . '...' : '-' }}</td>
+                                <td class="p-3">
+                                    <div class="flex flex-wrap gap-2">
+                                        <form method="POST" action="{{ route('developer.backups.verify', $log) }}">
+                                            @csrf
+                                            <button type="submit" class="{{ $secondaryButton }}">Verify</button>
+                                        </form>
+                                        <a href="{{ route('developer.backups.download', $log) }}" class="{{ $secondaryButton }}">Download</a>
+                                        <a href="{{ route('developer.backups.restore.show', $log) }}"
+                                            class="inline-flex items-center justify-center rounded-lg border border-[var(--border-warning)] bg-[var(--bg-warning)] px-3 py-2 text-sm text-[var(--text-warning)] transition-all duration-300 ease-in-out hover:scale-[0.98]">
+                                            Restore
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="7" class="p-8 text-center text-[var(--secondary-text)]">
+                                    No managed backups yet. Create one before testing restore workflows.
+                                </td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </section>
     </div>
 @endsection

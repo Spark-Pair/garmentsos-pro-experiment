@@ -88,7 +88,11 @@ class RestoreFlowTest extends TestCase
         $backup = $this->createManagedBackup();
 
         $this->actingAs($this->user('developer'));
-        $this->get(route('developer.backups.restore.show', $backup))->assertOk();
+        $this->get(route('developer.backups.restore.show', $backup))
+            ->assertOk()
+            ->assertSee('Restore disabled')
+            ->assertSee('Restore is disabled by configuration')
+            ->assertSee('disabled', false);
 
         $this->actingAs($this->user('admin'));
         $this->get(route('developer.backups.restore.show', $backup))->assertOk();

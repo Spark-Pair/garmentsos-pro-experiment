@@ -3,37 +3,220 @@
 @section('title', 'Developer Settings | ' . $client_company->name)
 
 @section('content')
-    <div class="p-4 md:p-6 space-y-6 text-[var(--text-color)]">
-        <div>
-            <h1 class="text-xl md:text-2xl font-semibold">Developer Settings</h1>
-            <p class="text-sm text-[var(--secondary-text)] mt-1">
-                Local settings foundation. Route enforcement is wired only for reviewed modules.
-            </p>
-        </div>
+    @php
+        $routeBlockedModules = ['articles', 'customers', 'suppliers', 'reports', 'rates'];
+        $badge = 'inline-flex items-center rounded-lg border px-2.5 py-1 text-xs font-semibold';
+        $panel = 'bg-[var(--secondary-bg-color)] border border-[var(--glass-border-color)]/20 rounded-xl shadow-sm';
+        $mutedPanel = 'bg-[var(--glass-border-color)]/5 border border-[var(--glass-border-color)]/10 rounded-lg';
+        $primaryButton = 'inline-flex items-center justify-center rounded-lg bg-[var(--primary-color)] px-3 py-2 text-sm font-semibold text-white transition-all duration-300 ease-in-out hover:bg-[var(--h-primary-color)] hover:scale-[0.98]';
+        $secondaryButton = 'inline-flex items-center justify-center rounded-lg border border-[var(--glass-border-color)]/20 bg-[var(--h-bg-color)] px-3 py-2 text-sm text-[var(--text-color)] transition-all duration-300 ease-in-out hover:bg-[var(--secondary-bg-color)] hover:scale-[0.98]';
+        $inputClass = 'w-full rounded-lg border border-[var(--glass-border-color)]/20 bg-[var(--bg-color)] px-3 py-2 text-sm text-[var(--text-color)] outline-none focus:border-[var(--primary-color)]';
+    @endphp
+
+    <div class="w-full max-w-7xl mx-auto p-4 md:p-6 space-y-6 text-[var(--text-color)]">
+        <header class="{{ $panel }} p-5">
+            <div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                <div>
+                    <p class="text-xs font-semibold uppercase tracking-wider text-[var(--secondary-text)]">Developer tools</p>
+                    <h1 class="mt-1 text-2xl font-semibold">Developer Settings</h1>
+                    <p class="mt-2 max-w-3xl text-sm text-[var(--secondary-text)]">
+                        Local settings for branding, labels, modules, and feature foundations. Missing settings fall back to the current application defaults.
+                    </p>
+                </div>
+                <div class="flex flex-wrap gap-2">
+                    <a href="#branding" class="{{ $secondaryButton }}">Branding</a>
+                    <a href="#modules" class="{{ $secondaryButton }}">Modules</a>
+                    <a href="#labels" class="{{ $secondaryButton }}">Labels</a>
+                    <a href="#features" class="{{ $secondaryButton }}">Features</a>
+                </div>
+            </div>
+        </header>
 
         @if (session('success'))
-            <div class="rounded-md bg-green-100 text-green-800 px-4 py-3 text-sm">
+            <div class="rounded-xl border border-[var(--border-success)] bg-[var(--bg-success)] px-4 py-3 text-sm text-[var(--text-success)]">
                 {{ session('success') }}
             </div>
         @endif
 
         @if (session('error'))
-            <div class="rounded-md bg-red-100 text-red-800 px-4 py-3 text-sm">
+            <div class="rounded-xl border border-[var(--border-error)] bg-[var(--bg-error)] px-4 py-3 text-sm text-[var(--text-error)]">
                 {{ session('error') }}
             </div>
         @endif
 
         @if ($errors->any())
-            <div class="rounded-md bg-red-100 text-red-800 px-4 py-3 text-sm">
+            <div class="rounded-xl border border-[var(--border-error)] bg-[var(--bg-error)] px-4 py-3 text-sm text-[var(--text-error)]">
                 {{ $errors->first() }}
             </div>
         @endif
 
-        <section class="space-y-3">
-            <h2 class="text-lg font-semibold">Labels</h2>
-            <div class="overflow-x-auto rounded-md border border-gray-300 dark:border-gray-700">
+        <section id="branding" class="{{ $panel }} overflow-hidden">
+            <div class="border-b border-[var(--glass-border-color)]/10 p-5">
+                <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                    <div>
+                        <h2 class="text-lg font-semibold">Branding</h2>
+                        <p class="mt-1 text-sm text-[var(--secondary-text)]">
+                            Text and color overrides only. Logo uploads, arbitrary paths, favicon, app icons, and print templates are intentionally separate.
+                        </p>
+                    </div>
+                    <span class="{{ $badge }} border-[var(--border-success)] bg-[var(--bg-success)] text-[var(--text-success)]">Safe text/color only</span>
+                </div>
+            </div>
+
+            <div class="grid gap-4 p-5 xl:grid-cols-[minmax(0,1fr)_20rem]">
+                <div class="overflow-x-auto">
+                    <table class="min-w-full text-sm">
+                        <thead class="bg-[var(--h-bg-color)] text-left">
+                            <tr>
+                                <th class="px-3 py-2 font-semibold">Key</th>
+                                <th class="px-3 py-2 font-semibold">Effective</th>
+                                <th class="px-3 py-2 font-semibold">Source</th>
+                                <th class="px-3 py-2 font-semibold">Value</th>
+                                <th class="px-3 py-2 font-semibold">Reset</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-[var(--glass-border-color)]/10">
+                            @foreach ($branding as $item)
+                                <tr>
+                                    <td class="px-3 py-3 align-top">
+                                        <div class="font-mono text-xs">{{ $item['key'] }}</div>
+                                        <div class="mt-1 text-xs text-[var(--secondary-text)]">Default: {{ $item['default'] ?: '-' }}</div>
+                                    </td>
+                                    <td class="px-3 py-3 align-top">{{ $item['effective_value'] ?: '-' }}</td>
+                                    <td class="px-3 py-3 align-top">
+                                        <span class="{{ $badge }} border-[var(--glass-border-color)]/20 bg-[var(--glass-border-color)]/5 text-[var(--secondary-text)]">
+                                            {{ str_replace('_', ' ', $item['source']) }}
+                                        </span>
+                                    </td>
+                                    <td class="px-3 py-3 align-top">
+                                        <form method="POST" action="{{ route('developer.settings.branding.save') }}" class="flex min-w-64 flex-col gap-2 sm:flex-row">
+                                            @csrf
+                                            <input type="hidden" name="key" value="{{ $item['key'] }}">
+                                            <input
+                                                type="{{ str_contains($item['key'], 'color') ? 'color' : 'text' }}"
+                                                name="value"
+                                                value="{{ $item['value'] }}"
+                                                maxlength="120"
+                                                class="{{ $inputClass }} {{ str_contains($item['key'], 'color') ? 'h-10 w-20 p-1' : 'sm:w-56' }}"
+                                            >
+                                            <button type="submit" class="{{ $primaryButton }}">Save</button>
+                                        </form>
+                                    </td>
+                                    <td class="px-3 py-3 align-top">
+                                        <form method="POST" action="{{ route('developer.settings.branding.reset', $item['key']) }}">
+                                            @csrf
+                                            <button type="submit" class="{{ $secondaryButton }}">Reset</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+
+                <aside class="{{ $mutedPanel }} p-4">
+                    <p class="text-xs font-semibold uppercase tracking-wider text-[var(--secondary-text)]">Preview</p>
+                    <div class="mt-3 rounded-xl border border-[var(--glass-border-color)]/20 bg-[var(--secondary-bg-color)] p-4">
+                        <div class="text-lg font-semibold">{{ $branding['app_name']['effective_value'] ?? 'GarmentsOS PRO' }}</div>
+                        <div class="text-sm text-[var(--secondary-text)]">{{ $branding['company_name']['effective_value'] ?? $client_company->name }}</div>
+                        <div class="mt-4 flex items-center gap-2">
+                            <span class="inline-block h-6 w-6 rounded-lg border border-[var(--glass-border-color)]/20" style="background: {{ $branding['theme_primary_color']['effective_value'] ?? '#2563eb' }}"></span>
+                            <span class="inline-block h-6 w-6 rounded-lg border border-[var(--glass-border-color)]/20" style="background: {{ $branding['theme_secondary_color']['effective_value'] ?? '#1f2937' }}"></span>
+                            <span class="inline-block h-6 w-6 rounded-lg border border-[var(--glass-border-color)]/20" style="background: {{ $branding['theme_accent_color']['effective_value'] ?? '#2563eb' }}"></span>
+                        </div>
+                    </div>
+                    <p class="mt-3 text-xs leading-5 text-[var(--secondary-text)]">
+                        Invalid colors and HTML are rejected before save. Empty values fall back to config/defaults.
+                    </p>
+                </aside>
+            </div>
+        </section>
+
+        <section id="modules" class="{{ $panel }} overflow-hidden">
+            <div class="border-b border-[var(--glass-border-color)]/10 p-5">
+                <h2 class="text-lg font-semibold">Modules</h2>
+                <p class="mt-1 text-sm text-[var(--secondary-text)]">
+                    License restrictions win over local settings. Only reviewed modules have route blocking wired.
+                </p>
+            </div>
+
+            <div class="grid gap-4 p-5 md:grid-cols-2 xl:grid-cols-3">
+                @foreach ($modules as $module)
+                    @php
+                        $isGuarded = in_array($module['key'], $routeBlockedModules, true);
+                        $enabledClass = $module['effective_enabled']
+                            ? 'border-[var(--border-success)] bg-[var(--bg-success)] text-[var(--text-success)]'
+                            : 'border-[var(--border-error)] bg-[var(--bg-error)] text-[var(--text-error)]';
+                    @endphp
+                    <article class="{{ $mutedPanel }} p-4">
+                        <div class="flex items-start justify-between gap-3">
+                            <div>
+                                <h3 class="font-semibold">{{ $module['label'] }}</h3>
+                                <p class="mt-1 font-mono text-xs text-[var(--secondary-text)]">{{ $module['key'] }}</p>
+                            </div>
+                            <span class="{{ $badge }} {{ $enabledClass }}">{{ $module['effective_enabled'] ? 'Enabled' : 'Disabled' }}</span>
+                        </div>
+                        <p class="mt-3 text-sm text-[var(--secondary-text)]">{{ $module['description'] }}</p>
+                        <dl class="mt-4 grid grid-cols-2 gap-2 text-xs">
+                            <div>
+                                <dt class="text-[var(--secondary-text)]">Sidebar</dt>
+                                <dd>{{ $module['effective_visible_in_sidebar'] ? 'Visible' : 'Hidden' }}</dd>
+                            </div>
+                            <div>
+                                <dt class="text-[var(--secondary-text)]">License</dt>
+                                <dd>{{ is_null($module['license_allowed']) ? 'Unrestricted' : ($module['license_allowed'] ? 'Allowed' : 'Restricted') }}</dd>
+                            </div>
+                            <div>
+                                <dt class="text-[var(--secondary-text)]">Local</dt>
+                                <dd>{{ is_null($module['local_enabled']) ? 'Default' : ($module['local_enabled'] ? 'Enabled' : 'Disabled') }}</dd>
+                            </div>
+                            <div>
+                                <dt class="text-[var(--secondary-text)]">Route block</dt>
+                                <dd>{{ $isGuarded ? 'Reviewed' : 'Delayed' }}</dd>
+                            </div>
+                        </dl>
+                        <p class="mt-3 text-xs text-[var(--secondary-text)]">Reason: {{ str_replace('_', ' ', $module['reason']) }}</p>
+                        @if ($module['reason'] === 'disabled_by_license' && $module['local_enabled'] === true)
+                            <div class="mt-3 rounded-lg border border-[var(--border-warning)] bg-[var(--bg-warning)] px-3 py-2 text-xs text-[var(--text-warning)]">
+                                Local settings cannot enable a module restricted by the active license.
+                            </div>
+                        @endif
+                        @if ($isGuarded)
+                            <form method="POST" action="{{ route('developer.settings.modules.save') }}" class="mt-4 space-y-3">
+                                @csrf
+                                <input type="hidden" name="module_key" value="{{ $module['key'] }}">
+                                <input type="hidden" name="enabled" value="0">
+                                <input type="hidden" name="visible_in_sidebar" value="0">
+                                <label class="flex items-center gap-2 text-sm">
+                                    <input type="checkbox" name="enabled" value="1" @checked($module['enabled']) class="h-4 w-4 rounded border-gray-600 bg-[var(--bg-color)]">
+                                    Enabled
+                                </label>
+                                <label class="flex items-center gap-2 text-sm">
+                                    <input type="checkbox" name="visible_in_sidebar" value="1" @checked($module['visible_in_sidebar']) class="h-4 w-4 rounded border-gray-600 bg-[var(--bg-color)]">
+                                    Show in sidebar
+                                </label>
+                                <button type="submit" class="{{ $primaryButton }}">Save {{ $module['label'] }}</button>
+                            </form>
+                        @else
+                            <p class="mt-4 rounded-lg border border-[var(--glass-border-color)]/10 px-3 py-2 text-xs text-[var(--secondary-text)]">
+                                Foundation only. Route enforcement is not active for this module yet.
+                            </p>
+                        @endif
+                    </article>
+                @endforeach
+            </div>
+        </section>
+
+        <section id="labels" class="{{ $panel }} overflow-hidden">
+            <div class="border-b border-[var(--glass-border-color)]/10 p-5">
+                <h2 class="text-lg font-semibold">Labels</h2>
+                <p class="mt-1 text-sm text-[var(--secondary-text)]">
+                    Short, plain-text UI label overrides. Missing values use the existing labels.
+                </p>
+            </div>
+            <div class="overflow-x-auto p-5">
                 <table class="min-w-full text-sm">
-                    <thead class="bg-[var(--secondary-bg-color)] text-left">
+                    <thead class="bg-[var(--h-bg-color)] text-left">
                         <tr>
                             <th class="px-3 py-2 font-semibold">Key</th>
                             <th class="px-3 py-2 font-semibold">Default</th>
@@ -41,15 +224,15 @@
                             <th class="px-3 py-2 font-semibold">Override</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+                    <tbody class="divide-y divide-[var(--glass-border-color)]/10">
                         @foreach ($labels as $key => $default)
                             <tr>
-                                <td class="px-3 py-2 font-mono text-xs">{{ $key }}</td>
-                                <td class="px-3 py-2">{{ $default }}</td>
-                                <td class="px-3 py-2">{{ label_text($key, $default) }}</td>
-                                <td class="px-3 py-2">
+                                <td class="px-3 py-3 font-mono text-xs">{{ $key }}</td>
+                                <td class="px-3 py-3">{{ $default }}</td>
+                                <td class="px-3 py-3">{{ label_text($key, $default) }}</td>
+                                <td class="px-3 py-3">
                                     <div class="flex flex-col gap-2 md:flex-row">
-                                        <form method="POST" action="{{ route('developer.settings.labels.save') }}" class="flex gap-2">
+                                        <form method="POST" action="{{ route('developer.settings.labels.save') }}" class="flex min-w-64 flex-col gap-2 sm:flex-row">
                                             @csrf
                                             <input type="hidden" name="label_key" value="{{ $key }}">
                                             <input
@@ -57,17 +240,13 @@
                                                 name="override_text"
                                                 value="{{ label_text($key, $default) }}"
                                                 maxlength="80"
-                                                class="w-48 rounded-md border border-gray-300 bg-[var(--bg-color)] px-3 py-2 text-sm text-[var(--text-color)]"
+                                                class="{{ $inputClass }} sm:w-48"
                                             >
-                                            <button type="submit" class="rounded-md bg-[var(--primary-color)] px-3 py-2 text-white">
-                                                Save
-                                            </button>
+                                            <button type="submit" class="{{ $primaryButton }}">Save</button>
                                         </form>
                                         <form method="POST" action="{{ route('developer.settings.labels.reset', $key) }}">
                                             @csrf
-                                            <button type="submit" class="rounded-md border border-gray-300 px-3 py-2 text-sm">
-                                                Reset
-                                            </button>
+                                            <button type="submit" class="{{ $secondaryButton }}">Reset</button>
                                         </form>
                                     </div>
                                 </td>
@@ -78,129 +257,44 @@
             </div>
         </section>
 
-        <section class="space-y-3">
-            <h2 class="text-lg font-semibold">Branding Text</h2>
-            <div class="overflow-x-auto rounded-md border border-gray-300 dark:border-gray-700">
-                <table class="min-w-full text-sm">
-                    <thead class="bg-[var(--secondary-bg-color)] text-left">
-                        <tr>
-                            <th class="px-3 py-2 font-semibold">Key</th>
-                            <th class="px-3 py-2 font-semibold">Default</th>
-                            <th class="px-3 py-2 font-semibold">Effective</th>
-                            <th class="px-3 py-2 font-semibold">Source</th>
-                            <th class="px-3 py-2 font-semibold">Value</th>
-                            <th class="px-3 py-2 font-semibold">Reset</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
-                        @foreach ($branding as $item)
-                            <tr>
-                                <td class="px-3 py-2 font-mono text-xs">{{ $item['key'] }}</td>
-                                <td class="px-3 py-2">{{ $item['default'] }}</td>
-                                <td class="px-3 py-2">{{ $item['effective_value'] }}</td>
-                                <td class="px-3 py-2 font-mono text-xs">{{ $item['source'] }}</td>
-                                <td class="px-3 py-2">
-                                    <form method="POST" action="{{ route('developer.settings.branding.save') }}" class="flex gap-2">
-                                        @csrf
-                                        <input type="hidden" name="key" value="{{ $item['key'] }}">
-                                        <input
-                                            type="{{ str_contains($item['key'], 'color') ? 'color' : 'text' }}"
-                                            name="value"
-                                            value="{{ $item['value'] }}"
-                                            maxlength="120"
-                                            class="w-56 rounded-md border border-gray-300 bg-[var(--bg-color)] px-3 py-2 text-sm text-[var(--text-color)]"
-                                        >
-                                        <button type="submit" class="rounded-md bg-[var(--primary-color)] px-3 py-2 text-white">
-                                            Save
-                                        </button>
-                                    </form>
-                                </td>
-                                <td class="px-3 py-2">
-                                    <form method="POST" action="{{ route('developer.settings.branding.reset', $item['key']) }}">
-                                        @csrf
-                                        <button type="submit" class="rounded-md border border-gray-300 px-3 py-2 text-sm">
-                                            Reset
-                                        </button>
-                                    </form>
-                                </td>
-                            </tr>
-                        @endforeach
-                    </tbody>
-                </table>
+        <section id="features" class="{{ $panel }} overflow-hidden">
+            <div class="border-b border-[var(--glass-border-color)]/10 p-5">
+                <h2 class="text-lg font-semibold">Feature Flags</h2>
+                <p class="mt-1 text-sm text-[var(--secondary-text)]">
+                    Foundation status only. Feature enforcement applies only where a reviewed route explicitly opts in.
+                </p>
             </div>
-            <div class="rounded-md border border-gray-300 dark:border-gray-700 p-4 text-sm">
-                <div class="font-semibold">{{ $branding['app_name']['effective_value'] ?? 'GarmentsOS PRO' }}</div>
-                <div class="text-[var(--secondary-text)]">{{ $branding['company_name']['effective_value'] ?? $client_company->name }}</div>
-                <div class="mt-2 flex items-center gap-2">
-                    <span class="inline-block h-5 w-5 rounded border border-gray-400" style="background: {{ $branding['theme_primary_color']['effective_value'] ?? '#2563eb' }}"></span>
-                    <span class="inline-block h-5 w-5 rounded border border-gray-400" style="background: {{ $branding['theme_secondary_color']['effective_value'] ?? '#1f2937' }}"></span>
-                    <span class="inline-block h-5 w-5 rounded border border-gray-400" style="background: {{ $branding['theme_accent_color']['effective_value'] ?? '#2563eb' }}"></span>
-                </div>
-            </div>
-        </section>
-
-        <section class="space-y-3">
-            <h2 class="text-lg font-semibold">Modules</h2>
-            @php
-                $routeBlockedModules = ['articles', 'customers', 'suppliers', 'reports', 'rates'];
-            @endphp
-            <div class="grid gap-3 md:grid-cols-3">
-                @foreach ($modules as $module)
-                    <div class="rounded-md border border-gray-300 dark:border-gray-700 p-4">
-                        <div class="font-semibold">{{ $module['label'] }}</div>
-                        <div class="mt-1 text-xs font-mono">{{ $module['key'] }}</div>
-                        <div class="mt-2 text-sm text-[var(--secondary-text)]">{{ $module['description'] }}</div>
-                        <div class="mt-3 text-sm">Effective enabled: {{ $module['effective_enabled'] ? 'Yes' : 'No' }}</div>
-                        <div class="text-sm">Sidebar visible: {{ $module['effective_visible_in_sidebar'] ? 'Yes' : 'No' }}</div>
-                        <div class="text-sm">License: {{ is_null($module['license_allowed']) ? 'Unrestricted' : ($module['license_allowed'] ? 'Allowed' : 'Restricted') }}</div>
-                        <div class="text-sm">Local: {{ is_null($module['local_enabled']) ? 'Default' : ($module['local_enabled'] ? 'Enabled' : 'Disabled') }}</div>
-                        <div class="text-xs text-[var(--secondary-text)]">Reason: {{ $module['reason'] }}</div>
-                        @if ($module['reason'] === 'disabled_by_license' && $module['local_enabled'] === true)
-                            <div class="mt-2 rounded-md bg-yellow-100 px-3 py-2 text-xs text-yellow-800">
-                                Local settings cannot enable a module that is restricted by the active license.
-                            </div>
-                        @endif
-                        <div class="text-xs text-[var(--secondary-text)]">
-                            {{ in_array($module['key'], $routeBlockedModules, true) ? 'Route blocking is enabled for this module.' : 'Route blocking is not wired for this module yet.' }}
-                        </div>
-                        @if (in_array($module['key'], $routeBlockedModules, true))
-                            <form method="POST" action="{{ route('developer.settings.modules.save') }}" class="mt-3 space-y-2">
-                                @csrf
-                                <input type="hidden" name="module_key" value="{{ $module['key'] }}">
-                                <input type="hidden" name="enabled" value="0">
-                                <input type="hidden" name="visible_in_sidebar" value="0">
-                                <label class="flex items-center gap-2 text-sm">
-                                    <input type="checkbox" name="enabled" value="1" @checked($module['enabled'])>
-                                    Enabled
-                                </label>
-                                <label class="flex items-center gap-2 text-sm">
-                                    <input type="checkbox" name="visible_in_sidebar" value="1" @checked($module['visible_in_sidebar'])>
-                                    Show in sidebar
-                                </label>
-                                <button type="submit" class="rounded-md bg-[var(--primary-color)] px-3 py-2 text-sm text-white">
-                                    Save {{ $module['label'] }} Module
-                                </button>
-                            </form>
-                        @endif
-                    </div>
-                @endforeach
-            </div>
-        </section>
-
-        <section class="space-y-3">
-            <h2 class="text-lg font-semibold">Feature Flags</h2>
-            <div class="grid gap-3 md:grid-cols-2">
+            <div class="grid gap-4 p-5 md:grid-cols-2">
                 @foreach ($features as $feature)
-                    <div class="rounded-md border border-gray-300 dark:border-gray-700 p-4">
-                        <div class="font-semibold">{{ $feature['label'] }}</div>
-                        <div class="mt-1 text-xs font-mono">{{ $feature['key'] }}</div>
-                        <div class="mt-2 text-sm text-[var(--secondary-text)]">{{ $feature['description'] }}</div>
-                        <div class="mt-3 text-sm">Effective enabled: {{ $feature['effective_enabled'] ? 'Yes' : 'No' }}</div>
-                        <div class="text-sm">License: {{ is_null($feature['license_allowed']) ? 'Unrestricted' : ($feature['license_allowed'] ? 'Allowed' : 'Restricted') }}</div>
-                        <div class="text-sm">Local: {{ is_null($feature['local_enabled']) ? 'Default' : ($feature['local_enabled'] ? 'Enabled' : 'Disabled') }}</div>
-                        <div class="text-xs text-[var(--secondary-text)]">Reason: {{ $feature['reason'] }}</div>
-                        <div class="text-xs text-[var(--secondary-text)]">Feature enforcement is foundation-only unless explicitly wired to a reviewed route.</div>
-                    </div>
+                    @php
+                        $featureClass = $feature['effective_enabled']
+                            ? 'border-[var(--border-success)] bg-[var(--bg-success)] text-[var(--text-success)]'
+                            : 'border-[var(--border-warning)] bg-[var(--bg-warning)] text-[var(--text-warning)]';
+                    @endphp
+                    <article class="{{ $mutedPanel }} p-4">
+                        <div class="flex items-start justify-between gap-3">
+                            <div>
+                                <h3 class="font-semibold">{{ $feature['label'] }}</h3>
+                                <p class="mt-1 font-mono text-xs text-[var(--secondary-text)]">{{ $feature['key'] }}</p>
+                            </div>
+                            <span class="{{ $badge }} {{ $featureClass }}">{{ $feature['effective_enabled'] ? 'Enabled' : 'Off' }}</span>
+                        </div>
+                        <p class="mt-3 text-sm text-[var(--secondary-text)]">{{ $feature['description'] }}</p>
+                        <dl class="mt-4 grid grid-cols-3 gap-2 text-xs">
+                            <div>
+                                <dt class="text-[var(--secondary-text)]">License</dt>
+                                <dd>{{ is_null($feature['license_allowed']) ? 'Unrestricted' : ($feature['license_allowed'] ? 'Allowed' : 'Restricted') }}</dd>
+                            </div>
+                            <div>
+                                <dt class="text-[var(--secondary-text)]">Local</dt>
+                                <dd>{{ is_null($feature['local_enabled']) ? 'Default' : ($feature['local_enabled'] ? 'Enabled' : 'Disabled') }}</dd>
+                            </div>
+                            <div>
+                                <dt class="text-[var(--secondary-text)]">Reason</dt>
+                                <dd>{{ str_replace('_', ' ', $feature['reason']) }}</dd>
+                            </div>
+                        </dl>
+                    </article>
                 @endforeach
             </div>
         </section>
