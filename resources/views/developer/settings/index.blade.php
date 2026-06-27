@@ -7,7 +7,7 @@
         <div>
             <h1 class="text-xl md:text-2xl font-semibold">Developer Settings</h1>
             <p class="text-sm text-[var(--secondary-text)] mt-1">
-                Local settings foundation. Phase 5B route enforcement is wired only for Articles.
+                Local settings foundation. Route enforcement is wired only for reviewed modules.
             </p>
         </div>
 
@@ -119,6 +119,9 @@
 
         <section class="space-y-3">
             <h2 class="text-lg font-semibold">Modules</h2>
+            @php
+                $routeBlockedModules = ['articles', 'customers', 'suppliers', 'reports', 'rates'];
+            @endphp
             <div class="grid gap-3 md:grid-cols-3">
                 @foreach ($modules as $module)
                     <div class="rounded-md border border-gray-300 dark:border-gray-700 p-4">
@@ -136,9 +139,9 @@
                             </div>
                         @endif
                         <div class="text-xs text-[var(--secondary-text)]">
-                            {{ in_array($module['key'], ['articles', 'customers', 'suppliers', 'reports'], true) ? 'Route blocking is enabled for this module.' : 'Route blocking is not wired for this module yet.' }}
+                            {{ in_array($module['key'], $routeBlockedModules, true) ? 'Route blocking is enabled for this module.' : 'Route blocking is not wired for this module yet.' }}
                         </div>
-                        @if (in_array($module['key'], ['articles', 'customers', 'suppliers', 'reports'], true))
+                        @if (in_array($module['key'], $routeBlockedModules, true))
                             <form method="POST" action="{{ route('developer.settings.modules.save') }}" class="mt-3 space-y-2">
                                 @csrf
                                 <input type="hidden" name="module_key" value="{{ $module['key'] }}">

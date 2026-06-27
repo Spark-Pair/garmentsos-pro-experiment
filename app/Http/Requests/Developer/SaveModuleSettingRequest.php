@@ -14,7 +14,7 @@ class SaveModuleSettingRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'module_key' => ['required', 'string', 'in:articles,customers,suppliers,reports'],
+            'module_key' => ['required', 'string', 'in:articles,customers,suppliers,reports,rates'],
             'enabled' => ['required', 'boolean'],
             'visible_in_sidebar' => ['nullable', 'boolean'],
         ];

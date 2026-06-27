@@ -116,7 +116,7 @@
                             </a>
                         </li>
                     @endif
-                    @if (in_array(Auth::user()->role, ['developer', 'owner', 'admin', 'accountant', 'store_keeper']))
+                    @if (module_enabled('rates') && in_array(Auth::user()->role, ['developer', 'owner', 'admin', 'accountant', 'store_keeper']))
                         <!-- rates -->
                         <li>
                             <a href="{{ route('rates.index') }}"

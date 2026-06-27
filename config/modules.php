@@ -26,4 +26,9 @@ return [
         'default_enabled' => true,
         'description' => 'Operational and accounting reports.',
     ],
+    'rates' => [
+        'label' => 'Rates',
+        'default_enabled' => true,
+        'description' => 'Direct rate management screens and actions.',
+    ],
 ];

@@ -71,7 +71,8 @@ Use this checklist after changes to verify the app remains stable.
 - Developer/admin users can view the settings screen; other roles cannot change settings.
 - Label overrides accept plain text only, reject HTML, can be reset, and invalidate cache.
 - Sidebar Article labels use safe fallback labels when no override exists.
-- Route blocking is currently enforced only for `articles`, `customers`, `suppliers`, and reviewed pure `reports` routes.
+- Route blocking is currently enforced only for `articles`, `customers`, `suppliers`, reviewed pure `reports` routes, and direct `rates` management routes.
+- Disabling `rates` must hide the desktop Rates link and block direct `rates.*` URLs only; `setups`, article `add-rate`, shared helpers, session setters, and saved-rate usage must remain unaffected.
 - Disabled Articles, Customers, Suppliers, and Reports are hidden in their reviewed sidebar locations.
 - Reports enforcement does not include shared helper/session setter, ledger, statement-adjustment, payment, stock, or report-adjacent routes.
 - Shared routes and finance/order/stock modules are not route-blocked until their route maps are reviewed in later phases.

@@ -148,7 +148,7 @@ Route::group(['middleware' => ['auth', 'activeSession', 'subscriptionExpiry', 'r
     Route::post('fabrics/returnPost', [FabricController::class, 'returnPost'])->name('fabrics.returnPost');
     Route::resource('fabrics', FabricController::class);
 
-    Route::resource('rates', RateController::class);
+    Route::resource('rates', RateController::class)->middleware('moduleEnabled:rates');
 
     Route::resource('productions', ProductionController::class);
 
