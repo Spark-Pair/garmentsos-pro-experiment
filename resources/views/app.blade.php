@@ -472,7 +472,7 @@
     <script defer src="{{ asset('js/global-filter-manager.js') }}"></script>
 </head>
 
-<body class="bg-[var(--secondary-bg-color)] text-[var(--text-color)] text-sm min-h-screen flex flex-col md:flex-row items-center justify-center fade-in" cz-shortcut-listen="true" data-app-config='@json($appConfig)'>
+<body class="bg-[var(--secondary-bg-color)] text-[var(--text-color)] text-sm min-h-screen flex flex-col md:flex-row items-stretch justify-start fade-in" cz-shortcut-listen="true" data-app-config='@json($appConfig)'>
     {{-- side bar --}}
     @if (Auth::check())
         @component('components.sidebar')
@@ -483,9 +483,9 @@
     <div id="page-loader" class="fixed inset-0 z-[9999] bg-[var(--overlay-color)] bg-opacity-80 flex items-center justify-center hidden">
         <div class="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
     </div>
-    <div class="wrapper flex-1 flex flex-col md:h-screen relative w-full overflow-y-hidden">
+    <div class="wrapper flex-1 min-w-0 min-h-screen md:h-screen flex flex-col relative w-full overflow-hidden">
         {{-- main content --}}
-        <main class="flex-1 px-8 py-0 md:p-8 overflow-y-auto scrollbar-hidden flex items-center justify-center bg-[var(--bg-color)] rounded-3xl mx-2.5 md:mr-2.5 {{ request()->is('login') ? 'mt-2.5 md:ml-2.5' : 'mt-0 md:ml-0' }} md:mt-2.5 relative">
+        <main class="flex-1 min-h-0 px-4 py-6 md:p-8 overflow-y-auto my-scrollbar-2 flex {{ request()->is('login') || request()->is('subscription-expired') ? 'items-center' : 'items-start' }} justify-center bg-[var(--bg-color)] rounded-3xl mx-2.5 md:mr-2.5 {{ request()->is('login') ? 'mt-2.5 md:ml-2.5' : 'mt-0 md:ml-0' }} md:mt-2.5 relative">
             {{-- alert --}}
             <div id="messageBox" class="absolute top-5 mx-auto flex items-center flex-col space-y-3 z-[100] text-sm w-full select-none pointer-events-none">
                 @if (session('info'))
@@ -546,7 +546,7 @@
                     </span>
                 </button>
             </div>
-            <div class="main-child grow">
+            <div class="main-child w-full grow pb-10">
                 @yield('content')
             </div>
         </main>
