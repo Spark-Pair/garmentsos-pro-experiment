@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+cd /var/www/html
+
+if [[ ! -f .env ]]; then
+  echo "Missing .env. Mount a client-specific .env file into /var/www/html/.env." >&2
+  exit 1
+fi
+
+mkdir -p database storage/app/private storage/app/backups storage/framework/cache storage/framework/sessions storage/framework/views storage/logs bootstrap/cache
+
+DB_PATH="$(php -r '$env=parse_ini_file(".env", false, INI_SCANNER_RAW); echo $env["DB_DATABASE"] ?? "database/database.sqlite";')"
+if [[ "$DB_PATH" != /* ]]; then
+  DB_PATH="/var/www/html/$DB_PATH"
+fi
+mkdir -p "$(dirname "$DB_PATH")"
+if [[ ! -f "$DB_PATH" ]]; then
+  touch "$DB_PATH"
+  chown www-data:www-data "$DB_PATH"
+  echo "Created missing SQLite database file at $DB_PATH"
+fi
+
+chown -R www-data:www-data storage bootstrap/cache database || true
+
+php artisan optimize:clear || true
+
+if [[ "${RUN_MIGRATIONS_ON_START:-false}" == "true" ]]; then
+  echo "RUN_MIGRATIONS_ON_START=true: creating backup before migrations."
+  php artisan tinker --execute='$r = app(App\Services\BackupService::class)->createManualBackup("docker_pre_migration_backup"); if (!($r["success"] ?? false)) { fwrite(STDERR, $r["message"].PHP_EOL); exit(1); }'
+  php artisan migrate --force
+fi
+
+php-fpm -D
+exec nginx -g 'daemon off;'
