@@ -3,6 +3,10 @@
 /public/build
 /public/hot
 /public/storage
+/release/
+/releases/
+/dist/
+/build-release/
 /storage/*.key
 /storage/app
 /vendor

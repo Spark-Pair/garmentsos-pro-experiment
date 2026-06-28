@@ -1,100 +1,54 @@
-# QA Checklist (Quick)
+# QA Checklist
 
-Use this checklist after changes to verify the app remains stable.
+## Automated
 
-## 1) Auth & Session
-- Login works for active users.
-- Inactive users are blocked as expected.
-- Logout works normally and in read‑only mode.
+```bash
+git diff --check
+php artisan test
+php artisan migrate --pretend --force
+bash scripts/build-release.sh 0.0.0-test --allow-dirty
+bash scripts/validate-release.sh releases/garmentsos-pro-0.0.0-test
+docker compose config
+docker build -t garmentsos-pro:test .
+```
 
-## 2) Read‑Only Mode
-- Expired subscription shows warning.
-- All write actions are blocked (create/update/delete/mark paid).
-- Read‑only POST actions still work:
-  - layout toggle, report type toggles, get details, etc.
+Docker commands require Docker to be installed.
 
-## 3) Global UI
-- Sidebar renders and active nav highlights correctly.
-- Menu modal opens with `Ctrl + Space` and keyboard navigation works.
-- Home shortcut `Shift + Space` routes to home.
-- Home/welcome page is visually centered and balanced.
-- Long pages are not clipped at the top or bottom.
-- Footer does not overlap or squeeze content.
+## Release Package
 
-## 4) Core CRUD Flows
-- Customers, Suppliers, Orders, Payments, Vouchers can be created and edited.
-- Select inputs show selected text in edit modals.
-- Form validation and alerts show correctly.
+- Package excludes `.git`, `.github`, real `.env` variants, DB files, WAL/SHM, backups, dumps, logs, private storage data, private keys, tokens, credentials, tests, and developer artifacts.
+- Package includes runtime files, migrations, safe public assets, docs, scripts, `.env.example`, and runtime directory skeletons.
+- Generated release artifacts are ignored and not committed.
 
-## 5) Reports
-- Statement, Pending Payments, and Article reports load.
-- Filters apply without breaking layout.
+## Licensing
 
-## 6) Performance
-- Only the current page’s JS is loaded.
-- No console errors on initial load.
+- Disabled enforcement preserves current behavior.
+- Enabled no-license blocks on staging.
+- Expired subscription maps to read-only.
+- Tampered/fingerprint mismatch maps to blocked.
+- LAN browser PCs are not separate license devices.
+- Raw license keys and raw machine identifiers are not stored or logged.
 
-## 7) Security
-- CSRF tokens present in forms.
-- Read‑only middleware is active for web routes.
+## Backup/Restore
 
-## 8) Release Package Safety
-- Package was prepared using `docs/RELEASE_PACKAGING.md`.
-- Package does not contain `.git/`, real `.env`, GitHub credentials, private keys, developer DB files, SQLite WAL/SHM files, dumps, backups, logs, tests, or dev-only files.
-- Existing client `.env`, database, uploads, and backups are preserved during update testing.
-- A database backup is created and verified before any update test.
-- Managed backups are stored outside `public/` and downloaded only through developer/admin protected routes.
-- Backup metadata and SHA-256 checksum are created and verification rejects invalid or tampered files.
-- Restore is disabled by default unless `BACKUP_RESTORE_ENABLED=true`.
-- Restore requires exact typed confirmation and staging/copy tested checkbox.
-- Restore creates and verifies an emergency backup before replacing SQLite DB files.
-- Restore rejects arbitrary paths and uses managed backup log IDs only.
-- Restore is not wired into updater flow.
+- Backup create/verify/download works for developer/admin only.
+- Restore disabled refuses safely.
+- Enabled restore requires confirmation and staging checkbox.
+- Emergency backup is created before DB replacement.
+- Arbitrary paths and traversal are rejected.
 
-## 9) Licensing Foundation
-- `LICENSE_ENFORCEMENT_ENABLED=false` keeps existing app behavior unchanged.
-- Developer license status page loads for developer/admin users.
-- Signed license cache tampering is rejected in tests.
-- Installation fingerprint output is a hash/preview only, not raw machine details.
-- LAN/browser PCs are not treated as separate licensed devices.
-- Online activation stores only a license key hash, never the raw license key.
-- Offline signed license import rejects tampered, UUID-mismatched, or fingerprint-mismatched payloads.
-- Subscription refresh updates the signed cache only after signature validation.
+## Updater
 
-## 10) Updater Foundation
-- `UPDATER_ENABLED=false` keeps updater network checks disabled by default.
-- Client package contains no GitHub tokens, deploy keys, private repo URLs, update secrets, or signing private keys.
-- Update manifests require signature verification before trust.
-- Update packages are checksum/signature verified before future apply.
-- Update package verification rejects `.env`, database files, WAL/SHM files, backups, logs, private storage, Git metadata, secrets, absolute paths, and path traversal.
-- Phase 4A has no apply/install route and no automatic update behavior.
+- Disabled updater does not fetch/download/apply.
+- Manifest signature, expiry, app, channel, and installation mode are validated.
+- Package checksum/signature and deny-list are validated.
+- Apply creates backup before copying files.
+- Apply preserves `.env`, DB, backups, logs, private storage, and license identity/cache.
+- Unauthorized users are blocked.
 
-## 11) Developer Settings Foundation
-- Developer Settings UI renders with compact cards, not raw/default tables.
-- Developer Settings page scrolls to the bottom and the header is visible.
-- License page renders without 500 and shows installation/server-based language.
-- Backup page renders without 500 and shows private/managed backup guidance.
-- Updater page renders disabled/verification-only state when disabled.
-- Restore page/details render a disabled/danger state when restore is disabled.
-- Layout top/bottom clipping is checked on `/`, `/developer/settings`, `/developer/license`, `/developer/backups`, and `/developer/updater`.
-- Missing settings keep existing labels, branding, modules, and feature behavior unchanged.
-- Developer/admin users can view the settings screen; other roles cannot change settings.
-- Label overrides accept plain text only, reject HTML, can be reset, and invalidate cache.
-- Branding overrides are text/color only in this phase and apply only to low-risk layout/sidebar/login/home surfaces.
-- Branding text must reject HTML/scripts/secrets, and branding colors must reject anything except strict `#RRGGBB` hex values.
-- Missing branding settings and missing branding settings tables must preserve current config-driven branding.
-- Branding settings must not write `.env`, upload logos, edit arbitrary logo paths, alter favicons/app icons/manifest, or change print templates/JS print builders.
-- SparkPair branding should remain unless removal is separately approved.
-- Sidebar Article labels use safe fallback labels when no override exists.
-- Route blocking is currently enforced only for `articles`, `customers`, `suppliers`, reviewed pure `reports` routes, and direct `rates` management routes.
-- Disabling `rates` must hide the desktop Rates link and block direct `rates.*` URLs only; `setups`, article `add-rate`, shared helpers, session setters, and saved-rate usage must remain unaffected.
-- Disabled Articles, Customers, Suppliers, and Reports are hidden in their reviewed sidebar locations.
-- Reports enforcement does not include shared helper/session setter, ledger, statement-adjustment, payment, stock, or report-adjacent routes.
-- Shared routes and finance/order/stock modules are not route-blocked until their route maps are reviewed in later phases.
-- Feature flag middleware exists as foundation; do not wire it to business workflows without a separate review.
-- License-disallowed modules/features remain blocked even if local developer settings are enabled.
-- Missing local settings or missing license restriction lists preserve current staged behavior.
+## Business Smoke
 
-## 12) Business Pages Unaffected
-- Orders, invoices, payments, vouchers, reports, stock-related pages, customers, and suppliers retain existing behavior after system-page changes.
-- Print preview still works and print templates/JS print builders are unchanged unless explicitly approved.
+- Login, dashboard, articles, customers, suppliers, rates, reports.
+- Orders, invoices, payments, vouchers, stock-related pages.
+- Print preview still works.
+- No print templates or JS print builders changed unless explicitly approved.
