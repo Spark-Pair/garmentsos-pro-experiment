@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Developer;
 
 use App\Http\Controllers\Controller;
+use App\Services\Updater\UpdateApplyService;
 use App\Services\Updater\UpdateManifestService;
 use Illuminate\Http\RedirectResponse;
 
@@ -21,6 +22,7 @@ class UpdateController extends Controller
             'manifestUrlConfigured' => (string) config('updater.manifest_url', '') !== '',
             'signatureRequired' => (bool) config('updater.require_signature', true),
             'result' => session('updater_result'),
+            'applyResult' => session('updater_apply_result'),
         ]);
     }
 
@@ -36,5 +38,19 @@ class UpdateController extends Controller
             ->route('developer.updater')
             ->with($result['success'] ? 'success' : 'error', $result['message'])
             ->with('updater_result', $result);
+    }
+
+    public function apply(UpdateApplyService $updates): RedirectResponse
+    {
+        if ($resp = $this->denyIfNoRole(['developer', 'admin'])) {
+            return $resp;
+        }
+
+        $result = $updates->applyConfigured();
+
+        return redirect()
+            ->route('developer.updater')
+            ->with($result['success'] ? 'success' : 'error', $result['message'])
+            ->with('updater_apply_result', $result);
     }
 }

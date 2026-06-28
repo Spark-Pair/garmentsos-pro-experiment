@@ -128,12 +128,12 @@ class LicenseModulePrecedenceTest extends TestCase
 
         $this->actingAs($this->user('developer'))
             ->get(route('articles.index'))
-            ->assertOk();
+            ->assertForbidden();
 
         $this->assertSame('licensing_unavailable', app(ModuleAvailabilityService::class)->effectiveState('articles')['reason']);
     }
 
-    public function test_blocked_license_status_does_not_create_new_module_lockout(): void
+    public function test_blocked_license_status_blocks_request_before_module_lockout(): void
     {
         config(['licensing.enabled' => true]);
         $license = $this->createLicense(['orders']);
@@ -141,7 +141,7 @@ class LicenseModulePrecedenceTest extends TestCase
 
         $this->actingAs($this->user('developer'))
             ->get(route('articles.index'))
-            ->assertOk();
+            ->assertForbidden();
 
         $state = app(ModuleAvailabilityService::class)->effectiveState('articles');
         $this->assertTrue($state['available']);

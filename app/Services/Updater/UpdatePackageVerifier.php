@@ -115,6 +115,8 @@ class UpdatePackageVerifier
             || str_ends_with($lower, '.bak')
             || str_ends_with($lower, '.pem')
             || str_ends_with($lower, '.key')
+            || str_ends_with($lower, '.pfx')
+            || str_ends_with($lower, '.crt')
         ) {
             return 'forbidden_file';
         }

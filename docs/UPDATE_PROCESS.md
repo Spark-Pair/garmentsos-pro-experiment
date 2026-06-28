@@ -1,87 +1,48 @@
 # Update Process
 
-## Purpose
-This guide explains how code updates are prepared, reviewed, packaged, and applied safely for GarmentsOS PRO.
+GarmentsOS PRO supports two controlled update paths:
+
+1. Scripted update using a validated release package.
+2. Developer/admin updater UI using signed manifest and package verification.
+
+Both paths must preserve client `.env`, database files, backups, logs, private storage, and license identity/cache.
 
 ## Branch Workflow
+
 1. Work in a feature branch.
-2. Review and test the feature branch.
-3. For experimental hardening work, push only to the `garmentsos-pro-experiment` remote/repository.
-4. Combine related reviewed branches through an integration branch when needed.
-5. Test on staging or a client-copy database.
-6. Merge to `main` only after explicit approval.
-7. Build a release/update package from approved code.
+2. Push experiment work only to the `experiment` remote when approved.
+3. Do not push experiment branches to stable `origin`.
+4. Test on staging or a client-copy database.
+5. Merge to `main` only after explicit approval.
+6. Build a release package from approved code.
 
-The stable `garmentsos-pro` repository should stay main-only/stable. Do not push experiment branches to the stable `origin` remote, merge directly into `main`, push to `main`, or deploy unreviewed local changes.
-
-## Update Types
-
-### Global Update
-Applies to all clients and belongs in common code.
-
-Examples:
-- bug fix
-- safe UI/layout improvement
-- security hardening
-- licensing/backup/updater foundation
-
-### Client-Specific Update
-Prefer DB settings, modules, labels, branding, and license/module restrictions when possible.
-
-Use a separate branch/channel if code truly differs. Avoid hardcoding one client's behavior into global code.
-
-### Emergency Hotfix
-1. Branch from current production `main`.
-2. Make the smallest possible fix.
-3. Back up before deploy.
-4. Test on staging/client-copy.
-5. Apply only after approval.
-
-## Update Checklist
-1. Confirm Git branch/status is clean.
-2. Create and verify a database backup.
-3. Confirm update package excludes `.env`, DB files, backups, logs, Git metadata, private keys, and secrets.
-4. Preserve client `.env`, DB, uploads, private storage, and backups.
-5. Replace application files/build assets only.
-6. Run:
+## Scripted Update
 
 ```bash
-composer install --no-dev --optimize-autoloader
+./scripts/client-update.sh releases/garmentsos-pro-1.8.0.zip
 ```
 
-7. Build assets only if needed:
+The script requires an existing `.env` and DB file, validates the package, creates a pre-update backup, copies safe code paths, runs Composer, runs migrations after backup, clears caches, and prints a smoke checklist.
 
-```bash
-npm install
-npm run build
-```
+## Updater UI
 
-8. Review migrations:
+The updater is developer/admin only. When `UPDATER_ENABLED=false`, it does not fetch, download, verify, or apply anything.
 
-```bash
-php artisan migrate --pretend
-```
+When enabled and configured, apply flow:
 
-9. Run real migrations only after backup and approval:
+1. Verify signed manifest.
+2. Download package to private updater storage.
+3. Verify checksum and package signature.
+4. Reject forbidden files and unsafe paths.
+5. Create verified DB backup.
+6. Extract package into private staging.
+7. Snapshot overwritten code files.
+8. Copy only allowed runtime paths.
+9. Run migrations only if manifest requires it and `UPDATER_RUN_MIGRATIONS=true`.
+10. Log result and keep backup/snapshot for manual rollback.
 
-```bash
-php artisan migrate
-```
+## Never Overwrite
 
-10. Clear/cache config:
-
-```bash
-php artisan config:clear
-php artisan cache:clear
-php artisan route:clear
-php artisan view:clear
-php artisan config:cache
-```
-
-11. Run tests if environment allows.
-12. Browser smoke test login, dashboard, orders, invoices, payments, reports, backups, updater disabled state, and print preview.
-
-## Never Overwrite During Update
 - `.env`
 - `database/database.sqlite`
 - `*.sqlite-wal`
@@ -89,30 +50,13 @@ php artisan config:cache
 - DB dumps
 - backups
 - private storage/client uploads
-- logs when needed for troubleshooting
-- private keys, tokens, credentials
-
-## Release Package Rules
-Include:
-- application code
-- `vendor/` for offline installs when needed
-- built assets under `public/build`
-- safe public assets
-- storage skeleton directories
-
-Exclude:
-- `.git/`, `.github/` internal workflows
-- `.env` and real env variants
-- database files, WAL/SHM, dumps, backups
 - logs
-- `storage/app/private/*`
-- private keys/signing keys/tokens/credentials
-- `node_modules/`
-- tests and internal docs unless approved
-- source maps if they expose source
+- private keys, tokens, credentials
+- license identity/cache
 
 ## Rollback
-- Restore previous code version first.
-- Restore DB only if migration/data changes require it and only after careful confirmation.
-- Keep the pre-update backup and release package record.
+
+- Restore previous code from the snapshot or previous release package.
+- Restore DB only when required and only from a verified backup.
+- Do not automatically restore DB after migration failure.
 - Never test rollback for the first time on a production/client DB.

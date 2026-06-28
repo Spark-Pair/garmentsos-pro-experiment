@@ -21,8 +21,10 @@ class EnsureValidLicense
         $request->attributes->set('license_status', $status);
 
         if ($status->shouldReadOnly()) {
-            session(['readonly' => true]);
+            session(['license_readonly' => true]);
             session()->flash('warning', $status->message);
+        } else {
+            session()->forget('license_readonly');
         }
 
         if ($status->shouldBlock()) {

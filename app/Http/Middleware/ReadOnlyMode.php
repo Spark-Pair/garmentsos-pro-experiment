@@ -13,7 +13,7 @@ class ReadOnlyMode
      */
     public function handle(Request $request, Closure $next): Response
     {
-        if (!session('readonly', false)) {
+        if (!session('readonly', false) && !session('license_readonly', false)) {
             return $next($request);
         }
 

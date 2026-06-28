@@ -58,7 +58,7 @@ Route::get('subscription-expired', function () {
     return view('subscription-expired'); // ya controller agar chahiye
 })->name('subscription-expired');
 
-Route::group(['middleware' => ['auth', 'activeSession', 'subscriptionExpiry', 'readonly']], function () {
+Route::group(['middleware' => ['auth', 'activeSession', 'ensureLicense', 'subscriptionExpiry', 'readonly']], function () {
     Route::get('/backup-db', [BackupController::class, 'legacyDownload'])->name('backup-db');
     Route::get('developer/backups', [BackupController::class, 'index'])->name('developer.backups');
     Route::post('developer/backups', [BackupController::class, 'store'])->name('developer.backups.store');
@@ -68,9 +68,10 @@ Route::group(['middleware' => ['auth', 'activeSession', 'subscriptionExpiry', 'r
     Route::post('developer/backups/{backupLog}/restore', [RestoreController::class, 'store'])->name('developer.backups.restore.store');
     Route::get('developer/updater', [UpdateController::class, 'index'])->name('developer.updater');
     Route::post('developer/updater/check', [UpdateController::class, 'check'])->name('developer.updater.check');
+    Route::post('developer/updater/apply', [UpdateController::class, 'apply'])->name('developer.updater.apply');
 });
 
-Route::group(['middleware' => ['auth', 'activeSession', 'subscriptionExpiry', 'readonly', 'dbTransaction']], function () {
+Route::group(['middleware' => ['auth', 'activeSession', 'ensureLicense', 'subscriptionExpiry', 'readonly', 'dbTransaction']], function () {
     Route::get('', function () {
         return redirect(route('home'));
     });

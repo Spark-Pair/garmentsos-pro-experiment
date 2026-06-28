@@ -8,6 +8,7 @@ use App\Http\Middleware\VerifyCsrfToken;
 use App\Models\AuditLog;
 use App\Models\User;
 use App\Services\Updater\UpdateDownloadService;
+use App\Services\Updater\UpdateApplyService;
 use App\Services\Updater\UpdateLogService;
 use App\Services\Updater\UpdateManifestService;
 use App\Services\Updater\UpdatePackageVerifier;
@@ -33,6 +34,7 @@ class UpdaterFoundationTest extends TestCase
         $this->tempPath = 'framework/testing/updater-' . Str::random(12);
 
         config([
+            'licensing.enabled' => false,
             'updater.enabled' => false,
             'updater.current_version' => '1.0.0',
             'updater.channel' => 'stable',
@@ -80,7 +82,7 @@ class UpdaterFoundationTest extends TestCase
             ->assertOk()
             ->assertSee('Updater disabled')
             ->assertSee('Apply/install')
-            ->assertSee('Not implemented')
+            ->assertSee('Disabled by configuration')
             ->assertSee('No manifest request is made');
     }
 
@@ -220,9 +222,10 @@ class UpdaterFoundationTest extends TestCase
 
         $this->get(route('developer.updater'))->assertRedirect(route('home'));
         $this->post(route('developer.updater.check'))->assertRedirect(route('home'));
+        $this->post(route('developer.updater.apply'))->assertRedirect(route('home'));
     }
 
-    public function test_no_apply_or_install_route_exists(): void
+    public function test_only_guarded_apply_route_exists_no_install_route(): void
     {
         $routeNames = collect(app('router')->getRoutes())
             ->map(fn ($route) => (string) $route->getName())
@@ -233,7 +236,120 @@ class UpdaterFoundationTest extends TestCase
         $this->assertSame([
             'developer.updater',
             'developer.updater.check',
+            'developer.updater.apply',
         ], $routeNames);
+    }
+
+    public function test_disabled_updater_cannot_apply(): void
+    {
+        Http::fake();
+
+        $result = app(UpdateApplyService::class)->applyConfigured();
+
+        $this->assertFalse($result['success']);
+        $this->assertSame('disabled', $result['code']);
+        Http::assertNothingSent();
+    }
+
+    public function test_apply_rejects_forbidden_package_before_backup(): void
+    {
+        config(['updater.enabled' => true]);
+        $package = $this->zipBytes(['.env' => 'APP_KEY=base64:unsafe']);
+        $checksum = hash('sha256', $package);
+
+        Http::fake([
+            'https://updates.example.test/manifest.json' => Http::response($this->signedManifest([
+                'package_checksum' => $checksum,
+                'package_signature' => $this->signatureFor($checksum),
+            ]), 200),
+            'https://updates.example.test/package.zip' => Http::response($package, 200),
+        ]);
+
+        $result = app(UpdateApplyService::class)->applyConfigured();
+
+        $this->assertFalse($result['success']);
+        $this->assertSame('forbidden_file', $result['code']);
+        $this->assertDatabaseMissing('backup_logs', ['action' => 'pre_update_backup']);
+    }
+
+    public function test_apply_creates_backup_before_copying_allowed_update_and_preserves_env_and_database(): void
+    {
+        config([
+            'updater.enabled' => true,
+            'updater.maintenance_mode' => false,
+            'updater.run_migrations' => false,
+        ]);
+
+        $target = base_path('docs/__updater_apply_test.md');
+        File::delete($target);
+        $envBefore = File::exists(base_path('.env')) ? File::get(base_path('.env')) : null;
+        $databasePath = config('database.connections.sqlite.database');
+        $dbBefore = is_string($databasePath) && File::exists($databasePath) ? hash_file('sha256', $databasePath) : null;
+
+        $package = $this->zipBytes(['docs/__updater_apply_test.md' => 'safe updater test']);
+        $checksum = hash('sha256', $package);
+
+        Http::fake([
+            'https://updates.example.test/manifest.json' => Http::response($this->signedManifest([
+                'package_checksum' => $checksum,
+                'package_signature' => $this->signatureFor($checksum),
+                'migration_required' => false,
+            ]), 200),
+            'https://updates.example.test/package.zip' => Http::response($package, 200),
+        ]);
+
+        try {
+            $result = app(UpdateApplyService::class)->applyConfigured();
+
+            $this->assertTrue($result['success']);
+            $this->assertSame('applied', $result['code']);
+            $this->assertFileExists($target);
+            $this->assertSame('safe updater test', File::get($target));
+            $this->assertDatabaseHas('backup_logs', ['action' => 'pre_update_backup', 'status' => 'success']);
+            if ($envBefore !== null) {
+                $this->assertSame($envBefore, File::get(base_path('.env')));
+            }
+            if ($dbBefore !== null) {
+                $this->assertSame($dbBefore, hash_file('sha256', $databasePath));
+            }
+        } finally {
+            File::delete($target);
+        }
+    }
+
+    public function test_apply_logs_migration_guard_when_manifest_requires_migration(): void
+    {
+        config([
+            'updater.enabled' => true,
+            'updater.maintenance_mode' => false,
+            'updater.run_migrations' => false,
+        ]);
+
+        $target = base_path('docs/__updater_no_migration_test.md');
+        File::delete($target);
+        $package = $this->zipBytes(['docs/__updater_no_migration_test.md' => 'safe updater test']);
+        $checksum = hash('sha256', $package);
+
+        Http::fake([
+            'https://updates.example.test/manifest.json' => Http::response($this->signedManifest([
+                'package_checksum' => $checksum,
+                'package_signature' => $this->signatureFor($checksum),
+                'migration_required' => true,
+            ]), 200),
+            'https://updates.example.test/package.zip' => Http::response($package, 200),
+        ]);
+
+        try {
+            $result = app(UpdateApplyService::class)->applyConfigured();
+
+            $this->assertTrue($result['success']);
+            $this->assertDatabaseHas('audit_logs', ['event_type' => 'updater.apply_succeeded']);
+            $log = AuditLog::where('event_type', 'updater.apply_succeeded')->latest('id')->first();
+            $this->assertTrue($log->context['migration_required']);
+            $this->assertNull($log->context['migration_exit_code']);
+        } finally {
+            File::delete($target);
+        }
     }
 
     public function test_updater_logs_are_sanitized(): void

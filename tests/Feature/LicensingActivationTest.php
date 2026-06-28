@@ -28,6 +28,7 @@ class LicensingActivationTest extends TestCase
         parent::setUp();
 
         config([
+            'licensing.enabled' => false,
             'licensing.identity_path' => storage_path('framework/testing/license-' . Str::random(12) . '/installation.json'),
             'licensing.cache_path' => storage_path('framework/testing/license-' . Str::random(12) . '/license.json'),
             'licensing.server_url' => 'https://licenses.example.test',
@@ -230,12 +231,12 @@ class LicensingActivationTest extends TestCase
         $this->assertSame('blocked', $status->enforcement);
     }
 
-    public function test_ensure_license_is_not_wired_into_main_production_route_group(): void
+    public function test_ensure_license_is_wired_after_active_session_and_disabled_config_remains_noop(): void
     {
         $routes = file_get_contents(base_path('routes/web.php'));
 
-        $this->assertStringContainsString("'auth', 'activeSession', 'subscriptionExpiry', 'readonly', 'dbTransaction'", $routes);
-        $this->assertStringNotContainsString("'auth', 'activeSession', 'ensureLicense'", $routes);
+        $this->assertStringContainsString("'auth', 'activeSession', 'ensureLicense', 'subscriptionExpiry', 'readonly', 'dbTransaction'", $routes);
+        $this->assertFalse((bool) config('licensing.enabled'));
     }
 
     private function signedDocument(array $overrides = []): array

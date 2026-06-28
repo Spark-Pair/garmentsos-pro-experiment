@@ -28,6 +28,7 @@ class LicensingFoundationTest extends TestCase
         parent::setUp();
 
         config([
+            'licensing.enabled' => false,
             'licensing.identity_path' => storage_path('framework/testing/license-' . Str::random(12) . '/installation.json'),
             'licensing.cache_path' => storage_path('framework/testing/license-' . Str::random(12) . '/license.json'),
         ]);
