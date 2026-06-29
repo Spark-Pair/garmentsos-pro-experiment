@@ -55,9 +55,7 @@
                         <dt class="text-[var(--secondary-text)]">Current version</dt>
                         <dd class="mt-1 font-semibold">{{ $currentVersion }}</dd>
                         <dd class="mt-1 text-xs text-[var(--secondary-text)]">Source: {{ $currentVersionSourceLabel }}</dd>
-                        @if ($developerSourceMode)
-                            <dd class="mt-1 text-xs text-[var(--secondary-text)]">Mode: Developer source run</dd>
-                        @endif
+                        <dd class="mt-1 text-xs text-[var(--secondary-text)]">Mode: {{ $runtimeModeLabel }}</dd>
                     </div>
                     <div class="{{ $softPanel }}">
                         <dt class="text-[var(--secondary-text)]">Channel</dt>
@@ -70,7 +68,7 @@
                     <div class="{{ $softPanel }}">
                         <dt class="text-[var(--secondary-text)]">Installed manifest</dt>
                         <dd class="mt-1 font-semibold">{{ $installedManifestConfigured ? 'Present' : 'Not found' }}</dd>
-                        @if (!$installedManifestConfigured)
+                        @if (!$installedManifestConfigured && $developerSourceMode)
                             <dd class="mt-1 text-xs text-[var(--secondary-text)]">
                                 This is expected when running from source. Installed client packages will include an installed manifest/version.
                             </dd>

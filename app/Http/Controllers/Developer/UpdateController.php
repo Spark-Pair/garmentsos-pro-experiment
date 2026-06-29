@@ -24,6 +24,9 @@ class UpdateController extends Controller
                 ? 'Developer/source fallback'
                 : ucfirst(str_replace('_', ' ', $versions->source())),
             'developerSourceMode' => $versions->isDeveloperSourceMode(),
+            'runtimeModeLabel' => $versions->isDeveloperSourceMode()
+                ? 'Developer source run'
+                : 'Installed client package',
             'channel' => config('updater.channel', 'stable'),
             'manifestUrlConfigured' => (string) config('updater.manifest_url', '') !== '',
             'installedManifestConfigured' => $versions->manifestConfigured(),

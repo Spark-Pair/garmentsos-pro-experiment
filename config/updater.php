@@ -9,6 +9,7 @@ return [
     'current_version' => env('APP_VERSION', '0.0.0'),
     'installed_manifest_paths' => [
         env('GARMENTSOS_INSTALLED_MANIFEST', ''),
+        'bootstrap/cache/installed-release.json',
         'manifest.json',
         'storage/app/installed-manifest.json',
         'storage/app/release-manifest.json',

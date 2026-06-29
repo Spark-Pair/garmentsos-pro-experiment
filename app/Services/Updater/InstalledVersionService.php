@@ -70,7 +70,8 @@ class InstalledVersionService
             return null;
         }
 
-        $decoded = json_decode(File::get($path), true);
+        $contents = preg_replace('/^\xEF\xBB\xBF/', '', File::get($path));
+        $decoded = json_decode($contents, true);
 
         return is_array($decoded) ? $decoded : null;
     }

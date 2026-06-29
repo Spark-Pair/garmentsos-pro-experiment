@@ -27,11 +27,39 @@ IMAGE="sparkpair/garmentsos-pro:$VERSION"
 IMAGE_TAR="$DEST/images/$PACKAGE_NAME.tar"
 ZIP_PATH="$RELEASE_ROOT/$PACKAGE_NAME.zip"
 SHA_PATH="$RELEASE_ROOT/$PACKAGE_NAME.sha256"
+CHANNEL="${UPDATER_CHANNEL:-stable}"
+INSTALLED_MANIFEST="$ROOT/bootstrap/cache/installed-release.json"
 
 rm -rf "$DEST" "$ZIP_PATH" "$SHA_PATH"
 mkdir -p "$DEST/images" "$DEST/scripts" "$DEST/docs" "$DEST/checksums"
 
+built_at="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+commit="$(git rev-parse HEAD)"
+branch="$(git branch --show-current)"
+
+cleanup_installed_manifest() {
+  rm -f "$INSTALLED_MANIFEST"
+}
+trap cleanup_installed_manifest EXIT
+
+mkdir -p "$(dirname "$INSTALLED_MANIFEST")"
+cat > "$INSTALLED_MANIFEST" <<JSON
+{
+  "app": "garmentsos-pro",
+  "version": "$VERSION",
+  "channel": "$CHANNEL",
+  "image": "$IMAGE",
+  "image_tag": "$VERSION",
+  "git_commit": "$commit",
+  "git_branch": "$branch",
+  "built_at": "$built_at",
+  "deployment": "docker-first-client",
+  "source": "docker-build-release"
+}
+JSON
+
 docker build -t "$IMAGE" "$ROOT"
+cleanup_installed_manifest
 docker save "$IMAGE" -o "$IMAGE_TAR"
 
 cp "$ROOT/docker-compose.yml" "$DEST/docker-compose.yml"
@@ -60,14 +88,11 @@ done
 tar_checksum="$(sha256sum "$IMAGE_TAR" | awk '{print $1}')"
 printf '%s  %s\n' "$tar_checksum" "images/$PACKAGE_NAME.tar" > "$DEST/checksums/$PACKAGE_NAME.sha256"
 
-built_at="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
-commit="$(git rev-parse HEAD)"
-branch="$(git branch --show-current)"
-
 cat > "$DEST/manifest.json" <<JSON
 {
   "app": "garmentsos-pro",
   "version": "$VERSION",
+  "channel": "$CHANNEL",
   "image": "$IMAGE",
   "image_tar": "images/$PACKAGE_NAME.tar",
   "image_sha256": "$tar_checksum",
