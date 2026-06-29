@@ -103,7 +103,7 @@ if [[ -n "$bad_paths" ]]; then
   exit 1
 fi
 
-if grep -R -I -n --exclude='validate-release.sh' -E 'APP_KEY=base64:[A-Za-z0-9+/=]{20,}|PUSHER_APP_SECRET=[^[:space:]]{8,}|LICENSE_PRIVATE_KEY=.+|-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----|github_pat_[A-Za-z0-9_]{20,}|ghp_[A-Za-z0-9]{20,}' "$SCAN_ROOT" >/tmp/garmentsos-release-secret-scan.txt 2>/dev/null; then
+if grep -R -I -n --exclude='validate-release.sh' --exclude='validate-docker-release.sh' -E 'APP_KEY=base64:[A-Za-z0-9+/=]{20,}|PUSHER_APP_SECRET=[^[:space:]]{8,}|LICENSE_PRIVATE_KEY=.+|-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----|github_pat_[A-Za-z0-9_]{20,}|ghp_[A-Za-z0-9]{20,}' "$SCAN_ROOT" >/tmp/garmentsos-release-secret-scan.txt 2>/dev/null; then
   echo "Potential secret values found in release package:" >&2
   cat /tmp/garmentsos-release-secret-scan.txt >&2
   rm -f /tmp/garmentsos-release-secret-scan.txt

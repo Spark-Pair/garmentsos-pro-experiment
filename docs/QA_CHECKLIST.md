@@ -8,6 +8,8 @@ php artisan test
 php artisan migrate --pretend --force
 bash scripts/build-release.sh 0.0.0-test --allow-dirty
 bash scripts/validate-release.sh releases/garmentsos-pro-0.0.0-test
+bash scripts/docker-build-release.sh 0.0.0-docker-test --allow-dirty
+bash scripts/validate-docker-release.sh docker-releases/garmentsos-pro-0.0.0-docker-test
 docker compose config
 docker build -t garmentsos-pro:test .
 ```

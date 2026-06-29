@@ -3,6 +3,11 @@ set -euo pipefail
 
 cd /var/www/html
 
+if [[ ! -f .env && "${GARMENTSOS_FIRST_INSTALL:-false}" == "true" && -f .env.example ]]; then
+  cp .env.example .env
+  echo "Created .env from .env.example because GARMENTSOS_FIRST_INSTALL=true."
+fi
+
 if [[ ! -f .env ]]; then
   echo "Missing .env. Mount a client-specific .env file into /var/www/html/.env." >&2
   exit 1
@@ -24,6 +29,10 @@ fi
 chown -R www-data:www-data storage bootstrap/cache database || true
 
 php artisan optimize:clear || true
+
+if ! grep -q '^APP_KEY=base64:' .env && [[ "${GARMENTSOS_GENERATE_APP_KEY:-false}" == "true" ]]; then
+  php artisan key:generate --force
+fi
 
 if [[ "${RUN_MIGRATIONS_ON_START:-false}" == "true" ]]; then
   echo "RUN_MIGRATIONS_ON_START=true: creating backup before migrations."

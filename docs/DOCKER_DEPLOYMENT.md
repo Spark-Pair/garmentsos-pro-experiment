@@ -1,45 +1,46 @@
 # Docker Deployment
 
-## Fresh Install
+Docker is the primary client deployment path for GarmentsOS PRO.
 
-1. Create a client `.env` from `.env.example`.
-2. Set `DB_DATABASE=/var/www/html/database/database.sqlite` or another mounted SQLite path.
-3. Start the container:
+Clients should receive a Docker release zip containing a saved image tar, compose file, `.env.example`, scripts, docs, checksums, and manifest. They should not receive the Git repo or raw Laravel source folder.
 
-```bash
-docker compose up -d --build
+## Data Persistence
+
+`docker-compose.yml` uses named volumes:
+
+```yaml
+volumes:
+  garmentsos_database:
+  garmentsos_storage:
 ```
 
-4. If this is a fresh database and migrations are approved:
+These preserve:
 
-```bash
-RUN_MIGRATIONS_ON_START=true docker compose up -d
+- SQLite database
+- storage
+- license/cache/identity files under storage
+- managed backups
+
+Updating the image/container does not remove volumes.
+
+## Runtime Environment
+
+`.env` is mounted from the client install folder and is not baked into the image. The image does not include client database files, logs, backups, dumps, or secrets.
+
+Migrations run only when:
+
+```env
+RUN_MIGRATIONS_ON_START=true
 ```
 
-## Existing Client Update
+The entrypoint creates a backup before migrations.
 
-1. Stop the app or put it in maintenance mode.
-2. Back up `database/` and `storage/`.
-3. Rebuild the image or replace the release files.
-4. Start without migrations first.
-5. Run migrations only after backup approval.
-
-## LAN Access
-
-Map the host port with `APP_PORT`, for example:
+## Commands
 
 ```bash
-APP_PORT=8080 docker compose up -d
-```
-
-LAN users browse to `http://server-ip:8080`.
-
-## Operations
-
-```bash
+docker compose up -d
 docker compose logs --tail=100
-docker compose restart
 docker compose down
 ```
 
-Do not store backups, `.env`, or database files inside the image.
+On Windows clients, prefer the provided PowerShell scripts.

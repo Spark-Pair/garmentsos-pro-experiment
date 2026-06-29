@@ -5,6 +5,7 @@
 /public/storage
 /release/
 /releases/
+/docker-releases/
 /dist/
 /build-release/
 /storage/*.key
@@ -28,3 +29,7 @@ yarn-error.log
 
 *.vbs
 *.bat
+!scripts/install.bat
+!scripts/update.bat
+!scripts/run-lan.bat
+!scripts/stop.bat

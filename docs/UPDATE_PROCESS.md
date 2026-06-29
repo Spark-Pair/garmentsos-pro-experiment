@@ -1,62 +1,38 @@
 # Update Process
 
-GarmentsOS PRO supports two controlled update paths:
+Primary client updates are Docker image updates.
 
-1. Scripted update using a validated release package.
-2. Developer/admin updater UI using signed manifest and package verification.
+## Docker Update
 
-Both paths must preserve client `.env`, database files, backups, logs, private storage, and license identity/cache.
+1. Receive the new Docker release zip.
+2. Run:
 
-## Branch Workflow
-
-1. Work in a feature branch.
-2. Push experiment work only to the `experiment` remote when approved.
-3. Do not push experiment branches to stable `origin`.
-4. Test on staging or a client-copy database.
-5. Merge to `main` only after explicit approval.
-6. Build a release package from approved code.
-
-## Scripted Update
-
-```bash
-./scripts/client-update.sh releases/garmentsos-pro-1.8.0.zip
+```powershell
+cd C:\SparkPair\GarmentsOS
+.\scripts\windows-docker-update.ps1 -ReleaseDir C:\Path\To\NewRelease
 ```
 
-The script requires an existing `.env` and DB file, validates the package, creates a pre-update backup, copies safe code paths, runs Composer, runs migrations after backup, clears caches, and prints a smoke checklist.
+The script loads the new image, creates a backup first, preserves Docker volumes, updates `GARMENTSOS_IMAGE`, starts the new container, and runs migrations through the entrypoint only when configured.
 
-## Updater UI
-
-The updater is developer/admin only. When `UPDATER_ENABLED=false`, it does not fetch, download, verify, or apply anything.
-
-When enabled and configured, apply flow:
-
-1. Verify signed manifest.
-2. Download package to private updater storage.
-3. Verify checksum and package signature.
-4. Reject forbidden files and unsafe paths.
-5. Create verified DB backup.
-6. Extract package into private staging.
-7. Snapshot overwritten code files.
-8. Copy only allowed runtime paths.
-9. Run migrations only if manifest requires it and `UPDATER_RUN_MIGRATIONS=true`.
-10. Log result and keep backup/snapshot for manual rollback.
-
-## Never Overwrite
+## Preserved During Update
 
 - `.env`
-- `database/database.sqlite`
-- `*.sqlite-wal`
-- `*.sqlite-shm`
-- DB dumps
+- Docker database volume
+- Docker storage volume
 - backups
-- private storage/client uploads
 - logs
-- private keys, tokens, credentials
 - license identity/cache
 
 ## Rollback
 
-- Restore previous code from the snapshot or previous release package.
-- Restore DB only when required and only from a verified backup.
-- Do not automatically restore DB after migration failure.
-- Never test rollback for the first time on a production/client DB.
+Load the previous image tar, set `GARMENTSOS_IMAGE` in `.env` to the old tag, then run:
+
+```powershell
+docker compose up -d
+```
+
+Restore DB only from a verified backup and only when needed.
+
+## Developer/Emergency Source Update
+
+`scripts/client-update.sh` remains available for non-Docker emergency/developer scenarios. It is not the primary client update path.

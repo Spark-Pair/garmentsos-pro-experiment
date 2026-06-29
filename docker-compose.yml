@@ -1,13 +1,18 @@
+name: garmentsos-pro
+
 services:
   app:
-    build: .
-    image: garmentsos-pro:local
+    image: "${GARMENTSOS_IMAGE:-sparkpair/garmentsos-pro:local}"
     ports:
       - "${APP_PORT:-8000}:8000"
     environment:
       RUN_MIGRATIONS_ON_START: "${RUN_MIGRATIONS_ON_START:-false}"
     volumes:
       - ./.env:/var/www/html/.env:ro
-      - ./database:/var/www/html/database
-      - ./storage:/var/www/html/storage
+      - garmentsos_database:/var/www/html/database
+      - garmentsos_storage:/var/www/html/storage
     restart: unless-stopped
+
+volumes:
+  garmentsos_database:
+  garmentsos_storage:

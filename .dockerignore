@@ -15,6 +15,7 @@ node_modules
 vendor
 tests
 releases
+docker-releases
 release
 dist
 build-release
