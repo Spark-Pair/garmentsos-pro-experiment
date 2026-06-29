@@ -26,11 +26,13 @@ DEST="$RELEASE_ROOT/$PACKAGE_NAME"
 IMAGE="sparkpair/garmentsos-pro:$VERSION"
 IMAGE_TAR="$DEST/images/$PACKAGE_NAME.tar"
 ZIP_PATH="$RELEASE_ROOT/$PACKAGE_NAME.zip"
+TAR_GZ_PATH="$RELEASE_ROOT/$PACKAGE_NAME.tar.gz"
+TAR_PATH="$RELEASE_ROOT/$PACKAGE_NAME.tar"
 SHA_PATH="$RELEASE_ROOT/$PACKAGE_NAME.sha256"
 CHANNEL="${UPDATER_CHANNEL:-stable}"
 INSTALLED_MANIFEST="$ROOT/bootstrap/cache/installed-release.json"
 
-rm -rf "$DEST" "$ZIP_PATH" "$SHA_PATH"
+rm -rf "$DEST" "$ZIP_PATH" "$TAR_GZ_PATH" "$TAR_PATH" "$SHA_PATH"
 mkdir -p "$DEST/images" "$DEST/scripts" "$DEST/docs" "$DEST/checksums"
 
 built_at="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
@@ -103,26 +105,67 @@ cat > "$DEST/manifest.json" <<JSON
 }
 JSON
 
+ARCHIVE_PATH=""
+ARCHIVE_KIND=""
+
 if command -v zip >/dev/null 2>&1; then
   (
     cd "$RELEASE_ROOT"
     zip -qr "$ZIP_PATH" "$PACKAGE_NAME"
   )
+  ARCHIVE_PATH="$ZIP_PATH"
+  ARCHIVE_KIND="zip"
+elif command -v 7z >/dev/null 2>&1; then
+  (
+    cd "$RELEASE_ROOT"
+    7z a -tzip "$ZIP_PATH" "$PACKAGE_NAME" >/dev/null
+  )
+  ARCHIVE_PATH="$ZIP_PATH"
+  ARCHIVE_KIND="7z zip"
+elif command -v 7zz >/dev/null 2>&1; then
+  (
+    cd "$RELEASE_ROOT"
+    7zz a -tzip "$ZIP_PATH" "$PACKAGE_NAME" >/dev/null
+  )
+  ARCHIVE_PATH="$ZIP_PATH"
+  ARCHIVE_KIND="7zz zip"
+elif command -v tar.exe >/dev/null 2>&1; then
+  RELEASE_ROOT_WIN="$(cygpath -w "$RELEASE_ROOT" 2>/dev/null || printf '%s' "$RELEASE_ROOT")"
+  TAR_GZ_PATH_WIN="$(cygpath -w "$TAR_GZ_PATH" 2>/dev/null || printf '%s' "$TAR_GZ_PATH")"
+  tar.exe -czf "$TAR_GZ_PATH_WIN" -C "$RELEASE_ROOT_WIN" "$PACKAGE_NAME"
+  ARCHIVE_PATH="$TAR_GZ_PATH"
+  ARCHIVE_KIND="tar.gz"
+elif command -v tar >/dev/null 2>&1; then
+  (
+    cd "$RELEASE_ROOT"
+    tar -czf "$TAR_GZ_PATH" "$PACKAGE_NAME"
+  )
+  ARCHIVE_PATH="$TAR_GZ_PATH"
+  ARCHIVE_KIND="tar.gz"
 elif command -v powershell.exe >/dev/null 2>&1; then
   RELEASE_ROOT_WIN="$(cygpath -w "$RELEASE_ROOT" 2>/dev/null || printf '%s' "$RELEASE_ROOT")"
   ZIP_PATH_WIN="$(cygpath -w "$ZIP_PATH" 2>/dev/null || printf '%s' "$ZIP_PATH")"
+  image_size_bytes="$(wc -c < "$IMAGE_TAR" | tr -d '[:space:]')"
+  max_compress_archive_bytes=$((1800 * 1024 * 1024))
+  if (( image_size_bytes > max_compress_archive_bytes )); then
+    echo "PowerShell Compress-Archive fallback is not safe for this large Docker image and no zip/7z/tar fallback was found." >&2
+    exit 1
+  fi
+
   powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "Compress-Archive -Path ""${RELEASE_ROOT_WIN}\${PACKAGE_NAME}\*"" -DestinationPath ""${ZIP_PATH_WIN}"" -Force"
+  ARCHIVE_PATH="$ZIP_PATH"
+  ARCHIVE_KIND="PowerShell zip"
 else
-  echo "zip command not found and PowerShell fallback is unavailable." >&2
+  echo "No supported archive tool found. Install zip, 7z, or use Windows tar.exe." >&2
   exit 1
 fi
 
-zip_checksum="$(sha256sum "$ZIP_PATH" | awk '{print $1}')"
-printf '%s  %s\n' "$zip_checksum" "$(basename "$ZIP_PATH")" > "$SHA_PATH"
+archive_checksum="$(sha256sum "$ARCHIVE_PATH" | awk '{print $1}')"
+printf '%s  %s\n' "$archive_checksum" "$(basename "$ARCHIVE_PATH")" > "$SHA_PATH"
 
 "$ROOT/scripts/validate-docker-release.sh" "$DEST"
 
 echo "Built Docker client release:"
 echo "  $DEST"
-echo "  $ZIP_PATH"
+echo "  $ARCHIVE_PATH ($ARCHIVE_KIND)"
 echo "  $SHA_PATH"
