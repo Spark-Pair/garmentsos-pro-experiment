@@ -78,10 +78,19 @@ cat > "$DEST/manifest.json" <<JSON
 }
 JSON
 
-(
-  cd "$RELEASE_ROOT"
-  zip -qr "$ZIP_PATH" "$PACKAGE_NAME"
-)
+if command -v zip >/dev/null 2>&1; then
+  (
+    cd "$RELEASE_ROOT"
+    zip -qr "$ZIP_PATH" "$PACKAGE_NAME"
+  )
+elif command -v powershell.exe >/dev/null 2>&1; then
+  RELEASE_ROOT_WIN="$(cygpath -w "$RELEASE_ROOT" 2>/dev/null || printf '%s' "$RELEASE_ROOT")"
+  ZIP_PATH_WIN="$(cygpath -w "$ZIP_PATH" 2>/dev/null || printf '%s' "$ZIP_PATH")"
+  powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "Compress-Archive -Path ""${RELEASE_ROOT_WIN}\${PACKAGE_NAME}\*"" -DestinationPath ""${ZIP_PATH_WIN}"" -Force"
+else
+  echo "zip command not found and PowerShell fallback is unavailable." >&2
+  exit 1
+fi
 
 zip_checksum="$(sha256sum "$ZIP_PATH" | awk '{print $1}')"
 printf '%s  %s\n' "$zip_checksum" "$(basename "$ZIP_PATH")" > "$SHA_PATH"
