@@ -21,6 +21,7 @@ use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\EmployeePaymentController;
 use App\Http\Controllers\ExpenseController;
 use App\Http\Controllers\FabricController;
+use App\Http\Controllers\FirstRunSetupController;
 use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\OrderController;
@@ -52,13 +53,20 @@ use Illuminate\Support\Facades\Route;
 |
 */
 
-Route::get('login', [AuthController::class, 'login'])->name('login');
-Route::post('login', [AuthController::class, 'loginPost'])->middleware('subscriptionExpiry')->name('loginPost');
+Route::middleware('setup.incomplete')->group(function () {
+    Route::get('setup', [FirstRunSetupController::class, 'index'])->name('setup.index');
+    Route::post('setup', [FirstRunSetupController::class, 'store'])->name('setup.store');
+});
+
+Route::middleware('setup.complete')->group(function () {
+    Route::get('login', [AuthController::class, 'login'])->name('login');
+    Route::post('login', [AuthController::class, 'loginPost'])->name('loginPost');
+});
 Route::get('subscription-expired', function () {
     return view('subscription-expired'); // ya controller agar chahiye
 })->name('subscription-expired');
 
-Route::group(['middleware' => ['auth', 'activeSession', 'ensureLicense', 'subscriptionExpiry', 'readonly']], function () {
+Route::group(['middleware' => ['setup.complete', 'auth', 'activeSession', 'ensureLicense', 'readonly']], function () {
     Route::get('/backup-db', [BackupController::class, 'legacyDownload'])->name('backup-db');
     Route::get('developer/backups', [BackupController::class, 'index'])->name('developer.backups');
     Route::post('developer/backups', [BackupController::class, 'store'])->name('developer.backups.store');
@@ -71,7 +79,7 @@ Route::group(['middleware' => ['auth', 'activeSession', 'ensureLicense', 'subscr
     Route::post('developer/updater/apply', [UpdateController::class, 'apply'])->name('developer.updater.apply');
 });
 
-Route::group(['middleware' => ['auth', 'activeSession', 'ensureLicense', 'subscriptionExpiry', 'readonly', 'dbTransaction']], function () {
+Route::group(['middleware' => ['setup.complete', 'auth', 'activeSession', 'ensureLicense', 'readonly', 'dbTransaction']], function () {
     Route::get('', function () {
         return redirect(route('home'));
     });

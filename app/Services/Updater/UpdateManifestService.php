@@ -2,6 +2,7 @@
 
 namespace App\Services\Updater;
 
+use App\Services\Updater\InstalledVersionService;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Arr;
@@ -22,7 +23,10 @@ class UpdateManifestService
         'supported_installation_modes',
     ];
 
-    public function __construct(protected UpdateLogService $logs)
+    public function __construct(
+        protected UpdateLogService $logs,
+        protected InstalledVersionService $versions,
+    )
     {
     }
 
@@ -89,7 +93,7 @@ class UpdateManifestService
             return $this->result(false, 'invalid_signature', 'Update manifest signature is invalid.');
         }
 
-        $current = (string) config('updater.current_version', '0.0.0');
+        $current = $this->versions->currentVersion();
         $latest = (string) $manifest['latest_version'];
         $available = version_compare($latest, $current, '>');
         $mandatory = (bool) $manifest['mandatory'] || version_compare($current, (string) $manifest['minimum_required_version'], '<');

@@ -22,17 +22,22 @@ class LicenseStatus
 
     public static function disabled(): self
     {
+        return self::notEnforced();
+    }
+
+    public static function notEnforced(): self
+    {
         return new self(
-            state: 'disabled',
+            state: 'not_enforced',
             enforcement: 'none',
-            message: 'License enforcement is disabled.',
+            message: 'License enforcement is disabled. App is not blocked by missing license.',
         );
     }
 
     public static function valid(string $source = 'database', array $payload = []): self
     {
         return new self(
-            state: 'valid',
+            state: $payload['state'] ?? 'active',
             enforcement: 'none',
             message: $payload['message'] ?? 'License is valid.',
             expiresAt: $payload['expires_at'] ?? null,
@@ -63,7 +68,7 @@ class LicenseStatus
 
     public function isAllowed(): bool
     {
-        return in_array($this->state, ['disabled', 'valid', 'offline_grace'], true);
+        return in_array($this->state, ['not_enforced', 'active', 'expiring_soon', 'grace_period', 'offline_grace'], true);
     }
 
     public function shouldReadOnly(): bool

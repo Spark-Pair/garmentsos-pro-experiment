@@ -28,6 +28,8 @@ return [
 
     'offline_grace_days' => (int) env('LICENSE_OFFLINE_GRACE_DAYS', 7),
 
+    'expiring_soon_days' => (int) env('LICENSE_EXPIRING_SOON_DAYS', 14),
+
     'cache_path' => storage_path('app/license/license.json'),
 
     'identity_path' => storage_path('app/license/installation.json'),

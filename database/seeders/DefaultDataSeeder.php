@@ -4,23 +4,21 @@ namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class DefaultDataSeeder extends Seeder
 {
     public function run()
     {
-        // Default user
-        DB::table('users')->updateOrInsert(
-            [
-                'username' => 'dev',
-            ],
-            [
-                'name' => 'dev',
-                'password' => '$2y$12$V6SBN1THQHkTbhGarfCk1eArE5Mye2FkOjHLgAmbubQXQlQNMSZSe',
-                'role' => 'developer',
-                'theme' => 'dark',
-            ]
-        );
+        if (Schema::hasTable('users')) {
+            DB::table('users')
+                ->where('username', 'dev')
+                ->update([
+                    'name' => 'dev',
+                    'role' => 'developer',
+                    'status' => 'active',
+                ]);
+        }
 
         // Insert default setups
         // DB::table('setups')->insert([

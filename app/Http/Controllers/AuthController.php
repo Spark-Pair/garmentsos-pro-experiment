@@ -13,6 +13,8 @@ class AuthController extends Controller
 {
     public function login()
     {
+        session()->forget(['readonly', 'license_readonly']);
+
         if (Auth::check()) {
             return redirect()->back()->with('error', 'Oops! You’re already loged in. Please logout first!');
         }
@@ -21,6 +23,8 @@ class AuthController extends Controller
 
     public function loginPost(Request $request)
     {
+        session()->forget(['readonly', 'license_readonly']);
+
         if (Auth::check()) {
             return redirect(route('home'))->with('warning', 'Oops! You’re already loged in. Please logout first!');
         } else {

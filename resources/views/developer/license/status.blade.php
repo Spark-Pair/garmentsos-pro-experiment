@@ -12,18 +12,18 @@
         $disabledButton = 'px-4 py-2 bg-[var(--h-bg-color)] border border-gray-600 text-[var(--secondary-text)] font-medium text-nowrap rounded-lg opacity-60 cursor-not-allowed';
         $foundationReady = $foundationReady ?? true;
         $missingTables = $missingTables ?? [];
-        $inactiveButNotEnforced = !$licensingEnabled && in_array($status->state, ['no_license', 'blocked', 'tampered', 'setup_pending'], true);
+        $inactiveButNotEnforced = !$licensingEnabled;
         $bannerType = $inactiveButNotEnforced
             ? 'border-gray-600 bg-[var(--h-bg-color)] text-[var(--secondary-text)]'
             : match ($status->state) {
-                'valid' => 'border-[var(--border-success)] bg-[var(--bg-success)] text-[var(--text-success)]',
-                'subscription_expired', 'offline_grace' => 'border-[var(--border-warning)] bg-[var(--bg-warning)] text-[var(--text-warning)]',
+                'active' => 'border-[var(--border-success)] bg-[var(--bg-success)] text-[var(--text-success)]',
+                'expiring_soon', 'grace_period', 'offline_grace', 'expired_readonly' => 'border-[var(--border-warning)] bg-[var(--bg-warning)] text-[var(--text-warning)]',
                 default => 'border-[var(--border-error)] bg-[var(--bg-error)] text-[var(--text-error)]',
             };
         $displayMessage = $inactiveButNotEnforced
-            ? 'License not activated yet. Enforcement is disabled, so the app is not blocked.'
+            ? 'License enforcement is disabled. App is not blocked by missing license.'
             : ($status->message ?: 'License status calculated.');
-        $displayState = $inactiveButNotEnforced ? 'Pending activation' : ucfirst(str_replace('_', ' ', $status->state));
+        $displayState = $inactiveButNotEnforced ? 'Not enforced' : ucfirst(str_replace('_', ' ', $status->state));
         $displayEnforcement = $inactiveButNotEnforced ? 'Not enforced' : ucfirst($status->enforcement);
     @endphp
 

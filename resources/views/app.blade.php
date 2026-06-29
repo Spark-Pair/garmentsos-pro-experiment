@@ -23,6 +23,7 @@
         'authUserId' => Auth::check() ? Auth::user()->id : null,
         'authUserRole' => Auth::check() ? Auth::user()->role : null,
         'routeIsLogin' => request()->is('login'),
+        'routeIsSetup' => request()->is('setup'),
         'routeIsSubscriptionExpired' => request()->is('subscription-expired'),
         'routeIsOrdersCreate' => request()->is('orders/create'),
         'changeLayoutUrl' => request()->route()?->getActionMethod() === 'index' || request()->route()?->getActionMethod() === 'summary'
@@ -32,9 +33,9 @@
         'companyLogoBase' => url('/') . '/',
         'branding' => $effectiveBranding,
         'notificationsUrl' => Auth::check() ? route('notifications.index') : null,
-        'readonlySession' => (bool) session('readonly'),
+        'readonlySession' => !request()->is('login') && !request()->is('setup') && ((bool) session('license_readonly')),
     ];
-    $centerMainContent = request()->is('/') || request()->is('login') || request()->is('subscription-expired');
+    $centerMainContent = request()->is('/') || request()->is('login') || request()->is('setup') || request()->is('subscription-expired');
 @endphp
 <!DOCTYPE html>
 <html lang="en" data-theme="{{ $preferredTheme }}">
@@ -504,7 +505,7 @@
                 @if (session('error'))
                     <x-alert type="error" :messages="session('error')" />
                 @endif
-                @if (session('readonly'))
+                @if (!request()->is('login') && !request()->is('setup') && session('license_readonly'))
                     <x-alert type="warning" :messages="'Read-only mode is enabled. You can view data but cannot make changes.'"/>
                 @endif
             </div>

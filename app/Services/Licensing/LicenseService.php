@@ -27,6 +27,10 @@ class LicenseService
 
     public function currentStatus(): LicenseStatus
     {
+        if (!$this->enabled()) {
+            return LicenseStatus::notEnforced();
+        }
+
         $installation = $this->identity->current();
         $license = License::query()
             ->where('app_installation_id', $installation->id)
@@ -62,7 +66,7 @@ class LicenseService
 
         if (in_array($license->status, ['suspended', 'blocked'], true)) {
             return LicenseStatus::problem(
-                $license->status,
+                $license->status === 'suspended' ? 'revoked' : 'blocked',
                 'blocked',
                 'License is ' . $license->status . '.',
                 $payload,
@@ -71,9 +75,9 @@ class LicenseService
 
         if ($license->license_expires_at && Carbon::now()->greaterThan($license->license_expires_at)) {
             return LicenseStatus::problem(
-                'expired',
-                'blocked',
-                'License has expired.',
+                'expired_readonly',
+                $license->enforcement_mode ?: $this->defaultEnforcementMode(),
+                'License has expired. App is in read-only mode.',
                 $payload,
             );
         }
@@ -82,7 +86,7 @@ class LicenseService
 
         if (!$installation || $installation->fingerprint_hash !== $this->fingerprints->fingerprintHash()) {
             return LicenseStatus::problem(
-                'installation_mismatch',
+                'blocked',
                 'blocked',
                 'This app installation does not match the activated license.',
                 $payload,
@@ -100,7 +104,7 @@ class LicenseService
             }
 
             return LicenseStatus::problem(
-                'grace_expired',
+                'expired_readonly',
                 $license->enforcement_mode ?: $this->defaultEnforcementMode(),
                 'Offline grace has expired.',
                 $payload,
@@ -112,11 +116,22 @@ class LicenseService
             || ($license->subscription_expires_at && Carbon::now()->greaterThan($license->subscription_expires_at))
         ) {
             return LicenseStatus::problem(
-                'subscription_expired',
+                'expired_readonly',
                 $license->enforcement_mode ?: $this->defaultEnforcementMode(),
                 'Subscription has expired. Read-only mode should be used when enforcement is enabled.',
                 $payload,
             );
+        }
+
+        if ($license->subscription_expires_at) {
+            $days = (int) config('licensing.expiring_soon_days', 14);
+            $daysLeft = Carbon::now()->startOfDay()->diffInDays($license->subscription_expires_at->copy()->startOfDay(), false);
+            if ($daysLeft >= 0 && $daysLeft <= $days) {
+                return LicenseStatus::valid('database', array_merge($payload, [
+                    'state' => 'expiring_soon',
+                    'message' => 'License is active and expiring soon.',
+                ]));
+            }
         }
 
         return LicenseStatus::valid('database', $payload);

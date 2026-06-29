@@ -28,6 +28,19 @@ class LicenseController extends Controller
             return $resp;
         }
 
+        if (!$licenses->enabled()) {
+            return view('developer.license.status', [
+                'status' => LicenseStatus::notEnforced(),
+                'fingerprintPreview' => $this->safeValue(fn () => $fingerprints->fingerprintPreview(), 'Pending'),
+                'installationPreview' => $this->safeValue(fn () => $identity->maskedUuid(), 'Pending'),
+                'installationMode' => config('licensing.installation_mode', 'local_lan'),
+                'licensingEnabled' => false,
+                'cacheStatus' => LicenseStatus::notEnforced(),
+                'foundationReady' => $this->licenseTablesReady(),
+                'missingTables' => $this->missingLicenseTables(),
+            ]);
+        }
+
         if (!$this->licenseTablesReady()) {
             return view('developer.license.status', [
                 'status' => LicenseStatus::problem(
@@ -207,5 +220,14 @@ class LicenseController extends Controller
             'license_checks',
             'audit_logs',
         ], fn (string $table) => !Schema::hasTable($table)));
+    }
+
+    protected function safeValue(callable $callback, string $fallback): string
+    {
+        try {
+            return (string) $callback();
+        } catch (\Throwable) {
+            return $fallback;
+        }
     }
 }

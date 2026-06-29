@@ -2,14 +2,10 @@
 
 namespace App\Services\Settings;
 
-use App\Services\Licensing\LicenseService;
-
 class ModuleAvailabilityService
 {
-    public function __construct(
-        protected ModuleSettingsService $modules,
-        protected LicenseService $licenses,
-    ) {
+    public function __construct(protected ModuleSettingsService $modules)
+    {
     }
 
     public function all(): array
@@ -43,24 +39,6 @@ class ModuleAvailabilityService
         $defaultEnabled = (bool) ($registry[$moduleKey]['default_enabled'] ?? true);
         $localEnabled = ($local['has_override'] ?? false) ? (bool) $local['enabled'] : null;
         $localVisible = ($local['has_override'] ?? false) ? (bool) $local['visible_in_sidebar'] : null;
-        $license = $this->licenseState($moduleKey);
-        $licenseAllowed = $license['allowed'];
-
-        if ($licenseAllowed === false) {
-            return $this->state(
-                $moduleKey,
-                true,
-                false,
-                'disabled_by_license',
-                $defaultEnabled,
-                false,
-                $localEnabled,
-                false,
-                'This module is not included in the active license.',
-                $local,
-            );
-        }
-
         if ($localEnabled === false) {
             return $this->state(
                 $moduleKey,
@@ -68,7 +46,7 @@ class ModuleAvailabilityService
                 false,
                 'disabled_locally',
                 $defaultEnabled,
-                $licenseAllowed,
+                null,
                 false,
                 false,
                 'This module is disabled in developer settings.',
@@ -78,9 +56,7 @@ class ModuleAvailabilityService
 
         $available = $localEnabled ?? $defaultEnabled;
         $visible = $available && ($localVisible ?? true);
-        $reason = $license['unavailable']
-            ? 'licensing_unavailable'
-            : ($localEnabled === null ? 'default_allowed' : 'available');
+        $reason = $localEnabled === null ? 'default_allowed' : 'available';
 
         return $this->state(
             $moduleKey,
@@ -88,7 +64,7 @@ class ModuleAvailabilityService
             $available,
             $available ? $reason : 'disabled_locally',
             $defaultEnabled,
-            $licenseAllowed,
+            null,
             $localEnabled,
             $visible,
             $available ? 'Available.' : 'This module is disabled.',
@@ -104,29 +80,6 @@ class ModuleAvailabilityService
     public function isEffectivelyVisibleInSidebar(string $moduleKey): bool
     {
         return (bool) $this->effectiveState($moduleKey)['visible_in_sidebar'];
-    }
-
-    protected function licenseState(string $moduleKey): array
-    {
-        if (!$this->licenses->enabled()) {
-            return ['allowed' => null, 'unavailable' => false];
-        }
-
-        try {
-            $status = $this->licenses->currentStatus();
-        } catch (\Throwable) {
-            return ['allowed' => null, 'unavailable' => true];
-        }
-
-        if (!$status->isAllowed()) {
-            return ['allowed' => null, 'unavailable' => true];
-        }
-
-        if ($status->modules === []) {
-            return ['allowed' => null, 'unavailable' => false];
-        }
-
-        return ['allowed' => in_array($moduleKey, $status->modules, true), 'unavailable' => false];
     }
 
     protected function state(

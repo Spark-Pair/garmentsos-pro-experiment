@@ -13,7 +13,7 @@ class ReadOnlyMode
      */
     public function handle(Request $request, Closure $next): Response
     {
-        if (!session('readonly', false) && !session('license_readonly', false)) {
+        if (!session('license_readonly', false)) {
             return $next($request);
         }
 
@@ -47,6 +47,14 @@ class ReadOnlyMode
             'set-physical-quantity-report-type',
             'update-last-activity',
             'logout',
+            'developer.backups.store',
+            'developer.backups.verify',
+            'developer.updater.check',
+            'developer.updater.apply',
+            'developer.license.activate.post',
+            'developer.license.offline.import',
+            'developer.license.refresh',
+            'developer.license.reactivation-request',
         ];
 
         $routeName = $request->route()?->getName();

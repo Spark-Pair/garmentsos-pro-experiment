@@ -14,6 +14,9 @@ class EnsureValidLicense
         $licenseService = app(LicenseService::class);
 
         if (!$licenseService->enabled()) {
+            session()->forget(['readonly', 'license_readonly']);
+            $request->attributes->set('license_status', $licenseService->currentStatus());
+
             return $next($request);
         }
 
@@ -21,10 +24,11 @@ class EnsureValidLicense
         $request->attributes->set('license_status', $status);
 
         if ($status->shouldReadOnly()) {
+            session()->forget('readonly');
             session(['license_readonly' => true]);
             session()->flash('warning', $status->message);
         } else {
-            session()->forget('license_readonly');
+            session()->forget(['readonly', 'license_readonly']);
         }
 
         if ($status->shouldBlock()) {

@@ -11,6 +11,13 @@
         $secondaryButton = 'px-4 py-2 bg-[var(--h-bg-color)] border border-gray-600 text-[var(--secondary-text)] font-medium text-nowrap rounded-lg hover:bg-[var(--secondary-bg-color)] hover:scale-95 transition-all duration-300 ease-in-out cursor-pointer';
         $disabledButton = 'px-4 py-2 bg-[var(--h-bg-color)] border border-gray-600 text-[var(--secondary-text)] font-medium text-nowrap rounded-lg opacity-60 cursor-not-allowed';
         $canApply = $enabled && !empty($result['success']) && !empty($result['update_available']);
+        $manifestReady = $enabled && $manifestUrlConfigured;
+        $statusLabel = $developerSourceMode
+            ? 'Local/dev mode'
+            : ($manifestReady ? 'Updater enabled' : 'Manifest not configured');
+        $applyStatus = $developerSourceMode
+            ? 'Not available in developer/source mode'
+            : ($manifestReady ? 'Available after signed manifest and package validation' : 'Waiting for manifest configuration');
     @endphp
 
     <div class="mb-5 max-w-6xl mx-auto">
@@ -37,8 +44,8 @@
                 <p class="max-w-3xl text-sm text-[var(--secondary-text)]">
                     Guarded update apply is available only after a signed manifest, package checksum, package safety validation, and pre-update backup pass.
                 </p>
-                <span class="{{ $badge }} {{ $enabled ? 'border-[var(--border-warning)] bg-[var(--bg-warning)] text-[var(--text-warning)]' : 'border-gray-600 bg-[var(--h-bg-color)] text-[var(--secondary-text)]' }}">
-                    {{ $enabled ? 'Updater enabled' : 'Updater disabled' }}
+                <span class="{{ $badge }} {{ $manifestReady && !$developerSourceMode ? 'border-[var(--border-warning)] bg-[var(--bg-warning)] text-[var(--text-warning)]' : 'border-gray-600 bg-[var(--h-bg-color)] text-[var(--secondary-text)]' }}">
+                    {{ $statusLabel }}
                 </span>
             </div>
 
@@ -47,6 +54,10 @@
                     <div class="{{ $softPanel }}">
                         <dt class="text-[var(--secondary-text)]">Current version</dt>
                         <dd class="mt-1 font-semibold">{{ $currentVersion }}</dd>
+                        <dd class="mt-1 text-xs text-[var(--secondary-text)]">Source: {{ $currentVersionSourceLabel }}</dd>
+                        @if ($developerSourceMode)
+                            <dd class="mt-1 text-xs text-[var(--secondary-text)]">Mode: Developer source run</dd>
+                        @endif
                     </div>
                     <div class="{{ $softPanel }}">
                         <dt class="text-[var(--secondary-text)]">Channel</dt>
@@ -57,12 +68,33 @@
                         <dd class="mt-1 font-semibold">{{ $manifestUrlConfigured ? 'Yes' : 'No' }}</dd>
                     </div>
                     <div class="{{ $softPanel }}">
+                        <dt class="text-[var(--secondary-text)]">Installed manifest</dt>
+                        <dd class="mt-1 font-semibold">{{ $installedManifestConfigured ? 'Present' : 'Not found' }}</dd>
+                        @if (!$installedManifestConfigured)
+                            <dd class="mt-1 text-xs text-[var(--secondary-text)]">
+                                This is expected when running from source. Installed client packages will include an installed manifest/version.
+                            </dd>
+                        @endif
+                    </div>
+                    <div class="{{ $softPanel }}">
                         <dt class="text-[var(--secondary-text)]">Signature required</dt>
                         <dd class="mt-1 font-semibold">{{ $signatureRequired ? 'Yes' : 'No' }}</dd>
                     </div>
-                    <div class="{{ $softPanel }} md:col-span-2">
+                    <div class="{{ $softPanel }}">
                         <dt class="text-[var(--secondary-text)]">Apply/install</dt>
-                        <dd class="mt-1 font-semibold">{{ $enabled ? 'Guarded apply available after verification' : 'Disabled by configuration' }}</dd>
+                        <dd class="mt-1 font-semibold">{{ $applyStatus }}</dd>
+                    </div>
+                    <div class="{{ $softPanel }}">
+                        <dt class="text-[var(--secondary-text)]">Update mode</dt>
+                        <dd class="mt-1 font-semibold">{{ ucfirst($updateModeStatus) }}</dd>
+                    </div>
+                    <div class="{{ $softPanel }}">
+                        <dt class="text-[var(--secondary-text)]">Developer approval</dt>
+                        <dd class="mt-1 font-semibold">{{ $developerApprovalRequired ? 'Required' : 'Not required' }}</dd>
+                    </div>
+                    <div class="{{ $softPanel }}">
+                        <dt class="text-[var(--secondary-text)]">Rollback</dt>
+                        <dd class="mt-1 font-semibold">{{ $rollbackAvailable ? 'Available' : 'Not available' }}</dd>
                     </div>
                 </div>
 
@@ -71,9 +103,13 @@
                     <p class="mt-2 text-sm text-[var(--secondary-text)]">
                         Checks the signed manifest. Apply remains blocked until verification succeeds and a fresh package backup can be created.
                     </p>
-                    @if (!$enabled)
+                    @if (!$manifestReady)
                         <div class="mt-4 rounded-lg border border-[var(--border-warning)] bg-[var(--bg-warning)] p-3 text-sm text-[var(--text-warning)]">
-                            Updater is disabled by configuration. No manifest request is made.
+                            @if ($developerSourceMode)
+                                This is a developer/source run. Local script/launcher updates are still supported for packaged client installs.
+                            @else
+                                Update manifest is not configured. Local script/launcher updates are still supported.
+                            @endif
                         </div>
                     @endif
                     <form method="POST" action="{{ route('developer.updater.check') }}" class="mt-4">

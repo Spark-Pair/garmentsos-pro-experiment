@@ -17,9 +17,7 @@ class EnsureFeatureEnabled
             return $next($request);
         }
 
-        $message = $state['reason'] === 'disabled_by_license'
-            ? 'This feature is not included in the active license.'
-            : 'This feature is currently disabled.';
+        $message = 'This feature is currently disabled.';
 
         if ($request->expectsJson()) {
             return response()->json([

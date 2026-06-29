@@ -2,14 +2,10 @@
 
 namespace App\Services\Settings;
 
-use App\Services\Licensing\LicenseService;
-
 class FeatureAvailabilityService
 {
-    public function __construct(
-        protected FeatureFlagService $features,
-        protected LicenseService $licenses,
-    ) {
+    public function __construct(protected FeatureFlagService $features)
+    {
     }
 
     public function all(): array
@@ -32,23 +28,6 @@ class FeatureAvailabilityService
         $local = $this->features->effectiveState($flagKey);
         $defaultEnabled = (bool) ($registry[$flagKey]['default_enabled'] ?? false);
         $localEnabled = ($local['has_override'] ?? false) ? (bool) $local['enabled'] : null;
-        $license = $this->licenseState($flagKey);
-        $licenseAllowed = $license['allowed'];
-
-        if ($licenseAllowed === false) {
-            return $this->state(
-                $flagKey,
-                true,
-                false,
-                'disabled_by_license',
-                $defaultEnabled,
-                false,
-                $localEnabled,
-                'This feature is not included in the active license.',
-                $local,
-            );
-        }
-
         if ($localEnabled === false) {
             return $this->state(
                 $flagKey,
@@ -56,7 +35,7 @@ class FeatureAvailabilityService
                 false,
                 'disabled_locally',
                 $defaultEnabled,
-                $licenseAllowed,
+                null,
                 false,
                 'This feature is disabled in developer settings.',
                 $local,
@@ -69,11 +48,9 @@ class FeatureAvailabilityService
             $flagKey,
             true,
             $available,
-            $available
-                ? ($license['unavailable'] ? 'licensing_unavailable' : ($localEnabled === null ? 'default_allowed' : 'available'))
-                : 'disabled_locally',
+            $available ? ($localEnabled === null ? 'default_allowed' : 'available') : 'disabled_locally',
             $defaultEnabled,
-            $licenseAllowed,
+            null,
             $localEnabled,
             $available ? 'Available.' : 'This feature is disabled.',
             $local,
@@ -83,29 +60,6 @@ class FeatureAvailabilityService
     public function isEffectivelyEnabled(string $flagKey): bool
     {
         return (bool) $this->effectiveState($flagKey)['available'];
-    }
-
-    protected function licenseState(string $flagKey): array
-    {
-        if (!$this->licenses->enabled()) {
-            return ['allowed' => null, 'unavailable' => false];
-        }
-
-        try {
-            $status = $this->licenses->currentStatus();
-        } catch (\Throwable) {
-            return ['allowed' => null, 'unavailable' => true];
-        }
-
-        if (!$status->isAllowed()) {
-            return ['allowed' => null, 'unavailable' => true];
-        }
-
-        if ($status->features === []) {
-            return ['allowed' => null, 'unavailable' => false];
-        }
-
-        return ['allowed' => in_array($flagKey, $status->features, true), 'unavailable' => false];
     }
 
     protected function state(

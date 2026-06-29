@@ -7,6 +7,12 @@ return [
     'channel' => env('UPDATER_CHANNEL', 'stable'),
     'require_signature' => env('UPDATER_REQUIRE_SIGNATURE', true),
     'current_version' => env('APP_VERSION', '0.0.0'),
+    'installed_manifest_paths' => [
+        env('GARMENTSOS_INSTALLED_MANIFEST', ''),
+        'manifest.json',
+        'storage/app/installed-manifest.json',
+        'storage/app/release-manifest.json',
+    ],
     'app_id' => 'garmentsos-pro',
     'installation_mode' => env('INSTALLATION_MODE', 'local_lan'),
     'temp_path' => 'private/updater',

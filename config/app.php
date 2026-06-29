@@ -185,6 +185,10 @@ return [
         // 'Example' => App\Facades\Example::class,
     ])->toArray(),
 
+    'version' => env('APP_VERSION', 'local'),
+
+    'first_run_setup_force' => filter_var(env('FIRST_RUN_SETUP_FORCE', false), FILTER_VALIDATE_BOOLEAN),
+
     'subscription_mode' => env('SUBSCRIPTION_MODE', 'demo'),
     'subscription_expire' => env('SUBSCRIPTION_EXPIRE_DATE', null),
 ];
