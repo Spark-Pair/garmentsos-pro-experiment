@@ -22,7 +22,9 @@ COPY docker/nginx/default.conf /etc/nginx/sites-available/default
 COPY docker/entrypoint.sh /usr/local/bin/garmentsos-entrypoint
 
 RUN chmod +x /usr/local/bin/garmentsos-entrypoint \
-    && composer install --no-dev --optimize-autoloader --no-interaction \
+    && composer config --global process-timeout 2000 \
+    && (composer install --no-dev --optimize-autoloader --no-interaction --no-progress --prefer-dist \
+        || composer install --no-dev --optimize-autoloader --no-interaction --no-progress --prefer-source) \
     && mkdir -p storage/app/private storage/app/backups storage/framework/cache storage/framework/sessions storage/framework/views storage/logs bootstrap/cache \
     && chown -R www-data:www-data storage bootstrap/cache
 
