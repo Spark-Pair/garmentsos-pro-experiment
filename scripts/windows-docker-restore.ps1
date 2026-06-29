@@ -19,7 +19,9 @@ if (-not (Test-Path $BackupFile)) {
 Push-Location $InstallDir
 try {
     docker compose down
-    docker run --rm -v garmentsos-pro_garmentsos_database:/database -v "$(Split-Path $BackupFile):/restore" alpine sh -c "cp /restore/$(Split-Path $BackupFile -Leaf) /database/database.sqlite"
+    $BackupDir = Split-Path $BackupFile
+    $BackupName = Split-Path $BackupFile -Leaf
+    docker run --rm -v garmentsos-pro_garmentsos_database:/database -v "$($BackupDir):/restore" alpine sh -c 'cp "$1" /database/database.sqlite' sh "/restore/$BackupName"
     docker compose up -d
 } finally {
     Pop-Location

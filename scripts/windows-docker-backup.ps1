@@ -16,8 +16,8 @@ New-Item -ItemType Directory -Force -Path $BackupDir | Out-Null
 
 Push-Location $InstallDir
 try {
-    docker compose exec -T app php artisan tinker --execute='$r = app(App\Services\BackupService::class)->createManualBackup("windows_docker_backup"); if (!($r["success"] ?? false)) { fwrite(STDERR, $r["message"].PHP_EOL); exit(1); } echo $r["filename"].PHP_EOL;'
-    docker run --rm -v garmentsos-pro_garmentsos_storage:/storage -v "${BackupDir}:/backup" alpine sh -c "cd /storage && tar czf /backup/storage-backup.tar.gz app/private/backups || true"
+    docker compose exec -T app php artisan tinker --execute='$r = app(App\Services\BackupService::class)->createManualBackup("windows_docker_backup"); $ok = isset($r["success"]) && $r["success"]; if (!$ok) { fwrite(STDERR, $r["message"].PHP_EOL); exit(1); } echo $r["filename"].PHP_EOL;'
+    docker run --rm -v garmentsos-pro_garmentsos_storage:/storage -v "$($BackupDir):/backup" alpine sh -c "cd /storage && tar czf /backup/storage-backup.tar.gz app/private/backups || true"
 } finally {
     Pop-Location
 }

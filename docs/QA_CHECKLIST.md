@@ -16,6 +16,13 @@ docker build -t garmentsos-pro:test .
 
 Docker commands require Docker to be installed.
 
+Windows Docker scripts:
+
+- Run on Windows PowerShell 5.1 or newer.
+- `install.bat` and `update.bat` use `-ExecutionPolicy Bypass -NoProfile`.
+- Confirm no script uses `RandomNumberGenerator::Fill`, PowerShell 7 ternary/null-coalescing operators, or `ForEach-Object -Parallel`.
+- Treat Docker release `1.8.0` from before the PowerShell compatibility fix as invalid/replaced.
+
 ## Release Package
 
 - Package excludes `.git`, `.github`, real `.env` variants, DB files, WAL/SHM, backups, dumps, logs, private storage data, private keys, tokens, credentials, tests, and developer artifacts.

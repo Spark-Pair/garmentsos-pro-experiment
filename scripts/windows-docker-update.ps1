@@ -5,13 +5,23 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+function Set-EnvLine($Content, $Name, $Value) {
+    $pattern = "(?m)^" + [regex]::Escape($Name) + "=.*$"
+    $line = "$Name=$Value"
+    if ($Content -match $pattern) {
+        return ($Content -replace $pattern, $line)
+    }
+
+    return ($Content.TrimEnd() + "`n" + $line + "`n")
+}
+
 if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
     throw "Docker Desktop is required."
 }
 docker info | Out-Null
 
 if ([string]::IsNullOrWhiteSpace($ReleaseDir)) {
-    $ReleaseDir = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
+    $ReleaseDir = Split-Path -Parent $PSScriptRoot
 }
 
 $Manifest = Get-Content (Join-Path $ReleaseDir "manifest.json") | ConvertFrom-Json
@@ -35,16 +45,8 @@ if (-not (Test-Path $EnvPath)) {
 }
 
 $envContent = Get-Content $EnvPath -Raw
-if ($envContent -notmatch '(?m)^GARMENTSOS_IMAGE=') {
-    $envContent += "`nGARMENTSOS_IMAGE=$($Manifest.image)`n"
-} else {
-    $envContent = $envContent -replace '(?m)^GARMENTSOS_IMAGE=.*$', "GARMENTSOS_IMAGE=$($Manifest.image)"
-}
-if ($envContent -notmatch '(?m)^RUN_MIGRATIONS_ON_START=') {
-    $envContent += "RUN_MIGRATIONS_ON_START=true`n"
-} else {
-    $envContent = $envContent -replace '(?m)^RUN_MIGRATIONS_ON_START=.*$', "RUN_MIGRATIONS_ON_START=true"
-}
+$envContent = Set-EnvLine $envContent "GARMENTSOS_IMAGE" $Manifest.image
+$envContent = Set-EnvLine $envContent "RUN_MIGRATIONS_ON_START" "true"
 Set-Content -Path $EnvPath -Value $envContent -Encoding UTF8
 
 Push-Location $InstallDir
@@ -55,7 +57,7 @@ try {
 }
 
 $envContent = Get-Content $EnvPath -Raw
-$envContent = $envContent -replace '(?m)^RUN_MIGRATIONS_ON_START=.*$', "RUN_MIGRATIONS_ON_START=false"
+$envContent = Set-EnvLine $envContent "RUN_MIGRATIONS_ON_START" "false"
 Set-Content -Path $EnvPath -Value $envContent -Encoding UTF8
 
 Write-Host "Update complete. Volumes were preserved."

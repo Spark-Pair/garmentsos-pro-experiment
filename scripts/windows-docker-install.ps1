@@ -12,13 +12,23 @@ function Require-Command($Name) {
     }
 }
 
+function Set-EnvLine($Content, $Name, $Value) {
+    $pattern = "(?m)^" + [regex]::Escape($Name) + "=.*$"
+    $line = "$Name=$Value"
+    if ($Content -match $pattern) {
+        return ($Content -replace $pattern, $line)
+    }
+
+    return ($Content.TrimEnd() + "`n" + $line + "`n")
+}
+
 Require-Command docker
 
 docker --version | Out-Host
 docker compose version | Out-Host
 docker info | Out-Null
 
-$Source = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
+$Source = Split-Path -Parent $PSScriptRoot
 New-Item -ItemType Directory -Force -Path $InstallDir | Out-Null
 New-Item -ItemType Directory -Force -Path (Join-Path $InstallDir "backups") | Out-Null
 
@@ -48,27 +58,24 @@ if (-not (Test-Path $EnvPath)) {
 }
 
 $envContent = Get-Content $EnvPath -Raw
-$envContent = $envContent -replace '(?m)^APP_URL=.*$', "APP_URL=http://localhost:$Port"
-$envContent = $envContent -replace '(?m)^DB_DATABASE=.*$', "DB_DATABASE=/var/www/html/database/database.sqlite"
-if ($envContent -notmatch '(?m)^APP_PORT=') {
-    $envContent += "`nAPP_PORT=$Port`n"
-}
+$envContent = Set-EnvLine $envContent "APP_URL" "http://localhost:$Port"
+$envContent = Set-EnvLine $envContent "APP_PORT" $Port
+$envContent = Set-EnvLine $envContent "DB_DATABASE" "/var/www/html/database/database.sqlite"
+$envContent = Set-EnvLine $envContent "LICENSE_ENFORCEMENT_ENABLED" "false"
 if ($envContent -match '(?m)^APP_KEY=\s*$') {
     $bytes = New-Object byte[] 32
-    [System.Security.Cryptography.RandomNumberGenerator]::Fill($bytes)
+    $rng = [System.Security.Cryptography.RandomNumberGenerator]::Create()
+    try {
+        $rng.GetBytes($bytes)
+    } finally {
+        $rng.Dispose()
+    }
+
     $appKey = "base64:" + [Convert]::ToBase64String($bytes)
     $envContent = $envContent -replace '(?m)^APP_KEY=\s*$', "APP_KEY=$appKey"
 }
-if ($envContent -notmatch '(?m)^GARMENTSOS_IMAGE=') {
-    $envContent += "GARMENTSOS_IMAGE=$($Manifest.image)`n"
-} else {
-    $envContent = $envContent -replace '(?m)^GARMENTSOS_IMAGE=.*$', "GARMENTSOS_IMAGE=$($Manifest.image)"
-}
-if ($envContent -notmatch '(?m)^RUN_MIGRATIONS_ON_START=') {
-    $envContent += "RUN_MIGRATIONS_ON_START=true`n"
-} else {
-    $envContent = $envContent -replace '(?m)^RUN_MIGRATIONS_ON_START=.*$', "RUN_MIGRATIONS_ON_START=true"
-}
+$envContent = Set-EnvLine $envContent "GARMENTSOS_IMAGE" $Manifest.image
+$envContent = Set-EnvLine $envContent "RUN_MIGRATIONS_ON_START" "true"
 Set-Content -Path $EnvPath -Value $envContent -Encoding UTF8
 
 Push-Location $InstallDir
@@ -81,7 +88,7 @@ try {
 }
 
 $envContent = Get-Content $EnvPath -Raw
-$envContent = $envContent -replace '(?m)^RUN_MIGRATIONS_ON_START=.*$', "RUN_MIGRATIONS_ON_START=false"
+$envContent = Set-EnvLine $envContent "RUN_MIGRATIONS_ON_START" "false"
 Set-Content -Path $EnvPath -Value $envContent -Encoding UTF8
 
 $LanIp = (Get-NetIPAddress -AddressFamily IPv4 |

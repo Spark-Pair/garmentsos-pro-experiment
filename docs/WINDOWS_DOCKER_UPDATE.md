@@ -2,6 +2,10 @@
 
 Use this for existing Docker client installs.
 
+Scripts support Windows PowerShell 5.1 or newer. For the simplest run, use `scripts\update.bat`; it starts PowerShell with `-ExecutionPolicy Bypass -NoProfile`.
+
+The old `1.8.0` Docker release built before the Windows PowerShell compatibility fix should be treated as invalid/replaced.
+
 ## Update
 
 1. Extract the new Docker release zip.

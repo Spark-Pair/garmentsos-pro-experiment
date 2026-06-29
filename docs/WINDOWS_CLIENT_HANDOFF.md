@@ -23,6 +23,17 @@ GarmentsOS-Docker-Release/
   manifest.json
 ```
 
+For Windows clients, use Windows PowerShell 5.1 or newer. The easiest entrypoints are:
+
+```text
+scripts\install.bat
+scripts\update.bat
+scripts\run-lan.bat
+scripts\stop.bat
+```
+
+If a package was built as `1.8.0` before the Windows PowerShell compatibility fix, replace it with `1.8.1` or later before client testing.
+
 Do not give clients:
 
 - Git repo

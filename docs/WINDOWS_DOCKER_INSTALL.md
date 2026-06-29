@@ -7,6 +7,7 @@ Primary client delivery is Docker-first. Clients receive a Docker release zip, n
 1. Install Docker Desktop for Windows.
 2. Start Docker Desktop.
 3. Confirm Windows firewall allows Docker/LAN traffic when prompted.
+4. Use Windows PowerShell 5.1 or newer. The provided BAT wrapper runs PowerShell with `-ExecutionPolicy Bypass -NoProfile`.
 
 ## Install
 
@@ -16,8 +17,13 @@ Primary client delivery is Docker-first. Clients receive a Docker release zip, n
 C:\SparkPair\GarmentsOS
 ```
 
-2. Run PowerShell as Administrator if required by local policy.
-3. Run:
+2. For easiest install, double-click:
+
+```text
+scripts\install.bat
+```
+
+3. Or run PowerShell manually:
 
 ```powershell
 cd C:\SparkPair\GarmentsOS
@@ -25,6 +31,8 @@ cd C:\SparkPair\GarmentsOS
 ```
 
 The installer loads the Docker image tar, creates `.env` from `.env.example` only when missing, creates named Docker volumes, runs first migrations intentionally, and starts the app.
+
+The old `1.8.0` Docker release built before the Windows PowerShell compatibility fix should be replaced. Use a package built from `1.8.1` or later for Windows testing.
 
 Open:
 
