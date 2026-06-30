@@ -30,7 +30,20 @@ if (-not (Test-Path $ImageTar)) {
     throw "Docker image tar not found: $ImageTar"
 }
 
-& (Join-Path $InstallDir "scripts\windows-docker-backup.ps1") -InstallDir $InstallDir
+$ReleaseBackupScript = Join-Path $ReleaseDir "scripts\windows-docker-backup.ps1"
+$InstalledBackupScript = Join-Path $InstallDir "scripts\windows-docker-backup.ps1"
+$BackupScript = if (Test-Path $ReleaseBackupScript) {
+    $ReleaseBackupScript
+} else {
+    $InstalledBackupScript
+}
+
+if (-not (Test-Path $BackupScript)) {
+    throw "Backup script not found. Checked release and installed script paths."
+}
+
+Write-Host "Using backup script: $BackupScript"
+& $BackupScript -InstallDir $InstallDir
 
 docker load -i $ImageTar | Out-Host
 
