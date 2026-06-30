@@ -75,6 +75,7 @@ Route::group(['middleware' => ['setup.complete', 'auth', 'activeSession', 'ensur
     Route::get('developer/backups/{backupLog}/restore', [RestoreController::class, 'show'])->name('developer.backups.restore.show');
     Route::post('developer/backups/{backupLog}/restore', [RestoreController::class, 'store'])->name('developer.backups.restore.store');
     Route::get('developer/updater', [UpdateController::class, 'index'])->name('developer.updater');
+    Route::get('developer/updater/update-request', [UpdateController::class, 'updateRequest'])->name('developer.updater.update-request');
     Route::post('developer/updater/check', [UpdateController::class, 'check'])->name('developer.updater.check');
     Route::post('developer/updater/apply', [UpdateController::class, 'apply'])->name('developer.updater.apply');
 });

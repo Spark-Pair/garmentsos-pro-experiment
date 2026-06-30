@@ -12,7 +12,9 @@
         $disabledButton = 'px-4 py-2 bg-[var(--h-bg-color)] border border-gray-600 text-[var(--secondary-text)] font-medium text-nowrap rounded-lg opacity-60 cursor-not-allowed';
         $canApply = $enabled && !empty($result['success']) && !empty($result['update_available']);
         $manifestReady = $enabled && $manifestUrlConfigured;
-        $feedReady = $enabled && $updateFeedUrlConfigured;
+        $feedReady = $updateFeedUrlConfigured;
+        $releaseFeed = $releaseFeedStatus['feed'] ?? [];
+        $releaseFeedCode = $releaseFeedStatus['code'] ?? 'feed_not_configured';
         $statusLabel = $developerSourceMode
             ? 'Local/dev mode'
             : ($feedReady ? 'Update feed configured' : 'Manifest not configured');
@@ -71,6 +73,11 @@
                         <dd class="mt-1 break-all font-semibold">{{ $updateFeedUrlConfigured ? $updateFeedUrl : 'Not configured' }}</dd>
                     </div>
                     <div class="{{ $softPanel }}">
+                        <dt class="text-[var(--secondary-text)]">Feed status</dt>
+                        <dd class="mt-1 font-semibold">{{ str_replace('_', ' ', $releaseFeedCode) }}</dd>
+                        <dd class="mt-1 text-xs text-[var(--secondary-text)]">{{ $releaseFeedStatus['message'] ?? '' }}</dd>
+                    </div>
+                    <div class="{{ $softPanel }}">
                         <dt class="text-[var(--secondary-text)]">Installed manifest</dt>
                         <dd class="mt-1 font-semibold">{{ $installedManifestConfigured ? 'Present' : 'Not found' }}</dd>
                         @if (!$installedManifestConfigured && $developerSourceMode)
@@ -122,6 +129,83 @@
                         </button>
                     </form>
                 </div>
+            </div>
+        </section>
+
+        <section class="{{ $panel }}">
+            <x-form-title-bar title="Release Feed" />
+
+            <div class="mb-4 flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                <p class="max-w-3xl text-sm text-[var(--secondary-text)]">
+                    Reads the configured `latest.json` feed and compares it with the installed version. Download and apply are not implemented here.
+                </p>
+                <span class="{{ $badge }} {{ ($releaseFeedStatus['update_available'] ?? false) ? 'border-[var(--border-warning)] bg-[var(--bg-warning)] text-[var(--text-warning)]' : ((!empty($releaseFeedStatus['success']) && $releaseFeedCode === 'up_to_date') ? 'border-[var(--border-success)] bg-[var(--bg-success)] text-[var(--text-success)]' : 'border-gray-600 bg-[var(--h-bg-color)] text-[var(--secondary-text)]') }}">
+                    {{ str_replace('_', ' ', $releaseFeedCode) }}
+                </span>
+            </div>
+
+            <dl class="grid grid-cols-1 gap-3 md:grid-cols-2">
+                <div class="{{ $softPanel }}">
+                    <dt class="text-[var(--secondary-text)]">Installed/current version</dt>
+                    <dd class="mt-1 font-semibold">{{ $releaseFeedStatus['current_version'] ?? $currentVersion }}</dd>
+                    <dd class="mt-1 text-xs text-[var(--secondary-text)]">Source: {{ $currentVersionSourceLabel }}</dd>
+                    <dd class="mt-1 text-xs text-[var(--secondary-text)]">Mode: {{ $runtimeModeLabel }}</dd>
+                </div>
+                <div class="{{ $softPanel }}">
+                    <dt class="text-[var(--secondary-text)]">Feed URL</dt>
+                    <dd class="mt-1 break-all font-semibold">{{ $updateFeedUrlConfigured ? $updateFeedUrl : 'Not configured' }}</dd>
+                    <dd class="mt-1 text-xs text-[var(--secondary-text)]">{{ $releaseFeedStatus['message'] ?? '' }}</dd>
+                </div>
+                <div class="{{ $softPanel }}">
+                    <dt class="text-[var(--secondary-text)]">Latest version</dt>
+                    <dd class="mt-1 font-semibold">{{ $releaseFeed['version'] ?? '-' }}</dd>
+                </div>
+                <div class="{{ $softPanel }}">
+                    <dt class="text-[var(--secondary-text)]">Latest channel</dt>
+                    <dd class="mt-1 font-semibold">{{ $releaseFeed['channel'] ?? '-' }}</dd>
+                </div>
+                <div class="{{ $softPanel }}">
+                    <dt class="text-[var(--secondary-text)]">Mandatory</dt>
+                    <dd class="mt-1 font-semibold">{{ !empty($releaseFeed['mandatory']) ? 'true' : 'false' }}</dd>
+                </div>
+                <div class="{{ $softPanel }}">
+                    <dt class="text-[var(--secondary-text)]">Released at</dt>
+                    <dd class="mt-1 font-semibold">{{ $releaseFeed['released_at'] ?? '-' }}</dd>
+                </div>
+                <div class="{{ $softPanel }}">
+                    <dt class="text-[var(--secondary-text)]">Package file</dt>
+                    <dd class="mt-1 break-all font-semibold">{{ $releaseFeed['package_file'] ?? '-' }}</dd>
+                </div>
+                <div class="{{ $softPanel }}">
+                    <dt class="text-[var(--secondary-text)]">Package URL</dt>
+                    <dd class="mt-1 break-all font-mono text-xs">{{ $releaseFeed['package_url'] ?? '-' }}</dd>
+                </div>
+                <div class="{{ $softPanel }} md:col-span-2">
+                    <dt class="text-[var(--secondary-text)]">Package SHA256</dt>
+                    <dd class="mt-1 break-all font-mono text-xs">{{ $releaseFeed['package_sha256'] ?? '-' }}</dd>
+                </div>
+                <div class="{{ $softPanel }} md:col-span-2">
+                    <dt class="text-[var(--secondary-text)]">Notes</dt>
+                    <dd class="mt-1 whitespace-pre-line">{{ $releaseFeed['notes'] ?? '-' }}</dd>
+                </div>
+            </dl>
+
+            <div class="mt-5 rounded-lg border border-[var(--border-warning)] bg-[var(--bg-warning)] p-4 text-sm text-[var(--text-warning)]">
+                For safety, Windows updater will apply this update outside the running app. Automatic in-app apply will be enabled after the GarmentsOS PRO Launcher EXE/protocol integration is installed.
+            </div>
+
+            <div class="mt-4 flex flex-wrap items-center gap-3">
+                @if (!empty($releaseFeedStatus['update_available']))
+                    <a href="{{ route('developer.updater.update-request') }}" class="{{ $primaryButton }}">
+                        Prepare Update
+                    </a>
+                @endif
+                <button type="button" class="{{ $disabledButton }}" disabled>
+                    Open Windows Updater
+                </button>
+                <span class="text-xs text-[var(--secondary-text)]">
+                    Requires GarmentsOS PRO Launcher EXE/protocol integration.
+                </span>
             </div>
         </section>
 

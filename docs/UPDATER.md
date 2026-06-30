@@ -18,6 +18,12 @@ No automatic update checks or automatic update apply actions are enabled for nor
 
 `UPDATE_FEED_URL` is the future SparkPair/GitHub release metadata endpoint for `latest.json`. It is displayed on the Developer Updater page so installed package state can be checked, but it does not enable automatic update apply.
 
+Optional timeout:
+
+```text
+UPDATE_FEED_TIMEOUT=8
+```
+
 ## No GitHub Credentials On Client PCs
 
 Client PCs must not contain:
@@ -136,5 +142,38 @@ The installed app can point at the published feed with:
 UPDATE_FEED_URL=https://github.com/OWNER/REPO/releases/download/vVERSION/latest.json
 UPDATE_CHANNEL=stable
 ```
+
+The Developer Updater page fetches this feed read-only, validates the basic JSON contract, compares the installed/current version with `version`, and displays whether an update is available. If GitHub or the internet is unreachable, the page shows `feed_unreachable` instead of crashing.
+
+This feed display does not download or apply updates. Actual client update application remains handled by the Windows launcher/package flow until a later signed apply phase is approved.
+
+## In-App Update Handoff
+
+When the feed reports `update_available`, the Developer Updater page shows `Prepare Update`.
+
+`Prepare Update` downloads a JSON handoff file from:
+
+```text
+/developer/updater/update-request
+```
+
+The response contains:
+
+```json
+{
+  "app": "garmentsos-pro",
+  "target_version": "1.8.14",
+  "package_url": "https://github.com/OWNER/REPO/releases/download/v1.8.14/garmentsos-pro-1.8.14.zip",
+  "package_sha256": "...",
+  "mandatory": false,
+  "requested_at": "2026-06-30T00:00:00Z",
+  "apply_method": "windows-launcher-required",
+  "notes": "Release notes"
+}
+```
+
+Laravel still does not load Docker images, restart containers, or replace the running app. The JSON file is a safe handoff for the Windows launcher/updater phase.
+
+Next phase: add GarmentsOS PRO Launcher EXE/protocol or host agent support so the app can hand the request to the Windows updater without manual CMD commands.
 
 Local release commands remain available for developer testing only.

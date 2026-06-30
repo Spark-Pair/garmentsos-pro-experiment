@@ -5,12 +5,14 @@ namespace App\Http\Controllers\Developer;
 use App\Http\Controllers\Controller;
 use App\Services\Updater\UpdateApplyService;
 use App\Services\Updater\InstalledVersionService;
+use App\Services\Updater\ReleaseFeedService;
 use App\Services\Updater\UpdateManifestService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 
 class UpdateController extends Controller
 {
-    public function index(InstalledVersionService $versions)
+    public function index(InstalledVersionService $versions, ReleaseFeedService $releaseFeed)
     {
         if ($resp = $this->denyIfNoRole(['developer', 'admin'])) {
             return $resp;
@@ -32,6 +34,7 @@ class UpdateController extends Controller
             'channel' => config('updater.channel', 'stable'),
             'updateFeedUrl' => $feedUrl,
             'updateFeedUrlConfigured' => $feedUrl !== '',
+            'releaseFeedStatus' => $releaseFeed->checkConfigured(),
             'manifestUrlConfigured' => (string) config('updater.manifest_url', '') !== '',
             'installedManifestConfigured' => $versions->manifestConfigured(),
             'signatureRequired' => (bool) config('updater.require_signature', true),
@@ -73,5 +76,27 @@ class UpdateController extends Controller
             ->route('developer.updater')
             ->with($result['success'] ? 'success' : 'error', $result['message'])
             ->with('updater_apply_result', $result);
+    }
+
+    public function updateRequest(ReleaseFeedService $releaseFeed): JsonResponse
+    {
+        if ($resp = $this->denyIfNoRole(['developer', 'admin'])) {
+            abort(403);
+        }
+
+        $result = $releaseFeed->prepareUpdateRequest();
+        $payload = $result['request'] ?? [
+            'app' => config('updater.app_id', 'garmentsos-pro'),
+            'error' => $result['code'] ?? 'update_request_unavailable',
+            'message' => $result['message'] ?? 'Update request is not available.',
+            'requested_at' => now()->utc()->toIso8601String(),
+            'apply_method' => 'windows-launcher-required',
+        ];
+
+        $status = !empty($result['success']) ? 200 : 409;
+
+        return response()
+            ->json($payload, $status)
+            ->header('Content-Disposition', 'attachment; filename="garmentsos-update-request.json"');
     }
 }
