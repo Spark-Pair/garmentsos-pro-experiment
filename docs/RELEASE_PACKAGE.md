@@ -7,6 +7,16 @@ GarmentsOS PRO has two package types:
 
 ## Docker Client Release
 
+Normal publishing is done from the GitHub Actions UI:
+
+```text
+Actions -> Publish GarmentsOS PRO Release -> Run workflow
+```
+
+The workflow builds the Docker release package, creates tag `vVERSION`, uploads release assets, and writes the final GitHub asset URLs into `latest.json`.
+
+Local command-line builds are for developer testing:
+
 ```bash
 bash scripts/docker-build-release.sh 1.8.0
 ```
@@ -23,9 +33,21 @@ docker-releases/garmentsos-pro-1.8.0/docs/
 docker-releases/garmentsos-pro-1.8.0/manifest.json
 docker-releases/garmentsos-pro-1.8.0.sha256
 docker-releases/garmentsos-pro-1.8.0.zip
+docker-releases/latest.json
 ```
 
 Generated Docker releases are ignored by Git and must not be committed.
+
+`latest.json` is generated beside the package archive for GitHub/SparkPair update metadata. Upload it with the release assets after replacing placeholder URLs when publishing.
+
+Expected release assets:
+
+- `GarmentsOS-PRO-Setup.exe`
+- `garmentsos-pro-VERSION.tar.gz` or `garmentsos-pro-VERSION.zip`
+- `garmentsos-pro-VERSION.sha256`
+- `latest.json`
+
+The setup EXE is optional until the Windows setup builder is added to CI. The GitHub workflow skips it with a warning when it is not present.
 
 Validate:
 

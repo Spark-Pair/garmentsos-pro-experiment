@@ -7,6 +7,15 @@
 - No merge to `main` without explicit approval.
 - No push to stable `origin` for experiment work.
 
+## GitHub Publishing
+
+- Use GitHub Actions -> `Publish GarmentsOS PRO Release` -> `Run workflow` for normal publishing.
+- Confirm workflow inputs: version, channel, mandatory flag, min launcher version, release notes, prerelease flag.
+- Confirm repository Actions permissions allow `GITHUB_TOKEN` read/write access for contents.
+- Confirm the workflow uploaded package archive, checksum, and `latest.json`.
+- Confirm the workflow summary shows the release URL and `UPDATE_FEED_URL`.
+- Local `scripts/docker-build-release.sh` runs are for developer testing only.
+
 ## Tests
 
 - `git diff --check`

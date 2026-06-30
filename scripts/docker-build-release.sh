@@ -29,7 +29,10 @@ ZIP_PATH="$RELEASE_ROOT/$PACKAGE_NAME.zip"
 TAR_GZ_PATH="$RELEASE_ROOT/$PACKAGE_NAME.tar.gz"
 TAR_PATH="$RELEASE_ROOT/$PACKAGE_NAME.tar"
 SHA_PATH="$RELEASE_ROOT/$PACKAGE_NAME.sha256"
-CHANNEL="${UPDATER_CHANNEL:-stable}"
+LATEST_PATH="$RELEASE_ROOT/latest.json"
+CHANNEL="${UPDATE_CHANNEL:-${UPDATER_CHANNEL:-stable}}"
+MANDATORY="${RELEASE_MANDATORY:-false}"
+MIN_LAUNCHER_VERSION="${RELEASE_MIN_LAUNCHER_VERSION:-1.8.11}"
 INSTALLED_MANIFEST="$ROOT/bootstrap/cache/installed-release.json"
 
 rm -rf "$DEST" "$ZIP_PATH" "$TAR_GZ_PATH" "$TAR_PATH" "$SHA_PATH"
@@ -175,7 +178,25 @@ printf '%s  %s\n' "$archive_checksum" "$(basename "$ARCHIVE_PATH")" > "$SHA_PATH
 
 "$ROOT/scripts/validate-docker-release.sh" "$DEST"
 
+cat > "$LATEST_PATH" <<JSON
+{
+  "app": "garmentsos-pro",
+  "version": "$VERSION",
+  "channel": "$CHANNEL",
+  "mandatory": $MANDATORY,
+  "released_at": "$built_at",
+  "package_file": "$(basename "$ARCHIVE_PATH")",
+  "package_sha256_file": "$(basename "$SHA_PATH")",
+  "package_sha256": "$archive_checksum",
+  "package_url": "PLACEHOLDER_GITHUB_RELEASE_ASSET_URL/$(basename "$ARCHIVE_PATH")",
+  "setup_url": "PLACEHOLDER_GITHUB_RELEASE_ASSET_URL/GarmentsOS-PRO-Setup.exe",
+  "min_launcher_version": "$MIN_LAUNCHER_VERSION",
+  "notes": "GarmentsOS PRO $VERSION Docker client release. Manual install/update uses the Windows launchers. Auto-update is not implemented in this build."
+}
+JSON
+
 echo "Built Docker client release:"
 echo "  $DEST"
 echo "  $ARCHIVE_PATH ($ARCHIVE_KIND)"
 echo "  $SHA_PATH"
+echo "  $LATEST_PATH"

@@ -1,0 +1,223 @@
+name: Publish GarmentsOS PRO Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version, for example 1.8.14"
+        required: true
+        type: string
+      channel:
+        description: "Update channel"
+        required: true
+        default: "stable"
+        type: choice
+        options:
+          - stable
+          - beta
+          - dev
+      mandatory:
+        description: "Mark this update as mandatory"
+        required: true
+        default: false
+        type: boolean
+      min_launcher_version:
+        description: "Minimum launcher version required for this release"
+        required: true
+        default: "1.8.11"
+        type: string
+      release_notes:
+        description: "Release notes shown in latest.json and GitHub Release"
+        required: true
+        type: string
+      prerelease:
+        description: "Publish as a GitHub prerelease"
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    name: Build and publish release
+    runs-on: ubuntu-latest
+
+    env:
+      VERSION: ${{ inputs.version }}
+      CHANNEL: ${{ inputs.channel }}
+      MANDATORY: ${{ inputs.mandatory }}
+      MIN_LAUNCHER_VERSION: ${{ inputs.min_launcher_version }}
+      RELEASE_NOTES: ${{ inputs.release_notes }}
+      PRERELEASE: ${{ inputs.prerelease }}
+      GH_TOKEN: ${{ github.token }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Ensure archive tools are available
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y zip
+
+      - name: Build Docker release package
+        env:
+          UPDATE_CHANNEL: ${{ env.CHANNEL }}
+          RELEASE_MANDATORY: ${{ env.MANDATORY }}
+          RELEASE_MIN_LAUNCHER_VERSION: ${{ env.MIN_LAUNCHER_VERSION }}
+        run: |
+          scripts/docker-build-release.sh "$VERSION"
+
+      - name: Locate release assets
+        id: assets
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          package=""
+          for candidate in \
+            "docker-releases/garmentsos-pro-${VERSION}.tar.gz" \
+            "docker-releases/garmentsos-pro-${VERSION}.zip" \
+            "docker-releases/garmentsos-pro-${VERSION}.tar"; do
+            if [[ -f "$candidate" ]]; then
+              package="$candidate"
+              break
+            fi
+          done
+
+          if [[ -z "$package" ]]; then
+            echo "Release archive was not found." >&2
+            exit 1
+          fi
+
+          checksum="docker-releases/garmentsos-pro-${VERSION}.sha256"
+          if [[ ! -f "$checksum" ]]; then
+            echo "Release checksum was not found: $checksum" >&2
+            exit 1
+          fi
+
+          setup_asset="$(find . -path './.git' -prune -o -type f -name 'GarmentsOS-PRO-Setup.exe' -print -quit)"
+          if [[ -z "$setup_asset" ]]; then
+            echo "::warning::GarmentsOS-PRO-Setup.exe was not found. The setup asset will be skipped."
+          fi
+
+          {
+            echo "package=$package"
+            echo "package_file=$(basename "$package")"
+            echo "checksum=$checksum"
+            echo "checksum_file=$(basename "$checksum")"
+            echo "setup_asset=$setup_asset"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Generate published latest.json
+        shell: bash
+        env:
+          PACKAGE_FILE: ${{ steps.assets.outputs.package_file }}
+          CHECKSUM_FILE: ${{ steps.assets.outputs.checksum_file }}
+          SETUP_ASSET: ${{ steps.assets.outputs.setup_asset }}
+        run: |
+          set -euo pipefail
+
+          export package_sha256
+          export released_at
+          export release_base_url
+
+          package_sha256="$(sha256sum "docker-releases/${PACKAGE_FILE}" | awk '{print $1}')"
+          released_at="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+          release_base_url="https://github.com/${GITHUB_REPOSITORY}/releases/download/v${VERSION}"
+
+          python - <<'PY'
+          import json
+          import os
+
+          data = {
+              "app": "garmentsos-pro",
+              "version": os.environ["VERSION"],
+              "channel": os.environ["CHANNEL"],
+              "mandatory": os.environ["MANDATORY"].lower() == "true",
+              "released_at": os.environ["released_at"],
+              "package_file": os.environ["PACKAGE_FILE"],
+              "package_sha256_file": os.environ["CHECKSUM_FILE"],
+              "package_sha256": os.environ["package_sha256"],
+              "package_url": f"{os.environ['release_base_url']}/{os.environ['PACKAGE_FILE']}",
+              "setup_url": (
+                  f"{os.environ['release_base_url']}/GarmentsOS-PRO-Setup.exe"
+                  if os.environ["SETUP_ASSET"]
+                  else "PLACEHOLDER_GITHUB_RELEASE_ASSET_URL/GarmentsOS-PRO-Setup.exe"
+              ),
+              "min_launcher_version": os.environ["MIN_LAUNCHER_VERSION"],
+              "notes": os.environ["RELEASE_NOTES"],
+          }
+
+          with open("docker-releases/latest.json", "w", encoding="utf-8") as handle:
+              json.dump(data, handle, indent=2)
+              handle.write("\n")
+          PY
+
+      - name: Create release notes file
+        shell: bash
+        run: |
+          {
+            echo "$RELEASE_NOTES"
+            echo
+            echo "Assets:"
+            echo "- ${{ steps.assets.outputs.package_file }}"
+            echo "- ${{ steps.assets.outputs.checksum_file }}"
+            echo "- latest.json"
+            if [[ -n "${{ steps.assets.outputs.setup_asset }}" ]]; then
+              echo "- GarmentsOS-PRO-Setup.exe"
+            else
+              echo "- GarmentsOS-PRO-Setup.exe skipped: setup builder is not enabled in this workflow yet."
+            fi
+          } > release-notes.md
+
+      - name: Create GitHub Release
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          prerelease_flag=""
+          if [[ "$PRERELEASE" == "true" ]]; then
+            prerelease_flag="--prerelease"
+          fi
+
+          gh release create "v${VERSION}" \
+            "${{ steps.assets.outputs.package }}" \
+            "${{ steps.assets.outputs.checksum }}" \
+            "docker-releases/latest.json" \
+            --title "GarmentsOS PRO ${VERSION}" \
+            --notes-file release-notes.md \
+            $prerelease_flag
+
+      - name: Upload setup asset if present
+        if: ${{ steps.assets.outputs.setup_asset != '' }}
+        shell: bash
+        run: |
+          gh release upload "v${VERSION}" "${{ steps.assets.outputs.setup_asset }}" --clobber
+
+      - name: Write workflow summary
+        shell: bash
+        run: |
+          release_url="https://github.com/${GITHUB_REPOSITORY}/releases/tag/v${VERSION}"
+          latest_url="https://github.com/${GITHUB_REPOSITORY}/releases/download/v${VERSION}/latest.json"
+          {
+            echo "## GarmentsOS PRO release published"
+            echo
+            echo "- Version: \`${VERSION}\`"
+            echo "- Channel: \`${CHANNEL}\`"
+            echo "- Mandatory: \`${MANDATORY}\`"
+            echo "- Release: ${release_url}"
+            echo "- latest.json: ${latest_url}"
+            echo
+            echo "Set installed apps to use this feed URL when update checks are enabled:"
+            echo
+            echo "\`\`\`env"
+            echo "UPDATE_FEED_URL=${latest_url}"
+            echo "UPDATE_CHANNEL=${CHANNEL}"
+            echo "\`\`\`"
+          } >> "$GITHUB_STEP_SUMMARY"

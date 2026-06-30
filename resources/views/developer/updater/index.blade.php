@@ -12,12 +12,13 @@
         $disabledButton = 'px-4 py-2 bg-[var(--h-bg-color)] border border-gray-600 text-[var(--secondary-text)] font-medium text-nowrap rounded-lg opacity-60 cursor-not-allowed';
         $canApply = $enabled && !empty($result['success']) && !empty($result['update_available']);
         $manifestReady = $enabled && $manifestUrlConfigured;
+        $feedReady = $enabled && $updateFeedUrlConfigured;
         $statusLabel = $developerSourceMode
             ? 'Local/dev mode'
-            : ($manifestReady ? 'Updater enabled' : 'Manifest not configured');
+            : ($feedReady ? 'Update feed configured' : 'Manifest not configured');
         $applyStatus = $developerSourceMode
             ? 'Not available in developer/source mode'
-            : ($manifestReady ? 'Available after signed manifest and package validation' : 'Waiting for manifest configuration');
+            : ($feedReady ? 'Available after signed manifest and package validation' : 'Waiting for manifest configuration');
     @endphp
 
     <div class="mb-5 max-w-6xl mx-auto">
@@ -64,6 +65,10 @@
                     <div class="{{ $softPanel }}">
                         <dt class="text-[var(--secondary-text)]">Manifest configured</dt>
                         <dd class="mt-1 font-semibold">{{ $manifestUrlConfigured ? 'Yes' : 'No' }}</dd>
+                    </div>
+                    <div class="{{ $softPanel }}">
+                        <dt class="text-[var(--secondary-text)]">Update feed URL</dt>
+                        <dd class="mt-1 break-all font-semibold">{{ $updateFeedUrlConfigured ? $updateFeedUrl : 'Not configured' }}</dd>
                     </div>
                     <div class="{{ $softPanel }}">
                         <dt class="text-[var(--secondary-text)]">Installed manifest</dt>

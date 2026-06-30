@@ -16,6 +16,8 @@ class UpdateController extends Controller
             return $resp;
         }
 
+        $feedUrl = (string) config('updater.feed_url', '');
+
         return view('developer.updater.index', [
             'enabled' => (bool) config('updater.enabled', false),
             'currentVersion' => $versions->currentVersion(),
@@ -28,6 +30,8 @@ class UpdateController extends Controller
                 ? 'Developer source run'
                 : 'Installed client package',
             'channel' => config('updater.channel', 'stable'),
+            'updateFeedUrl' => $feedUrl,
+            'updateFeedUrlConfigured' => $feedUrl !== '',
             'manifestUrlConfigured' => (string) config('updater.manifest_url', '') !== '',
             'installedManifestConfigured' => $versions->manifestConfigured(),
             'signatureRequired' => (bool) config('updater.require_signature', true),
