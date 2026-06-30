@@ -91,7 +91,7 @@ jobs:
           RELEASE_MANDATORY: ${{ env.MANDATORY }}
           RELEASE_MIN_LAUNCHER_VERSION: ${{ env.MIN_LAUNCHER_VERSION }}
         run: |
-          scripts/docker-build-release.sh "$VERSION"
+          scripts/docker-build-release.sh "$VERSION" --allow-dirty
 
       - name: Locate release assets
         id: assets

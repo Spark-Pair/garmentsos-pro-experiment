@@ -8,6 +8,10 @@
 /docker-releases/
 /dist/
 /build-release/
+launcher/**/bin/
+launcher/**/bin/**
+launcher/**/obj/
+launcher/**/obj/**
 /storage/*.key
 /storage/app
 /vendor

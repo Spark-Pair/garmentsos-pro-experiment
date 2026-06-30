@@ -1,2 +1,0 @@
-C:\Software\garmentsos-pro-2.0\launcher\GarmentsOS.Setup\bin\Release\net8.0-windows\win-x64\publish\GarmentsOS PRO Launcher.pdb
-C:\Software\garmentsos-pro-2.0\launcher\GarmentsOS.Setup\bin\Release\net8.0-windows\win-x64\publish\GarmentsOS PRO Launcher.exe
