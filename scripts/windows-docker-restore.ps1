@@ -6,6 +6,10 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+$BackupFile = $BackupFile.Trim('"')
+$InstallDir = $InstallDir.Trim('"')
+$Confirm = $Confirm.Trim('"')
+
 if ($Confirm -ne "RESTORE GARMENTSOS") {
     throw "Restore requires -Confirm 'RESTORE GARMENTSOS'. Test on a copy before production restore."
 }

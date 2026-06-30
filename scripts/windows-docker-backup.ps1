@@ -4,6 +4,8 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+$InstallDir = $InstallDir.Trim('"')
+
 if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
     throw "Docker Desktop is required."
 }

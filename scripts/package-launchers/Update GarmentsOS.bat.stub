@@ -1,13 +1,13 @@
 @echo off
 setlocal
 title Update GarmentsOS PRO
-set "ROOT=%~dp0"
+set "PACKAGE_ROOT=%~dp0"
 
 echo Updating GarmentsOS PRO...
 echo This will preserve Docker database and storage volumes.
 echo.
 
-powershell -NoProfile -ExecutionPolicy Bypass -File "%ROOT%scripts\windows-docker-update.ps1" -ReleaseDir "%ROOT%"
+powershell -NoProfile -ExecutionPolicy Bypass -File "%PACKAGE_ROOT%scripts\windows-docker-update.ps1" -InstallDir "C:\SparkPair\GarmentsOS" -ReleaseDir "%PACKAGE_ROOT%"
 if errorlevel 1 (
     echo.
     echo Update did not complete. Please check the message above.

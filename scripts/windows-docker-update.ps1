@@ -5,6 +5,9 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+$InstallDir = $InstallDir.Trim('"')
+$ReleaseDir = $ReleaseDir.Trim('"')
+
 function Set-EnvLine($Content, $Name, $Value) {
     $pattern = "(?m)^" + [regex]::Escape($Name) + "=.*$"
     $line = "$Name=$Value"

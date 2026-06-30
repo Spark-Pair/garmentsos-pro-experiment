@@ -1,13 +1,13 @@
 @echo off
 setlocal
 title Backup GarmentsOS PRO
-set "ROOT=%~dp0"
+set "PACKAGE_ROOT=%~dp0"
 
 echo Creating GarmentsOS PRO backup...
 echo This may take a few minutes.
 echo.
 
-powershell -NoProfile -ExecutionPolicy Bypass -File "%ROOT%scripts\windows-docker-backup.ps1"
+powershell -NoProfile -ExecutionPolicy Bypass -File "%PACKAGE_ROOT%scripts\windows-docker-backup.ps1" -InstallDir "C:\SparkPair\GarmentsOS"
 if errorlevel 1 (
     echo.
     echo Backup did not complete. Please check the message above.

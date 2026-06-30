@@ -6,6 +6,9 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+$InstallDir = $InstallDir.Trim('"')
+$Version = $Version.Trim('"')
+
 function Require-Command($Name) {
     if (-not (Get-Command $Name -ErrorAction SilentlyContinue)) {
         throw "$Name is required. Install Docker Desktop and try again."
