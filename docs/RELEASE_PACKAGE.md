@@ -13,7 +13,7 @@ Normal publishing is done from the GitHub Actions UI:
 Actions -> Publish GarmentsOS PRO Release -> Run workflow
 ```
 
-The workflow builds the Docker release package, creates tag `vVERSION`, uploads release assets, and writes the final GitHub asset URLs into `latest.json`.
+The workflow builds the Docker release package, creates tag `vVERSION`, uploads release assets, writes the final GitHub asset URLs into versioned `latest.json`, and updates the moving channel feed release such as `latest-stable`.
 
 Local command-line builds are for developer testing:
 
@@ -39,6 +39,14 @@ docker-releases/latest.json
 Generated Docker releases are ignored by Git and must not be committed.
 
 `latest.json` is generated beside the package archive for GitHub/SparkPair update metadata. Upload it with the release assets after replacing placeholder URLs when publishing.
+
+The versioned release keeps its own `latest.json` for audit/history. Installed apps should use the stable channel URL instead:
+
+```env
+UPDATE_FEED_URL=https://github.com/Spark-Pair/garmentsos-pro-experiment/releases/download/latest-stable/latest.json
+```
+
+The moving channel file still points `package_url` at the immutable `vVERSION` package asset.
 
 Expected release assets:
 

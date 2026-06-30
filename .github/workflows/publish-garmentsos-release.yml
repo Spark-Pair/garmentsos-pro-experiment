@@ -220,11 +220,26 @@ jobs:
         run: |
           gh release upload "v${VERSION}" "${{ steps.assets.outputs.setup_asset }}" --clobber
 
+      - name: Publish channel latest feed
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          channel_tag="latest-${CHANNEL}"
+          if ! gh release view "$channel_tag" >/dev/null 2>&1; then
+            gh release create "$channel_tag" \
+              --title "GarmentsOS PRO latest ${CHANNEL} feed" \
+              --notes "Moving ${CHANNEL} channel feed for GarmentsOS PRO. The latest.json asset points to the current ${CHANNEL} release package."
+          fi
+
+          gh release upload "$channel_tag" "docker-releases/latest.json" --clobber
+
       - name: Write workflow summary
         shell: bash
         run: |
           release_url="https://github.com/${GITHUB_REPOSITORY}/releases/tag/v${VERSION}"
-          latest_url="https://github.com/${GITHUB_REPOSITORY}/releases/download/v${VERSION}/latest.json"
+          version_latest_url="https://github.com/${GITHUB_REPOSITORY}/releases/download/v${VERSION}/latest.json"
+          channel_latest_url="https://github.com/${GITHUB_REPOSITORY}/releases/download/latest-${CHANNEL}/latest.json"
           {
             echo "## GarmentsOS PRO release published"
             echo
@@ -232,12 +247,13 @@ jobs:
             echo "- Channel: \`${CHANNEL}\`"
             echo "- Mandatory: \`${MANDATORY}\`"
             echo "- Release: ${release_url}"
-            echo "- latest.json: ${latest_url}"
+            echo "- Version latest.json: ${version_latest_url}"
+            echo "- Channel feed latest.json: ${channel_latest_url}"
             echo
             echo "Set installed apps to use this feed URL when update checks are enabled:"
             echo
             echo "\`\`\`env"
-            echo "UPDATE_FEED_URL=${latest_url}"
+            echo "UPDATE_FEED_URL=${channel_latest_url}"
             echo "UPDATE_CHANNEL=${CHANNEL}"
             echo "\`\`\`"
           } >> "$GITHUB_STEP_SUMMARY"

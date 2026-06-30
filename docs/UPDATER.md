@@ -10,7 +10,7 @@ The updater is disabled by default:
 
 ```text
 UPDATER_ENABLED=false
-UPDATE_FEED_URL=
+UPDATE_FEED_URL=https://github.com/Spark-Pair/garmentsos-pro-experiment/releases/download/latest-stable/latest.json
 UPDATE_CHANNEL=stable
 ```
 
@@ -125,7 +125,7 @@ Workflow inputs:
 - `release_notes`: notes written to the GitHub Release and `latest.json`.
 - `prerelease`: whether the GitHub Release is marked as prerelease.
 
-The workflow builds the Docker package with `scripts/docker-build-release.sh`, creates the GitHub Release, rewrites `latest.json` with final GitHub release asset URLs, and uploads release assets.
+The workflow builds the Docker package with `scripts/docker-build-release.sh`, creates the versioned GitHub Release, rewrites `latest.json` with final GitHub release asset URLs, uploads release assets, then updates a moving channel feed release.
 
 Uploaded assets:
 
@@ -136,10 +136,18 @@ Uploaded assets:
 
 If the Windows setup EXE is not available on the GitHub-hosted runner, the workflow prints a warning and publishes the Docker release assets without failing.
 
+Channel feed releases:
+
+- `latest-stable`
+- `latest-beta`
+- `latest-dev`
+
+Each channel release contains a moving `latest.json` asset uploaded with `--clobber`. The channel `latest.json` still points `package_url` at the real immutable versioned release asset, for example `https://github.com/Spark-Pair/garmentsos-pro-experiment/releases/download/v1.8.16/garmentsos-pro-1.8.16.zip`.
+
 The installed app can point at the published feed with:
 
 ```env
-UPDATE_FEED_URL=https://github.com/OWNER/REPO/releases/download/vVERSION/latest.json
+UPDATE_FEED_URL=https://github.com/Spark-Pair/garmentsos-pro-experiment/releases/download/latest-stable/latest.json
 UPDATE_CHANNEL=stable
 ```
 
