@@ -108,6 +108,9 @@ Copy-Item -Recurse -Force (Join-Path $ReleaseDir "docs") $InstallDir
 Copy-Item -Recurse -Force (Join-Path $ReleaseDir "images") $InstallDir
 Copy-Item -Recurse -Force (Join-Path $ReleaseDir "checksums") $InstallDir
 Copy-Item -Force (Join-Path $ReleaseDir "manifest.json") $InstallDir
+if (Test-Path (Join-Path $ReleaseDir "launcher")) {
+    Copy-Item -Recurse -Force (Join-Path $ReleaseDir "launcher") $InstallDir
+}
 Copy-RootLaunchers $ReleaseDir $InstallDir
 
 $EnvPath = Join-Path $InstallDir ".env"

@@ -94,10 +94,29 @@ done
 for doc in \
   WINDOWS_DOCKER_INSTALL.md \
   WINDOWS_DOCKER_UPDATE.md \
+  WINDOWS_GUI_UPDATER.md \
   WINDOWS_CLIENT_HANDOFF.md \
   DOCKER_DEPLOYMENT.md; do
   cp "$ROOT/docs/$doc" "$DEST/docs/$doc"
 done
+
+launcher_source=""
+for candidate in \
+  "$ROOT/launcher/GarmentsOS.Setup/bin/Release/net8.0-windows/win-x64/publish" \
+  "$ROOT/launcher/GarmentsOS.Setup/bin/Release/net8.0-windows/publish" \
+  "$ROOT/launcher/GarmentsOS.Setup/bin/Release/net8.0-windows"; do
+  if [[ -f "$candidate/GarmentsOS PRO Launcher.exe" ]]; then
+    launcher_source="$candidate"
+    break
+  fi
+done
+
+if [[ -n "$launcher_source" ]]; then
+  mkdir -p "$DEST/launcher"
+  cp -R "$launcher_source"/. "$DEST/launcher/"
+else
+  echo "Warning: GarmentsOS PRO Launcher.exe was not found. Release package will use BAT/PowerShell fallback launchers only." >&2
+fi
 
 tar_checksum="$(sha256sum "$IMAGE_TAR" | awk '{print $1}')"
 printf '%s  %s\n' "$tar_checksum" "images/$PACKAGE_NAME.tar" > "$DEST/checksums/$PACKAGE_NAME.sha256"

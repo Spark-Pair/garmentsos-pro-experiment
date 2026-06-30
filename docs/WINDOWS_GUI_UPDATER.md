@@ -1,0 +1,66 @@
+# Windows GUI Updater
+
+GarmentsOS PRO includes a lightweight Windows launcher:
+
+```text
+launcher\GarmentsOS PRO Launcher.exe
+```
+
+It is a host-side updater. Laravel does not update its own running Docker container.
+
+## What It Shows
+
+- Installed version from `C:\SparkPair\GarmentsOS\manifest.json`
+- App status for `http://localhost:8000`
+- Docker status
+- Update feed URL from installed `.env`
+- Latest version and release notes when `latest.json` is reachable
+
+## Buttons
+
+- `Open App`: opens `http://localhost:8000`
+- `Check Update`: reads `UPDATE_FEED_URL` / `latest.json`
+- `Update Now`: downloads, verifies, extracts, and applies the package through `windows-docker-update.ps1`
+- `Open Request JSON`: loads `garmentsos-update-request.json` created by the in-app `Prepare Update` button
+- `Backup`: runs the existing Windows Docker backup script
+- `Repair`: runs `docker compose up -d` in the installed folder
+- `Stop Services`: stops Docker services through the existing stop launcher when available
+- `Open Install Folder`: opens `C:\SparkPair\GarmentsOS`
+
+## Update Safety
+
+`Update Now`:
+
+1. Reads `latest.json` or an in-app update request JSON.
+2. Downloads `package_url`.
+3. Verifies the downloaded package SHA256 against `package_sha256`.
+4. Extracts the package to a temporary folder.
+5. Runs the package's `scripts\windows-docker-update.ps1`.
+
+The PowerShell updater preserves Docker volumes, client data, backups, and `.env`. The GUI does not delete client data and does not implement uninstall.
+
+## In-App Handoff
+
+From the Developer Updater page, click `Prepare Update` when an update is available. This downloads:
+
+```text
+garmentsos-update-request.json
+```
+
+Open that file in the launcher with `Open Request JSON`, review the version/package details, then click `Update Now`.
+
+## Developer Build
+
+Build:
+
+```powershell
+dotnet build launcher\GarmentsOS.Setup\GarmentsOS.Setup.csproj -c Release
+```
+
+Publish a compact framework-dependent EXE:
+
+```powershell
+dotnet publish launcher\GarmentsOS.Setup\GarmentsOS.Setup.csproj -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true
+```
+
+The Docker release builder includes the launcher automatically when `GarmentsOS PRO Launcher.exe` exists under the launcher publish/build output. If it is missing, the release still works with BAT/PowerShell fallback launchers.

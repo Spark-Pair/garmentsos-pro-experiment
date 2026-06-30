@@ -29,6 +29,7 @@ required=(
   "scripts/stop.bat"
   "docs/WINDOWS_DOCKER_INSTALL.md"
   "docs/WINDOWS_DOCKER_UPDATE.md"
+  "docs/WINDOWS_GUI_UPDATER.md"
   "docs/WINDOWS_CLIENT_HANDOFF.md"
 )
 

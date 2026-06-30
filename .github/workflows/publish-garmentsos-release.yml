@@ -60,10 +60,30 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      - name: Set up .NET for Windows launcher
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
       - name: Ensure archive tools are available
         run: |
           sudo apt-get update
           sudo apt-get install -y zip
+
+      - name: Publish Windows GUI launcher
+        id: launcher
+        continue-on-error: true
+        run: |
+          dotnet publish launcher/GarmentsOS.Setup/GarmentsOS.Setup.csproj \
+            -c Release \
+            -r win-x64 \
+            --self-contained false \
+            -p:PublishSingleFile=true
+
+      - name: Warn if GUI launcher was not built
+        if: ${{ steps.launcher.outcome != 'success' }}
+        run: |
+          echo "::warning::GarmentsOS PRO Launcher.exe was not built. Release package will use BAT/PowerShell fallback launchers."
 
       - name: Build Docker release package
         env:

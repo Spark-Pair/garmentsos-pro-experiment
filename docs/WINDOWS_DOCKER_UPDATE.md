@@ -2,11 +2,27 @@
 
 Use this for existing Docker client installs.
 
-Scripts support Windows PowerShell 5.1 or newer. For the simplest run, extract the new release package and double-click the root `Update GarmentsOS.bat` launcher.
+Scripts support Windows PowerShell 5.1 or newer. For normal users, prefer the GUI launcher at `launcher\GarmentsOS PRO Launcher.exe`. The BAT/PowerShell scripts remain fallback and automation entrypoints.
 
 The old `1.8.0` Docker release built before the Windows PowerShell compatibility fix should be treated as invalid/replaced.
 
 ## Update
+
+GUI flow:
+
+1. Open `launcher\GarmentsOS PRO Launcher.exe`.
+2. Click `Check Update`.
+3. Click `Update Now`.
+
+In-app handoff flow:
+
+1. In GarmentsOS PRO, open Developer Updater.
+2. Click `Prepare Update`.
+3. In the GUI launcher, click `Open Request JSON`.
+4. Select `garmentsos-update-request.json`.
+5. Click `Update Now`.
+
+Fallback script flow:
 
 1. Extract the new Docker release zip.
 2. Run:
@@ -27,6 +43,8 @@ The updater:
 - starts the new container
 - runs migrations through the entrypoint only after backup
 - hides technical files with the Windows hidden attribute by default
+
+The GUI updater performs the download and SHA256 verification before delegating to this same PowerShell update script. Laravel never runs Docker update commands directly.
 
 For developer testing, keep technical files visible:
 

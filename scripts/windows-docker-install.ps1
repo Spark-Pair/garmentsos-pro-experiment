@@ -48,16 +48,19 @@ function New-GarmentsShortcut($ShortcutPath, $TargetPath, $WorkingDirectory) {
 }
 
 function Install-GarmentsShortcuts($TargetDir) {
+    $guiLauncher = Join-Path $TargetDir "launcher\GarmentsOS PRO Launcher.exe"
     $openLauncher = Join-Path $TargetDir "Open GarmentsOS.bat"
-    if (-not (Test-Path $openLauncher)) {
-        Write-Warning "Open GarmentsOS.bat was not found. Shortcuts were not created."
+    $shortcutTarget = if (Test-Path $guiLauncher) { $guiLauncher } else { $openLauncher }
+
+    if (-not (Test-Path $shortcutTarget)) {
+        Write-Warning "GarmentsOS launcher was not found. Shortcuts were not created."
         return
     }
 
     try {
         $desktop = [Environment]::GetFolderPath("Desktop")
         if (-not [string]::IsNullOrWhiteSpace($desktop)) {
-            New-GarmentsShortcut (Join-Path $desktop "GarmentsOS PRO.lnk") $openLauncher $TargetDir
+            New-GarmentsShortcut (Join-Path $desktop "GarmentsOS PRO.lnk") $shortcutTarget $TargetDir
         }
     } catch {
         Write-Warning "Could not resolve Desktop folder. $($_.Exception.Message)"
@@ -68,7 +71,7 @@ function Install-GarmentsShortcuts($TargetDir) {
         if (-not [string]::IsNullOrWhiteSpace($programs)) {
             $sparkPair = Join-Path $programs "SparkPair"
             New-Item -ItemType Directory -Force -Path $sparkPair | Out-Null
-            New-GarmentsShortcut (Join-Path $sparkPair "GarmentsOS PRO.lnk") $openLauncher $TargetDir
+            New-GarmentsShortcut (Join-Path $sparkPair "GarmentsOS PRO.lnk") $shortcutTarget $TargetDir
         }
     } catch {
         Write-Warning "Could not create Start Menu shortcut. $($_.Exception.Message)"
@@ -135,6 +138,9 @@ Copy-Item -Recurse -Force (Join-Path $Source "docs") $InstallDir
 Copy-Item -Recurse -Force (Join-Path $Source "images") $InstallDir
 Copy-Item -Recurse -Force (Join-Path $Source "checksums") $InstallDir
 Copy-Item -Force (Join-Path $Source "manifest.json") $InstallDir
+if (Test-Path (Join-Path $Source "launcher")) {
+    Copy-Item -Recurse -Force (Join-Path $Source "launcher") $InstallDir
+}
 Copy-RootLaunchers $Source $InstallDir
 
 $Manifest = Get-Content (Join-Path $InstallDir "manifest.json") | ConvertFrom-Json

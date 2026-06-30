@@ -145,7 +145,7 @@ UPDATE_CHANNEL=stable
 
 The Developer Updater page fetches this feed read-only, validates the basic JSON contract, compares the installed/current version with `version`, and displays whether an update is available. If GitHub or the internet is unreachable, the page shows `feed_unreachable` instead of crashing.
 
-This feed display does not download or apply updates. Actual client update application remains handled by the Windows launcher/package flow until a later signed apply phase is approved.
+This feed display does not directly apply updates from Laravel. Actual client update application is handled by the Windows GUI launcher/package flow.
 
 ## In-App Update Handoff
 
@@ -172,8 +172,8 @@ The response contains:
 }
 ```
 
-Laravel still does not load Docker images, restart containers, or replace the running app. The JSON file is a safe handoff for the Windows launcher/updater phase.
+Laravel still does not load Docker images, restart containers, or replace the running app. The JSON file is a safe handoff for the Windows GUI launcher/updater.
 
-Next phase: add GarmentsOS PRO Launcher EXE/protocol or host agent support so the app can hand the request to the Windows updater without manual CMD commands.
+The current launcher supports opening this JSON manually. A later launcher protocol/agent can remove that file-selection step.
 
 Local release commands remain available for developer testing only.
