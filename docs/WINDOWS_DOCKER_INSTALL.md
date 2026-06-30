@@ -17,13 +17,19 @@ Primary client delivery is Docker-first. Clients receive a Docker release zip, n
 C:\SparkPair\GarmentsOS
 ```
 
-2. For easiest install, double-click:
+2. For easiest install, double-click the root launcher:
 
 ```text
-scripts\install.bat
+Install GarmentsOS.bat
 ```
 
-3. Or run PowerShell manually:
+3. For daily use after install, double-click:
+
+```text
+Open GarmentsOS.bat
+```
+
+4. Or run PowerShell manually:
 
 ```powershell
 cd C:\SparkPair\GarmentsOS

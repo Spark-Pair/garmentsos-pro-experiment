@@ -6,6 +6,11 @@ Give the client a Docker release zip with this shape:
 GarmentsOS-Docker-Release/
   docker-compose.yml
   .env.example
+  Open GarmentsOS.bat
+  Install GarmentsOS.bat
+  Update GarmentsOS.bat
+  Stop GarmentsOS.bat
+  Backup GarmentsOS.bat
   scripts/
     windows-docker-install.ps1
     windows-docker-update.ps1
@@ -23,14 +28,24 @@ GarmentsOS-Docker-Release/
   manifest.json
 ```
 
-For Windows clients, use Windows PowerShell 5.1 or newer. The easiest entrypoints are:
+For Windows clients, use Windows PowerShell 5.1 or newer. The easiest entrypoints are the root launchers:
 
 ```text
-scripts\install.bat
-scripts\update.bat
-scripts\run-lan.bat
-scripts\stop.bat
+Install GarmentsOS.bat
+Update GarmentsOS.bat
+Open GarmentsOS.bat
+Stop GarmentsOS.bat
+Backup GarmentsOS.bat
 ```
+
+Client flow:
+
+1. First install: double-click `Install GarmentsOS.bat`.
+2. Daily use: double-click `Open GarmentsOS.bat`.
+3. Update package: extract the new package and double-click `Update GarmentsOS.bat`.
+4. Stop the app: double-click `Stop GarmentsOS.bat`.
+
+The technical scripts remain under `scripts/` for support and automation.
 
 If a package was built as `1.8.0` before the Windows PowerShell compatibility fix, replace it with `1.8.1` or later before client testing.
 

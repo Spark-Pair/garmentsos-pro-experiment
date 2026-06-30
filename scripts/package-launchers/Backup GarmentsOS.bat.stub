@@ -1,0 +1,21 @@
+@echo off
+setlocal
+title Backup GarmentsOS PRO
+set "ROOT=%~dp0"
+
+echo Creating GarmentsOS PRO backup...
+echo This may take a few minutes.
+echo.
+
+powershell -NoProfile -ExecutionPolicy Bypass -File "%ROOT%scripts\windows-docker-backup.ps1"
+if errorlevel 1 (
+    echo.
+    echo Backup did not complete. Please check the message above.
+    pause
+    exit /b 1
+)
+
+echo.
+echo Backup complete.
+pause
+exit /b 0

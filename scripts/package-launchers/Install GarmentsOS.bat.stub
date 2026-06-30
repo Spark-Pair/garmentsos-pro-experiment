@@ -1,0 +1,21 @@
+@echo off
+setlocal
+title Install GarmentsOS PRO
+set "ROOT=%~dp0"
+
+echo Installing GarmentsOS PRO...
+echo If Windows asks for permission, allow Docker/Firewall.
+echo.
+
+powershell -NoProfile -ExecutionPolicy Bypass -File "%ROOT%scripts\windows-docker-install.ps1"
+if errorlevel 1 (
+    echo.
+    echo Installation did not complete. Please check the message above.
+    pause
+    exit /b 1
+)
+
+echo.
+echo Installation complete. Opening GarmentsOS PRO...
+start "" "http://localhost:8000"
+exit /b 0

@@ -1,0 +1,17 @@
+@echo off
+setlocal
+title Stop GarmentsOS PRO
+set "ROOT=%~dp0"
+
+echo Stopping GarmentsOS PRO...
+
+call "%ROOT%scripts\stop.bat"
+if errorlevel 1 (
+    echo.
+    echo GarmentsOS PRO could not be stopped. Please make sure Docker Desktop is running.
+    pause
+    exit /b 1
+)
+
+echo GarmentsOS PRO stopped.
+exit /b 0

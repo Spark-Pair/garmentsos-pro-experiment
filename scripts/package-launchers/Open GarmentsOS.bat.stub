@@ -1,0 +1,19 @@
+@echo off
+setlocal
+title GarmentsOS PRO
+set "ROOT=%~dp0"
+
+echo Starting GarmentsOS PRO...
+echo If Windows asks for permission, allow Docker/Firewall.
+
+call "%ROOT%scripts\run-lan.bat"
+if errorlevel 1 (
+    echo.
+    echo GarmentsOS PRO could not be started. Please make sure Docker Desktop is running.
+    pause
+    exit /b 1
+)
+
+echo Opening browser...
+start "" "http://localhost:8000"
+exit /b 0

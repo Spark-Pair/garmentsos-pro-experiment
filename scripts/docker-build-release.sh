@@ -79,6 +79,15 @@ for script in \
   cp "$ROOT/scripts/$script" "$DEST/scripts/$script"
 done
 
+for launcher in \
+  "Open GarmentsOS.bat" \
+  "Install GarmentsOS.bat" \
+  "Update GarmentsOS.bat" \
+  "Stop GarmentsOS.bat" \
+  "Backup GarmentsOS.bat"; do
+  cp "$ROOT/scripts/package-launchers/$launcher.stub" "$DEST/$launcher"
+done
+
 for doc in \
   WINDOWS_DOCKER_INSTALL.md \
   WINDOWS_DOCKER_UPDATE.md \

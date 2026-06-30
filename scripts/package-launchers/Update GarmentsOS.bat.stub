@@ -1,0 +1,21 @@
+@echo off
+setlocal
+title Update GarmentsOS PRO
+set "ROOT=%~dp0"
+
+echo Updating GarmentsOS PRO...
+echo This will preserve Docker database and storage volumes.
+echo.
+
+powershell -NoProfile -ExecutionPolicy Bypass -File "%ROOT%scripts\windows-docker-update.ps1" -ReleaseDir "%ROOT%"
+if errorlevel 1 (
+    echo.
+    echo Update did not complete. Please check the message above.
+    pause
+    exit /b 1
+)
+
+echo.
+echo Update complete. Opening GarmentsOS PRO...
+start "" "http://localhost:8000"
+exit /b 0
