@@ -12,6 +12,7 @@ launcher/**/bin/
 launcher/**/bin/**
 launcher/**/obj/
 launcher/**/obj/**
+/GarmentsOS-PRO-Setup.exe
 /storage/*.key
 /storage/app
 /vendor

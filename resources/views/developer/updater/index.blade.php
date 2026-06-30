@@ -76,6 +76,9 @@
                         <dt class="text-[var(--secondary-text)]">Feed status</dt>
                         <dd class="mt-1 font-semibold">{{ str_replace('_', ' ', $releaseFeedCode) }}</dd>
                         <dd class="mt-1 text-xs text-[var(--secondary-text)]">{{ $releaseFeedStatus['message'] ?? '' }}</dd>
+                        @if (!empty($releaseFeedStatus['http_status']))
+                            <dd class="mt-1 text-xs text-[var(--secondary-text)]">HTTP status: {{ $releaseFeedStatus['http_status'] }}</dd>
+                        @endif
                     </div>
                     <div class="{{ $softPanel }}">
                         <dt class="text-[var(--secondary-text)]">Installed manifest</dt>
@@ -155,6 +158,9 @@
                     <dt class="text-[var(--secondary-text)]">Feed URL</dt>
                     <dd class="mt-1 break-all font-semibold">{{ $updateFeedUrlConfigured ? $updateFeedUrl : 'Not configured' }}</dd>
                     <dd class="mt-1 text-xs text-[var(--secondary-text)]">{{ $releaseFeedStatus['message'] ?? '' }}</dd>
+                    @if (!empty($releaseFeedStatus['http_status']))
+                        <dd class="mt-1 text-xs text-[var(--secondary-text)]">HTTP status: {{ $releaseFeedStatus['http_status'] }}</dd>
+                    @endif
                 </div>
                 <div class="{{ $softPanel }}">
                     <dt class="text-[var(--secondary-text)]">Latest version</dt>

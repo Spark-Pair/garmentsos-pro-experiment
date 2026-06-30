@@ -118,6 +118,22 @@ else
   echo "Warning: GarmentsOS PRO Launcher.exe was not found. Release package will use BAT/PowerShell fallback launchers only." >&2
 fi
 
+setup_asset=""
+for candidate in \
+  "$ROOT/GarmentsOS-PRO-Setup.exe" \
+  "$launcher_source/GarmentsOS PRO Launcher.exe"; do
+  if [[ -n "$candidate" && -f "$candidate" ]]; then
+    setup_asset="$candidate"
+    break
+  fi
+done
+
+if [[ -n "$setup_asset" ]]; then
+  cp "$setup_asset" "$DEST/GarmentsOS-PRO-Setup.exe"
+else
+  echo "Warning: GarmentsOS-PRO-Setup.exe was not found. Release package will use launcher/BAT fallback entrypoints." >&2
+fi
+
 tar_checksum="$(sha256sum "$IMAGE_TAR" | awk '{print $1}')"
 printf '%s  %s\n' "$tar_checksum" "images/$PACKAGE_NAME.tar" > "$DEST/checksums/$PACKAGE_NAME.sha256"
 

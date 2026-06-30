@@ -13,7 +13,9 @@
 - Confirm workflow inputs: version, channel, mandatory flag, min launcher version, release notes, prerelease flag.
 - Confirm repository Actions permissions allow `GITHUB_TOKEN` read/write access for contents.
 - Confirm the workflow uploaded package archive, checksum, and versioned `latest.json`.
+- Confirm the workflow uploaded `GarmentsOS-PRO-Setup.exe` when the launcher build succeeds.
 - Confirm the workflow updated the moving channel feed release, for example `latest-stable`.
+- Confirm `latest.json` is copied to the public SparkPair feed, because private GitHub assets return `404` to unauthenticated installed clients.
 - Confirm the workflow summary shows the release URL and `UPDATE_FEED_URL`.
 - Local `scripts/docker-build-release.sh` runs are for developer testing only.
 

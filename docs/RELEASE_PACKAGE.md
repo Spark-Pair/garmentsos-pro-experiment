@@ -55,7 +55,13 @@ Expected release assets:
 - `garmentsos-pro-VERSION.sha256`
 - `latest.json`
 
-The setup EXE is optional until the Windows setup builder is added to CI. The GitHub workflow skips it with a warning when it is not present.
+The setup EXE is copied from the published WinForms launcher output as `GarmentsOS-PRO-Setup.exe`. If the launcher build fails, the GitHub workflow skips it with a warning and the package still has BAT/PowerShell fallback launchers.
+
+For private repositories, GitHub release assets require authentication and return `404` to installed clients. Publish `docker-releases/latest.json` to the public SparkPair update feed, for example:
+
+```env
+UPDATE_FEED_URL=https://updates.sparkpair.dev/garmentsos-pro/stable/latest.json
+```
 
 Validate:
 

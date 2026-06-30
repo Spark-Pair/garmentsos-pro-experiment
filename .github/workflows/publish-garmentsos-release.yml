@@ -85,6 +85,25 @@ jobs:
         run: |
           echo "::warning::GarmentsOS PRO Launcher.exe was not built. Release package will use BAT/PowerShell fallback launchers."
 
+      - name: Prepare setup EXE asset
+        if: ${{ steps.launcher.outcome == 'success' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          launcher_exe="$(find launcher/GarmentsOS.Setup/bin/Release -type f -name 'GarmentsOS PRO Launcher.exe' -path '*/publish/*' -print -quit)"
+          if [[ -z "$launcher_exe" ]]; then
+            launcher_exe="$(find launcher/GarmentsOS.Setup/bin/Release -type f -name 'GarmentsOS PRO Launcher.exe' -print -quit)"
+          fi
+
+          if [[ -z "$launcher_exe" ]]; then
+            echo "::warning::Published GarmentsOS PRO Launcher.exe was not found. GarmentsOS-PRO-Setup.exe will be skipped."
+            exit 0
+          fi
+
+          cp "$launcher_exe" GarmentsOS-PRO-Setup.exe
+          echo "Prepared setup asset from: $launcher_exe"
+
       - name: Build Docker release package
         env:
           UPDATE_CHANNEL: ${{ env.CHANNEL }}
@@ -234,12 +253,19 @@ jobs:
 
           gh release upload "$channel_tag" "docker-releases/latest.json" --clobber
 
+      - name: Save public feed artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: garmentsos-pro-${{ env.CHANNEL }}-latest-feed
+          path: docker-releases/latest.json
+
       - name: Write workflow summary
         shell: bash
         run: |
           release_url="https://github.com/${GITHUB_REPOSITORY}/releases/tag/v${VERSION}"
           version_latest_url="https://github.com/${GITHUB_REPOSITORY}/releases/download/v${VERSION}/latest.json"
           channel_latest_url="https://github.com/${GITHUB_REPOSITORY}/releases/download/latest-${CHANNEL}/latest.json"
+          public_feed_url="https://updates.sparkpair.dev/garmentsos-pro/${CHANNEL}/latest.json"
           {
             echo "## GarmentsOS PRO release published"
             echo
@@ -249,11 +275,15 @@ jobs:
             echo "- Release: ${release_url}"
             echo "- Version latest.json: ${version_latest_url}"
             echo "- Channel feed latest.json: ${channel_latest_url}"
+            echo "- Public feed target: ${public_feed_url}"
             echo
             echo "Set installed apps to use this feed URL when update checks are enabled:"
             echo
             echo "\`\`\`env"
-            echo "UPDATE_FEED_URL=${channel_latest_url}"
+            echo "UPDATE_FEED_URL=${public_feed_url}"
             echo "UPDATE_CHANNEL=${CHANNEL}"
+            echo
+            echo "# GitHub channel asset also exists, but private repos return 404 to unauthenticated clients:"
+            echo "# ${channel_latest_url}"
             echo "\`\`\`"
           } >> "$GITHUB_STEP_SUMMARY"

@@ -2,6 +2,7 @@
 
 namespace App\Services\Updater;
 
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 
 class ReleaseFeedService
@@ -53,11 +54,16 @@ class ReleaseFeedService
         }
 
         if (!$response->ok()) {
-            return $this->result('feed_unreachable', 'Update feed returned an HTTP error.', [
+            $status = $response->status();
+            $message = $status === 404
+                ? 'Feed not reachable. If the GitHub repo is private, use a public update feed URL or SparkPair update server.'
+                : 'Update feed returned an HTTP error.';
+
+            return $this->result('feed_unreachable', $message, [
                 'success' => false,
                 'feed_url' => $feedUrl,
                 'current_version' => $currentVersion,
-                'http_status' => $response->status(),
+                'http_status' => $status,
                 'update_available' => false,
             ]);
         }
@@ -68,6 +74,15 @@ class ReleaseFeedService
         }
 
         return $this->validateFeed($feed, $feedUrl, $currentVersion);
+    }
+
+    public function checkConfiguredCached(int $seconds = 900): array
+    {
+        $feedUrl = trim((string) config('updater.feed_url', ''));
+        $currentVersion = $this->versions->currentVersion();
+        $key = 'updater.release_feed.' . sha1($feedUrl . '|' . $currentVersion);
+
+        return Cache::remember($key, $seconds, fn () => $this->checkConfigured());
     }
 
     public function validateFeed(array $feed, string $feedUrl = '', ?string $currentVersion = null): array

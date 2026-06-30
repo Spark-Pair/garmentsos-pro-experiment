@@ -16,7 +16,7 @@ UPDATE_CHANNEL=stable
 
 No automatic update checks or automatic update apply actions are enabled for normal users.
 
-`UPDATE_FEED_URL` is the future SparkPair/GitHub release metadata endpoint for `latest.json`. It is displayed on the Developer Updater page so installed package state can be checked, but it does not enable automatic update apply.
+`UPDATE_FEED_URL` is the SparkPair public release metadata endpoint for `latest.json`. It is displayed on the Developer Updater page so installed package state can be checked, but it does not enable automatic update apply.
 
 Optional timeout:
 
@@ -132,7 +132,7 @@ Uploaded assets:
 - `garmentsos-pro-VERSION.tar.gz`, `garmentsos-pro-VERSION.zip`, or another archive produced by the build script.
 - `garmentsos-pro-VERSION.sha256`
 - `latest.json`
-- `GarmentsOS-PRO-Setup.exe` only if that file exists in the workflow workspace.
+- `GarmentsOS-PRO-Setup.exe`, copied from the published `GarmentsOS PRO Launcher.exe` when the launcher build succeeds.
 
 If the Windows setup EXE is not available on the GitHub-hosted runner, the workflow prints a warning and publishes the Docker release assets without failing.
 
@@ -144,6 +144,14 @@ Channel feed releases:
 
 Each channel release contains a moving `latest.json` asset uploaded with `--clobber`. The channel `latest.json` still points `package_url` at the real immutable versioned release asset, for example `https://github.com/Spark-Pair/garmentsos-pro-experiment/releases/download/v1.8.16/garmentsos-pro-1.8.16.zip`.
 
+Private GitHub repositories return `404` for unauthenticated release asset requests. Browsers may appear to work when the developer is logged into GitHub, but installed apps and the Windows launcher are unauthenticated. For client installs, use the public SparkPair update server URL:
+
+```env
+UPDATE_FEED_URL=https://updates.sparkpair.dev/garmentsos-pro/stable/latest.json
+```
+
+The workflow still publishes `latest.json` to `latest-stable`, `latest-beta`, and `latest-dev` for audit and for public repos, but private repo asset URLs are not a reliable client feed.
+
 The installed app can point at the published feed with:
 
 ```env
@@ -151,7 +159,7 @@ UPDATE_FEED_URL=https://github.com/Spark-Pair/garmentsos-pro-experiment/releases
 UPDATE_CHANNEL=stable
 ```
 
-The Developer Updater page fetches this feed read-only, validates the basic JSON contract, compares the installed/current version with `version`, and displays whether an update is available. If GitHub or the internet is unreachable, the page shows `feed_unreachable` instead of crashing.
+The Developer Updater page fetches this feed read-only, validates the basic JSON contract, compares the installed/current version with `version`, and displays whether an update is available. If GitHub or the internet is unreachable, the page shows `feed_unreachable` instead of crashing. If the HTTP status is `404`, the page explains that private GitHub release assets need a public update feed URL or SparkPair update server.
 
 This feed display does not directly apply updates from Laravel. Actual client update application is handled by the Windows GUI launcher/package flow.
 
@@ -183,5 +191,7 @@ The response contains:
 Laravel still does not load Docker images, restart containers, or replace the running app. The JSON file is a safe handoff for the Windows GUI launcher/updater.
 
 The current launcher supports opening this JSON manually. A later launcher protocol/agent can remove that file-selection step.
+
+Developer users also see a non-invasive in-app update banner when the feed status is `update_available`. The banner links to the Developer Updater page and to the safe `Prepare Update` handoff JSON. Feed failures are shown only on the Updater page.
 
 Local release commands remain available for developer testing only.
