@@ -130,15 +130,16 @@ elif command -v 7zz >/dev/null 2>&1; then
   ARCHIVE_PATH="$ZIP_PATH"
   ARCHIVE_KIND="7zz zip"
 elif command -v tar.exe >/dev/null 2>&1; then
-  RELEASE_ROOT_WIN="$(cygpath -w "$RELEASE_ROOT" 2>/dev/null || printf '%s' "$RELEASE_ROOT")"
-  TAR_GZ_PATH_WIN="$(cygpath -w "$TAR_GZ_PATH" 2>/dev/null || printf '%s' "$TAR_GZ_PATH")"
-  tar.exe -czf "$TAR_GZ_PATH_WIN" -C "$RELEASE_ROOT_WIN" "$PACKAGE_NAME"
+  (
+    cd "$RELEASE_ROOT"
+    tar.exe -czf "${PACKAGE_NAME}.tar.gz" "$PACKAGE_NAME"
+  )
   ARCHIVE_PATH="$TAR_GZ_PATH"
   ARCHIVE_KIND="tar.gz"
 elif command -v tar >/dev/null 2>&1; then
   (
     cd "$RELEASE_ROOT"
-    tar -czf "$TAR_GZ_PATH" "$PACKAGE_NAME"
+    tar -czf "${PACKAGE_NAME}.tar.gz" "$PACKAGE_NAME"
   )
   ARCHIVE_PATH="$TAR_GZ_PATH"
   ARCHIVE_KIND="tar.gz"
