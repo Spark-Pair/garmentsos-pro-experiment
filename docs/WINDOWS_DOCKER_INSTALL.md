@@ -23,7 +23,13 @@ C:\SparkPair\GarmentsOS
 Install GarmentsOS.bat
 ```
 
-3. For daily use after install, double-click:
+3. After install, use the Desktop shortcut named:
+
+```text
+GarmentsOS PRO
+```
+
+You can also use the Start Menu shortcut under `SparkPair`, or double-click the installed root launcher:
 
 ```text
 Open GarmentsOS.bat
@@ -37,6 +43,11 @@ cd C:\SparkPair\GarmentsOS
 ```
 
 The installer loads the Docker image tar, creates `.env` from `.env.example` only when missing, creates named Docker volumes, runs first migrations intentionally, and starts the app.
+It also installs friendly root launchers, creates Desktop/Start Menu shortcuts when Windows allows it, and hides technical files with the Windows hidden attribute. For developer testing, run:
+
+```powershell
+.\scripts\windows-docker-install.ps1 -HideTechnicalFiles:$false
+```
 
 The old `1.8.0` Docker release built before the Windows PowerShell compatibility fix should be replaced. Use a package built from `1.8.1` or later for Windows testing.
 

@@ -1,13 +1,106 @@
 param(
     [string]$InstallDir = "C:\SparkPair\GarmentsOS",
     [string]$Version = "",
-    [int]$Port = 8000
+    [int]$Port = 8000,
+    [bool]$HideTechnicalFiles = $true
 )
 
 $ErrorActionPreference = "Stop"
 
 $InstallDir = $InstallDir.Trim('"')
 $Version = $Version.Trim('"')
+
+function Copy-RootLaunchers($SourceDir, $TargetDir) {
+    $launchers = @(
+        "Open GarmentsOS.bat",
+        "Backup GarmentsOS.bat",
+        "Stop GarmentsOS.bat",
+        "Update GarmentsOS.bat"
+    )
+
+    foreach ($launcher in $launchers) {
+        $sourcePath = Join-Path $SourceDir $launcher
+        $stubPath = Join-Path $SourceDir ("scripts\package-launchers\" + $launcher + ".stub")
+        $targetPath = Join-Path $TargetDir $launcher
+
+        if (Test-Path $sourcePath) {
+            Copy-Item -Force $sourcePath $targetPath
+        } elseif (Test-Path $stubPath) {
+            Copy-Item -Force $stubPath $targetPath
+        } else {
+            Write-Warning "Launcher not found and was not installed: $launcher"
+        }
+    }
+}
+
+function New-GarmentsShortcut($ShortcutPath, $TargetPath, $WorkingDirectory) {
+    try {
+        $shell = New-Object -ComObject WScript.Shell
+        $shortcut = $shell.CreateShortcut($ShortcutPath)
+        $shortcut.TargetPath = $TargetPath
+        $shortcut.WorkingDirectory = $WorkingDirectory
+        $shortcut.Description = "Open GarmentsOS PRO"
+        $shortcut.Save()
+        Write-Host "Created shortcut: $ShortcutPath"
+    } catch {
+        Write-Warning "Could not create shortcut $ShortcutPath. $($_.Exception.Message)"
+    }
+}
+
+function Install-GarmentsShortcuts($TargetDir) {
+    $openLauncher = Join-Path $TargetDir "Open GarmentsOS.bat"
+    if (-not (Test-Path $openLauncher)) {
+        Write-Warning "Open GarmentsOS.bat was not found. Shortcuts were not created."
+        return
+    }
+
+    try {
+        $desktop = [Environment]::GetFolderPath("Desktop")
+        if (-not [string]::IsNullOrWhiteSpace($desktop)) {
+            New-GarmentsShortcut (Join-Path $desktop "GarmentsOS PRO.lnk") $openLauncher $TargetDir
+        }
+    } catch {
+        Write-Warning "Could not resolve Desktop folder. $($_.Exception.Message)"
+    }
+
+    try {
+        $programs = [Environment]::GetFolderPath("Programs")
+        if (-not [string]::IsNullOrWhiteSpace($programs)) {
+            $sparkPair = Join-Path $programs "SparkPair"
+            New-Item -ItemType Directory -Force -Path $sparkPair | Out-Null
+            New-GarmentsShortcut (Join-Path $sparkPair "GarmentsOS PRO.lnk") $openLauncher $TargetDir
+        }
+    } catch {
+        Write-Warning "Could not create Start Menu shortcut. $($_.Exception.Message)"
+    }
+}
+
+function Hide-GarmentsTechnicalFiles($TargetDir) {
+    $items = @(
+        "scripts",
+        "images",
+        "checksums",
+        "docs",
+        "docker-compose.yml",
+        ".env",
+        ".env.example",
+        "manifest.json"
+    )
+
+    foreach ($item in $items) {
+        $path = Join-Path $TargetDir $item
+        if (-not (Test-Path -LiteralPath $path)) {
+            continue
+        }
+
+        try {
+            $target = Get-Item -LiteralPath $path -Force
+            $target.Attributes = $target.Attributes -bor [System.IO.FileAttributes]::Hidden
+        } catch {
+            Write-Warning "Could not hide $path. $($_.Exception.Message)"
+        }
+    }
+}
 
 function Require-Command($Name) {
     if (-not (Get-Command $Name -ErrorAction SilentlyContinue)) {
@@ -42,6 +135,7 @@ Copy-Item -Recurse -Force (Join-Path $Source "docs") $InstallDir
 Copy-Item -Recurse -Force (Join-Path $Source "images") $InstallDir
 Copy-Item -Recurse -Force (Join-Path $Source "checksums") $InstallDir
 Copy-Item -Force (Join-Path $Source "manifest.json") $InstallDir
+Copy-RootLaunchers $Source $InstallDir
 
 $Manifest = Get-Content (Join-Path $InstallDir "manifest.json") | ConvertFrom-Json
 if ([string]::IsNullOrWhiteSpace($Version)) {
@@ -93,6 +187,13 @@ try {
 $envContent = Get-Content $EnvPath -Raw
 $envContent = Set-EnvLine $envContent "RUN_MIGRATIONS_ON_START" "false"
 Set-Content -Path $EnvPath -Value $envContent -Encoding UTF8
+
+Install-GarmentsShortcuts $InstallDir
+if ($HideTechnicalFiles) {
+    Hide-GarmentsTechnicalFiles $InstallDir
+} else {
+    Write-Host "Technical files were left visible because HideTechnicalFiles is false."
+}
 
 $LanIp = (Get-NetIPAddress -AddressFamily IPv4 |
     Where-Object { $_.IPAddress -notlike "127.*" -and $_.PrefixOrigin -ne "WellKnown" } |

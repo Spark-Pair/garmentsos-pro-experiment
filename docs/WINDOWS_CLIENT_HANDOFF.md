@@ -41,11 +41,11 @@ Backup GarmentsOS.bat
 Client flow:
 
 1. First install: double-click `Install GarmentsOS.bat`.
-2. Daily use: double-click `Open GarmentsOS.bat`.
+2. Daily use: use the Desktop shortcut named `GarmentsOS PRO`, the Start Menu shortcut under `SparkPair`, or double-click `Open GarmentsOS.bat`.
 3. Update package: extract the new package and double-click `Update GarmentsOS.bat`.
 4. Stop the app: double-click `Stop GarmentsOS.bat`.
 
-The technical scripts remain under `scripts/` for support and automation.
+The technical scripts remain under `scripts/` for support and automation. Installed client folders hide technical files by default using the Windows hidden attribute. Support/developer machines can show hidden files in File Explorer or run install/update with `-HideTechnicalFiles:$false`.
 
 If a package was built as `1.8.0` before the Windows PowerShell compatibility fix, replace it with `1.8.1` or later before client testing.
 

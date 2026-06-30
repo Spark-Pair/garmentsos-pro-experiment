@@ -1,12 +1,63 @@
 param(
     [string]$InstallDir = "C:\SparkPair\GarmentsOS",
-    [string]$ReleaseDir = ""
+    [string]$ReleaseDir = "",
+    [bool]$HideTechnicalFiles = $true
 )
 
 $ErrorActionPreference = "Stop"
 
 $InstallDir = $InstallDir.Trim('"')
 $ReleaseDir = $ReleaseDir.Trim('"')
+
+function Copy-RootLaunchers($SourceDir, $TargetDir) {
+    $launchers = @(
+        "Open GarmentsOS.bat",
+        "Backup GarmentsOS.bat",
+        "Stop GarmentsOS.bat",
+        "Update GarmentsOS.bat"
+    )
+
+    foreach ($launcher in $launchers) {
+        $sourcePath = Join-Path $SourceDir $launcher
+        $stubPath = Join-Path $SourceDir ("scripts\package-launchers\" + $launcher + ".stub")
+        $targetPath = Join-Path $TargetDir $launcher
+
+        if (Test-Path $sourcePath) {
+            Copy-Item -Force $sourcePath $targetPath
+        } elseif (Test-Path $stubPath) {
+            Copy-Item -Force $stubPath $targetPath
+        } else {
+            Write-Warning "Launcher not found and was not installed: $launcher"
+        }
+    }
+}
+
+function Hide-GarmentsTechnicalFiles($TargetDir) {
+    $items = @(
+        "scripts",
+        "images",
+        "checksums",
+        "docs",
+        "docker-compose.yml",
+        ".env",
+        ".env.example",
+        "manifest.json"
+    )
+
+    foreach ($item in $items) {
+        $path = Join-Path $TargetDir $item
+        if (-not (Test-Path -LiteralPath $path)) {
+            continue
+        }
+
+        try {
+            $target = Get-Item -LiteralPath $path -Force
+            $target.Attributes = $target.Attributes -bor [System.IO.FileAttributes]::Hidden
+        } catch {
+            Write-Warning "Could not hide $path. $($_.Exception.Message)"
+        }
+    }
+}
 
 function Set-EnvLine($Content, $Name, $Value) {
     $pattern = "(?m)^" + [regex]::Escape($Name) + "=.*$"
@@ -51,9 +102,13 @@ Write-Host "Using backup script: $BackupScript"
 docker load -i $ImageTar | Out-Host
 
 Copy-Item -Force (Join-Path $ReleaseDir "docker-compose.yml") $InstallDir
+Copy-Item -Force (Join-Path $ReleaseDir ".env.example") $InstallDir
 Copy-Item -Recurse -Force (Join-Path $ReleaseDir "scripts") $InstallDir
 Copy-Item -Recurse -Force (Join-Path $ReleaseDir "docs") $InstallDir
+Copy-Item -Recurse -Force (Join-Path $ReleaseDir "images") $InstallDir
+Copy-Item -Recurse -Force (Join-Path $ReleaseDir "checksums") $InstallDir
 Copy-Item -Force (Join-Path $ReleaseDir "manifest.json") $InstallDir
+Copy-RootLaunchers $ReleaseDir $InstallDir
 
 $EnvPath = Join-Path $InstallDir ".env"
 if (-not (Test-Path $EnvPath)) {
@@ -75,6 +130,12 @@ try {
 $envContent = Get-Content $EnvPath -Raw
 $envContent = Set-EnvLine $envContent "RUN_MIGRATIONS_ON_START" "false"
 Set-Content -Path $EnvPath -Value $envContent -Encoding UTF8
+
+if ($HideTechnicalFiles) {
+    Hide-GarmentsTechnicalFiles $InstallDir
+} else {
+    Write-Host "Technical files were left visible because HideTechnicalFiles is false."
+}
 
 Write-Host "Update complete. Volumes were preserved."
 Write-Host "Rollback: load the previous image tar, set GARMENTSOS_IMAGE in .env to the previous tag, then run docker compose up -d."
