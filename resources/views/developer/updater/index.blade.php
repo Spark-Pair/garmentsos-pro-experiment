@@ -29,9 +29,9 @@
                 : 'border-gray-600 bg-[var(--h-bg-color)] text-[var(--secondary-text)]');
         $statusLabel = $updateAvailable ? 'Update available' : ($upToDate ? 'Up to date' : str_replace('_', ' ', $releaseFeedCode));
         $statusMessage = $updateAvailable
-            ? 'A new version is available. Download the update request and apply it with GarmentsOS PRO Launcher.'
+            ? 'A new version is available. Click Update Now to open GarmentsOS PRO Launcher.'
             : ($upToDate
-                ? 'This installation is already on the latest published version.'
+                ? 'This installation is already on the latest version.'
                 : ($releaseFeedStatus['message'] ?? 'Update feed status is unavailable.'));
         $canApply = $enabled && !empty($result['success']) && !empty($result['update_available']);
         $manifestReady = $enabled && $manifestUrlConfigured;
@@ -123,26 +123,21 @@
 
             @if ($updateAvailable)
                 <div class="mt-5 rounded-lg border border-[var(--border-warning)] bg-[var(--bg-warning)] p-4 text-sm text-[var(--text-warning)]">
-                    Click Update with Windows Launcher to open GarmentsOS PRO Launcher with a temporary signed update request. The launcher shows details first; it will not apply until you click Update Now.
+                    This opens GarmentsOS PRO Launcher. You will review and confirm before the update is applied.
                 </div>
 
                 <div class="mt-4 flex flex-wrap items-center gap-3">
                     @if ($launcherUpdateUrl)
                         <a href="{{ $launcherUpdateUrl }}" class="{{ $primaryButton }}">
-                            Update with Windows Launcher
+                            Update Now
                         </a>
                     @else
+                        <button type="button" class="{{ $disabledButton }}" disabled>
+                            Update Now
+                        </button>
                         <span class="text-xs text-[var(--secondary-text)]">
-                            Install/open GarmentsOS-PRO-Setup.exe once to enable app-to-launcher handoff.
+                            GarmentsOS PRO Launcher link is not configured on this PC. Download and run the Windows updater once, then try again.
                         </span>
-                    @endif
-                    <a href="{{ $requestUrl }}" class="{{ $secondaryButton }}">
-                        Download Update Request
-                    </a>
-                    @if ($setupUrlAvailable)
-                        <a href="{{ $setupUrl }}" class="{{ $secondaryButton }}">
-                            Download Windows Updater
-                        </a>
                     @endif
                 </div>
                 @if (!empty($launcherHandoff['expires_at']))
@@ -150,6 +145,23 @@
                         The signed launcher request expires at {{ $launcherHandoff['expires_at'] }}. Protocol handoff requires garmentsos:// registration on the client machine.
                     </p>
                 @endif
+
+                <details class="mt-5 rounded-lg border border-[var(--h-bg-color)] bg-[var(--h-bg-color)]/50 p-4">
+                    <summary class="cursor-pointer font-semibold">Troubleshooting / Manual update</summary>
+                    <p class="mt-3 text-sm text-[var(--secondary-text)]">
+                        Use this only if Update Now does not open the launcher.
+                    </p>
+                    <div class="mt-4 flex flex-wrap gap-3">
+                        <a href="{{ $requestUrl }}" class="{{ $secondaryButton }}">
+                            Download Update Request
+                        </a>
+                        @if ($setupUrlAvailable)
+                            <a href="{{ $setupUrl }}" class="{{ $secondaryButton }}">
+                                Download Windows Updater
+                            </a>
+                        @endif
+                    </div>
+                </details>
             @endif
         </section>
 

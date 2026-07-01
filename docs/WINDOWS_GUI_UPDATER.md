@@ -49,7 +49,7 @@ The PowerShell updater preserves Docker volumes, client data, backups, and `.env
 
 ## In-App Handoff
 
-From the Developer Updater page, click `Update with Windows Launcher` when an update is available. The browser opens:
+From the Developer Updater page, click `Update Now` when an update is available. The browser opens:
 
 ```text
 garmentsos://update?request=<encoded signed request URL>
@@ -57,7 +57,7 @@ garmentsos://update?request=<encoded signed request URL>
 
 The launcher opens, downloads the temporary signed request JSON, and displays the update details. It does not apply the update until the user clicks `Update Now`.
 
-Manual fallback: click `Download Update Request`. This downloads:
+Manual fallback is under `Troubleshooting / Manual update`. Click `Download Update Request` there only if the main `Update Now` button does not open the launcher. This downloads:
 
 ```text
 garmentsos-update-request.json

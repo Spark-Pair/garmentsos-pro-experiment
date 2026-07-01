@@ -172,14 +172,14 @@ The release feed is the primary updater UI. Advanced signed-manifest apply is a 
 Current safe flow:
 
 ```text
-App detects update -> Update with Windows Launcher -> garmentsos://update?request=... -> Launcher loads details -> Update Now
+App detects update -> Update Now -> garmentsos://update?request=... -> Launcher loads details -> Update Now in launcher
 ```
 
-When the feed reports `update_available`, the Developer Updater page shows `Update with Windows Launcher`.
+When the feed reports `update_available`, the Developer Updater page shows one main button: `Update Now`.
 
 The app creates a temporary signed update request URL that expires after `UPDATE_REQUEST_TTL_MINUTES` minutes, then passes that URL to the Windows launcher protocol. The signed route exposes update package metadata only and does not require the launcher to have browser session cookies.
 
-Manual fallback remains available through `Download Update Request`, which downloads a JSON handoff file from:
+Manual fallback is hidden under `Troubleshooting / Manual update`. Use it only if `Update Now` does not open the launcher. `Download Update Request` downloads a JSON handoff file from:
 
 ```text
 /developer/updater/update-request
@@ -227,7 +227,7 @@ The signed request URL is generated from:
 
 It uses Laravel's signed URL validation and expires automatically. Expired or tampered URLs fail before returning JSON.
 
-Developer users also see a non-invasive in-app update banner when the feed status is `update_available`. The banner links to the Windows launcher handoff and the Developer Updater page. Feed failures are shown only on the Updater page.
+Developer users also see a non-invasive in-app update banner when the feed status is `update_available`. The banner shows one primary `Update Now` action and a `Details` link. Feed failures are shown only on the Updater page.
 
 Fallback flow:
 
