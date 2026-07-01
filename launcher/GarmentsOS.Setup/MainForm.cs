@@ -1235,6 +1235,8 @@ public sealed class MainForm : Form
 
         try
         {
+            Log("Pending launcher update detected.");
+            Log("Launcher update will finish after this updater window closes.");
             var helperPath = Path.Combine(Path.GetTempPath(), "GarmentsOSPendingLauncherUpdate.ps1");
             var script = """
                 param(

@@ -123,7 +123,7 @@ function Stage-GarmentsLauncherUpdate($SourcePath, $DestinationPath, $TargetDir)
     $markerPath = Join-Path $TargetDir ".pending-launcher-update.json"
     $marker = [ordered]@{
         app = "garmentsos-pro"
-        reason = "launcher_exe_locked"
+        reason = "launcher_locked"
         pending_path = $pendingPath
         destination_path = $DestinationPath
         protocol = "garmentsos"
@@ -137,27 +137,33 @@ function Stage-GarmentsLauncherUpdate($SourcePath, $DestinationPath, $TargetDir)
     Write-Host "Pending launcher marker: $markerPath"
 }
 
-function Copy-GarmentsLauncherSafely($SourcePath, $TargetDir) {
-    if (-not (Test-Path -LiteralPath $SourcePath)) {
+function Update-LauncherExeFromRelease($ReleaseDir, $InstallDir) {
+    $sourceLauncher = Join-Path $ReleaseDir "GarmentsOS-PRO-Setup.exe"
+    $destLauncher = Join-Path $InstallDir "GarmentsOS-PRO-Setup.exe"
+
+    if (-not (Test-Path -LiteralPath $sourceLauncher)) {
+        Write-Host "Launcher EXE not found in release package; continuing app update only."
         return
     }
 
-    $destinationPath = Join-Path $TargetDir "GarmentsOS-PRO-Setup.exe"
+    Write-Host "Launcher EXE found in release package."
+    New-Item -ItemType Directory -Force -Path $InstallDir | Out-Null
 
     try {
-        if (Test-GarmentsFileLocked $destinationPath) {
-            Stage-GarmentsLauncherUpdate $SourcePath $destinationPath $TargetDir
+        if (Test-GarmentsFileLocked $destLauncher) {
+            Stage-GarmentsLauncherUpdate $sourceLauncher $destLauncher $InstallDir
             return
         }
 
-        Copy-Item -Force -LiteralPath $SourcePath -Destination $destinationPath
-        Write-Host "Installed GUI launcher: $destinationPath"
+        Copy-Item -Force -LiteralPath $sourceLauncher -Destination $destLauncher
+        Write-Host "Launcher EXE updated."
+        Register-GarmentsProtocol $InstallDir
     } catch {
-        Write-Warning "Could not update GUI launcher now. $($_.Exception.Message)"
+        Write-Warning "Could not update launcher EXE now. $($_.Exception.Message)"
         try {
-            Stage-GarmentsLauncherUpdate $SourcePath $destinationPath $TargetDir
+            Stage-GarmentsLauncherUpdate $sourceLauncher $destLauncher $InstallDir
         } catch {
-            Write-Warning "Could not stage GUI launcher update. $($_.Exception.Message)"
+            Write-Warning "Could not stage launcher EXE update. Continuing app update only. $($_.Exception.Message)"
         }
     }
 }
@@ -211,19 +217,10 @@ Copy-Item -Recurse -Force (Join-Path $ReleaseDir "docs") $InstallDir
 Copy-Item -Recurse -Force (Join-Path $ReleaseDir "images") $InstallDir
 Copy-Item -Recurse -Force (Join-Path $ReleaseDir "checksums") $InstallDir
 Copy-Item -Force (Join-Path $ReleaseDir "manifest.json") $InstallDir
-if (Test-Path (Join-Path $ReleaseDir "GarmentsOS-PRO-Setup.exe")) {
-    Copy-GarmentsLauncherSafely (Join-Path $ReleaseDir "GarmentsOS-PRO-Setup.exe") $InstallDir
-} elseif (Test-Path (Join-Path $ReleaseDir "GarmentsOS PRO Launcher.exe")) {
-    Copy-GarmentsLauncherSafely (Join-Path $ReleaseDir "GarmentsOS PRO Launcher.exe") $InstallDir
-}
 if (Test-Path (Join-Path $ReleaseDir "launcher")) {
     Copy-Item -Recurse -Force (Join-Path $ReleaseDir "launcher") $InstallDir
 }
-$installedSetupLauncher = Join-Path $InstallDir "GarmentsOS-PRO-Setup.exe"
-$installedNestedLauncher = Join-Path $InstallDir "launcher\GarmentsOS PRO Launcher.exe"
-if (-not (Test-Path $installedSetupLauncher) -and (Test-Path $installedNestedLauncher)) {
-    Copy-GarmentsLauncherSafely $installedNestedLauncher $InstallDir
-}
+Update-LauncherExeFromRelease $ReleaseDir $InstallDir
 Copy-RootLaunchers $ReleaseDir $InstallDir
 
 $EnvPath = Join-Path $InstallDir ".env"

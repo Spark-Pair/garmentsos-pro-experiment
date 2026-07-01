@@ -130,9 +130,13 @@ done
 
 if [[ -n "$setup_asset" ]]; then
   cp "$setup_asset" "$DEST/GarmentsOS-PRO-Setup.exe"
+  echo "Included GarmentsOS-PRO-Setup.exe at release package root from: $setup_asset"
 else
   echo "Warning: GarmentsOS-PRO-Setup.exe was not found. Release package will use launcher/BAT fallback entrypoints." >&2
 fi
+
+echo "Release package root contents:"
+find "$DEST" -maxdepth 1 -mindepth 1 -printf '  %f\n' | sort
 
 tar_checksum="$(sha256sum "$IMAGE_TAR" | awk '{print $1}')"
 printf '%s  %s\n' "$tar_checksum" "images/$PACKAGE_NAME.tar" > "$DEST/checksums/$PACKAGE_NAME.sha256"
@@ -210,6 +214,41 @@ fi
 
 archive_checksum="$(sha256sum "$ARCHIVE_PATH" | awk '{print $1}')"
 printf '%s  %s\n' "$archive_checksum" "$(basename "$ARCHIVE_PATH")" > "$SHA_PATH"
+
+if [[ -f "$DEST/GarmentsOS-PRO-Setup.exe" ]]; then
+  archive_has_setup="false"
+  if [[ "$ARCHIVE_PATH" == *.zip ]] && command -v unzip >/dev/null 2>&1; then
+    if unzip -Z1 "$ARCHIVE_PATH" | grep -Fxq "$PACKAGE_NAME/GarmentsOS-PRO-Setup.exe"; then
+      archive_has_setup="true"
+    fi
+  elif [[ "$ARCHIVE_PATH" == *.zip ]] && command -v 7z >/dev/null 2>&1; then
+    if 7z l -ba "$ARCHIVE_PATH" | awk '{print $NF}' | grep -Fxq "$PACKAGE_NAME/GarmentsOS-PRO-Setup.exe"; then
+      archive_has_setup="true"
+    fi
+  elif [[ "$ARCHIVE_PATH" == *.zip ]] && command -v 7zz >/dev/null 2>&1; then
+    if 7zz l -ba "$ARCHIVE_PATH" | awk '{print $NF}' | grep -Fxq "$PACKAGE_NAME/GarmentsOS-PRO-Setup.exe"; then
+      archive_has_setup="true"
+    fi
+  elif [[ "$ARCHIVE_PATH" == *.tar.gz || "$ARCHIVE_PATH" == *.tgz ]] && command -v tar >/dev/null 2>&1; then
+    if tar -tzf "$ARCHIVE_PATH" | grep -Fxq "$PACKAGE_NAME/GarmentsOS-PRO-Setup.exe"; then
+      archive_has_setup="true"
+    fi
+  elif [[ "$ARCHIVE_PATH" == *.tar.gz || "$ARCHIVE_PATH" == *.tgz ]] && command -v tar.exe >/dev/null 2>&1; then
+    if tar.exe -tzf "$ARCHIVE_PATH" | grep -Fxq "$PACKAGE_NAME/GarmentsOS-PRO-Setup.exe"; then
+      archive_has_setup="true"
+    fi
+  else
+    echo "Warning: could not inspect archive contents for GarmentsOS-PRO-Setup.exe." >&2
+    archive_has_setup="unknown"
+  fi
+
+  if [[ "$archive_has_setup" == "false" ]]; then
+    echo "Error: GarmentsOS-PRO-Setup.exe exists in release folder but was not found in archive." >&2
+    exit 1
+  elif [[ "$archive_has_setup" == "true" ]]; then
+    echo "Verified archive contains: $PACKAGE_NAME/GarmentsOS-PRO-Setup.exe"
+  fi
+fi
 
 "$ROOT/scripts/validate-docker-release.sh" "$DEST"
 
