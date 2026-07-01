@@ -17,10 +17,9 @@ GUI flow:
 In-app handoff flow:
 
 1. In GarmentsOS PRO, open Developer Updater.
-2. Click `Prepare Update`.
-3. In the GUI launcher, click `Open Request JSON`.
-4. Select `garmentsos-update-request.json`.
-5. Click `Update Now`.
+2. Click `Update Now`.
+3. Allow Windows to open GarmentsOS PRO Updater if prompted.
+4. The updater splash downloads, verifies, backs up, applies the update, and opens the app again.
 
 Fallback script flow:
 
@@ -38,6 +37,7 @@ The updater:
 - creates a backup first
 - loads the new image tar
 - updates compose/scripts/docs/images/checksums and friendly root launchers
+- stages the GUI launcher EXE if it is locked by the running updater
 - updates `GARMENTSOS_IMAGE` in `.env`
 - preserves Docker volumes
 - starts the new container
@@ -45,6 +45,15 @@ The updater:
 - hides technical files with the Windows hidden attribute by default
 
 The GUI updater performs the download and SHA256 verification before delegating to this same PowerShell update script. Laravel never runs Docker update commands directly.
+
+If the updater cannot overwrite the running GUI launcher, it writes:
+
+```text
+C:\SparkPair\GarmentsOS\updates\GarmentsOS-PRO-Setup.exe.pending
+C:\SparkPair\GarmentsOS\.pending-launcher-update.json
+```
+
+The GUI updater starts a detached helper that waits for the updater process to exit, replaces the launcher EXE, and re-registers the HKCU `garmentsos://` protocol.
 
 For developer testing, keep technical files visible:
 

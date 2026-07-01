@@ -52,10 +52,10 @@ The PowerShell updater preserves Docker volumes, client data, backups, and `.env
 From the Developer Updater page, click `Update Now` when an update is available. The browser opens:
 
 ```text
-garmentsos://update?request=<encoded signed request URL>
+garmentsos://update?request=<encoded signed request URL>&autoStart=1
 ```
 
-The launcher opens, downloads the temporary signed request JSON, and displays the update details. It does not apply the update until the user clicks `Update Now`.
+The launcher opens in a dedicated update splash/progress mode, downloads the temporary signed request JSON, validates the required fields, downloads the package, verifies SHA256, creates a backup, runs the host-side Docker updater, and opens the app again when complete. The original web app `Update Now` click is the confirmation for this automatic handoff.
 
 Manual fallback is under `Troubleshooting / Manual update`. Click `Download Update Request` there only if the main `Update Now` button does not open the launcher. This downloads:
 
@@ -70,6 +70,8 @@ Protocol handoff:
 ```text
 garmentsos://update
 garmentsos://update?request=<encoded update request URL>
+garmentsos://update?request=<encoded update request URL>&autoStart=1
+garmentsos://open
 ```
 
 The Windows install/update scripts register this protocol under HKCU:
@@ -85,7 +87,23 @@ HKCU\Software\Classes\garmentsos\shell\open\command
 
 The command target can also be `GarmentsOS PRO Launcher.exe` when that is the installed GUI launcher path.
 
-When opened with `garmentsos://update`, the launcher opens normally and focuses the update flow. When opened with `garmentsos://update?request=<encoded-url-or-path>`, it attempts to load that request JSON from a local path, `file://` URL, or `http/https` URL. If loading fails, the user can still choose `Open Request JSON`. It never auto-applies the update; the user must review details and click `Update Now`.
+When opened with `garmentsos://update`, the launcher opens normally and focuses the update flow. When opened with `garmentsos://update?request=<encoded-url-or-path>`, it attempts to load that request JSON from a local path, `file://` URL, or `http/https` URL. If loading fails, the user can still choose `Open Request JSON`.
+
+When opened with `autoStart=1`, the launcher hides the normal technical buttons and shows only update progress, optional Details, and failure troubleshooting actions. It starts the update automatically after the signed request is loaded and validated. On failure, it keeps the error visible and shows `Open Install Folder`, `Save Log`, and `Close`.
+
+If the running launcher EXE is locked during update, the PowerShell updater stages the new launcher at:
+
+```text
+C:\SparkPair\GarmentsOS\updates\GarmentsOS-PRO-Setup.exe.pending
+```
+
+and writes:
+
+```text
+C:\SparkPair\GarmentsOS\.pending-launcher-update.json
+```
+
+After the updater exits, a detached helper replaces `C:\SparkPair\GarmentsOS\GarmentsOS-PRO-Setup.exe` and re-registers `garmentsos://` under HKCU.
 
 ## Developer Build
 

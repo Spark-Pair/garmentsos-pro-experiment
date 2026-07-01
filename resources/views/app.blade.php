@@ -574,7 +574,7 @@
                             </div>
                             <div class="flex flex-wrap gap-2">
                                 @if (!empty($developerLauncherHandoff['protocol_url']))
-                                    <a href="{{ $developerLauncherHandoff['protocol_url'] }}" class="rounded-lg border border-[var(--border-warning)] bg-[var(--h-bg-warning)] px-3 py-2 text-xs font-semibold text-[var(--text-warning)]">
+                                    <a href="{{ $developerLauncherHandoff['protocol_url'] }}" class="js-update-handoff rounded-lg border border-[var(--border-warning)] bg-[var(--h-bg-warning)] px-3 py-2 text-xs font-semibold text-[var(--text-warning)]">
                                         Update Now
                                     </a>
                                 @endif
@@ -593,6 +593,32 @@
         @component('components.footer')
         @endcomponent
     </div>
+
+    <div id="update-handoff-overlay" class="fixed inset-0 z-[10000] hidden items-center justify-center bg-[var(--overlay-color)] px-4">
+        <div class="w-full max-w-lg rounded-xl border border-[var(--border-warning)] bg-[var(--secondary-bg-color)] p-6 text-center shadow-xl">
+            <h2 class="text-xl font-semibold text-[var(--text-color)]">Update started</h2>
+            <p class="mt-3 text-sm text-[var(--secondary-text)]">
+                GarmentsOS PRO is updating. The app may close and reopen automatically.
+            </p>
+            <p class="mt-3 text-xs text-[var(--secondary-text)]">
+                If Windows asks to open GarmentsOS PRO Updater, choose Open.
+            </p>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            document.querySelectorAll('.js-update-handoff').forEach((link) => {
+                link.addEventListener('click', () => {
+                    const overlay = document.getElementById('update-handoff-overlay');
+                    if (overlay) {
+                        overlay.classList.remove('hidden');
+                        overlay.classList.add('flex');
+                    }
+                });
+            });
+        });
+    </script>
 
 @stack('page-scripts')
 </body>

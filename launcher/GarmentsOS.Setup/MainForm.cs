@@ -16,17 +16,34 @@ public sealed class MainForm : Form
 
     private readonly TextBox installDirBox = new() { Text = DefaultInstallDir };
     private readonly TextBox feedUrlBox = new();
+    private readonly Label titleLabel = new()
+    {
+        Text = "GarmentsOS PRO Updater / Setup Launcher",
+        Font = new Font(SystemFonts.DefaultFont.FontFamily, 14, FontStyle.Bold),
+        AutoSize = true,
+    };
     private readonly Label installedVersionLabel = new() { Text = "Installed version: unknown", AutoSize = true };
     private readonly Label appStatusLabel = new() { Text = "App status: unknown", AutoSize = true };
     private readonly Label dockerStatusLabel = new() { Text = "Docker status: unknown", AutoSize = true };
     private readonly Label latestVersionLabel = new() { Text = "Latest version: not checked", AutoSize = true };
     private readonly Label mandatoryLabel = new() { Text = "Mandatory: false", AutoSize = true };
+    private readonly Label progressStatusLabel = new() { Text = "Preparing update", AutoSize = true };
+    private readonly ProgressBar progressBar = new() { Style = ProgressBarStyle.Marquee, MarqueeAnimationSpeed = 35, Dock = DockStyle.Top };
     private readonly TextBox notesBox = new() { Multiline = true, ReadOnly = true, ScrollBars = ScrollBars.Vertical };
     private readonly TextBox logBox = new() { Multiline = true, ReadOnly = true, ScrollBars = ScrollBars.Vertical };
     private readonly Button updateButton = new() { Text = "Update Now", Enabled = false };
+    private readonly Button detailsButton = new() { Text = "Details", AutoSize = true };
+    private readonly FlowLayoutPanel buttonsPanel = new() { Dock = DockStyle.Top, AutoSize = true, WrapContents = true };
+    private readonly FlowLayoutPanel failureButtonsPanel = new() { Dock = DockStyle.Top, AutoSize = true, WrapContents = true, Visible = false };
+    private readonly TableLayoutPanel pathsPanel = new() { Dock = DockStyle.Top, ColumnCount = 2, AutoSize = true };
+    private readonly TableLayoutPanel statusPanel = new() { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 4 };
+    private readonly Panel progressPanel = new() { Dock = DockStyle.Top, Visible = false, Padding = new Padding(0, 10, 0, 10) };
 
     private readonly string? startupArgument;
     private ReleaseFeed? currentFeed;
+    private bool autoUpdateMode;
+    private bool criticalUpdateStep;
+    private bool detailsExpanded;
 
     public MainForm(string? startupArgument = null)
     {
@@ -46,63 +63,76 @@ public sealed class MainForm : Form
         };
     }
 
+    protected override void OnFormClosing(FormClosingEventArgs e)
+    {
+        if (criticalUpdateStep)
+        {
+            e.Cancel = true;
+            Log("Update is in progress. Please wait until the current step finishes.");
+            return;
+        }
+
+        base.OnFormClosing(e);
+    }
+
     private Control BuildLayout()
     {
         var root = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
             ColumnCount = 1,
-            RowCount = 5,
+            RowCount = 7,
             Padding = new Padding(14),
         };
         root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         root.RowStyles.Add(new RowStyle(SizeType.Percent, 35));
+        root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         root.RowStyles.Add(new RowStyle(SizeType.Percent, 65));
 
-        var title = new Label
-        {
-            Text = "GarmentsOS PRO Updater / Setup Launcher",
-            Font = new Font(Font.FontFamily, 14, FontStyle.Bold),
-            AutoSize = true,
-        };
-        root.Controls.Add(title);
+        root.Controls.Add(titleLabel);
 
-        var paths = new TableLayoutPanel { Dock = DockStyle.Top, ColumnCount = 2, AutoSize = true };
-        paths.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 120));
-        paths.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        paths.Controls.Add(new Label { Text = "Install folder", AutoSize = true, Anchor = AnchorStyles.Left }, 0, 0);
-        paths.Controls.Add(installDirBox, 1, 0);
-        paths.Controls.Add(new Label { Text = "Update feed URL", AutoSize = true, Anchor = AnchorStyles.Left }, 0, 1);
-        paths.Controls.Add(feedUrlBox, 1, 1);
-        root.Controls.Add(paths);
+        pathsPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 120));
+        pathsPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        pathsPanel.Controls.Add(new Label { Text = "Install folder", AutoSize = true, Anchor = AnchorStyles.Left }, 0, 0);
+        pathsPanel.Controls.Add(installDirBox, 1, 0);
+        pathsPanel.Controls.Add(new Label { Text = "Update feed URL", AutoSize = true, Anchor = AnchorStyles.Left }, 0, 1);
+        pathsPanel.Controls.Add(feedUrlBox, 1, 1);
+        root.Controls.Add(pathsPanel);
 
-        var status = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 4 };
-        status.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
-        status.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
-        status.Controls.Add(installedVersionLabel, 0, 0);
-        status.Controls.Add(appStatusLabel, 0, 1);
-        status.Controls.Add(dockerStatusLabel, 0, 2);
-        status.Controls.Add(latestVersionLabel, 1, 0);
-        status.Controls.Add(mandatoryLabel, 1, 1);
+        progressPanel.Controls.Add(BuildProgressPanel());
+        root.Controls.Add(progressPanel);
+
+        statusPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+        statusPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+        statusPanel.Controls.Add(installedVersionLabel, 0, 0);
+        statusPanel.Controls.Add(appStatusLabel, 0, 1);
+        statusPanel.Controls.Add(dockerStatusLabel, 0, 2);
+        statusPanel.Controls.Add(latestVersionLabel, 1, 0);
+        statusPanel.Controls.Add(mandatoryLabel, 1, 1);
         notesBox.Dock = DockStyle.Fill;
-        status.Controls.Add(notesBox, 0, 3);
-        status.SetColumnSpan(notesBox, 2);
-        root.Controls.Add(status);
+        statusPanel.Controls.Add(notesBox, 0, 3);
+        statusPanel.SetColumnSpan(notesBox, 2);
+        root.Controls.Add(statusPanel);
 
-        var buttons = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true, WrapContents = true };
-        AddButton(buttons, "Open App", async (_, _) => await OpenAppAsync());
-        AddButton(buttons, "Check Update", async (_, _) => await CheckUpdateAsync());
-        updateButton.Click += async (_, _) => await UpdateNowAsync();
-        buttons.Controls.Add(updateButton);
-        AddButton(buttons, "Open Request JSON", async (_, _) => await OpenRequestJsonAsync());
-        AddButton(buttons, "Backup", async (_, _) => await RunInstalledScriptAsync("scripts\\windows-docker-backup.ps1"));
-        AddButton(buttons, "Repair", async (_, _) => await RunPowerShellAsync("docker compose up -d", installDirBox.Text));
-        AddButton(buttons, "Stop Services", async (_, _) => await StopServicesAsync());
-        AddButton(buttons, "Open Install Folder", (_, _) => OpenFolder(installDirBox.Text));
-        AddButton(buttons, "Close", (_, _) => Close());
-        root.Controls.Add(buttons);
+        AddButton(buttonsPanel, "Open App", async (_, _) => await OpenAppAsync());
+        AddButton(buttonsPanel, "Check Update", async (_, _) => await CheckUpdateAsync());
+        updateButton.Click += async (_, _) => await UpdateNowAsync(requireConfirmation: true, closeAfterSuccess: false);
+        buttonsPanel.Controls.Add(updateButton);
+        AddButton(buttonsPanel, "Open Request JSON", async (_, _) => await OpenRequestJsonAsync());
+        AddButton(buttonsPanel, "Backup", async (_, _) => await RunInstalledScriptAsync("scripts\\windows-docker-backup.ps1"));
+        AddButton(buttonsPanel, "Repair", async (_, _) => await RunPowerShellAsync("docker compose up -d", installDirBox.Text));
+        AddButton(buttonsPanel, "Stop Services", async (_, _) => await StopServicesAsync());
+        AddButton(buttonsPanel, "Open Install Folder", (_, _) => OpenFolder(installDirBox.Text));
+        AddButton(buttonsPanel, "Close", (_, _) => Close());
+        root.Controls.Add(buttonsPanel);
+
+        AddButton(failureButtonsPanel, "Open Install Folder", (_, _) => OpenFolder(installDirBox.Text));
+        AddButton(failureButtonsPanel, "Save Log", (_, _) => SaveLog());
+        AddButton(failureButtonsPanel, "Close", (_, _) => Close());
+        root.Controls.Add(failureButtonsPanel);
 
         logBox.Dock = DockStyle.Fill;
         root.Controls.Add(logBox);
@@ -110,11 +140,97 @@ public sealed class MainForm : Form
         return root;
     }
 
+    private Control BuildProgressPanel()
+    {
+        var panel = new TableLayoutPanel { Dock = DockStyle.Top, ColumnCount = 1, AutoSize = true };
+        panel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        panel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        panel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+
+        var heading = new Label
+        {
+            Text = "Updating GarmentsOS PRO",
+            Font = new Font(Font.FontFamily, 16, FontStyle.Bold),
+            AutoSize = true,
+            Margin = new Padding(0, 0, 0, 8),
+        };
+        panel.Controls.Add(heading);
+
+        progressStatusLabel.Margin = new Padding(0, 0, 0, 8);
+        panel.Controls.Add(progressStatusLabel);
+
+        progressBar.Height = 22;
+        progressBar.Margin = new Padding(0, 0, 0, 8);
+        panel.Controls.Add(progressBar);
+
+        detailsButton.Click += (_, _) => ToggleDetails();
+        panel.Controls.Add(detailsButton);
+
+        return panel;
+    }
+
     private static void AddButton(Control parent, string text, EventHandler handler)
     {
         var button = new Button { Text = text, AutoSize = true, Margin = new Padding(4) };
         button.Click += handler;
         parent.Controls.Add(button);
+    }
+
+    private void EnterAutoUpdateMode()
+    {
+        autoUpdateMode = true;
+        criticalUpdateStep = false;
+        detailsExpanded = false;
+        Text = "GarmentsOS PRO Updating";
+        titleLabel.Text = "GarmentsOS PRO Updating";
+        pathsPanel.Visible = false;
+        statusPanel.Visible = false;
+        buttonsPanel.Visible = false;
+        progressPanel.Visible = true;
+        failureButtonsPanel.Visible = false;
+        logBox.Visible = false;
+        ControlBox = false;
+        SetStep("Preparing update", marquee: true);
+    }
+
+    private void ToggleDetails()
+    {
+        detailsExpanded = !detailsExpanded;
+        logBox.Visible = detailsExpanded || failureButtonsPanel.Visible;
+        detailsButton.Text = detailsExpanded ? "Hide Details" : "Details";
+    }
+
+    private void SetStep(string message, int? percent = null, bool marquee = false)
+    {
+        if (InvokeRequired)
+        {
+            BeginInvoke(() => SetStep(message, percent, marquee));
+            return;
+        }
+
+        progressStatusLabel.Text = message;
+        if (percent.HasValue)
+        {
+            progressBar.Style = ProgressBarStyle.Continuous;
+            progressBar.MarqueeAnimationSpeed = 0;
+            progressBar.Value = Math.Clamp(percent.Value, progressBar.Minimum, progressBar.Maximum);
+        }
+        else if (marquee)
+        {
+            progressBar.Style = ProgressBarStyle.Marquee;
+            progressBar.MarqueeAnimationSpeed = 35;
+        }
+    }
+
+    private void ShowFailureMode()
+    {
+        criticalUpdateStep = false;
+        ControlBox = true;
+        SetStep("Update failed", percent: 0);
+        failureButtonsPanel.Visible = true;
+        logBox.Visible = true;
+        detailsExpanded = true;
+        detailsButton.Text = "Hide Details";
     }
 
     private async Task RefreshStatusAsync()
@@ -208,14 +324,36 @@ public sealed class MainForm : Form
             return;
         }
 
-        Log("Launcher opened from garmentsos://update.");
         var request = QueryValue(uri.Query, "request");
+        var autoStart = string.Equals(QueryValue(uri.Query, "autoStart"), "1", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(QueryValue(uri.Query, "autostart"), "true", StringComparison.OrdinalIgnoreCase);
+
+        if (autoStart)
+        {
+            EnterAutoUpdateMode();
+            Log("Automatic update mode started from garmentsos://update.");
+        }
+        else
+        {
+            Log("Launcher opened from garmentsos://update.");
+        }
+
         if (string.IsNullOrWhiteSpace(request))
         {
+            if (autoStart)
+            {
+                ShowFailureMode();
+                Log("Update request was missing from protocol URL.");
+            }
             return;
         }
 
         await LoadRequestJsonReferenceAsync(request);
+
+        if (autoStart && currentFeed is not null)
+        {
+            await UpdateNowAsync(requireConfirmation: false, closeAfterSuccess: true);
+        }
     }
 
     private async Task LoadRequestJsonReferenceAsync(string reference)
@@ -229,6 +367,7 @@ public sealed class MainForm : Form
                 if (uri.Scheme.Equals("http", StringComparison.OrdinalIgnoreCase) ||
                     uri.Scheme.Equals("https", StringComparison.OrdinalIgnoreCase))
                 {
+                    SetStep("Preparing update", marquee: true);
                     Log("Loading update request JSON from URL...");
                     using var response = await http.GetAsync(uri);
                     response.EnsureSuccessStatusCode();
@@ -250,10 +389,18 @@ public sealed class MainForm : Form
             }
 
             Log("Update request reference was not a supported URL or existing local file.");
+            if (autoUpdateMode)
+            {
+                ShowFailureMode();
+            }
         }
         catch (Exception ex)
         {
             Log("Could not load protocol update request: " + ex.Message);
+            if (autoUpdateMode)
+            {
+                ShowFailureMode();
+            }
         }
     }
 
@@ -267,6 +414,13 @@ public sealed class MainForm : Form
     {
         var request = JsonSerializer.Deserialize<UpdateRequest>(json, jsonOptions)
             ?? throw new InvalidOperationException("Update request JSON could not be read.");
+
+        if (string.IsNullOrWhiteSpace(request.TargetVersion) ||
+            string.IsNullOrWhiteSpace(request.PackageUrl) ||
+            string.IsNullOrWhiteSpace(request.PackageSha256))
+        {
+            throw new InvalidOperationException("Update request is missing target_version, package_url, or package_sha256.");
+        }
 
         currentFeed = new ReleaseFeed
         {
@@ -284,12 +438,15 @@ public sealed class MainForm : Form
         notesBox.Text = currentFeed.Notes;
         updateButton.Enabled = !string.IsNullOrWhiteSpace(currentFeed.PackageUrl)
             && !string.IsNullOrWhiteSpace(currentFeed.PackageSha256);
-        Log("Update request is ready. Review details, then click Update Now.");
+
+        Log(autoUpdateMode
+            ? $"Update request loaded. Starting update to {currentFeed.Version}."
+            : "Update request is ready. Review details, then click Update Now.");
 
         return Task.CompletedTask;
     }
 
-    private async Task UpdateNowAsync()
+    private async Task UpdateNowAsync(bool requireConfirmation, bool closeAfterSuccess)
     {
         if (currentFeed is null)
         {
@@ -303,18 +460,26 @@ public sealed class MainForm : Form
             return;
         }
 
-        var confirm = MessageBox.Show(
-            "The Windows updater will apply this update outside the running app. Docker volumes, data, and backups are preserved by the update script.",
-            "Apply GarmentsOS PRO Update",
-            MessageBoxButtons.OKCancel,
-            MessageBoxIcon.Warning);
-
-        if (confirm != DialogResult.OK)
+        if (requireConfirmation)
         {
-            return;
+            var confirm = MessageBox.Show(
+                "The Windows updater will apply this update outside the running app. Docker volumes, data, and backups are preserved by the update script.",
+                "Apply GarmentsOS PRO Update",
+                MessageBoxButtons.OKCancel,
+                MessageBoxIcon.Warning);
+
+            if (confirm != DialogResult.OK)
+            {
+                return;
+            }
         }
 
         updateButton.Enabled = false;
+        criticalUpdateStep = true;
+        if (autoUpdateMode)
+        {
+            ControlBox = false;
+        }
 
         try
         {
@@ -322,9 +487,11 @@ public sealed class MainForm : Form
             Directory.CreateDirectory(workDir);
 
             var packagePath = Path.Combine(workDir, Path.GetFileName(new Uri(currentFeed.PackageUrl).LocalPath));
+            SetStep("Downloading update package", marquee: true);
             Log("Downloading update package...");
             await DownloadFileAsync(currentFeed.PackageUrl, packagePath);
 
+            SetStep("Verifying package", marquee: true);
             Log("Verifying package SHA256...");
             var actualSha = await ComputeSha256Async(packagePath);
             if (!actualSha.Equals(currentFeed.PackageSha256, StringComparison.OrdinalIgnoreCase))
@@ -332,6 +499,7 @@ public sealed class MainForm : Form
                 throw new InvalidOperationException($"SHA256 mismatch. Expected {currentFeed.PackageSha256}, got {actualSha}.");
             }
 
+            SetStep("Preparing update", marquee: true);
             var extractDir = Path.Combine(workDir, "extracted");
             Directory.CreateDirectory(extractDir);
             ExtractPackage(packagePath, extractDir);
@@ -344,18 +512,59 @@ public sealed class MainForm : Form
                 throw new FileNotFoundException("Update script not found in package.", script);
             }
 
-            await RunProcessAsync("powershell.exe",
+            SetStep("Creating backup", marquee: true);
+            await RunProcessAsync(
+                "powershell.exe",
                 $"-NoProfile -ExecutionPolicy Bypass -File \"{script}\" -InstallDir \"{installDirBox.Text.Trim()}\" -ReleaseDir \"{releaseDir}\"",
-                releaseDir);
+                releaseDir,
+                line =>
+                {
+                    if (line.Contains("backup", StringComparison.OrdinalIgnoreCase))
+                    {
+                        SetStep("Creating backup", marquee: true);
+                    }
+                    else if (line.Contains("docker load", StringComparison.OrdinalIgnoreCase) || line.Contains("Loaded image", StringComparison.OrdinalIgnoreCase))
+                    {
+                        SetStep("Applying update", marquee: true);
+                    }
+                    else if (line.Contains("compose", StringComparison.OrdinalIgnoreCase) || line.Contains("started", StringComparison.OrdinalIgnoreCase))
+                    {
+                        SetStep("Restarting services", marquee: true);
+                    }
+                });
 
+            SetStep("Opening app", percent: 95);
+            StartPendingLauncherReplacementHelper(installDirBox.Text.Trim());
             Log("Update complete. Opening app...");
             OpenUrl(AppUrl);
+            criticalUpdateStep = false;
+            ControlBox = true;
+            SetStep("Update complete", percent: 100);
             await RefreshStatusAsync();
+
+            if (closeAfterSuccess && !detailsExpanded)
+            {
+                var timer = new System.Windows.Forms.Timer { Interval = 4000 };
+                timer.Tick += (_, _) =>
+                {
+                    timer.Stop();
+                    Close();
+                };
+                timer.Start();
+            }
         }
         catch (Exception ex)
         {
             Log("Update failed: " + ex.Message);
             updateButton.Enabled = true;
+            if (autoUpdateMode)
+            {
+                ShowFailureMode();
+            }
+            else
+            {
+                criticalUpdateStep = false;
+            }
         }
     }
 
@@ -553,11 +762,25 @@ public sealed class MainForm : Form
         return process.ExitCode;
     }
 
-    private async Task RunProcessAsync(string fileName, string arguments, string workingDirectory)
+    private async Task RunProcessAsync(string fileName, string arguments, string workingDirectory, Action<string>? onOutput = null)
     {
         var process = StartProcess(fileName, arguments, workingDirectory);
-        process.OutputDataReceived += (_, e) => { if (e.Data is not null) Log(e.Data); };
-        process.ErrorDataReceived += (_, e) => { if (e.Data is not null) Log(e.Data); };
+        process.OutputDataReceived += (_, e) =>
+        {
+            if (e.Data is not null)
+            {
+                Log(e.Data);
+                onOutput?.Invoke(e.Data);
+            }
+        };
+        process.ErrorDataReceived += (_, e) =>
+        {
+            if (e.Data is not null)
+            {
+                Log(e.Data);
+                onOutput?.Invoke(e.Data);
+            }
+        };
         process.BeginOutputReadLine();
         process.BeginErrorReadLine();
         await process.WaitForExitAsync();
@@ -588,6 +811,83 @@ public sealed class MainForm : Form
         return process;
     }
 
+    private void StartPendingLauncherReplacementHelper(string installDir)
+    {
+        var markerPath = Path.Combine(installDir, ".pending-launcher-update.json");
+        if (!File.Exists(markerPath))
+        {
+            return;
+        }
+
+        try
+        {
+            var helperPath = Path.Combine(Path.GetTempPath(), "GarmentsOSPendingLauncherUpdate.ps1");
+            var script = """
+                param(
+                    [int]$ParentPid,
+                    [string]$MarkerPath
+                )
+
+                $ErrorActionPreference = "Stop"
+
+                try {
+                    Wait-Process -Id $ParentPid -ErrorAction SilentlyContinue
+                    Start-Sleep -Seconds 1
+
+                    if (-not (Test-Path -LiteralPath $MarkerPath)) {
+                        exit 0
+                    }
+
+                    $marker = Get-Content -LiteralPath $MarkerPath -Raw | ConvertFrom-Json
+                    Copy-Item -LiteralPath $marker.pending_path -Destination $marker.destination_path -Force
+                    Remove-Item -LiteralPath $marker.pending_path -Force -ErrorAction SilentlyContinue
+                    Remove-Item -LiteralPath $MarkerPath -Force -ErrorAction SilentlyContinue
+
+                    $launcher = $marker.destination_path
+                    $baseKey = [Microsoft.Win32.Registry]::CurrentUser.CreateSubKey("Software\Classes\garmentsos")
+                    $baseKey.SetValue("", "URL:GarmentsOS PRO Launcher")
+                    $baseKey.SetValue("URL Protocol", "")
+                    $baseKey.Close()
+
+                    $commandKey = [Microsoft.Win32.Registry]::CurrentUser.CreateSubKey("Software\Classes\garmentsos\shell\open\command")
+                    $commandKey.SetValue("", "`"$launcher`" `"%1`"")
+                    $commandKey.Close()
+                } catch {
+                    $logPath = Join-Path (Split-Path -Parent $MarkerPath) "pending-launcher-update.log"
+                    "[$(Get-Date -Format o)] $($_.Exception.Message)" | Add-Content -Path $logPath
+                }
+                """;
+            File.WriteAllText(helperPath, script, Encoding.UTF8);
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = "powershell.exe",
+                Arguments = $"-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File \"{helperPath}\" -ParentPid {Environment.ProcessId} -MarkerPath \"{markerPath}\"",
+                UseShellExecute = false,
+                CreateNoWindow = true,
+            });
+            Log("Pending launcher update helper started.");
+        }
+        catch (Exception ex)
+        {
+            Log("Could not start pending launcher replacement helper: " + ex.Message);
+        }
+    }
+
+    private void SaveLog()
+    {
+        using var dialog = new SaveFileDialog
+        {
+            Title = "Save GarmentsOS update log",
+            Filter = "Text files (*.txt)|*.txt|All files (*.*)|*.*",
+            FileName = "garmentsos-update-log.txt",
+        };
+
+        if (dialog.ShowDialog(this) == DialogResult.OK)
+        {
+            File.WriteAllText(dialog.FileName, logBox.Text);
+        }
+    }
+
     private static int VersionCompare(string left, string right)
     {
         return Version.TryParse(left, out var l) && Version.TryParse(right, out var r)
@@ -608,7 +908,7 @@ public sealed class MainForm : Form
             var parts = pair.Split('=', 2);
             if (parts.Length == 2 && string.Equals(Uri.UnescapeDataString(parts[0]), key, StringComparison.OrdinalIgnoreCase))
             {
-                return parts[1];
+                return Uri.UnescapeDataString(parts[1]);
             }
         }
 

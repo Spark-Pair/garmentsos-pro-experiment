@@ -168,7 +168,7 @@ class ReleaseFeedService
 
         return $this->result('launcher_handoff_prepared', 'Launcher handoff URL prepared.', [
             'success' => true,
-            'protocol_url' => $protocolUrl ? $protocolUrl . '?request=' . rawurlencode($signedUrl) : null,
+            'protocol_url' => $protocolUrl ? $protocolUrl . '?request=' . rawurlencode($signedUrl) . '&autoStart=1' : null,
             'signed_request_url' => $signedUrl,
             'expires_at' => $expiresAt->utc()->toIso8601String(),
         ]);

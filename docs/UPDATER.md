@@ -169,15 +169,17 @@ The release feed is the primary updater UI. Advanced signed-manifest apply is a 
 
 ## In-App Update Handoff
 
-Current safe flow:
+Primary user flow:
 
 ```text
-App detects update -> Update Now -> garmentsos://update?request=... -> Launcher loads details -> Update Now in launcher
+App detects update -> Update Now -> garmentsos://update?request=...&autoStart=1 -> updater splash opens -> update applies -> app reopens
 ```
 
 When the feed reports `update_available`, the Developer Updater page shows one main button: `Update Now`.
 
-The app creates a temporary signed update request URL that expires after `UPDATE_REQUEST_TTL_MINUTES` minutes, then passes that URL to the Windows launcher protocol. The signed route exposes update package metadata only and does not require the launcher to have browser session cookies.
+The app creates a temporary signed update request URL that expires after `UPDATE_REQUEST_TTL_MINUTES` minutes, then passes that URL to the Windows launcher protocol with `autoStart=1`. The web app click is the user confirmation. Laravel still does not apply the update; the Windows updater applies it outside the running app.
+
+After clicking `Update Now`, the app shows an update-started overlay. If Windows asks to open GarmentsOS PRO Updater, choose Open.
 
 Manual fallback is hidden under `Troubleshooting / Manual update`. Use it only if `Update Now` does not open the launcher. `Download Update Request` downloads a JSON handoff file from:
 
@@ -216,7 +218,7 @@ garmentsos://update
 Once the protocol is registered, the app hands off to the launcher with a URL such as:
 
 ```text
-garmentsos://update?request=<encoded update request URL>
+garmentsos://update?request=<encoded update request URL>&autoStart=1
 ```
 
 The signed request URL is generated from:
@@ -229,10 +231,12 @@ It uses Laravel's signed URL validation and expires automatically. Expired or ta
 
 Developer users also see a non-invasive in-app update banner when the feed status is `update_available`. The banner shows one primary `Update Now` action and a `Details` link. Feed failures are shown only on the Updater page.
 
-Fallback flow:
+Troubleshooting fallback flow:
 
 ```text
 Download Update Request -> Open GarmentsOS-PRO-Setup.exe -> Open Request JSON -> Update Now
 ```
+
+Use the fallback only if the protocol link does not open the updater. If an update fails, the updater shows details and troubleshooting actions instead of hiding the error.
 
 Local release commands remain available for developer testing only.

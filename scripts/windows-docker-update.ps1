@@ -99,6 +99,69 @@ function Register-GarmentsProtocol($TargetDir) {
     }
 }
 
+function Test-GarmentsFileLocked($Path) {
+    if (-not (Test-Path -LiteralPath $Path)) {
+        return $false
+    }
+
+    try {
+        $stream = [System.IO.File]::Open($Path, [System.IO.FileMode]::Open, [System.IO.FileAccess]::ReadWrite, [System.IO.FileShare]::None)
+        $stream.Close()
+        return $false
+    } catch {
+        return $true
+    }
+}
+
+function Stage-GarmentsLauncherUpdate($SourcePath, $DestinationPath, $TargetDir) {
+    $updatesDir = Join-Path $TargetDir "updates"
+    New-Item -ItemType Directory -Force -Path $updatesDir | Out-Null
+
+    $pendingPath = Join-Path $updatesDir "GarmentsOS-PRO-Setup.exe.pending"
+    Copy-Item -Force -LiteralPath $SourcePath -Destination $pendingPath
+
+    $markerPath = Join-Path $TargetDir ".pending-launcher-update.json"
+    $marker = [ordered]@{
+        app = "garmentsos-pro"
+        reason = "launcher_exe_locked"
+        pending_path = $pendingPath
+        destination_path = $DestinationPath
+        protocol = "garmentsos"
+        protocol_command = "`"$DestinationPath`" `"%1`""
+        staged_at = (Get-Date).ToUniversalTime().ToString("o")
+    }
+
+    $marker | ConvertTo-Json -Depth 4 | Set-Content -Path $markerPath -Encoding UTF8
+    Write-Warning "Launcher EXE is running; staged launcher update will be applied after updater exits."
+    Write-Host "Pending launcher update: $pendingPath"
+    Write-Host "Pending launcher marker: $markerPath"
+}
+
+function Copy-GarmentsLauncherSafely($SourcePath, $TargetDir) {
+    if (-not (Test-Path -LiteralPath $SourcePath)) {
+        return
+    }
+
+    $destinationPath = Join-Path $TargetDir "GarmentsOS-PRO-Setup.exe"
+
+    try {
+        if (Test-GarmentsFileLocked $destinationPath) {
+            Stage-GarmentsLauncherUpdate $SourcePath $destinationPath $TargetDir
+            return
+        }
+
+        Copy-Item -Force -LiteralPath $SourcePath -Destination $destinationPath
+        Write-Host "Installed GUI launcher: $destinationPath"
+    } catch {
+        Write-Warning "Could not update GUI launcher now. $($_.Exception.Message)"
+        try {
+            Stage-GarmentsLauncherUpdate $SourcePath $destinationPath $TargetDir
+        } catch {
+            Write-Warning "Could not stage GUI launcher update. $($_.Exception.Message)"
+        }
+    }
+}
+
 function Set-EnvLine($Content, $Name, $Value) {
     $pattern = "(?m)^" + [regex]::Escape($Name) + "=.*$"
     $line = "$Name=$Value"
@@ -149,10 +212,9 @@ Copy-Item -Recurse -Force (Join-Path $ReleaseDir "images") $InstallDir
 Copy-Item -Recurse -Force (Join-Path $ReleaseDir "checksums") $InstallDir
 Copy-Item -Force (Join-Path $ReleaseDir "manifest.json") $InstallDir
 if (Test-Path (Join-Path $ReleaseDir "GarmentsOS-PRO-Setup.exe")) {
-    Copy-Item -Force (Join-Path $ReleaseDir "GarmentsOS-PRO-Setup.exe") $InstallDir
-}
-if (Test-Path (Join-Path $ReleaseDir "GarmentsOS PRO Launcher.exe")) {
-    Copy-Item -Force (Join-Path $ReleaseDir "GarmentsOS PRO Launcher.exe") $InstallDir
+    Copy-GarmentsLauncherSafely (Join-Path $ReleaseDir "GarmentsOS-PRO-Setup.exe") $InstallDir
+} elseif (Test-Path (Join-Path $ReleaseDir "GarmentsOS PRO Launcher.exe")) {
+    Copy-GarmentsLauncherSafely (Join-Path $ReleaseDir "GarmentsOS PRO Launcher.exe") $InstallDir
 }
 if (Test-Path (Join-Path $ReleaseDir "launcher")) {
     Copy-Item -Recurse -Force (Join-Path $ReleaseDir "launcher") $InstallDir
@@ -160,7 +222,7 @@ if (Test-Path (Join-Path $ReleaseDir "launcher")) {
 $installedSetupLauncher = Join-Path $InstallDir "GarmentsOS-PRO-Setup.exe"
 $installedNestedLauncher = Join-Path $InstallDir "launcher\GarmentsOS PRO Launcher.exe"
 if (-not (Test-Path $installedSetupLauncher) -and (Test-Path $installedNestedLauncher)) {
-    Copy-Item -Force $installedNestedLauncher $installedSetupLauncher
+    Copy-GarmentsLauncherSafely $installedNestedLauncher $InstallDir
 }
 Copy-RootLaunchers $ReleaseDir $InstallDir
 

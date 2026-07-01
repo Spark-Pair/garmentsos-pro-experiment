@@ -123,12 +123,12 @@
 
             @if ($updateAvailable)
                 <div class="mt-5 rounded-lg border border-[var(--border-warning)] bg-[var(--bg-warning)] p-4 text-sm text-[var(--text-warning)]">
-                    This opens GarmentsOS PRO Launcher. You will review and confirm before the update is applied.
+                    This opens GarmentsOS PRO Updater. Your Update Now click confirms the update; the Windows updater applies it outside the running app.
                 </div>
 
                 <div class="mt-4 flex flex-wrap items-center gap-3">
                     @if ($launcherUpdateUrl)
-                        <a href="{{ $launcherUpdateUrl }}" class="{{ $primaryButton }}">
+                        <a href="{{ $launcherUpdateUrl }}" class="{{ $primaryButton }} js-update-handoff">
                             Update Now
                         </a>
                     @else
