@@ -172,12 +172,14 @@ The release feed is the primary updater UI. Advanced signed-manifest apply is a 
 Current safe flow:
 
 ```text
-App detects update -> Download update request JSON -> Open GarmentsOS-PRO-Setup.exe -> Open Request JSON -> Update Now
+App detects update -> Update with Windows Launcher -> garmentsos://update?request=... -> Launcher loads details -> Update Now
 ```
 
-When the feed reports `update_available`, the Developer Updater page shows `Download Update Request`.
+When the feed reports `update_available`, the Developer Updater page shows `Update with Windows Launcher`.
 
-`Download Update Request` downloads a JSON handoff file from:
+The app creates a temporary signed update request URL that expires after `UPDATE_REQUEST_TTL_MINUTES` minutes, then passes that URL to the Windows launcher protocol. The signed route exposes update package metadata only and does not require the launcher to have browser session cookies.
+
+Manual fallback remains available through `Download Update Request`, which downloads a JSON handoff file from:
 
 ```text
 /developer/updater/update-request
@@ -211,20 +213,26 @@ The current launcher supports opening this JSON manually. A later Windows instal
 garmentsos://update
 ```
 
-Once the protocol is registered, the app can hand off to the launcher with a URL such as:
+Once the protocol is registered, the app hands off to the launcher with a URL such as:
 
 ```text
 garmentsos://update?request=<encoded update request URL>
 ```
 
-Current app UI uses:
+The signed request URL is generated from:
 
 ```text
-garmentsos://update
+/developer/updater/update-request/signed
 ```
 
-The authenticated browser still downloads `garmentsos-update-request.json`; the user opens that file in the launcher with `Open Request JSON`. Passing an app request URL to the external launcher will be enabled only when the request URL can be consumed safely without browser session cookies.
+It uses Laravel's signed URL validation and expires automatically. Expired or tampered URLs fail before returning JSON.
 
-Developer users also see a non-invasive in-app update banner when the feed status is `update_available`. The banner links to the Developer Updater page and to the safe `Download Update Request` handoff JSON. Feed failures are shown only on the Updater page.
+Developer users also see a non-invasive in-app update banner when the feed status is `update_available`. The banner links to the Windows launcher handoff and the Developer Updater page. Feed failures are shown only on the Updater page.
+
+Fallback flow:
+
+```text
+Download Update Request -> Open GarmentsOS-PRO-Setup.exe -> Open Request JSON -> Update Now
+```
 
 Local release commands remain available for developer testing only.

@@ -4,6 +4,7 @@ namespace App\Services\Updater;
 
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\URL;
 
 class ReleaseFeedService
 {
@@ -116,9 +117,9 @@ class ReleaseFeedService
         ]);
     }
 
-    public function prepareUpdateRequest(): array
+    public function prepareUpdateRequest(?array $status = null): array
     {
-        $status = $this->checkConfigured();
+        $status ??= $this->checkConfigured();
 
         if (empty($status['update_available']) || empty($status['feed'])) {
             return $this->result('update_not_available', 'No update is available to prepare.', [
@@ -147,6 +148,29 @@ class ReleaseFeedService
                 'apply_method' => 'windows-launcher-required',
                 'launcher_protocol_url' => $this->launcherProtocolUrl(),
             ],
+        ]);
+    }
+
+    public function launcherHandoff(?array $status = null): array
+    {
+        $status ??= $this->checkConfigured();
+
+        if (empty($status['update_available']) || empty($status['feed'])) {
+            return $this->result('update_not_available', 'No update is available for launcher handoff.', [
+                'success' => false,
+                'feed_status' => $status['code'] ?? 'unknown',
+            ]);
+        }
+
+        $expiresAt = now()->addMinutes(max(1, (int) config('updater.update_request_ttl_minutes', 10)));
+        $signedUrl = URL::temporarySignedRoute('developer.updater.update-request.signed', $expiresAt);
+        $protocolUrl = $this->launcherProtocolUrl();
+
+        return $this->result('launcher_handoff_prepared', 'Launcher handoff URL prepared.', [
+            'success' => true,
+            'protocol_url' => $protocolUrl ? $protocolUrl . '?request=' . rawurlencode($signedUrl) : null,
+            'signed_request_url' => $signedUrl,
+            'expires_at' => $expiresAt->utc()->toIso8601String(),
         ]);
     }
 

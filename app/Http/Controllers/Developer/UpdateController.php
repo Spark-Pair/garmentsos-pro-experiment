@@ -20,6 +20,9 @@ class UpdateController extends Controller
 
         $feedUrl = (string) config('updater.feed_url', '');
 
+        $releaseFeedStatus = $releaseFeed->checkConfigured();
+        $launcherHandoff = $releaseFeed->launcherHandoff($releaseFeedStatus);
+
         return view('developer.updater.index', [
             'enabled' => (bool) config('updater.enabled', false),
             'currentVersion' => $versions->currentVersion(),
@@ -34,8 +37,9 @@ class UpdateController extends Controller
             'channel' => config('updater.channel', 'stable'),
             'updateFeedUrl' => $feedUrl,
             'updateFeedUrlConfigured' => $feedUrl !== '',
-            'releaseFeedStatus' => $releaseFeed->checkConfigured(),
+            'releaseFeedStatus' => $releaseFeedStatus,
             'launcherProtocolUrl' => $releaseFeed->launcherProtocolUrl(),
+            'launcherHandoff' => $launcherHandoff,
             'manifestUrlConfigured' => (string) config('updater.manifest_url', '') !== '',
             'installedManifestConfigured' => $versions->manifestConfigured(),
             'signatureRequired' => (bool) config('updater.require_signature', true),
@@ -99,5 +103,30 @@ class UpdateController extends Controller
         return response()
             ->json($payload, $status)
             ->header('Content-Disposition', 'attachment; filename="garmentsos-update-request.json"');
+    }
+
+    public function signedUpdateRequest(ReleaseFeedService $releaseFeed): JsonResponse
+    {
+        $result = $releaseFeed->prepareUpdateRequest();
+        $payload = $result['request'] ?? [
+            'app' => config('updater.app_id', 'garmentsos-pro'),
+            'error' => $result['code'] ?? 'update_request_unavailable',
+            'message' => $result['message'] ?? 'Update request is not available.',
+            'requested_at' => now()->utc()->toIso8601String(),
+            'apply_method' => 'windows-launcher-required',
+        ];
+
+        return response()->json($payload, !empty($result['success']) ? 200 : 409);
+    }
+
+    public function launcherHandoff(ReleaseFeedService $releaseFeed): JsonResponse
+    {
+        if ($resp = $this->denyIfNoRole(['developer', 'admin'])) {
+            abort(403);
+        }
+
+        $result = $releaseFeed->launcherHandoff();
+
+        return response()->json($result, !empty($result['success']) ? 200 : 409);
     }
 }

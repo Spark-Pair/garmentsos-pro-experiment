@@ -21,7 +21,7 @@
             && !str_starts_with($setupUrl, 'PLACEHOLDER_')
             && filter_var($setupUrl, FILTER_VALIDATE_URL);
         $requestUrl = route('developer.updater.update-request');
-        $launcherUpdateUrl = $launcherProtocolUrl;
+        $launcherUpdateUrl = $launcherHandoff['protocol_url'] ?? null;
         $statusClass = $updateAvailable
             ? 'border-[var(--border-warning)] bg-[var(--bg-warning)] text-[var(--text-warning)]'
             : ($upToDate
@@ -123,11 +123,20 @@
 
             @if ($updateAvailable)
                 <div class="mt-5 rounded-lg border border-[var(--border-warning)] bg-[var(--bg-warning)] p-4 text-sm text-[var(--text-warning)]">
-                    Download the update request JSON, then open GarmentsOS-PRO-Setup.exe and choose Open Request JSON. The launcher verifies and applies the update from Windows.
+                    Click Update with Windows Launcher to open GarmentsOS PRO Launcher with a temporary signed update request. The launcher shows details first; it will not apply until you click Update Now.
                 </div>
 
                 <div class="mt-4 flex flex-wrap items-center gap-3">
-                    <a href="{{ $requestUrl }}" class="{{ $primaryButton }}">
+                    @if ($launcherUpdateUrl)
+                        <a href="{{ $launcherUpdateUrl }}" class="{{ $primaryButton }}">
+                            Update with Windows Launcher
+                        </a>
+                    @else
+                        <span class="text-xs text-[var(--secondary-text)]">
+                            Install/open GarmentsOS-PRO-Setup.exe once to enable app-to-launcher handoff.
+                        </span>
+                    @endif
+                    <a href="{{ $requestUrl }}" class="{{ $secondaryButton }}">
                         Download Update Request
                     </a>
                     @if ($setupUrlAvailable)
@@ -135,15 +144,10 @@
                             Download Windows Updater
                         </a>
                     @endif
-                    @if ($launcherUpdateUrl)
-                        <a href="{{ $launcherUpdateUrl }}" class="{{ $secondaryButton }}">
-                            Open GarmentsOS Launcher
-                        </a>
-                    @endif
                 </div>
-                @if ($launcherProtocolUrl)
+                @if (!empty($launcherHandoff['expires_at']))
                     <p class="mt-3 text-xs text-[var(--secondary-text)]">
-                        Protocol handoff is configured as `{{ $launcherProtocolUrl }}`. It requires Windows launcher protocol registration on the client machine.
+                        The signed launcher request expires at {{ $launcherHandoff['expires_at'] }}. Protocol handoff requires garmentsos:// registration on the client machine.
                     </p>
                 @endif
             @endif

@@ -66,6 +66,10 @@ Route::get('subscription-expired', function () {
     return view('subscription-expired'); // ya controller agar chahiye
 })->name('subscription-expired');
 
+Route::middleware(['setup.complete', 'signed'])->group(function () {
+    Route::get('developer/updater/update-request/signed', [UpdateController::class, 'signedUpdateRequest'])->name('developer.updater.update-request.signed');
+});
+
 Route::group(['middleware' => ['setup.complete', 'auth', 'activeSession', 'ensureLicense', 'readonly']], function () {
     Route::get('/backup-db', [BackupController::class, 'legacyDownload'])->name('backup-db');
     Route::get('developer/backups', [BackupController::class, 'index'])->name('developer.backups');
@@ -76,6 +80,7 @@ Route::group(['middleware' => ['setup.complete', 'auth', 'activeSession', 'ensur
     Route::post('developer/backups/{backupLog}/restore', [RestoreController::class, 'store'])->name('developer.backups.restore.store');
     Route::get('developer/updater', [UpdateController::class, 'index'])->name('developer.updater');
     Route::get('developer/updater/update-request', [UpdateController::class, 'updateRequest'])->name('developer.updater.update-request');
+    Route::get('developer/updater/launcher-handoff', [UpdateController::class, 'launcherHandoff'])->name('developer.updater.launcher-handoff');
     Route::post('developer/updater/check', [UpdateController::class, 'check'])->name('developer.updater.check');
     Route::post('developer/updater/apply', [UpdateController::class, 'apply'])->name('developer.updater.apply');
 });

@@ -49,7 +49,15 @@ The PowerShell updater preserves Docker volumes, client data, backups, and `.env
 
 ## In-App Handoff
 
-From the Developer Updater page, click `Download Update Request` when an update is available. This downloads:
+From the Developer Updater page, click `Update with Windows Launcher` when an update is available. The browser opens:
+
+```text
+garmentsos://update?request=<encoded signed request URL>
+```
+
+The launcher opens, downloads the temporary signed request JSON, and displays the update details. It does not apply the update until the user clicks `Update Now`.
+
+Manual fallback: click `Download Update Request`. This downloads:
 
 ```text
 garmentsos-update-request.json
@@ -57,7 +65,7 @@ garmentsos-update-request.json
 
 Open that file in the launcher with `Open Request JSON`, review the version/package details, then click `Update Now`.
 
-Future protocol handoff:
+Protocol handoff:
 
 ```text
 garmentsos://update
@@ -77,7 +85,7 @@ HKCU\Software\Classes\garmentsos\shell\open\command
 
 The command target can also be `GarmentsOS PRO Launcher.exe` when that is the installed GUI launcher path.
 
-When opened with `garmentsos://update`, the launcher opens normally and focuses the update flow. When opened with `garmentsos://update?request=<encoded-url-or-path>`, it attempts to load that request JSON from a local path, `file://` URL, or `http/https` URL. It never auto-applies the update; the user must review details and click `Update Now`.
+When opened with `garmentsos://update`, the launcher opens normally and focuses the update flow. When opened with `garmentsos://update?request=<encoded-url-or-path>`, it attempts to load that request JSON from a local path, `file://` URL, or `http/https` URL. If loading fails, the user can still choose `Open Request JSON`. It never auto-applies the update; the user must review details and click `Update Now`.
 
 ## Developer Build
 
