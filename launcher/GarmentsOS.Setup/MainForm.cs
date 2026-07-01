@@ -324,14 +324,16 @@ public sealed class MainForm : Form
             return;
         }
 
-        var request = QueryValue(uri.Query, "request");
-        var autoStart = string.Equals(QueryValue(uri.Query, "autoStart"), "1", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(QueryValue(uri.Query, "autostart"), "true", StringComparison.OrdinalIgnoreCase);
+        var query = ProtocolQuery(startupArgument, uri.Query);
+        var request = QueryValue(query, "request");
+        var autoStart = IsTruthy(QueryValue(query, "autoStart"))
+            || IsTruthy(QueryValue(query, "autostart"))
+            || IsTruthy(QueryValue(query, "auto"));
 
         if (autoStart)
         {
             EnterAutoUpdateMode();
-            Log("Automatic update mode started from garmentsos://update.");
+            Log("Launcher opened from garmentsos://update auto-start mode.");
         }
         else
         {
@@ -348,6 +350,7 @@ public sealed class MainForm : Form
             return;
         }
 
+        currentFeed = null;
         await LoadRequestJsonReferenceAsync(request);
 
         if (autoStart && currentFeed is not null)
@@ -893,6 +896,28 @@ public sealed class MainForm : Form
         return Version.TryParse(left, out var l) && Version.TryParse(right, out var r)
             ? l.CompareTo(r)
             : string.Compare(left, right, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsTruthy(string? value)
+    {
+        return string.Equals(value, "1", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(value, "true", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(value, "yes", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(value, "on", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string ProtocolQuery(string rawArgument, string parsedQuery)
+    {
+        var questionIndex = rawArgument.IndexOf('?');
+        if (questionIndex < 0 || questionIndex == rawArgument.Length - 1)
+        {
+            return parsedQuery;
+        }
+
+        return rawArgument[(questionIndex + 1)..]
+            .Trim()
+            .Trim('"')
+            .Replace("&amp;", "&", StringComparison.OrdinalIgnoreCase);
     }
 
     private static string? QueryValue(string query, string key)
