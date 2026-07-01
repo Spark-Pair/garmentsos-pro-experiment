@@ -591,7 +591,7 @@ public sealed class MainForm : Form
         return null;
     }
 
-    private void EnterAutoUpdateMode()    private void EnterAutoUpdateMode()
+    private void EnterAutoUpdateMode()
     {
         autoUpdateMode = true;
         criticalUpdateStep = false;
@@ -604,7 +604,7 @@ public sealed class MainForm : Form
         SetStep("Preparing update", marquee: true);
     }
 
-    private void ToggleDetails()    private void ToggleDetails()
+    private void ToggleDetails()
     {
         detailsExpanded = !detailsExpanded;
         logBox.Visible = detailsExpanded || failureButtonsPanel.Visible;
