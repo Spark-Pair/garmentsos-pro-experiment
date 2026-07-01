@@ -134,15 +134,39 @@ class ReleaseFeedService
             'success' => true,
             'request' => [
                 'app' => config('updater.app_id', 'garmentsos-pro'),
+                'current_version' => $status['current_version'] ?? $this->versions->currentVersion(),
                 'target_version' => $feed['version'],
+                'channel' => $feed['channel'],
+                'package_file' => $feed['package_file'],
                 'package_url' => $feed['package_url'],
                 'package_sha256' => $feed['package_sha256'],
+                'setup_url' => $this->validSetupUrl($feed['setup_url']) ? $feed['setup_url'] : null,
                 'mandatory' => (bool) $feed['mandatory'],
+                'notes' => $feed['notes'],
                 'requested_at' => now()->utc()->toIso8601String(),
                 'apply_method' => 'windows-launcher-required',
-                'notes' => $feed['notes'],
+                'launcher_protocol_url' => $this->launcherProtocolUrl(),
             ],
         ]);
+    }
+
+    public function validSetupUrl(?string $url): bool
+    {
+        $url = trim((string) $url);
+
+        return $url !== ''
+            && !str_starts_with($url, 'PLACEHOLDER_')
+            && filter_var($url, FILTER_VALIDATE_URL) !== false;
+    }
+
+    public function launcherProtocolUrl(): ?string
+    {
+        $protocol = trim((string) config('updater.launcher_protocol', ''));
+        if ($protocol === '') {
+            return null;
+        }
+
+        return rtrim($protocol, ':\\/') . '://update';
     }
 
     protected function invalidFeed(string $feedUrl, string $currentVersion, string $message): array

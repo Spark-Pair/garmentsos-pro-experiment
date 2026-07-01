@@ -48,9 +48,19 @@ function New-GarmentsShortcut($ShortcutPath, $TargetPath, $WorkingDirectory) {
 }
 
 function Install-GarmentsShortcuts($TargetDir) {
+    $setupLauncher = Join-Path $TargetDir "GarmentsOS-PRO-Setup.exe"
+    $rootGuiLauncher = Join-Path $TargetDir "GarmentsOS PRO Launcher.exe"
     $guiLauncher = Join-Path $TargetDir "launcher\GarmentsOS PRO Launcher.exe"
     $openLauncher = Join-Path $TargetDir "Open GarmentsOS.bat"
-    $shortcutTarget = if (Test-Path $guiLauncher) { $guiLauncher } else { $openLauncher }
+    $shortcutTarget = if (Test-Path $setupLauncher) {
+        $setupLauncher
+    } elseif (Test-Path $rootGuiLauncher) {
+        $rootGuiLauncher
+    } elseif (Test-Path $guiLauncher) {
+        $guiLauncher
+    } else {
+        $openLauncher
+    }
 
     if (-not (Test-Path $shortcutTarget)) {
         Write-Warning "GarmentsOS launcher was not found. Shortcuts were not created."
@@ -75,6 +85,46 @@ function Install-GarmentsShortcuts($TargetDir) {
         }
     } catch {
         Write-Warning "Could not create Start Menu shortcut. $($_.Exception.Message)"
+    }
+}
+
+function Resolve-GarmentsGuiLauncher($TargetDir) {
+    $candidates = @(
+        (Join-Path $TargetDir "GarmentsOS-PRO-Setup.exe"),
+        (Join-Path $TargetDir "GarmentsOS PRO Launcher.exe"),
+        (Join-Path $TargetDir "launcher\GarmentsOS-PRO-Setup.exe"),
+        (Join-Path $TargetDir "launcher\GarmentsOS PRO Launcher.exe")
+    )
+
+    foreach ($candidate in $candidates) {
+        if (Test-Path $candidate) {
+            return $candidate
+        }
+    }
+
+    return $null
+}
+
+function Register-GarmentsProtocol($TargetDir) {
+    $launcher = Resolve-GarmentsGuiLauncher $TargetDir
+    if ([string]::IsNullOrWhiteSpace($launcher)) {
+        Write-Warning "GarmentsOS GUI launcher was not found. garmentsos:// protocol was not registered."
+        return
+    }
+
+    try {
+        $baseKey = [Microsoft.Win32.Registry]::CurrentUser.CreateSubKey("Software\Classes\garmentsos")
+        $baseKey.SetValue("", "URL:GarmentsOS PRO Launcher")
+        $baseKey.SetValue("URL Protocol", "")
+        $baseKey.Close()
+
+        $commandKey = [Microsoft.Win32.Registry]::CurrentUser.CreateSubKey("Software\Classes\garmentsos\shell\open\command")
+        $commandKey.SetValue("", "`"$launcher`" `"%1`"")
+        $commandKey.Close()
+
+        Write-Host "Registered garmentsos:// protocol for: $launcher"
+    } catch {
+        Write-Warning "Could not register garmentsos:// protocol. $($_.Exception.Message)"
     }
 }
 
@@ -138,8 +188,19 @@ Copy-Item -Recurse -Force (Join-Path $Source "docs") $InstallDir
 Copy-Item -Recurse -Force (Join-Path $Source "images") $InstallDir
 Copy-Item -Recurse -Force (Join-Path $Source "checksums") $InstallDir
 Copy-Item -Force (Join-Path $Source "manifest.json") $InstallDir
+if (Test-Path (Join-Path $Source "GarmentsOS-PRO-Setup.exe")) {
+    Copy-Item -Force (Join-Path $Source "GarmentsOS-PRO-Setup.exe") $InstallDir
+}
+if (Test-Path (Join-Path $Source "GarmentsOS PRO Launcher.exe")) {
+    Copy-Item -Force (Join-Path $Source "GarmentsOS PRO Launcher.exe") $InstallDir
+}
 if (Test-Path (Join-Path $Source "launcher")) {
     Copy-Item -Recurse -Force (Join-Path $Source "launcher") $InstallDir
+}
+$installedSetupLauncher = Join-Path $InstallDir "GarmentsOS-PRO-Setup.exe"
+$installedNestedLauncher = Join-Path $InstallDir "launcher\GarmentsOS PRO Launcher.exe"
+if (-not (Test-Path $installedSetupLauncher) -and (Test-Path $installedNestedLauncher)) {
+    Copy-Item -Force $installedNestedLauncher $installedSetupLauncher
 }
 Copy-RootLaunchers $Source $InstallDir
 
@@ -195,6 +256,7 @@ $envContent = Set-EnvLine $envContent "RUN_MIGRATIONS_ON_START" "false"
 Set-Content -Path $EnvPath -Value $envContent -Encoding UTF8
 
 Install-GarmentsShortcuts $InstallDir
+Register-GarmentsProtocol $InstallDir
 if ($HideTechnicalFiles) {
     Hide-GarmentsTechnicalFiles $InstallDir
 } else {

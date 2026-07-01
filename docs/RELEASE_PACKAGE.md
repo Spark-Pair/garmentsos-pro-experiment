@@ -48,6 +48,8 @@ UPDATE_FEED_URL=https://github.com/Spark-Pair/garmentsos-pro-experiment/releases
 
 The moving channel file still points `package_url` at the immutable `vVERSION` package asset.
 
+If the feed includes a real `setup_url`, the Developer Updater page shows a `Download Windows Updater` button. Placeholder setup URLs are hidden from the UI.
+
 Expected release assets:
 
 - `GarmentsOS-PRO-Setup.exe`

@@ -561,7 +561,7 @@
                     <div class="mb-4 rounded-lg border border-[var(--border-warning)] bg-[var(--bg-warning)] px-4 py-3 text-sm text-[var(--text-warning)]">
                         <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                             <div>
-                                <strong>New update available: {{ $developerUpdateStatus['latest_version'] ?? ($developerUpdateStatus['feed']['version'] ?? 'latest') }}</strong>
+                                <strong>New GarmentsOS PRO update available: {{ $developerUpdateStatus['latest_version'] ?? ($developerUpdateStatus['feed']['version'] ?? 'latest') }}</strong>
                                 <div class="mt-1 text-xs">
                                     Laravel will prepare the update handoff only. The Windows launcher applies the update outside the running app.
                                 </div>
@@ -571,7 +571,7 @@
                                     Open Updater
                                 </a>
                                 <a href="{{ route('developer.updater.update-request') }}" class="rounded-lg border border-[var(--border-warning)] bg-[var(--h-bg-warning)] px-3 py-2 text-xs font-semibold text-[var(--text-warning)]">
-                                    Prepare Update
+                                    Download Update Request
                                 </a>
                             </div>
                         </div>

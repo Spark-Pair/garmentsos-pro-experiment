@@ -4,6 +4,7 @@ return [
     'enabled' => env('UPDATER_ENABLED', false),
     'feed_url' => env('UPDATE_FEED_URL', env('UPDATER_MANIFEST_URL', 'https://updates.sparkpair.dev/garmentsos-pro/stable/latest.json')),
     'feed_timeout' => env('UPDATE_FEED_TIMEOUT', 8),
+    'launcher_protocol' => env('UPDATE_LAUNCHER_PROTOCOL', 'garmentsos'),
     'manifest_url' => env('UPDATER_MANIFEST_URL', env('UPDATE_FEED_URL', '')),
     'public_key' => env('UPDATER_PUBLIC_KEY', ''),
     'channel' => env('UPDATE_CHANNEL', env('UPDATER_CHANNEL', 'stable')),

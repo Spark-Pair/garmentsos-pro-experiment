@@ -10,8 +10,9 @@ The updater is disabled by default:
 
 ```text
 UPDATER_ENABLED=false
-UPDATE_FEED_URL=https://github.com/Spark-Pair/garmentsos-pro-experiment/releases/download/latest-stable/latest.json
+UPDATE_FEED_URL=https://updates.sparkpair.dev/garmentsos-pro/stable/latest.json
 UPDATE_CHANNEL=stable
+UPDATE_LAUNCHER_PROTOCOL=garmentsos
 ```
 
 No automatic update checks or automatic update apply actions are enabled for normal users.
@@ -152,22 +153,31 @@ UPDATE_FEED_URL=https://updates.sparkpair.dev/garmentsos-pro/stable/latest.json
 
 The workflow still publishes `latest.json` to `latest-stable`, `latest-beta`, and `latest-dev` for audit and for public repos, but private repo asset URLs are not a reliable client feed.
 
-The installed app can point at the published feed with:
+The installed app can point at the public published feed with:
 
 ```env
-UPDATE_FEED_URL=https://github.com/Spark-Pair/garmentsos-pro-experiment/releases/download/latest-stable/latest.json
+UPDATE_FEED_URL=https://updates.sparkpair.dev/garmentsos-pro/stable/latest.json
 UPDATE_CHANNEL=stable
+UPDATE_LAUNCHER_PROTOCOL=garmentsos
 ```
 
 The Developer Updater page fetches this feed read-only, validates the basic JSON contract, compares the installed/current version with `version`, and displays whether an update is available. If GitHub or the internet is unreachable, the page shows `feed_unreachable` instead of crashing. If the HTTP status is `404`, the page explains that private GitHub release assets need a public update feed URL or SparkPair update server.
 
 This feed display does not directly apply updates from Laravel. Actual client update application is handled by the Windows GUI launcher/package flow.
 
+The release feed is the primary updater UI. Advanced signed-manifest apply is a separate security/apply foundation and is shown as a secondary advanced section. It can remain unconfigured while release feed checks and Windows launcher updates continue to work.
+
 ## In-App Update Handoff
 
-When the feed reports `update_available`, the Developer Updater page shows `Prepare Update`.
+Current safe flow:
 
-`Prepare Update` downloads a JSON handoff file from:
+```text
+App detects update -> Download update request JSON -> Open GarmentsOS-PRO-Setup.exe -> Open Request JSON -> Update Now
+```
+
+When the feed reports `update_available`, the Developer Updater page shows `Download Update Request`.
+
+`Download Update Request` downloads a JSON handoff file from:
 
 ```text
 /developer/updater/update-request
@@ -178,20 +188,43 @@ The response contains:
 ```json
 {
   "app": "garmentsos-pro",
+  "current_version": "1.8.18",
   "target_version": "1.8.14",
+  "channel": "stable",
+  "package_file": "garmentsos-pro-1.8.14.zip",
   "package_url": "https://github.com/OWNER/REPO/releases/download/v1.8.14/garmentsos-pro-1.8.14.zip",
   "package_sha256": "...",
+  "setup_url": "https://updates.sparkpair.dev/garmentsos-pro/stable/GarmentsOS-PRO-Setup.exe",
   "mandatory": false,
+  "notes": "Release notes",
   "requested_at": "2026-06-30T00:00:00Z",
   "apply_method": "windows-launcher-required",
-  "notes": "Release notes"
+  "launcher_protocol_url": "garmentsos://update"
 }
 ```
 
 Laravel still does not load Docker images, restart containers, or replace the running app. The JSON file is a safe handoff for the Windows GUI launcher/updater.
 
-The current launcher supports opening this JSON manually. A later launcher protocol/agent can remove that file-selection step.
+The current launcher supports opening this JSON manually. A later Windows installer/launcher phase should register the custom protocol:
 
-Developer users also see a non-invasive in-app update banner when the feed status is `update_available`. The banner links to the Developer Updater page and to the safe `Prepare Update` handoff JSON. Feed failures are shown only on the Updater page.
+```text
+garmentsos://update
+```
+
+Once the protocol is registered, the app can hand off to the launcher with a URL such as:
+
+```text
+garmentsos://update?request=<encoded update request URL>
+```
+
+Current app UI uses:
+
+```text
+garmentsos://update
+```
+
+The authenticated browser still downloads `garmentsos-update-request.json`; the user opens that file in the launcher with `Open Request JSON`. Passing an app request URL to the external launcher will be enabled only when the request URL can be consumed safely without browser session cookies.
+
+Developer users also see a non-invasive in-app update banner when the feed status is `update_available`. The banner links to the Developer Updater page and to the safe `Download Update Request` handoff JSON. Feed failures are shown only on the Updater page.
 
 Local release commands remain available for developer testing only.

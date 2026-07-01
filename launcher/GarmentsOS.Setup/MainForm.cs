@@ -25,10 +25,12 @@ public sealed class MainForm : Form
     private readonly TextBox logBox = new() { Multiline = true, ReadOnly = true, ScrollBars = ScrollBars.Vertical };
     private readonly Button updateButton = new() { Text = "Update Now", Enabled = false };
 
+    private readonly string? startupArgument;
     private ReleaseFeed? currentFeed;
 
-    public MainForm()
+    public MainForm(string? startupArgument = null)
     {
+        this.startupArgument = startupArgument;
         Text = "GarmentsOS PRO Updater";
         Width = 900;
         Height = 680;
@@ -37,7 +39,11 @@ public sealed class MainForm : Form
 
         Controls.Add(BuildLayout());
 
-        Load += async (_, _) => await RefreshStatusAsync();
+        Load += async (_, _) =>
+        {
+            await RefreshStatusAsync();
+            await HandleStartupArgumentAsync();
+        };
     }
 
     private Control BuildLayout()
@@ -168,12 +174,105 @@ public sealed class MainForm : Form
             return;
         }
 
-        var request = JsonSerializer.Deserialize<UpdateRequest>(await File.ReadAllTextAsync(dialog.FileName), jsonOptions)
+        await LoadRequestJsonFromFileAsync(dialog.FileName);
+    }
+
+    private async Task HandleStartupArgumentAsync()
+    {
+        if (string.IsNullOrWhiteSpace(startupArgument))
+        {
+            return;
+        }
+
+        if (!Uri.TryCreate(startupArgument, UriKind.Absolute, out var uri) ||
+            !string.Equals(uri.Scheme, "garmentsos", StringComparison.OrdinalIgnoreCase))
+        {
+            Log("Ignoring unsupported startup argument.");
+            return;
+        }
+
+        var action = string.IsNullOrWhiteSpace(uri.Host)
+            ? uri.AbsolutePath.Trim('/')
+            : uri.Host;
+
+        if (string.Equals(action, "open", StringComparison.OrdinalIgnoreCase))
+        {
+            Log("Launcher opened from garmentsos://open.");
+            await OpenAppAsync();
+            return;
+        }
+
+        if (!string.Equals(action, "update", StringComparison.OrdinalIgnoreCase))
+        {
+            Log("Unsupported GarmentsOS protocol action: " + action);
+            return;
+        }
+
+        Log("Launcher opened from garmentsos://update.");
+        var request = QueryValue(uri.Query, "request");
+        if (string.IsNullOrWhiteSpace(request))
+        {
+            return;
+        }
+
+        await LoadRequestJsonReferenceAsync(request);
+    }
+
+    private async Task LoadRequestJsonReferenceAsync(string reference)
+    {
+        var decoded = Uri.UnescapeDataString(reference.Trim());
+
+        try
+        {
+            if (Uri.TryCreate(decoded, UriKind.Absolute, out var uri))
+            {
+                if (uri.Scheme.Equals("http", StringComparison.OrdinalIgnoreCase) ||
+                    uri.Scheme.Equals("https", StringComparison.OrdinalIgnoreCase))
+                {
+                    Log("Loading update request JSON from URL...");
+                    using var response = await http.GetAsync(uri);
+                    response.EnsureSuccessStatusCode();
+                    await LoadRequestJsonAsync(await response.Content.ReadAsStringAsync());
+                    return;
+                }
+
+                if (uri.Scheme.Equals("file", StringComparison.OrdinalIgnoreCase))
+                {
+                    await LoadRequestJsonFromFileAsync(uri.LocalPath);
+                    return;
+                }
+            }
+
+            if (File.Exists(decoded))
+            {
+                await LoadRequestJsonFromFileAsync(decoded);
+                return;
+            }
+
+            Log("Update request reference was not a supported URL or existing local file.");
+        }
+        catch (Exception ex)
+        {
+            Log("Could not load protocol update request: " + ex.Message);
+        }
+    }
+
+    private async Task LoadRequestJsonFromFileAsync(string path)
+    {
+        await LoadRequestJsonAsync(await File.ReadAllTextAsync(path));
+        Log("Loaded update request JSON: " + path);
+    }
+
+    private Task LoadRequestJsonAsync(string json)
+    {
+        var request = JsonSerializer.Deserialize<UpdateRequest>(json, jsonOptions)
             ?? throw new InvalidOperationException("Update request JSON could not be read.");
 
         currentFeed = new ReleaseFeed
         {
             Version = request.TargetVersion,
+            Channel = request.Channel,
+            PackageFile = request.PackageFile,
             PackageUrl = request.PackageUrl,
             PackageSha256 = request.PackageSha256,
             Mandatory = request.Mandatory,
@@ -185,7 +284,9 @@ public sealed class MainForm : Form
         notesBox.Text = currentFeed.Notes;
         updateButton.Enabled = !string.IsNullOrWhiteSpace(currentFeed.PackageUrl)
             && !string.IsNullOrWhiteSpace(currentFeed.PackageSha256);
-        Log("Loaded update request JSON.");
+        Log("Update request is ready. Review details, then click Update Now.");
+
+        return Task.CompletedTask;
     }
 
     private async Task UpdateNowAsync()
@@ -492,6 +593,26 @@ public sealed class MainForm : Form
         return Version.TryParse(left, out var l) && Version.TryParse(right, out var r)
             ? l.CompareTo(r)
             : string.Compare(left, right, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string? QueryValue(string query, string key)
+    {
+        var trimmed = query.TrimStart('?');
+        if (string.IsNullOrWhiteSpace(trimmed))
+        {
+            return null;
+        }
+
+        foreach (var pair in trimmed.Split('&', StringSplitOptions.RemoveEmptyEntries))
+        {
+            var parts = pair.Split('=', 2);
+            if (parts.Length == 2 && string.Equals(Uri.UnescapeDataString(parts[0]), key, StringComparison.OrdinalIgnoreCase))
+            {
+                return parts[1];
+            }
+        }
+
+        return null;
     }
 
     private void Log(string message)

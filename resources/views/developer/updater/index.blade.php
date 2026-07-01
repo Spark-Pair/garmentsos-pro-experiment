@@ -10,17 +10,34 @@
         $primaryButton = 'px-4 py-2 bg-[var(--primary-color)] text-[var(--text-color)] font-medium text-nowrap rounded-lg hover:bg-[var(--h-primary-color)] hover:scale-95 transition-all duration-300 ease-in-out cursor-pointer';
         $secondaryButton = 'px-4 py-2 bg-[var(--h-bg-color)] border border-gray-600 text-[var(--secondary-text)] font-medium text-nowrap rounded-lg hover:bg-[var(--secondary-bg-color)] hover:scale-95 transition-all duration-300 ease-in-out cursor-pointer';
         $disabledButton = 'px-4 py-2 bg-[var(--h-bg-color)] border border-gray-600 text-[var(--secondary-text)] font-medium text-nowrap rounded-lg opacity-60 cursor-not-allowed';
-        $canApply = $enabled && !empty($result['success']) && !empty($result['update_available']);
-        $manifestReady = $enabled && $manifestUrlConfigured;
-        $feedReady = $updateFeedUrlConfigured;
         $releaseFeed = $releaseFeedStatus['feed'] ?? [];
         $releaseFeedCode = $releaseFeedStatus['code'] ?? 'feed_not_configured';
-        $statusLabel = $developerSourceMode
-            ? 'Local/dev mode'
-            : ($feedReady ? 'Update feed configured' : 'Manifest not configured');
-        $applyStatus = $developerSourceMode
-            ? 'Not available in developer/source mode'
-            : ($feedReady ? 'Available after signed manifest and package validation' : 'Waiting for manifest configuration');
+        $updateAvailable = !empty($releaseFeedStatus['update_available']);
+        $upToDate = !empty($releaseFeedStatus['success']) && $releaseFeedCode === 'up_to_date';
+        $feedUnreachable = $releaseFeedCode === 'feed_unreachable';
+        $setupUrl = $releaseFeed['setup_url'] ?? '';
+        $setupUrlAvailable = is_string($setupUrl)
+            && $setupUrl !== ''
+            && !str_starts_with($setupUrl, 'PLACEHOLDER_')
+            && filter_var($setupUrl, FILTER_VALIDATE_URL);
+        $requestUrl = route('developer.updater.update-request');
+        $launcherUpdateUrl = $launcherProtocolUrl;
+        $statusClass = $updateAvailable
+            ? 'border-[var(--border-warning)] bg-[var(--bg-warning)] text-[var(--text-warning)]'
+            : ($upToDate
+                ? 'border-[var(--border-success)] bg-[var(--bg-success)] text-[var(--text-success)]'
+                : 'border-gray-600 bg-[var(--h-bg-color)] text-[var(--secondary-text)]');
+        $statusLabel = $updateAvailable ? 'Update available' : ($upToDate ? 'Up to date' : str_replace('_', ' ', $releaseFeedCode));
+        $statusMessage = $updateAvailable
+            ? 'A new version is available. Download the update request and apply it with GarmentsOS PRO Launcher.'
+            : ($upToDate
+                ? 'This installation is already on the latest published version.'
+                : ($releaseFeedStatus['message'] ?? 'Update feed status is unavailable.'));
+        $canApply = $enabled && !empty($result['success']) && !empty($result['update_available']);
+        $manifestReady = $enabled && $manifestUrlConfigured;
+        $applyStatus = $manifestReady
+            ? 'Available after signed manifest and package validation'
+            : 'Advanced signed-manifest apply is not configured';
     @endphp
 
     <div class="mb-5 max-w-6xl mx-auto">
@@ -41,134 +58,42 @@
         @endif
 
         <section class="{{ $panel }}">
-            <x-form-title-bar title="Updater" />
+            <x-form-title-bar title="Release Feed Update" />
 
             <div class="mb-4 flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                 <p class="max-w-3xl text-sm text-[var(--secondary-text)]">
-                    Guarded update apply is available only after a signed manifest, package checksum, package safety validation, and pre-update backup pass.
+                    Checks the configured public `latest.json` feed. Laravel only prepares the handoff; the Windows launcher applies updates outside the running app.
                 </p>
-                <span class="{{ $badge }} {{ $manifestReady && !$developerSourceMode ? 'border-[var(--border-warning)] bg-[var(--bg-warning)] text-[var(--text-warning)]' : 'border-gray-600 bg-[var(--h-bg-color)] text-[var(--secondary-text)]' }}">
-                    {{ $statusLabel }}
-                </span>
+                <span class="{{ $badge }} {{ $statusClass }}">{{ $statusLabel }}</span>
             </div>
 
-            <div class="grid grid-cols-1 gap-4 lg:grid-cols-3">
-                <div class="grid grid-cols-1 gap-3 md:grid-cols-2 lg:col-span-2">
-                    <div class="{{ $softPanel }}">
-                        <dt class="text-[var(--secondary-text)]">Current version</dt>
-                        <dd class="mt-1 font-semibold">{{ $currentVersion }}</dd>
-                        <dd class="mt-1 text-xs text-[var(--secondary-text)]">Source: {{ $currentVersionSourceLabel }}</dd>
-                        <dd class="mt-1 text-xs text-[var(--secondary-text)]">Mode: {{ $runtimeModeLabel }}</dd>
+            <div class="mb-4 rounded-lg border {{ $upToDate ? 'border-[var(--border-success)] bg-[var(--bg-success)] text-[var(--text-success)]' : ($updateAvailable ? 'border-[var(--border-warning)] bg-[var(--bg-warning)] text-[var(--text-warning)]' : 'border-gray-600 bg-[var(--h-bg-color)] text-[var(--secondary-text)]') }} p-4">
+                {{ $statusMessage }}
+                @if ($feedUnreachable && (($releaseFeedStatus['http_status'] ?? null) === 404))
+                    <div class="mt-2 text-xs">
+                        If this feed points to a private GitHub release asset, unauthenticated apps may receive 404. Use a public SparkPair update feed URL.
                     </div>
-                    <div class="{{ $softPanel }}">
-                        <dt class="text-[var(--secondary-text)]">Channel</dt>
-                        <dd class="mt-1 font-semibold">{{ $channel }}</dd>
-                    </div>
-                    <div class="{{ $softPanel }}">
-                        <dt class="text-[var(--secondary-text)]">Manifest configured</dt>
-                        <dd class="mt-1 font-semibold">{{ $manifestUrlConfigured ? 'Yes' : 'No' }}</dd>
-                    </div>
-                    <div class="{{ $softPanel }}">
-                        <dt class="text-[var(--secondary-text)]">Update feed URL</dt>
-                        <dd class="mt-1 break-all font-semibold">{{ $updateFeedUrlConfigured ? $updateFeedUrl : 'Not configured' }}</dd>
-                    </div>
-                    <div class="{{ $softPanel }}">
-                        <dt class="text-[var(--secondary-text)]">Feed status</dt>
-                        <dd class="mt-1 font-semibold">{{ str_replace('_', ' ', $releaseFeedCode) }}</dd>
-                        <dd class="mt-1 text-xs text-[var(--secondary-text)]">{{ $releaseFeedStatus['message'] ?? '' }}</dd>
-                        @if (!empty($releaseFeedStatus['http_status']))
-                            <dd class="mt-1 text-xs text-[var(--secondary-text)]">HTTP status: {{ $releaseFeedStatus['http_status'] }}</dd>
-                        @endif
-                    </div>
-                    <div class="{{ $softPanel }}">
-                        <dt class="text-[var(--secondary-text)]">Installed manifest</dt>
-                        <dd class="mt-1 font-semibold">{{ $installedManifestConfigured ? 'Present' : 'Not found' }}</dd>
-                        @if (!$installedManifestConfigured && $developerSourceMode)
-                            <dd class="mt-1 text-xs text-[var(--secondary-text)]">
-                                This is expected when running from source. Installed client packages will include an installed manifest/version.
-                            </dd>
-                        @endif
-                    </div>
-                    <div class="{{ $softPanel }}">
-                        <dt class="text-[var(--secondary-text)]">Signature required</dt>
-                        <dd class="mt-1 font-semibold">{{ $signatureRequired ? 'Yes' : 'No' }}</dd>
-                    </div>
-                    <div class="{{ $softPanel }}">
-                        <dt class="text-[var(--secondary-text)]">Apply/install</dt>
-                        <dd class="mt-1 font-semibold">{{ $applyStatus }}</dd>
-                    </div>
-                    <div class="{{ $softPanel }}">
-                        <dt class="text-[var(--secondary-text)]">Update mode</dt>
-                        <dd class="mt-1 font-semibold">{{ ucfirst($updateModeStatus) }}</dd>
-                    </div>
-                    <div class="{{ $softPanel }}">
-                        <dt class="text-[var(--secondary-text)]">Developer approval</dt>
-                        <dd class="mt-1 font-semibold">{{ $developerApprovalRequired ? 'Required' : 'Not required' }}</dd>
-                    </div>
-                    <div class="{{ $softPanel }}">
-                        <dt class="text-[var(--secondary-text)]">Rollback</dt>
-                        <dd class="mt-1 font-semibold">{{ $rollbackAvailable ? 'Available' : 'Not available' }}</dd>
-                    </div>
-                </div>
-
-                <div class="{{ $softPanel }}">
-                    <h2 class="font-semibold">Check Update</h2>
-                    <p class="mt-2 text-sm text-[var(--secondary-text)]">
-                        Checks the signed manifest. Apply remains blocked until verification succeeds and a fresh package backup can be created.
-                    </p>
-                    @if (!$manifestReady)
-                        <div class="mt-4 rounded-lg border border-[var(--border-warning)] bg-[var(--bg-warning)] p-3 text-sm text-[var(--text-warning)]">
-                            @if ($developerSourceMode)
-                                This is a developer/source run. Local script/launcher updates are still supported for packaged client installs.
-                            @else
-                                Update manifest is not configured. Local script/launcher updates are still supported.
-                            @endif
-                        </div>
-                    @endif
-                    <form method="POST" action="{{ route('developer.updater.check') }}" class="mt-4">
-                        @csrf
-                        <button type="submit" class="{{ $enabled ? $primaryButton : $disabledButton }}" @disabled(!$enabled)>
-                            Check Manifest
-                        </button>
-                    </form>
-                </div>
-            </div>
-        </section>
-
-        <section class="{{ $panel }}">
-            <x-form-title-bar title="Release Feed" />
-
-            <div class="mb-4 flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                <p class="max-w-3xl text-sm text-[var(--secondary-text)]">
-                    Reads the configured `latest.json` feed and compares it with the installed version. Download and apply are not implemented here.
-                </p>
-                <span class="{{ $badge }} {{ ($releaseFeedStatus['update_available'] ?? false) ? 'border-[var(--border-warning)] bg-[var(--bg-warning)] text-[var(--text-warning)]' : ((!empty($releaseFeedStatus['success']) && $releaseFeedCode === 'up_to_date') ? 'border-[var(--border-success)] bg-[var(--bg-success)] text-[var(--text-success)]' : 'border-gray-600 bg-[var(--h-bg-color)] text-[var(--secondary-text)]') }}">
-                    {{ str_replace('_', ' ', $releaseFeedCode) }}
-                </span>
+                @endif
+                @if (!empty($releaseFeedStatus['http_status']))
+                    <div class="mt-2 text-xs">HTTP status: {{ $releaseFeedStatus['http_status'] }}</div>
+                @endif
             </div>
 
             <dl class="grid grid-cols-1 gap-3 md:grid-cols-2">
                 <div class="{{ $softPanel }}">
-                    <dt class="text-[var(--secondary-text)]">Installed/current version</dt>
+                    <dt class="text-[var(--secondary-text)]">Current installed version</dt>
                     <dd class="mt-1 font-semibold">{{ $releaseFeedStatus['current_version'] ?? $currentVersion }}</dd>
                     <dd class="mt-1 text-xs text-[var(--secondary-text)]">Source: {{ $currentVersionSourceLabel }}</dd>
                     <dd class="mt-1 text-xs text-[var(--secondary-text)]">Mode: {{ $runtimeModeLabel }}</dd>
                 </div>
                 <div class="{{ $softPanel }}">
-                    <dt class="text-[var(--secondary-text)]">Feed URL</dt>
-                    <dd class="mt-1 break-all font-semibold">{{ $updateFeedUrlConfigured ? $updateFeedUrl : 'Not configured' }}</dd>
-                    <dd class="mt-1 text-xs text-[var(--secondary-text)]">{{ $releaseFeedStatus['message'] ?? '' }}</dd>
-                    @if (!empty($releaseFeedStatus['http_status']))
-                        <dd class="mt-1 text-xs text-[var(--secondary-text)]">HTTP status: {{ $releaseFeedStatus['http_status'] }}</dd>
-                    @endif
-                </div>
-                <div class="{{ $softPanel }}">
-                    <dt class="text-[var(--secondary-text)]">Latest version</dt>
+                    <dt class="text-[var(--secondary-text)]">Latest feed version</dt>
                     <dd class="mt-1 font-semibold">{{ $releaseFeed['version'] ?? '-' }}</dd>
+                    <dd class="mt-1 text-xs text-[var(--secondary-text)]">Channel: {{ $releaseFeed['channel'] ?? $channel }}</dd>
                 </div>
-                <div class="{{ $softPanel }}">
-                    <dt class="text-[var(--secondary-text)]">Latest channel</dt>
-                    <dd class="mt-1 font-semibold">{{ $releaseFeed['channel'] ?? '-' }}</dd>
+                <div class="{{ $softPanel }} md:col-span-2">
+                    <dt class="text-[var(--secondary-text)]">Feed URL</dt>
+                    <dd class="mt-1 break-all font-mono text-xs">{{ $updateFeedUrlConfigured ? $updateFeedUrl : 'Not configured' }}</dd>
                 </div>
                 <div class="{{ $softPanel }}">
                     <dt class="text-[var(--secondary-text)]">Mandatory</dt>
@@ -183,12 +108,12 @@
                     <dd class="mt-1 break-all font-semibold">{{ $releaseFeed['package_file'] ?? '-' }}</dd>
                 </div>
                 <div class="{{ $softPanel }}">
-                    <dt class="text-[var(--secondary-text)]">Package URL</dt>
-                    <dd class="mt-1 break-all font-mono text-xs">{{ $releaseFeed['package_url'] ?? '-' }}</dd>
-                </div>
-                <div class="{{ $softPanel }} md:col-span-2">
-                    <dt class="text-[var(--secondary-text)]">Package SHA256</dt>
-                    <dd class="mt-1 break-all font-mono text-xs">{{ $releaseFeed['package_sha256'] ?? '-' }}</dd>
+                    <dt class="text-[var(--secondary-text)]">Windows updater</dt>
+                    @if ($setupUrlAvailable)
+                        <dd class="mt-1 break-all font-mono text-xs">{{ $setupUrl }}</dd>
+                    @else
+                        <dd class="mt-1 font-semibold">Not advertised by feed</dd>
+                    @endif
                 </div>
                 <div class="{{ $softPanel }} md:col-span-2">
                     <dt class="text-[var(--secondary-text)]">Notes</dt>
@@ -196,97 +121,131 @@
                 </div>
             </dl>
 
-            <div class="mt-5 rounded-lg border border-[var(--border-warning)] bg-[var(--bg-warning)] p-4 text-sm text-[var(--text-warning)]">
-                For safety, Windows updater will apply this update outside the running app. Automatic in-app apply will be enabled after the GarmentsOS PRO Launcher EXE/protocol integration is installed.
-            </div>
+            @if ($updateAvailable)
+                <div class="mt-5 rounded-lg border border-[var(--border-warning)] bg-[var(--bg-warning)] p-4 text-sm text-[var(--text-warning)]">
+                    Download the update request JSON, then open GarmentsOS-PRO-Setup.exe and choose Open Request JSON. The launcher verifies and applies the update from Windows.
+                </div>
 
-            <div class="mt-4 flex flex-wrap items-center gap-3">
-                @if (!empty($releaseFeedStatus['update_available']))
-                    <a href="{{ route('developer.updater.update-request') }}" class="{{ $primaryButton }}">
-                        Prepare Update
+                <div class="mt-4 flex flex-wrap items-center gap-3">
+                    <a href="{{ $requestUrl }}" class="{{ $primaryButton }}">
+                        Download Update Request
                     </a>
+                    @if ($setupUrlAvailable)
+                        <a href="{{ $setupUrl }}" class="{{ $secondaryButton }}">
+                            Download Windows Updater
+                        </a>
+                    @endif
+                    @if ($launcherUpdateUrl)
+                        <a href="{{ $launcherUpdateUrl }}" class="{{ $secondaryButton }}">
+                            Open GarmentsOS Launcher
+                        </a>
+                    @endif
+                </div>
+                @if ($launcherProtocolUrl)
+                    <p class="mt-3 text-xs text-[var(--secondary-text)]">
+                        Protocol handoff is configured as `{{ $launcherProtocolUrl }}`. It requires Windows launcher protocol registration on the client machine.
+                    </p>
                 @endif
-                <button type="button" class="{{ $disabledButton }}" disabled>
-                    Open Windows Updater
-                </button>
-                <span class="text-xs text-[var(--secondary-text)]">
-                    Requires GarmentsOS PRO Launcher EXE/protocol integration.
-                </span>
-            </div>
+            @endif
         </section>
 
-        @if ($result)
-            <section class="{{ $panel }}">
-                <x-form-title-bar title="Manifest Result" />
-
-                <div class="mb-4 flex items-start justify-between gap-3">
-                    <p class="text-sm text-[var(--secondary-text)]">{{ $result['message'] }}</p>
-                    <span class="{{ $badge }} {{ !empty($result['success']) ? 'border-[var(--border-success)] bg-[var(--bg-success)] text-[var(--text-success)]' : 'border-[var(--border-warning)] bg-[var(--bg-warning)] text-[var(--text-warning)]' }}">
-                        {{ $result['code'] }}
+        <details class="{{ $panel }}">
+            <summary class="cursor-pointer list-none">
+                <x-form-title-bar title="Advanced Update Security" />
+                <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                    <p class="max-w-3xl text-sm text-[var(--secondary-text)]">
+                        Advanced signed-manifest apply is separate from the release feed and Windows launcher flow.
+                    </p>
+                    <span class="{{ $badge }} border-gray-600 bg-[var(--h-bg-color)] text-[var(--secondary-text)]">
+                        {{ $manifestReady ? 'Signed manifest configured' : 'Signed manifest not configured' }}
                     </span>
                 </div>
+            </summary>
 
-                @if (!empty($result['manifest']))
-                    <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-                        <div class="{{ $softPanel }}">
-                            <div class="text-[var(--secondary-text)]">Latest version</div>
-                            <div>{{ $result['latest_version'] ?? '-' }}</div>
-                        </div>
-                        <div class="{{ $softPanel }}">
-                            <div class="text-[var(--secondary-text)]">Mandatory</div>
-                            <div>{{ !empty($result['mandatory']) ? 'Yes' : 'No' }}</div>
-                        </div>
-                        <div class="{{ $softPanel }} md:col-span-2">
-                            <div class="text-[var(--secondary-text)]">Package checksum</div>
-                            <div class="break-all font-mono text-xs">{{ $result['manifest']['package_checksum'] ?? '-' }}</div>
-                        </div>
-                        <div class="{{ $softPanel }} md:col-span-2">
-                            <div class="text-[var(--secondary-text)]">Release notes</div>
-                            <div class="whitespace-pre-line">{{ $result['manifest']['release_notes'] ?? '-' }}</div>
-                        </div>
+            <div class="mt-6 grid grid-cols-1 gap-3 md:grid-cols-2">
+                <div class="{{ $softPanel }}">
+                    <dt class="text-[var(--secondary-text)]">Manifest configured</dt>
+                    <dd class="mt-1 font-semibold">{{ $manifestUrlConfigured ? 'Yes' : 'No' }}</dd>
+                </div>
+                <div class="{{ $softPanel }}">
+                    <dt class="text-[var(--secondary-text)]">Signature required</dt>
+                    <dd class="mt-1 font-semibold">{{ $signatureRequired ? 'Yes' : 'No' }}</dd>
+                </div>
+                <div class="{{ $softPanel }}">
+                    <dt class="text-[var(--secondary-text)]">Apply/install</dt>
+                    <dd class="mt-1 font-semibold">{{ $applyStatus }}</dd>
+                </div>
+                <div class="{{ $softPanel }}">
+                    <dt class="text-[var(--secondary-text)]">Rollback</dt>
+                    <dd class="mt-1 font-semibold">{{ $rollbackAvailable ? 'Available' : 'Not available' }}</dd>
+                </div>
+            </div>
+
+            @if (!$manifestReady)
+                <div class="mt-4 rounded-lg border border-[var(--border-warning)] bg-[var(--bg-warning)] p-3 text-sm text-[var(--text-warning)]">
+                    Advanced signed-manifest apply is not configured. Release feed checks and Windows launcher updates are still supported.
+                </div>
+            @endif
+
+            <form method="POST" action="{{ route('developer.updater.check') }}" class="mt-4">
+                @csrf
+                <button type="submit" class="{{ $enabled ? $secondaryButton : $disabledButton }}" @disabled(!$enabled)>
+                    Check Manifest
+                </button>
+            </form>
+
+            @if ($result)
+                <div class="mt-5 rounded-lg border border-[var(--h-bg-color)] bg-[var(--h-bg-color)]/50 p-4">
+                    <div class="mb-4 flex items-start justify-between gap-3">
+                        <p class="text-sm text-[var(--secondary-text)]">{{ $result['message'] }}</p>
+                        <span class="{{ $badge }} {{ !empty($result['success']) ? 'border-[var(--border-success)] bg-[var(--bg-success)] text-[var(--text-success)]' : 'border-[var(--border-warning)] bg-[var(--bg-warning)] text-[var(--text-warning)]' }}">
+                            {{ $result['code'] }}
+                        </span>
                     </div>
 
-                    <div class="mt-5 rounded-lg border border-[var(--border-warning)] bg-[var(--bg-warning)] p-4 text-sm text-[var(--text-warning)]">
-                        Apply creates a verified database backup, validates the package again, stages files privately, snapshots overwritten code files, preserves `.env`, database, backups, logs, and private storage, then runs migrations only when the manifest requires it.
-                    </div>
+                    @if (!empty($result['manifest']))
+                        <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                            <div class="{{ $softPanel }}">
+                                <div class="text-[var(--secondary-text)]">Latest version</div>
+                                <div>{{ $result['latest_version'] ?? '-' }}</div>
+                            </div>
+                            <div class="{{ $softPanel }}">
+                                <div class="text-[var(--secondary-text)]">Mandatory</div>
+                                <div>{{ !empty($result['mandatory']) ? 'Yes' : 'No' }}</div>
+                            </div>
+                            <div class="{{ $softPanel }} md:col-span-2">
+                                <div class="text-[var(--secondary-text)]">Package checksum</div>
+                                <div class="break-all font-mono text-xs">{{ $result['manifest']['package_checksum'] ?? '-' }}</div>
+                            </div>
+                            <div class="{{ $softPanel }} md:col-span-2">
+                                <div class="text-[var(--secondary-text)]">Release notes</div>
+                                <div class="whitespace-pre-line">{{ $result['manifest']['release_notes'] ?? '-' }}</div>
+                            </div>
+                        </div>
 
-                    <form method="POST" action="{{ route('developer.updater.apply') }}" class="mt-4">
-                        @csrf
-                        <button type="submit" class="{{ $canApply ? $primaryButton : $disabledButton }}" @disabled(!$canApply)>
-                            Apply Verified Update
-                        </button>
-                    </form>
-                @endif
-            </section>
-        @endif
+                        <div class="mt-5 rounded-lg border border-[var(--border-warning)] bg-[var(--bg-warning)] p-4 text-sm text-[var(--text-warning)]">
+                            Apply creates a verified database backup, validates the package again, stages files privately, snapshots overwritten code files, preserves `.env`, database, backups, logs, and private storage, then runs migrations only when the manifest requires it.
+                        </div>
 
-        @if ($applyResult)
-            <section class="{{ $panel }}">
-                <x-form-title-bar title="Apply Result" />
+                        <form method="POST" action="{{ route('developer.updater.apply') }}" class="mt-4">
+                            @csrf
+                            <button type="submit" class="{{ $canApply ? $primaryButton : $disabledButton }}" @disabled(!$canApply)>
+                                Apply Verified Update
+                            </button>
+                        </form>
+                    @endif
+                </div>
+            @endif
 
-                <div class="rounded-lg border {{ !empty($applyResult['success']) ? 'border-[var(--border-success)] bg-[var(--bg-success)] text-[var(--text-success)]' : 'border-[var(--border-error)] bg-[var(--bg-error)] text-[var(--text-error)]' }} p-4 text-sm">
+            @if ($applyResult)
+                <div class="mt-5 rounded-lg border {{ !empty($applyResult['success']) ? 'border-[var(--border-success)] bg-[var(--bg-success)] text-[var(--text-success)]' : 'border-[var(--border-error)] bg-[var(--bg-error)] text-[var(--text-error)]' }} p-4 text-sm">
                     {{ $applyResult['message'] }}
                 </div>
-
-                <dl class="mt-4 grid grid-cols-1 gap-3 text-sm md:grid-cols-3">
-                    <div class="{{ $softPanel }}">
-                        <dt class="text-[var(--secondary-text)]">Result</dt>
-                        <dd class="mt-1 font-semibold">{{ $applyResult['code'] ?? '-' }}</dd>
-                    </div>
-                    <div class="{{ $softPanel }}">
-                        <dt class="text-[var(--secondary-text)]">Backup log</dt>
-                        <dd class="mt-1 font-semibold">{{ $applyResult['backup_log_id'] ?? '-' }}</dd>
-                    </div>
-                    <div class="{{ $softPanel }}">
-                        <dt class="text-[var(--secondary-text)]">Snapshot</dt>
-                        <dd class="mt-1 font-semibold">{{ $applyResult['snapshot'] ?? '-' }}</dd>
-                    </div>
-                </dl>
-            </section>
-        @endif
+            @endif
+        </details>
 
         <section class="rounded-lg border border-[var(--border-warning)] bg-[var(--bg-warning)] p-4 text-sm text-[var(--text-warning)]">
-            Update apply never overwrites client database, `.env`, backups, logs, private storage, license identity/cache, or secrets. Keep verified backups and snapshots until the client confirms the update.
+            Laravel never loads Docker images, restarts containers, or replaces the running app. Windows launcher/update tools apply packages outside the app process and preserve client data.
         </section>
     </div>
 @endsection

@@ -35,6 +35,7 @@ class UpdateController extends Controller
             'updateFeedUrl' => $feedUrl,
             'updateFeedUrlConfigured' => $feedUrl !== '',
             'releaseFeedStatus' => $releaseFeed->checkConfigured(),
+            'launcherProtocolUrl' => $releaseFeed->launcherProtocolUrl(),
             'manifestUrlConfigured' => (string) config('updater.manifest_url', '') !== '',
             'installedManifestConfigured' => $versions->manifestConfigured(),
             'signatureRequired' => (bool) config('updater.require_signature', true),

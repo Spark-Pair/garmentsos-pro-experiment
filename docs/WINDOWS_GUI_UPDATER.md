@@ -29,7 +29,7 @@ Private GitHub release assets return `404` to unauthenticated apps/launchers eve
 - `Open App`: opens `http://localhost:8000`
 - `Check Update`: reads `UPDATE_FEED_URL` / `latest.json`
 - `Update Now`: downloads, verifies, extracts, and applies the package through `windows-docker-update.ps1`
-- `Open Request JSON`: loads `garmentsos-update-request.json` created by the in-app `Prepare Update` button
+- `Open Request JSON`: loads `garmentsos-update-request.json` created by the in-app `Download Update Request` button
 - `Backup`: runs the existing Windows Docker backup script
 - `Repair`: runs `docker compose up -d` in the installed folder
 - `Stop Services`: stops Docker services through the existing stop launcher when available
@@ -49,13 +49,35 @@ The PowerShell updater preserves Docker volumes, client data, backups, and `.env
 
 ## In-App Handoff
 
-From the Developer Updater page, click `Prepare Update` when an update is available. This downloads:
+From the Developer Updater page, click `Download Update Request` when an update is available. This downloads:
 
 ```text
 garmentsos-update-request.json
 ```
 
 Open that file in the launcher with `Open Request JSON`, review the version/package details, then click `Update Now`.
+
+Future protocol handoff:
+
+```text
+garmentsos://update
+garmentsos://update?request=<encoded update request URL>
+```
+
+The Windows install/update scripts register this protocol under HKCU:
+
+```text
+HKCU\Software\Classes\garmentsos
+  (Default) = URL:GarmentsOS PRO Launcher
+  URL Protocol = ""
+
+HKCU\Software\Classes\garmentsos\shell\open\command
+  (Default) = "C:\SparkPair\GarmentsOS\GarmentsOS-PRO-Setup.exe" "%1"
+```
+
+The command target can also be `GarmentsOS PRO Launcher.exe` when that is the installed GUI launcher path.
+
+When opened with `garmentsos://update`, the launcher opens normally and focuses the update flow. When opened with `garmentsos://update?request=<encoded-url-or-path>`, it attempts to load that request JSON from a local path, `file://` URL, or `http/https` URL. It never auto-applies the update; the user must review details and click `Update Now`.
 
 ## Developer Build
 

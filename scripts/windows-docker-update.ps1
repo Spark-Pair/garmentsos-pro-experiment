@@ -59,6 +59,46 @@ function Hide-GarmentsTechnicalFiles($TargetDir) {
     }
 }
 
+function Resolve-GarmentsGuiLauncher($TargetDir) {
+    $candidates = @(
+        (Join-Path $TargetDir "GarmentsOS-PRO-Setup.exe"),
+        (Join-Path $TargetDir "GarmentsOS PRO Launcher.exe"),
+        (Join-Path $TargetDir "launcher\GarmentsOS-PRO-Setup.exe"),
+        (Join-Path $TargetDir "launcher\GarmentsOS PRO Launcher.exe")
+    )
+
+    foreach ($candidate in $candidates) {
+        if (Test-Path $candidate) {
+            return $candidate
+        }
+    }
+
+    return $null
+}
+
+function Register-GarmentsProtocol($TargetDir) {
+    $launcher = Resolve-GarmentsGuiLauncher $TargetDir
+    if ([string]::IsNullOrWhiteSpace($launcher)) {
+        Write-Warning "GarmentsOS GUI launcher was not found. garmentsos:// protocol was not registered."
+        return
+    }
+
+    try {
+        $baseKey = [Microsoft.Win32.Registry]::CurrentUser.CreateSubKey("Software\Classes\garmentsos")
+        $baseKey.SetValue("", "URL:GarmentsOS PRO Launcher")
+        $baseKey.SetValue("URL Protocol", "")
+        $baseKey.Close()
+
+        $commandKey = [Microsoft.Win32.Registry]::CurrentUser.CreateSubKey("Software\Classes\garmentsos\shell\open\command")
+        $commandKey.SetValue("", "`"$launcher`" `"%1`"")
+        $commandKey.Close()
+
+        Write-Host "Registered garmentsos:// protocol for: $launcher"
+    } catch {
+        Write-Warning "Could not register garmentsos:// protocol. $($_.Exception.Message)"
+    }
+}
+
 function Set-EnvLine($Content, $Name, $Value) {
     $pattern = "(?m)^" + [regex]::Escape($Name) + "=.*$"
     $line = "$Name=$Value"
@@ -108,8 +148,19 @@ Copy-Item -Recurse -Force (Join-Path $ReleaseDir "docs") $InstallDir
 Copy-Item -Recurse -Force (Join-Path $ReleaseDir "images") $InstallDir
 Copy-Item -Recurse -Force (Join-Path $ReleaseDir "checksums") $InstallDir
 Copy-Item -Force (Join-Path $ReleaseDir "manifest.json") $InstallDir
+if (Test-Path (Join-Path $ReleaseDir "GarmentsOS-PRO-Setup.exe")) {
+    Copy-Item -Force (Join-Path $ReleaseDir "GarmentsOS-PRO-Setup.exe") $InstallDir
+}
+if (Test-Path (Join-Path $ReleaseDir "GarmentsOS PRO Launcher.exe")) {
+    Copy-Item -Force (Join-Path $ReleaseDir "GarmentsOS PRO Launcher.exe") $InstallDir
+}
 if (Test-Path (Join-Path $ReleaseDir "launcher")) {
     Copy-Item -Recurse -Force (Join-Path $ReleaseDir "launcher") $InstallDir
+}
+$installedSetupLauncher = Join-Path $InstallDir "GarmentsOS-PRO-Setup.exe"
+$installedNestedLauncher = Join-Path $InstallDir "launcher\GarmentsOS PRO Launcher.exe"
+if (-not (Test-Path $installedSetupLauncher) -and (Test-Path $installedNestedLauncher)) {
+    Copy-Item -Force $installedNestedLauncher $installedSetupLauncher
 }
 Copy-RootLaunchers $ReleaseDir $InstallDir
 
@@ -139,6 +190,8 @@ if ($HideTechnicalFiles) {
 } else {
     Write-Host "Technical files were left visible because HideTechnicalFiles is false."
 }
+
+Register-GarmentsProtocol $InstallDir
 
 Write-Host "Update complete. Volumes were preserved."
 Write-Host "Rollback: load the previous image tar, set GARMENTSOS_IMAGE in .env to the previous tag, then run docker compose up -d."
