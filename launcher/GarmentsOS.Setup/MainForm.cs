@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Drawing.Drawing2D;
 using System.IO.Compression;
 using System.Security.Cryptography;
 using System.Text;
@@ -10,6 +11,16 @@ public sealed class MainForm : Form
 {
     private const string DefaultInstallDir = @"C:\SparkPair\GarmentsOS";
     private const string AppUrl = "http://localhost:8000";
+
+    private static readonly Color BrandBlue = Color.FromArgb(64, 87, 232);
+    private static readonly Color AppBackground = Color.FromArgb(238, 241, 244);
+    private static readonly Color CardBorder = Color.FromArgb(185, 197, 212);
+    private static readonly Color SoftBorder = Color.FromArgb(199, 208, 220);
+    private static readonly Color TextPrimary = Color.FromArgb(15, 23, 42);
+    private static readonly Color TextMuted = Color.FromArgb(75, 91, 112);
+    private static readonly Color TextHint = Color.FromArgb(122, 135, 150);
+    private static readonly Color SurfaceSoft = Color.FromArgb(248, 250, 252);
+
 
     private readonly HttpClient http = new() { Timeout = TimeSpan.FromSeconds(30) };
     private readonly JsonSerializerOptions jsonOptions = new() { PropertyNameCaseInsensitive = true };
@@ -49,10 +60,16 @@ public sealed class MainForm : Form
     {
         this.startupArgument = startupArgument;
         Text = "GarmentsOS PRO Updater";
-        Width = 900;
-        Height = 680;
-        MinimumSize = new Size(760, 560);
+        Width = 740;
+        Height = 450;
+        MinimumSize = new Size(740, 450);
+        MaximumSize = new Size(740, 450);
         StartPosition = FormStartPosition.CenterScreen;
+        BackColor = AppBackground;
+        Font = new Font("Segoe UI", 9f);
+        FormBorderStyle = FormBorderStyle.FixedSingle;
+        MaximizeBox = false;
+        DoubleBuffered = true;
 
         Controls.Add(BuildLayout());
 
@@ -77,123 +94,517 @@ public sealed class MainForm : Form
 
     private Control BuildLayout()
     {
-        var root = new TableLayoutPanel
+        var root = new Panel
         {
             Dock = DockStyle.Fill,
-            ColumnCount = 1,
-            RowCount = 7,
-            Padding = new Padding(14),
+            BackColor = AppBackground,
+            Padding = new Padding(6),
         };
-        root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-        root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-        root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-        root.RowStyles.Add(new RowStyle(SizeType.Percent, 35));
-        root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-        root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-        root.RowStyles.Add(new RowStyle(SizeType.Percent, 65));
 
-        root.Controls.Add(titleLabel);
+        var shell = new RoundedPanel
+        {
+            Dock = DockStyle.Fill,
+            BackColor = Color.White,
+            BorderColor = CardBorder,
+            BorderRadius = 22,
+        };
+        root.Controls.Add(shell);
 
-        pathsPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 120));
-        pathsPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        pathsPanel.Controls.Add(new Label { Text = "Install folder", AutoSize = true, Anchor = AnchorStyles.Left }, 0, 0);
-        pathsPanel.Controls.Add(installDirBox, 1, 0);
-        pathsPanel.Controls.Add(new Label { Text = "Update feed URL", AutoSize = true, Anchor = AnchorStyles.Left }, 0, 1);
-        pathsPanel.Controls.Add(feedUrlBox, 1, 1);
+        var layout = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 2,
+            RowCount = 1,
+            BackColor = Color.White,
+        };
+        layout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 112));
+        layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        shell.Controls.Add(layout);
+
+        layout.Controls.Add(BuildSideStrip(), 0, 0);
+        layout.Controls.Add(BuildMainArea(), 1, 0);
+
+        // Hidden fields keep the existing update/feed logic intact without cluttering the UI.
+        installDirBox.Visible = false;
+        feedUrlBox.Visible = false;
+        pathsPanel.Visible = false;
+        pathsPanel.Controls.Add(installDirBox);
+        pathsPanel.Controls.Add(feedUrlBox);
         root.Controls.Add(pathsPanel);
 
-        progressPanel.Controls.Add(BuildProgressPanel());
-        root.Controls.Add(progressPanel);
-
-        statusPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
-        statusPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
-        statusPanel.Controls.Add(installedVersionLabel, 0, 0);
-        statusPanel.Controls.Add(appStatusLabel, 0, 1);
-        statusPanel.Controls.Add(dockerStatusLabel, 0, 2);
-        statusPanel.Controls.Add(latestVersionLabel, 1, 0);
-        statusPanel.Controls.Add(mandatoryLabel, 1, 1);
-        notesBox.Dock = DockStyle.Fill;
-        statusPanel.Controls.Add(notesBox, 0, 3);
-        statusPanel.SetColumnSpan(notesBox, 2);
-        root.Controls.Add(statusPanel);
-
-        AddButton(buttonsPanel, "Open App", async (_, _) => await OpenAppAsync());
-        AddButton(buttonsPanel, "Check Update", async (_, _) => await CheckUpdateAsync());
-        updateButton.Click += async (_, _) => await UpdateNowAsync(requireConfirmation: true, closeAfterSuccess: false);
-        buttonsPanel.Controls.Add(updateButton);
-        AddButton(buttonsPanel, "Open Request JSON", async (_, _) => await OpenRequestJsonAsync());
-        AddButton(buttonsPanel, "Backup", async (_, _) => await RunInstalledScriptAsync("scripts\\windows-docker-backup.ps1"));
-        AddButton(buttonsPanel, "Repair", async (_, _) => await RunPowerShellAsync("docker compose up -d", installDirBox.Text));
-        AddButton(buttonsPanel, "Stop Services", async (_, _) => await StopServicesAsync());
-        AddButton(buttonsPanel, "Open Install Folder", (_, _) => OpenFolder(installDirBox.Text));
-        AddButton(buttonsPanel, "Close", (_, _) => Close());
-        root.Controls.Add(buttonsPanel);
-
-        AddButton(failureButtonsPanel, "Open Install Folder", (_, _) => OpenFolder(installDirBox.Text));
-        AddButton(failureButtonsPanel, "Save Log", (_, _) => SaveLog());
-        AddButton(failureButtonsPanel, "Close", (_, _) => Close());
-        root.Controls.Add(failureButtonsPanel);
-
-        logBox.Dock = DockStyle.Fill;
+        logBox.Visible = false;
+        logBox.Multiline = true;
+        logBox.ReadOnly = true;
+        logBox.ScrollBars = ScrollBars.Vertical;
+        logBox.Width = 520;
+        logBox.Height = 140;
+        logBox.Left = 150;
+        logBox.Top = 250;
+        logBox.Anchor = AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Bottom;
         root.Controls.Add(logBox);
 
         return root;
     }
 
+    private Control BuildSideStrip()
+    {
+        var side = new Panel
+        {
+            Dock = DockStyle.Fill,
+            BackColor = Color.FromArgb(245, 247, 251),
+            Padding = new Padding(0, 28, 0, 28),
+        };
+        side.Paint += (_, e) =>
+        {
+            using var pen = new Pen(Color.FromArgb(229, 233, 240));
+            e.Graphics.DrawLine(pen, side.Width - 1, 0, side.Width - 1, side.Height);
+        };
+
+        var logo = CreateLogoBox(46, 36, 14);
+        logo.Left = (side.Width - logo.Width) / 2;
+        logo.Top = 28;
+        logo.Anchor = AnchorStyles.Top;
+        side.Controls.Add(logo);
+
+        var railText = new VerticalLabel
+        {
+            Text = "UPDATER",
+            ForeColor = BrandBlue,
+            Font = new Font("Segoe UI", 8.5f, FontStyle.Bold),
+            Width = 34,
+            Height = 120,
+            Left = 39,
+            Top = 132,
+            Anchor = AnchorStyles.Top,
+        };
+        side.Controls.Add(railText);
+
+        var check = new RoundedPanel
+        {
+            Width = 32,
+            Height = 32,
+            Left = 40,
+            Top = 326,
+            Anchor = AnchorStyles.Bottom,
+            BorderRadius = 16,
+            BorderColor = SoftBorder,
+            BackColor = Color.White,
+        };
+        check.Controls.Add(new Label
+        {
+            Dock = DockStyle.Fill,
+            Text = "✓",
+            TextAlign = ContentAlignment.MiddleCenter,
+            ForeColor = BrandBlue,
+            Font = new Font("Segoe UI", 10f, FontStyle.Bold),
+            BackColor = Color.Transparent,
+        });
+        side.Controls.Add(check);
+
+        side.Resize += (_, _) =>
+        {
+            logo.Left = (side.Width - logo.Width) / 2;
+            railText.Left = (side.Width - railText.Width) / 2;
+            check.Left = (side.Width - check.Width) / 2;
+            check.Top = Math.Max(280, side.Height - 60);
+        };
+
+        return side;
+    }
+
+    private Control BuildMainArea()
+    {
+        var main = new GridPanel
+        {
+            Dock = DockStyle.Fill,
+            BackColor = Color.White,
+        };
+
+        var layout = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            RowCount = 3,
+            ColumnCount = 1,
+            BackColor = Color.Transparent,
+        };
+        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 68));
+        layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 78));
+        main.Controls.Add(layout);
+
+        layout.Controls.Add(BuildTopBar(), 0, 0);
+        layout.Controls.Add(BuildContent(), 0, 1);
+        layout.Controls.Add(BuildBottomBar(), 0, 2);
+
+        return main;
+    }
+
+    private Control BuildTopBar()
+    {
+        var top = new Panel
+        {
+            Dock = DockStyle.Fill,
+            BackColor = Color.Transparent,
+            Padding = new Padding(34, 0, 34, 0),
+        };
+        top.Paint += (_, e) =>
+        {
+            using var pen = new Pen(Color.FromArgb(237, 240, 244));
+            e.Graphics.DrawLine(pen, 0, top.Height - 1, top.Width, top.Height - 1);
+        };
+
+        titleLabel.Text = "GarmentsOS PRO";
+        titleLabel.Font = new Font("Segoe UI", 10.5f, FontStyle.Bold);
+        titleLabel.ForeColor = BrandBlue;
+        titleLabel.AutoSize = true;
+        titleLabel.BackColor = Color.Transparent;
+        titleLabel.Location = new Point(34, 25);
+        top.Controls.Add(titleLabel);
+
+        var status = new FlowLayoutPanel
+        {
+            AutoSize = true,
+            FlowDirection = FlowDirection.LeftToRight,
+            WrapContents = false,
+            BackColor = Color.Transparent,
+            Anchor = AnchorStyles.Top | AnchorStyles.Right,
+            Location = new Point(430, 22),
+        };
+        status.Controls.Add(new StatusDot { DotColor = Color.FromArgb(23, 168, 91), Margin = new Padding(0, 6, 8, 0) });
+        status.Controls.Add(new Label
+        {
+            Text = "Secure Flow",
+            AutoSize = true,
+            Font = new Font("Segoe UI", 8.4f, FontStyle.Bold),
+            ForeColor = Color.FromArgb(61, 75, 96),
+            Margin = new Padding(0, 3, 0, 0),
+            BackColor = Color.Transparent,
+        });
+        top.Controls.Add(status);
+        top.Resize += (_, _) => status.Left = top.Width - status.Width - 34;
+
+        return top;
+    }
+
+    private Control BuildContent()
+    {
+        var content = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 2,
+            RowCount = 1,
+            Padding = new Padding(34, 30, 34, 18),
+            BackColor = Color.Transparent,
+        };
+        content.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        content.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 220));
+
+        var copy = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
+        copy.Controls.Add(new PillLabel
+        {
+            Text = "RELEASE CHECK",
+            Location = new Point(0, 0),
+            Width = 112,
+            Height = 28,
+        });
+
+        var headline = new RichTextLabel
+        {
+            NormalText = "Ready to install",
+            AccentText = "latest update",
+            FontSize = 33f,
+            Location = new Point(0, 45),
+            Width = 335,
+            Height = 82,
+        };
+        copy.Controls.Add(headline);
+
+        var sub = new Label
+        {
+            Text = "The update package is being verified before applying changes safely on this PC.",
+            Location = new Point(0, 130),
+            Width = 335,
+            Height = 46,
+            Font = new Font("Segoe UI", 9.4f),
+            ForeColor = TextMuted,
+            BackColor = Color.Transparent,
+        };
+        copy.Controls.Add(sub);
+
+        var chips = new FlowLayoutPanel
+        {
+            Location = new Point(0, 190),
+            AutoSize = true,
+            WrapContents = false,
+            BackColor = Color.Transparent,
+        };
+        chips.Controls.Add(new PillLabel { Text = "Manifest", Width = 78, Height = 28 });
+        chips.Controls.Add(new PillLabel { Text = "SHA256", Width = 70, Height = 28 });
+        chips.Controls.Add(new PillLabel { Text = "Backup", Width = 68, Height = 28 });
+        copy.Controls.Add(chips);
+
+        ConfigureActionButtons();
+        copy.Controls.Add(buttonsPanel);
+        copy.Controls.Add(failureButtonsPanel);
+
+        content.Controls.Add(copy, 0, 0);
+        content.Controls.Add(BuildPackageVisual(), 1, 0);
+
+        return content;
+    }
+
+    private Control BuildPackageVisual()
+    {
+        var visual = new PackageVisual
+        {
+            Dock = DockStyle.Fill,
+            Logo = TryLoadLogoBitmap(26),
+        };
+        return visual;
+    }
+
+    private Control BuildBottomBar()
+    {
+        var bottom = new Panel
+        {
+            Dock = DockStyle.Fill,
+            BackColor = Color.Transparent,
+            Padding = new Padding(34, 0, 34, 23),
+        };
+
+        progressStatusLabel.Text = "Verifying update package...";
+        progressStatusLabel.AutoSize = true;
+        progressStatusLabel.Font = new Font("Segoe UI", 8.5f, FontStyle.Bold);
+        progressStatusLabel.ForeColor = Color.FromArgb(61, 75, 96);
+        progressStatusLabel.Location = new Point(34, 0);
+        progressStatusLabel.BackColor = Color.Transparent;
+        bottom.Controls.Add(progressStatusLabel);
+
+        var percent = new Label
+        {
+            Text = "58%",
+            AutoSize = true,
+            Font = new Font("Segoe UI", 8.5f, FontStyle.Bold),
+            ForeColor = BrandBlue,
+            BackColor = Color.Transparent,
+            Anchor = AnchorStyles.Top | AnchorStyles.Right,
+            Location = new Point(500, 0),
+        };
+        bottom.Controls.Add(percent);
+        bottom.Resize += (_, _) => percent.Left = bottom.Width - percent.Width - 34;
+
+        progressBar.Style = ProgressBarStyle.Continuous;
+        progressBar.MarqueeAnimationSpeed = 0;
+        progressBar.Value = 58;
+        progressBar.Height = 8;
+        progressBar.Width = 510;
+        progressBar.Location = new Point(34, 24);
+        progressBar.Anchor = AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Top;
+        bottom.Controls.Add(progressBar);
+        bottom.Resize += (_, _) => progressBar.Width = Math.Max(100, bottom.Width - 68);
+
+        var product = new Label
+        {
+            Text = "A Product of SparkPair",
+            AutoSize = true,
+            Font = new Font("Segoe UI", 8.5f),
+            ForeColor = TextHint,
+            BackColor = Color.Transparent,
+            Location = new Point(34, 46),
+        };
+        bottom.Controls.Add(product);
+
+        var footerRight = new Label
+        {
+            Text = "Local updater",
+            AutoSize = true,
+            Font = new Font("Segoe UI", 8.5f),
+            ForeColor = TextHint,
+            BackColor = Color.Transparent,
+            Anchor = AnchorStyles.Bottom | AnchorStyles.Right,
+            Location = new Point(470, 46),
+        };
+        bottom.Controls.Add(footerRight);
+        bottom.Resize += (_, _) => footerRight.Left = bottom.Width - footerRight.Width - 34;
+
+        return bottom;
+    }
+
     private Control BuildProgressPanel()
     {
-        var panel = new TableLayoutPanel { Dock = DockStyle.Top, ColumnCount = 1, AutoSize = true };
-        panel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-        panel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-        panel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        var panel = new Panel
+        {
+            Dock = DockStyle.Fill,
+            BackColor = Color.Transparent,
+        };
 
         var heading = new Label
         {
             Text = "Updating GarmentsOS PRO",
-            Font = new Font(Font.FontFamily, 16, FontStyle.Bold),
+            Font = new Font("Segoe UI", 16f, FontStyle.Regular),
+            ForeColor = TextPrimary,
             AutoSize = true,
-            Margin = new Padding(0, 0, 0, 8),
+            Location = new Point(0, 0),
+            BackColor = Color.Transparent,
         };
         panel.Controls.Add(heading);
 
-        progressStatusLabel.Margin = new Padding(0, 0, 0, 8);
+        progressStatusLabel.Location = new Point(0, 38);
+        progressStatusLabel.Font = new Font("Segoe UI", 9f, FontStyle.Bold);
+        progressStatusLabel.ForeColor = TextMuted;
         panel.Controls.Add(progressStatusLabel);
 
-        progressBar.Height = 22;
-        progressBar.Margin = new Padding(0, 0, 0, 8);
+        progressBar.Location = new Point(0, 66);
+        progressBar.Width = 400;
+        progressBar.Height = 8;
         panel.Controls.Add(progressBar);
 
         detailsButton.Click += (_, _) => ToggleDetails();
+        StyleButton(detailsButton, "Details");
+        detailsButton.Location = new Point(0, 90);
         panel.Controls.Add(detailsButton);
 
         return panel;
     }
 
+    private void ConfigureActionButtons()
+    {
+        buttonsPanel.Controls.Clear();
+        buttonsPanel.Location = new Point(0, 231);
+        buttonsPanel.AutoSize = true;
+        buttonsPanel.WrapContents = false;
+        buttonsPanel.BackColor = Color.Transparent;
+
+        StyleButton(updateButton, "Update", primary: true);
+        updateButton.Click += async (_, _) => await UpdateNowAsync(requireConfirmation: true, closeAfterSuccess: false);
+        buttonsPanel.Controls.Add(updateButton);
+
+        AddButton(buttonsPanel, "Details", (_, _) => ToggleDetails());
+        AddButton(buttonsPanel, "Open App", async (_, _) => await OpenAppAsync());
+        AddButton(buttonsPanel, "Check", async (_, _) => await CheckUpdateAsync());
+
+        failureButtonsPanel.Controls.Clear();
+        failureButtonsPanel.Location = new Point(0, 268);
+        failureButtonsPanel.AutoSize = true;
+        failureButtonsPanel.WrapContents = false;
+        failureButtonsPanel.BackColor = Color.Transparent;
+        AddButton(failureButtonsPanel, "Open Folder", (_, _) => OpenFolder(installDirBox.Text));
+        AddButton(failureButtonsPanel, "Save Log", (_, _) => SaveLog());
+        AddButton(failureButtonsPanel, "Close", (_, _) => Close());
+        failureButtonsPanel.Visible = false;
+    }
+
     private static void AddButton(Control parent, string text, EventHandler handler)
     {
-        var button = new Button { Text = text, AutoSize = true, Margin = new Padding(4) };
+        var button = new Button();
+        StyleButton(button, text);
         button.Click += handler;
         parent.Controls.Add(button);
     }
 
-    private void EnterAutoUpdateMode()
+    private static void StyleButton(Button button, string text, bool primary = false)
+    {
+        button.Text = text;
+        button.AutoSize = false;
+        button.Width = primary ? 76 : 72;
+        button.Height = 32;
+        button.Margin = new Padding(0, 0, 8, 0);
+        button.Padding = new Padding(8, 0, 8, 0);
+        button.FlatStyle = FlatStyle.Flat;
+        button.Cursor = Cursors.Hand;
+        button.Font = new Font("Segoe UI", 8.2f, FontStyle.Bold);
+        button.BackColor = primary ? BrandBlue : Color.White;
+        button.ForeColor = primary ? Color.White : Color.FromArgb(64, 82, 82);
+        button.FlatAppearance.BorderColor = primary ? BrandBlue : SoftBorder;
+        button.FlatAppearance.BorderSize = 1;
+        button.FlatAppearance.MouseOverBackColor = primary ? Color.FromArgb(50, 72, 210) : SurfaceSoft;
+    }
+
+    private Control CreateLogoBox(int size, int imageSize, int radius)
+    {
+        var box = new RoundedPanel
+        {
+            Width = size,
+            Height = size,
+            BorderRadius = radius,
+            BorderColor = SoftBorder,
+            BackColor = Color.White,
+        };
+
+        var logo = TryLoadLogoBitmap(imageSize);
+        if (logo is not null)
+        {
+            box.Controls.Add(new PictureBox
+            {
+                Image = logo,
+                Dock = DockStyle.Fill,
+                SizeMode = PictureBoxSizeMode.CenterImage,
+                BackColor = Color.Transparent,
+            });
+            return box;
+        }
+
+        box.Controls.Add(new Label
+        {
+            Text = "G",
+            Dock = DockStyle.Fill,
+            TextAlign = ContentAlignment.MiddleCenter,
+            Font = new Font("Segoe UI", 13f, FontStyle.Bold),
+            ForeColor = BrandBlue,
+            BackColor = Color.Transparent,
+        });
+        return box;
+    }
+
+    private static Bitmap? TryLoadLogoBitmap(int size)
+    {
+        var candidates = new[]
+        {
+            Path.Combine(AppContext.BaseDirectory, "garmentsos_pro_logo.png"),
+            Path.Combine(AppContext.BaseDirectory, "favicon.ico"),
+            Path.Combine(AppContext.BaseDirectory, "favicon(1).ico"),
+        };
+
+        foreach (var path in candidates)
+        {
+            if (!File.Exists(path))
+            {
+                continue;
+            }
+
+            try
+            {
+                if (Path.GetExtension(path).Equals(".ico", StringComparison.OrdinalIgnoreCase))
+                {
+                    return new Icon(path, size, size).ToBitmap();
+                }
+
+                using var source = Image.FromFile(path);
+                return new Bitmap(source, new Size(size, size));
+            }
+            catch
+            {
+                // Ignore invalid branding assets and use fallback text.
+            }
+        }
+
+        return null;
+    }
+
+    private void EnterAutoUpdateMode()    private void EnterAutoUpdateMode()
     {
         autoUpdateMode = true;
         criticalUpdateStep = false;
         detailsExpanded = false;
         Text = "GarmentsOS PRO Updating";
-        titleLabel.Text = "GarmentsOS PRO Updating";
-        pathsPanel.Visible = false;
-        statusPanel.Visible = false;
-        buttonsPanel.Visible = false;
-        progressPanel.Visible = true;
+        titleLabel.Text = "GarmentsOS PRO";
         failureButtonsPanel.Visible = false;
         logBox.Visible = false;
         ControlBox = false;
         SetStep("Preparing update", marquee: true);
     }
 
-    private void ToggleDetails()
+    private void ToggleDetails()    private void ToggleDetails()
     {
         detailsExpanded = !detailsExpanded;
         logBox.Visible = detailsExpanded || failureButtonsPanel.Visible;
@@ -960,5 +1371,270 @@ public sealed class MainForm : Form
     {
         Directory.CreateDirectory(path);
         Process.Start(new ProcessStartInfo(path) { UseShellExecute = true });
+    }
+}
+
+internal sealed class RoundedPanel : Panel
+{
+    public int BorderRadius { get; set; } = 18;
+    public Color BorderColor { get; set; } = Color.FromArgb(199, 208, 220);
+
+    public RoundedPanel()
+    {
+        SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw | ControlStyles.UserPaint, true);
+    }
+
+    protected override void OnPaint(PaintEventArgs e)
+    {
+        base.OnPaint(e);
+        e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+        using var path = RoundedRect(new Rectangle(0, 0, Width - 1, Height - 1), BorderRadius);
+        using var pen = new Pen(BorderColor, 1f);
+        e.Graphics.DrawPath(pen, path);
+    }
+
+    protected override void OnResize(EventArgs eventargs)
+    {
+        base.OnResize(eventargs);
+        if (Width <= 0 || Height <= 0)
+        {
+            return;
+        }
+
+        using var path = RoundedRect(new Rectangle(0, 0, Width, Height), BorderRadius);
+        Region = new Region(path);
+    }
+
+    private static GraphicsPath RoundedRect(Rectangle r, int radius)
+    {
+        var path = new GraphicsPath();
+        var d = Math.Max(1, radius * 2);
+        path.AddArc(r.Left, r.Top, d, d, 180, 90);
+        path.AddArc(r.Right - d, r.Top, d, d, 270, 90);
+        path.AddArc(r.Right - d, r.Bottom - d, d, d, 0, 90);
+        path.AddArc(r.Left, r.Bottom - d, d, d, 90, 90);
+        path.CloseFigure();
+        return path;
+    }
+}
+
+internal sealed class GridPanel : Panel
+{
+    protected override void OnPaint(PaintEventArgs e)
+    {
+        base.OnPaint(e);
+        using var pen = new Pen(Color.FromArgb(5, 64, 87, 232));
+        for (var x = 0; x < Width; x += 56)
+        {
+            e.Graphics.DrawLine(pen, x, 0, x, Height);
+        }
+        for (var y = 0; y < Height; y += 56)
+        {
+            e.Graphics.DrawLine(pen, 0, y, Width, y);
+        }
+    }
+}
+
+internal sealed class StatusDot : Control
+{
+    public Color DotColor { get; set; } = Color.FromArgb(64, 87, 232);
+
+    public StatusDot()
+    {
+        Width = 7;
+        Height = 7;
+        SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.UserPaint, true);
+    }
+
+    protected override void OnPaint(PaintEventArgs e)
+    {
+        e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+        using var brush = new SolidBrush(DotColor);
+        e.Graphics.FillEllipse(brush, 0, 0, Width - 1, Height - 1);
+    }
+}
+
+internal sealed class VerticalLabel : Control
+{
+    protected override void OnPaint(PaintEventArgs e)
+    {
+        e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+        using var brush = new SolidBrush(ForeColor);
+        using var format = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center };
+        e.Graphics.TranslateTransform(Width / 2f, Height / 2f);
+        e.Graphics.RotateTransform(-90);
+        e.Graphics.DrawString(Text, Font, brush, new RectangleF(-Height / 2f, -Width / 2f, Height, Width), format);
+        e.Graphics.ResetTransform();
+    }
+}
+
+internal sealed class PillLabel : Label
+{
+    public PillLabel()
+    {
+        AutoSize = false;
+        TextAlign = ContentAlignment.MiddleCenter;
+        Font = new Font("Segoe UI", 8.2f, FontStyle.Bold);
+        ForeColor = Color.FromArgb(64, 82, 82);
+        BackColor = Color.White;
+        Margin = new Padding(0, 0, 8, 0);
+        Padding = new Padding(8, 0, 8, 0);
+        SetStyle(ControlStyles.UserPaint, true);
+    }
+
+    protected override void OnPaint(PaintEventArgs e)
+    {
+        e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+        var rect = new Rectangle(0, 0, Width - 1, Height - 1);
+        using var path = RoundedRect(rect, Height / 2);
+        using var bg = new SolidBrush(BackColor);
+        using var pen = new Pen(Color.FromArgb(199, 208, 220));
+        e.Graphics.FillPath(bg, path);
+        e.Graphics.DrawPath(pen, path);
+        TextRenderer.DrawText(e.Graphics, Text, Font, rect, ForeColor, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
+    }
+
+    private static GraphicsPath RoundedRect(Rectangle r, int radius)
+    {
+        var path = new GraphicsPath();
+        var d = Math.Max(1, radius * 2);
+        path.AddArc(r.Left, r.Top, d, d, 180, 90);
+        path.AddArc(r.Right - d, r.Top, d, d, 270, 90);
+        path.AddArc(r.Right - d, r.Bottom - d, d, d, 0, 90);
+        path.AddArc(r.Left, r.Bottom - d, d, d, 90, 90);
+        path.CloseFigure();
+        return path;
+    }
+}
+
+internal sealed class RichTextLabel : Control
+{
+    public string NormalText { get; set; } = "";
+    public string AccentText { get; set; } = "";
+    public float FontSize { get; set; } = 33f;
+
+    protected override void OnPaint(PaintEventArgs e)
+    {
+        e.Graphics.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
+        using var normalFont = new Font("Segoe UI", FontSize, FontStyle.Regular);
+        using var accentFont = new Font("Segoe UI", FontSize, FontStyle.Regular);
+        using var normal = new SolidBrush(Color.FromArgb(15, 23, 42));
+        using var accent = new SolidBrush(Color.FromArgb(64, 87, 232));
+        e.Graphics.DrawString(NormalText, normalFont, normal, 0, 0);
+        e.Graphics.DrawString(AccentText, accentFont, accent, 0, FontSize + 5);
+    }
+}
+
+internal sealed class PackageVisual : Control
+{
+    public Bitmap? Logo { get; set; }
+
+    public PackageVisual()
+    {
+        SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw | ControlStyles.UserPaint, true);
+    }
+
+    protected override void OnPaint(PaintEventArgs e)
+    {
+        base.OnPaint(e);
+        var g = e.Graphics;
+        g.SmoothingMode = SmoothingMode.AntiAlias;
+
+        var card = new Rectangle(6, 8, 205, 135);
+        using (var shadow = new SolidBrush(Color.FromArgb(12, 64, 87, 232)))
+        {
+            g.FillRoundedRectangle(shadow, new Rectangle(card.X + 8, card.Y + 10, card.Width, card.Height), 22);
+        }
+        DrawRounded(g, card, Color.White, Color.FromArgb(174, 185, 202), 22);
+
+        using (var pen = new Pen(Color.FromArgb(215, 221, 231)))
+        {
+            g.DrawLine(pen, card.Left, card.Top + 38, card.Right, card.Top + 38);
+        }
+
+        using (var dot = new SolidBrush(Color.FromArgb(195, 202, 212)))
+        using (var blue = new SolidBrush(Color.FromArgb(64, 87, 232)))
+        {
+            g.FillEllipse(dot, card.Left + 14, card.Top + 16, 6, 6);
+            g.FillEllipse(dot, card.Left + 27, card.Top + 16, 6, 6);
+            g.FillEllipse(blue, card.Left + 40, card.Top + 16, 6, 6);
+        }
+        using (var blueBrush = new SolidBrush(Color.FromArgb(64, 87, 232)))
+        using (var font = new Font("Segoe UI", 7.8f, FontStyle.Bold))
+        {
+            g.DrawString("v1.8.25", font, blueBrush, card.Right - 54, card.Top + 12);
+        }
+
+        var fileRow = new Rectangle(card.Left + 14, card.Top + 52, 177, 50);
+        DrawRounded(g, fileRow, Color.FromArgb(248, 250, 252), Color.FromArgb(211, 218, 229), 15);
+        var logoRect = new Rectangle(fileRow.Left + 11, fileRow.Top + 8, 34, 34);
+        DrawRounded(g, logoRect, Color.White, Color.FromArgb(211, 218, 229), 11);
+        if (Logo is not null)
+        {
+            g.DrawImage(Logo, new Rectangle(logoRect.Left + 4, logoRect.Top + 4, 26, 26));
+        }
+        else
+        {
+            using var f = new Font("Segoe UI", 10f, FontStyle.Bold);
+            using var b = new SolidBrush(Color.FromArgb(64, 87, 232));
+            g.DrawString("G", f, b, logoRect.Left + 9, logoRect.Top + 7);
+        }
+
+        using (var blueLine = new SolidBrush(Color.FromArgb(56, 64, 87, 232)))
+        using (var line = new SolidBrush(Color.FromArgb(219, 225, 234)))
+        {
+            g.FillRoundedRectangle(blueLine, new Rectangle(fileRow.Left + 56, fileRow.Top + 15, 64, 4), 2);
+            g.FillRoundedRectangle(line, new Rectangle(fileRow.Left + 56, fileRow.Top + 27, 42, 4), 2);
+        }
+
+        using (var tiny = new Font("Segoe UI", 7.4f, FontStyle.Bold))
+        using (var muted = new SolidBrush(Color.FromArgb(83, 97, 113)))
+        using (var blueText = new SolidBrush(Color.FromArgb(64, 87, 232)))
+        {
+            g.DrawString("PACKAGE", tiny, muted, card.Left + 14, card.Top + 112);
+            g.DrawString("Verified", tiny, blueText, card.Right - 61, card.Top + 112);
+        }
+    }
+
+    private static void DrawRounded(Graphics g, Rectangle rect, Color fill, Color border, int radius)
+    {
+        using var path = RoundedRect(rect, radius);
+        using var brush = new SolidBrush(fill);
+        using var pen = new Pen(border);
+        g.FillPath(brush, path);
+        g.DrawPath(pen, path);
+    }
+
+    private static GraphicsPath RoundedRect(Rectangle r, int radius)
+    {
+        var path = new GraphicsPath();
+        var d = Math.Max(1, radius * 2);
+        path.AddArc(r.Left, r.Top, d, d, 180, 90);
+        path.AddArc(r.Right - d, r.Top, d, d, 270, 90);
+        path.AddArc(r.Right - d, r.Bottom - d, d, d, 0, 90);
+        path.AddArc(r.Left, r.Bottom - d, d, d, 90, 90);
+        path.CloseFigure();
+        return path;
+    }
+}
+
+internal static class GraphicsExtensions
+{
+    public static void FillRoundedRectangle(this Graphics graphics, Brush brush, Rectangle bounds, int radius)
+    {
+        using var path = RoundedRect(bounds, radius);
+        graphics.FillPath(brush, path);
+    }
+
+    private static GraphicsPath RoundedRect(Rectangle r, int radius)
+    {
+        var path = new GraphicsPath();
+        var d = Math.Max(1, radius * 2);
+        path.AddArc(r.Left, r.Top, d, d, 180, 90);
+        path.AddArc(r.Right - d, r.Top, d, d, 270, 90);
+        path.AddArc(r.Right - d, r.Bottom - d, d, d, 0, 90);
+        path.AddArc(r.Left, r.Bottom - d, d, d, 90, 90);
+        path.CloseFigure();
+        return path;
     }
 }
