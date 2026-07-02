@@ -39,8 +39,8 @@ public sealed class MainForm : Form
     private readonly Label dockerStatusLabel = new() { Text = "Docker status: unknown", AutoSize = true };
     private readonly Label latestVersionLabel = new() { Text = "Latest version: not checked", AutoSize = true };
     private readonly Label mandatoryLabel = new() { Text = "Mandatory: false", AutoSize = true };
-    private readonly Label progressStatusLabel = new() { Text = "Checking update package...", AutoSize = true };
-    private readonly Label progressPercentLabel = new() { Text = "68%", AutoSize = true };
+    private readonly Label progressStatusLabel = new() { Text = "Opening GarmentsOS PRO...", AutoSize = true };
+    private readonly Label progressPercentLabel = new() { Text = "0%", AutoSize = true };
     private readonly Label installedFooterLabel = new() { Text = "Installed version: checking...", AutoSize = true };
     private readonly ProgressBar progressBar = new() { Style = ProgressBarStyle.Marquee, MarqueeAnimationSpeed = 35, Dock = DockStyle.Top };
     private readonly TextBox notesBox = new() { Multiline = true, ReadOnly = true, ScrollBars = ScrollBars.Vertical };
@@ -48,7 +48,13 @@ public sealed class MainForm : Form
     private readonly Button updateButton = new() { Text = "Update Now", Enabled = false };
     private readonly Button detailsButton = new() { Text = "Details", AutoSize = true };
     private readonly FlowLayoutPanel buttonsPanel = new() { Dock = DockStyle.Top, AutoSize = true, WrapContents = true };
-    private readonly FlowLayoutPanel failureButtonsPanel = new() { Dock = DockStyle.Top, AutoSize = true, WrapContents = true, Visible = false };
+    private readonly FlowLayoutPanel failureButtonsPanel = new()
+    {
+        Dock = DockStyle.None,
+        AutoSize = true,
+        WrapContents = false,
+        Visible = false,
+    };
     private readonly TableLayoutPanel pathsPanel = new() { Dock = DockStyle.Top, ColumnCount = 2, AutoSize = true };
     private readonly TableLayoutPanel statusPanel = new() { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 4 };
     private readonly Panel progressPanel = new() { Dock = DockStyle.Top, Visible = false, Padding = new Padding(0, 10, 0, 10) };
@@ -141,8 +147,8 @@ public sealed class MainForm : Form
 
         splashView.Dock = DockStyle.Fill;
         splashView.LogoImage = TryLoadLogoBitmap(24);
-        splashView.ProgressText = "Checking update package...";
-        splashView.ProgressPercent = 68;
+        splashView.ProgressText = "Opening GarmentsOS PRO...";
+        splashView.ProgressPercent = 0;
         splashView.InstalledVersionText = "Installed version: checking...";
         splashView.MouseDown += (_, e) => BeginDrag(e);
         root.Controls.Add(splashView);
@@ -167,10 +173,13 @@ public sealed class MainForm : Form
         root.Controls.Add(logBox);
 
         ConfigureActionButtons();
-        failureButtonsPanel.Left = 44;
-        failureButtonsPanel.Top = 358;
+        failureButtonsPanel.Dock = DockStyle.None;
+        failureButtonsPanel.Left = 52;
+        failureButtonsPanel.Top = 372;
         failureButtonsPanel.BackColor = Color.Transparent;
+        failureButtonsPanel.Visible = false;
         root.Controls.Add(failureButtonsPanel);
+        failureButtonsPanel.BringToFront();
 
         return root;
     }
@@ -504,11 +513,14 @@ public sealed class MainForm : Form
         AddButton(buttonsPanel, "Check", async (_, _) => await CheckUpdateAsync());
 
         failureButtonsPanel.Controls.Clear();
-        failureButtonsPanel.Location = new Point(0, 268);
+        failureButtonsPanel.Dock = DockStyle.None;
+        failureButtonsPanel.Location = new Point(52, 372);
         failureButtonsPanel.AutoSize = true;
         failureButtonsPanel.WrapContents = false;
         failureButtonsPanel.BackColor = Color.Transparent;
-        AddButton(failureButtonsPanel, "Open Install Folder", (_, _) => OpenFolder(installDirBox.Text));
+        AddButton(failureButtonsPanel, "Details", (_, _) => ToggleDetails());
+        AddButton(failureButtonsPanel, "Open App", async (_, _) => await OpenAppAsync());
+        AddButton(failureButtonsPanel, "Open Folder", (_, _) => OpenFolder(installDirBox.Text));
         AddButton(failureButtonsPanel, "Save Log", (_, _) => SaveLog());
         AddButton(failureButtonsPanel, "Close", (_, _) => Close());
         failureButtonsPanel.Visible = false;
@@ -621,13 +633,21 @@ public sealed class MainForm : Form
         failureButtonsPanel.Visible = false;
         logBox.Visible = false;
         ControlBox = false;
-        SetStep("Preparing update", marquee: true);
+        SetStep("Preparing update...", percent: 0);
     }
 
     private void ToggleDetails()
     {
         detailsExpanded = !detailsExpanded;
-        logBox.Visible = detailsExpanded || failureButtonsPanel.Visible;
+
+        logBox.Dock = DockStyle.None;
+        logBox.Left = 52;
+        logBox.Top = 214;
+        logBox.Width = Math.Max(100, ClientSize.Width - 104);
+        logBox.Height = 130;
+        logBox.Visible = detailsExpanded;
+        logBox.BringToFront();
+
         detailsButton.Text = detailsExpanded ? "Hide Details" : "Details";
     }
 
@@ -640,23 +660,22 @@ public sealed class MainForm : Form
         }
 
         progressStatusLabel.Text = message;
-        var nextPercent = percent ?? (marquee ? StepPercent(message, progressBar.Value) : progressBar.Value);
-        if (percent.HasValue)
-        {
-            progressBar.Style = ProgressBarStyle.Continuous;
-            progressBar.MarqueeAnimationSpeed = 0;
-        }
-        else if (marquee)
-        {
-            progressBar.Style = ProgressBarStyle.Continuous;
-            progressBar.MarqueeAnimationSpeed = 0;
-        }
 
+        var isIndeterminate = marquee && !percent.HasValue;
+        var nextPercent = percent ?? (isIndeterminate ? progressBar.Value : progressBar.Value);
+
+        progressBar.Style = ProgressBarStyle.Continuous;
+        progressBar.MarqueeAnimationSpeed = 0;
         progressBar.Value = Math.Clamp(nextPercent, progressBar.Minimum, progressBar.Maximum);
-        progressPercentLabel.Text = $"{progressBar.Value}%";
+
+        progressPercentLabel.Text = isIndeterminate ? "Working..." : $"{progressBar.Value}%";
+
         splashView.ProgressText = message;
         splashView.ProgressPercent = progressBar.Value;
+        splashView.IsIndeterminate = isIndeterminate;
+        splashView.ErrorText = null;
         splashView.Invalidate();
+
         progressPercentLabel.Left = progressPercentLabel.Parent is null
             ? progressPercentLabel.Left
             : progressPercentLabel.Parent.Width - progressPercentLabel.Width - 34;
@@ -676,13 +695,32 @@ public sealed class MainForm : Form
 
     private void ShowFailureMode(string message = "Update failed")
     {
+        autoUpdateMode = false;
         criticalUpdateStep = false;
         ControlBox = true;
-        SetStep(message, percent: 0);
+        updateButton.Enabled = currentFeed is not null;
+
+        SetStep("Update failed", percent: 0);
+        splashView.ErrorText = ShortUiMessage(message);
+        splashView.IsIndeterminate = false;
+        splashView.Invalidate();
+
+        failureButtonsPanel.Dock = DockStyle.None;
+        failureButtonsPanel.Left = 52;
+        failureButtonsPanel.Top = 372;
         failureButtonsPanel.Visible = true;
-        logBox.Visible = true;
-        detailsExpanded = true;
-        detailsButton.Text = "Hide Details";
+        failureButtonsPanel.BringToFront();
+
+        logBox.Visible = false;
+        detailsExpanded = false;
+        detailsButton.Text = "Details";
+    }
+
+    private static string ShortUiMessage(string message)
+    {
+        var clean = string.IsNullOrWhiteSpace(message) ? "Unknown error. Open details for more information." : message.Trim();
+        clean = clean.Replace("\r", " ").Replace("\n", " ");
+        return clean.Length <= 96 ? clean : clean[..93] + "...";
     }
 
     private async Task RefreshStatusAsync()
@@ -799,7 +837,7 @@ public sealed class MainForm : Form
         {
             if (autoStart)
             {
-                ShowFailureMode();
+                ShowFailureMode("Update request was missing from protocol URL.");
                 Log("Update request was missing from protocol URL.");
             }
             return;
@@ -825,7 +863,7 @@ public sealed class MainForm : Form
                 if (uri.Scheme.Equals("http", StringComparison.OrdinalIgnoreCase) ||
                     uri.Scheme.Equals("https", StringComparison.OrdinalIgnoreCase))
                 {
-                    SetStep("Preparing update", marquee: true);
+                    SetStep("Preparing update...", percent: 0);
                     Log("Loading update request JSON from URL...");
                     using var response = await http.GetAsync(uri);
                     response.EnsureSuccessStatusCode();
@@ -849,7 +887,7 @@ public sealed class MainForm : Form
             Log("Update request reference was not a supported URL or existing local file.");
             if (autoUpdateMode)
             {
-                ShowFailureMode();
+                ShowFailureMode(ex.Message);
             }
         }
         catch (Exception ex)
@@ -945,11 +983,11 @@ public sealed class MainForm : Form
             Directory.CreateDirectory(workDir);
 
             var packagePath = Path.Combine(workDir, Path.GetFileName(new Uri(currentFeed.PackageUrl).LocalPath));
-            SetStep("Downloading update package", marquee: true);
+            SetStep("Downloading update package...", marquee: true);
             Log("Downloading update package...");
             await DownloadFileAsync(currentFeed.PackageUrl, packagePath);
 
-            SetStep("Verifying package SHA256", marquee: true);
+            SetStep("Verifying update package...", marquee: true);
             Log("Verifying package SHA256...");
             var actualSha = await ComputeSha256Async(packagePath);
             if (!actualSha.Equals(currentFeed.PackageSha256, StringComparison.OrdinalIgnoreCase))
@@ -957,7 +995,7 @@ public sealed class MainForm : Form
                 throw new InvalidOperationException($"SHA256 mismatch. Expected {currentFeed.PackageSha256}, got {actualSha}.");
             }
 
-            SetStep("Preparing update", marquee: true);
+            SetStep("Preparing update...", percent: 0);
             var extractDir = Path.Combine(workDir, "extracted");
             Directory.CreateDirectory(extractDir);
             ExtractPackage(packagePath, extractDir);
@@ -970,7 +1008,7 @@ public sealed class MainForm : Form
                 throw new FileNotFoundException("Update script not found in package.", script);
             }
 
-            SetStep("Creating backup", marquee: true);
+            SetStep("Creating backup...", marquee: true);
             await RunProcessAsync(
                 "powershell.exe",
                 $"-NoProfile -ExecutionPolicy Bypass -File \"{script}\" -InstallDir \"{installDirBox.Text.Trim()}\" -ReleaseDir \"{releaseDir}\"",
@@ -979,19 +1017,19 @@ public sealed class MainForm : Form
                 {
                     if (line.Contains("backup", StringComparison.OrdinalIgnoreCase))
                     {
-                        SetStep("Creating backup", marquee: true);
+                        SetStep("Creating backup...", marquee: true);
                     }
                     else if (line.Contains("docker load", StringComparison.OrdinalIgnoreCase) || line.Contains("Loaded image", StringComparison.OrdinalIgnoreCase))
                     {
-                        SetStep("Applying update", marquee: true);
+                        SetStep("Applying update...", marquee: true);
                     }
                     else if (line.Contains("compose", StringComparison.OrdinalIgnoreCase) || line.Contains("started", StringComparison.OrdinalIgnoreCase))
                     {
-                        SetStep("Restarting services", marquee: true);
+                        SetStep("Restarting services...", marquee: true);
                     }
                 });
 
-            SetStep("Opening app", percent: 95);
+            SetStep("Opening app...", percent: 95);
             StartPendingLauncherReplacementHelper(installDirBox.Text.Trim());
             Log("Update complete. Opening app...");
             OpenUrl(AppUrl);
@@ -1013,16 +1051,93 @@ public sealed class MainForm : Form
         }
         catch (Exception ex)
         {
-            Log("Update failed: " + ex.Message);
-            updateButton.Enabled = true;
-            if (autoUpdateMode)
+            await HandleUpdateFailureAsync(ex);
+        }
+    }
+
+    private async Task HandleUpdateFailureAsync(Exception ex)
+    {
+        Log("Update failed: " + ex.Message);
+
+        autoUpdateMode = false;
+        criticalUpdateStep = false;
+        ControlBox = true;
+        updateButton.Enabled = currentFeed is not null;
+
+        SetStep("Restoring previous version...", marquee: true);
+        var rollbackOk = await TryRestorePreviousVersionAsync();
+
+        if (rollbackOk)
+        {
+            Log("Previous version restore/start completed.");
+            ShowFailureMode("Update failed. Previous version was restored. Open details to see the reason.");
+        }
+        else
+        {
+            Log("Previous version restore/start could not be completed automatically.");
+            ShowFailureMode("Update failed. Automatic rollback could not complete. Open details to see the reason.");
+        }
+
+        await RefreshStatusAsync();
+    }
+
+    private async Task<bool> TryRestorePreviousVersionAsync()
+    {
+        var installDir = installDirBox.Text.Trim();
+
+        if (string.IsNullOrWhiteSpace(installDir) || !Directory.Exists(installDir))
+        {
+            Log("Rollback skipped because install folder was not found: " + installDir);
+            return false;
+        }
+
+        var rollbackScripts = new[]
+        {
+            Path.Combine(installDir, "scripts", "windows-docker-rollback.ps1"),
+            Path.Combine(installDir, "scripts", "windows-docker-restore.ps1"),
+            Path.Combine(installDir, "scripts", "windows-docker-recover.ps1"),
+        };
+
+        foreach (var script in rollbackScripts)
+        {
+            if (!File.Exists(script))
             {
-                ShowFailureMode();
+                continue;
             }
-            else
+
+            try
             {
-                criticalUpdateStep = false;
+                SetStep("Rolling back to previous version...", marquee: true);
+                Log("Running rollback script: " + script);
+                await RunProcessAsync(
+                    "powershell.exe",
+                    $"-NoProfile -ExecutionPolicy Bypass -File \"{script}\" -InstallDir \"{installDir}\"",
+                    installDir);
+
+                SetStep("Starting previous version...", marquee: true);
+                await RunProcessAsync(ResolveDockerCommand(), "compose up -d", installDir);
+                return true;
             }
+            catch (Exception rollbackEx)
+            {
+                Log("Rollback script failed: " + rollbackEx.Message);
+                return false;
+            }
+        }
+
+        try
+        {
+            // Fallback: even if no rollback script exists, remove update-lock feel and bring the
+            // currently installed/previous compose stack back up so the app is accessible.
+            SetStep("Starting previous version...", marquee: true);
+            Log("No rollback script found. Starting existing compose stack as fallback.");
+            await RunProcessAsync(ResolveDockerCommand(), "compose up -d", installDir);
+            return true;
+        }
+        catch (Exception startEx)
+        {
+            Log("Fallback start failed: " + startEx.Message);
+            return false;
         }
     }
 
@@ -1228,7 +1343,7 @@ public sealed class MainForm : Form
                 throw new TimeoutException("GarmentsOS PRO started, but the web app did not respond.");
             }
 
-            SetStep("Opening app", percent: 95);
+            SetStep("Opening app...", percent: 95);
             Log("Opening app in browser: " + AppUrl);
             OpenUrl(AppUrl);
 
@@ -1791,9 +1906,11 @@ internal sealed class UpdaterSplashView : Control
     private const string EmbeddedLogoPngBase64 = "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";
 
     public Image? LogoImage { get; set; }
-    public string ProgressText { get; set; } = "Checking update package...";
+    public string ProgressText { get; set; } = "Opening GarmentsOS PRO...";
     public string InstalledVersionText { get; set; } = "Installed version: unknown";
-    public int ProgressPercent { get; set; } = 68;
+    public int ProgressPercent { get; set; } = 0;
+    public bool IsIndeterminate { get; set; }
+    public string? ErrorText { get; set; }
 
     private readonly Font brandFont = new("Segoe UI", 10.5f, FontStyle.Bold);
     private readonly Font secureFont = new("Segoe UI", 8.2f, FontStyle.Bold);
@@ -1933,8 +2050,13 @@ internal sealed class UpdaterSplashView : Control
     {
         // .bottom padding 14px 40px 30px 40px.
         var bottomX = 40;
-        DrawText(g, ProgressText, smallBoldFont, TextMuted, bottomX, 331);
-        DrawTextRight(g, $"{Math.Clamp(ProgressPercent, 0, 100)}%", smallBoldFont, BrandBlue, 680, 331);
+        DrawText(g, ProgressText, smallBoldFont, string.IsNullOrWhiteSpace(ErrorText) ? TextMuted : Color.FromArgb(185, 28, 28), bottomX, 331);
+        DrawTextRight(g, IsIndeterminate ? "Working..." : $"{Math.Clamp(ProgressPercent, 0, 100)}%", smallBoldFont, BrandBlue, 680, 331);
+
+        if (!string.IsNullOrWhiteSpace(ErrorText))
+        {
+            DrawText(g, ErrorText!, footerFont, Color.FromArgb(185, 28, 28), bottomX, 345);
+        }
 
         var trackRect = new Rectangle(bottomX, 360, 640, 3);
         using (var trackBrush = new SolidBrush(Track))
@@ -1942,11 +2064,20 @@ internal sealed class UpdaterSplashView : Control
             FillRounded(g, trackBrush, trackRect, 2);
         }
 
-        var fillWidth = (int)(trackRect.Width * Math.Clamp(ProgressPercent, 0, 100) / 100f);
-        if (fillWidth > 0)
+        using (var fillBrush = new SolidBrush(BrandBlue))
         {
-            using var fillBrush = new SolidBrush(BrandBlue);
-            FillRounded(g, fillBrush, new Rectangle(trackRect.X, trackRect.Y, fillWidth, trackRect.Height), 2);
+            if (IsIndeterminate)
+            {
+                FillRounded(g, fillBrush, new Rectangle(trackRect.X, trackRect.Y, 110, trackRect.Height), 2);
+            }
+            else
+            {
+                var fillWidth = (int)(trackRect.Width * Math.Clamp(ProgressPercent, 0, 100) / 100f);
+                if (fillWidth > 0)
+                {
+                    FillRounded(g, fillBrush, new Rectangle(trackRect.X, trackRect.Y, fillWidth, trackRect.Height), 2);
+                }
+            }
         }
 
         DrawText(g, "A Product of SparkPair", footerFont, TextHint, bottomX, 381);
