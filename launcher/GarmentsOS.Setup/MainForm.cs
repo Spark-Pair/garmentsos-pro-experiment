@@ -1850,7 +1850,7 @@ internal sealed class UpdaterSplashView : Control
     {
         // Header padding 40, logo 26 box with 22 image centered.
         DrawLogo(g, 42, 25, 22);
-        DrawText(g, "GarmentsOS PRO", brandFont, BrandBlue, 78, 36);
+        DrawText(g, "GarmentsOS PRO", brandFont, BrandBlue, 78, 27);
 
         FillCircle(g, BrandBlue, 582, 39, 7);
         DrawText(g, "Secure Updater", secureFont, TextPrimary, 600, 35);
