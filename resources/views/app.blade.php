@@ -11,6 +11,12 @@
     $primaryColor = $effectiveBranding['theme_primary_color'] ?? '#2563eb';
     $secondaryColor = $effectiveBranding['theme_secondary_color'] ?? '#1f2937';
     $accentColor = $effectiveBranding['theme_accent_color'] ?? '#2563eb';
+    $activeUpdateLock = null;
+    try {
+        $activeUpdateLock = app(\App\Services\Updater\UpdateLockService::class)->activeLock();
+    } catch (\Throwable) {
+        $activeUpdateLock = null;
+    }
 
     $appConfig = [
         'authenticated' => Auth::check(),
@@ -34,6 +40,7 @@
         'branding' => $effectiveBranding,
         'notificationsUrl' => Auth::check() ? route('notifications.index') : null,
         'readonlySession' => !request()->is('login') && !request()->is('setup') && ((bool) session('license_readonly')),
+        'updating' => $activeUpdateLock !== null,
     ];
     $centerMainContent = request()->is('/') || request()->is('login') || request()->is('setup') || request()->is('subscription-expired');
     $developerUpdateStatus = null;
@@ -574,7 +581,7 @@
                             </div>
                             <div class="flex flex-wrap gap-2">
                                 @if (!empty($developerLauncherHandoff['protocol_url']))
-                                    <a href="{{ $developerLauncherHandoff['protocol_url'] }}" class="js-update-handoff rounded-lg border border-[var(--border-warning)] bg-[var(--h-bg-warning)] px-3 py-2 text-xs font-semibold text-[var(--text-warning)]">
+                                    <a href="#" data-update-start-url="{{ route('developer.updater.launcher-handoff.start') }}" class="js-update-handoff rounded-lg border border-[var(--border-warning)] bg-[var(--h-bg-warning)] px-3 py-2 text-xs font-semibold text-[var(--text-warning)]">
                                         Update Now
                                     </a>
                                 @endif
@@ -594,29 +601,153 @@
         @endcomponent
     </div>
 
-    <div id="update-handoff-overlay" class="fixed inset-0 z-[10000] hidden items-center justify-center bg-[var(--overlay-color)] px-4">
+    <div id="update-handoff-overlay" class="fixed inset-0 z-[10000] {{ $activeUpdateLock ? 'flex' : 'hidden' }} items-center justify-center bg-[var(--overlay-color)] px-4">
         <div class="w-full max-w-lg rounded-xl border border-[var(--border-warning)] bg-[var(--secondary-bg-color)] p-6 text-center shadow-xl">
-            <h2 class="text-xl font-semibold text-[var(--text-color)]">Update started</h2>
+            <h2 class="text-xl font-semibold text-[var(--text-color)]">GarmentsOS PRO is updating</h2>
             <p class="mt-3 text-sm text-[var(--secondary-text)]">
-                GarmentsOS PRO is updating. The app may close and reopen automatically.
+                {{ $activeUpdateLock['message'] ?? 'Please do not close or use the app until the update is complete.' }}
             </p>
             <p class="mt-3 text-xs text-[var(--secondary-text)]">
                 If Windows asks to open GarmentsOS PRO Updater, choose Open.
             </p>
+            @if (!empty($activeUpdateLock['expires_at']))
+                <p class="mt-3 text-xs text-[var(--secondary-text)]">
+                    Lock expires at {{ $activeUpdateLock['expires_at'] }}.
+                </p>
+            @endif
         </div>
     </div>
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
+            const overlay = document.getElementById('update-handoff-overlay');
+            const updateLockStatusUrl = @json(Auth::check() ? route('developer.updater.update-lock-status') : null);
+            let updateLockPoll = null;
+
+            const showUpdateOverlay = () => {
+                if (overlay) {
+                    overlay.classList.remove('hidden');
+                    overlay.classList.add('flex');
+                }
+                document.querySelectorAll('button, input, select, textarea').forEach((element) => {
+                    if (!element.closest('#update-handoff-overlay')) {
+                        if (!element.hasAttribute('disabled')) {
+                            element.dataset.updateLockDisabled = '1';
+                        }
+                        element.setAttribute('disabled', 'disabled');
+                    }
+                });
+            };
+
+            const hideUpdateOverlay = () => {
+                if (overlay) {
+                    overlay.classList.add('hidden');
+                    overlay.classList.remove('flex');
+                }
+                document.querySelectorAll('[data-update-lock-disabled="1"]').forEach((element) => {
+                    element.removeAttribute('disabled');
+                    delete element.dataset.updateLockDisabled;
+                });
+            };
+
+            const pollUpdateLock = () => {
+                if (!updateLockStatusUrl || updateLockPoll) {
+                    return;
+                }
+
+                updateLockPoll = window.setInterval(async () => {
+                    try {
+                        const response = await fetch(updateLockStatusUrl, {
+                            headers: {
+                                'Accept': 'application/json',
+                            },
+                        });
+                        if (!response.ok) {
+                            return;
+                        }
+
+                        const payload = await response.json();
+                        if (payload && payload.updating === false) {
+                            window.clearInterval(updateLockPoll);
+                            updateLockPoll = null;
+                            hideUpdateOverlay();
+                            window.location.reload();
+                        }
+                    } catch (error) {
+                        // Keep the overlay visible while the app/container is restarting.
+                    }
+                }, 5000);
+            };
+
+            @if ($activeUpdateLock)
+                showUpdateOverlay();
+                pollUpdateLock();
+            @endif
+
             document.querySelectorAll('.js-update-handoff').forEach((link) => {
-                link.addEventListener('click', () => {
-                    const overlay = document.getElementById('update-handoff-overlay');
-                    if (overlay) {
-                        overlay.classList.remove('hidden');
-                        overlay.classList.add('flex');
+                link.addEventListener('click', async (event) => {
+                    event.preventDefault();
+                    if (link.dataset.busy === '1') {
+                        return;
+                    }
+
+                    const startUrl = link.dataset.updateStartUrl;
+                    if (!startUrl) {
+                        return;
+                    }
+
+                    link.dataset.busy = '1';
+                    showUpdateOverlay();
+                    pollUpdateLock();
+
+                    try {
+                        const response = await fetch(startUrl, {
+                            method: 'POST',
+                            headers: {
+                                'Accept': 'application/json',
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                            },
+                            body: JSON.stringify({}),
+                        });
+
+                        const payload = await response.json().catch(() => ({}));
+                        if (!response.ok || !payload.protocol_url) {
+                            throw new Error(payload.message || 'Update could not be started.');
+                        }
+
+                        window.location.href = payload.protocol_url;
+                    } catch (error) {
+                        alert(error.message || 'Update could not be started.');
+                        link.dataset.busy = '0';
+                        hideUpdateOverlay();
                     }
                 });
             });
+
+            document.addEventListener('submit', (event) => {
+                if (overlay && !overlay.classList.contains('hidden')) {
+                    event.preventDefault();
+                }
+            }, true);
+
+            if (window.fetch) {
+                const originalFetch = window.fetch.bind(window);
+                window.fetch = async (...args) => {
+                    const response = await originalFetch(...args);
+                    if (response.status === 423 || response.status === 503) {
+                        const cloned = response.clone();
+                        cloned.json().then((payload) => {
+                            if (payload?.updating) {
+                                showUpdateOverlay();
+                                pollUpdateLock();
+                            }
+                        }).catch(() => {});
+                    }
+
+                    return response;
+                };
+            }
         });
     </script>
 

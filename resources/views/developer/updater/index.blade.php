@@ -60,6 +60,24 @@
         <section class="{{ $panel }}">
             <x-form-title-bar title="Release Feed Update" />
 
+            @if (!empty($updateLockStatus['updating']))
+                <div class="mb-4 rounded-lg border border-[var(--border-warning)] bg-[var(--bg-warning)] p-4 text-sm text-[var(--text-warning)]">
+                    <div class="font-semibold">GarmentsOS PRO is updating</div>
+                    <div class="mt-1">{{ $updateLockStatus['message'] ?? 'Please wait until the update is complete.' }}</div>
+                    <div class="mt-2 text-xs">
+                        Target: {{ $updateLockStatus['target_version'] ?? '-' }} |
+                        Started: {{ $updateLockStatus['started_at'] ?? '-' }} |
+                        Expires: {{ $updateLockStatus['expires_at'] ?? '-' }}
+                    </div>
+                    <form method="POST" action="{{ route('developer.updater.clear-update-lock') }}" class="mt-3">
+                        @csrf
+                        <button type="submit" class="{{ $secondaryButton }}">
+                            Clear stale update lock
+                        </button>
+                    </form>
+                </div>
+            @endif
+
             <div class="mb-4 flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                 <p class="max-w-3xl text-sm text-[var(--secondary-text)]">
                     Checks the configured public `latest.json` feed. Laravel only prepares the handoff; the Windows launcher applies updates outside the running app.
@@ -128,7 +146,7 @@
 
                 <div class="mt-4 flex flex-wrap items-center gap-3">
                     @if ($launcherUpdateUrl)
-                        <a href="{{ $launcherUpdateUrl }}" class="{{ $primaryButton }} js-update-handoff">
+                        <a href="#" data-update-start-url="{{ route('developer.updater.launcher-handoff.start') }}" class="{{ $primaryButton }} js-update-handoff">
                             Update Now
                         </a>
                     @else

@@ -75,6 +75,7 @@ class Kernel extends HttpKernel
         'activeSession' => \App\Http\Middleware\CheckActiveSession::class,
         'subscriptionExpiry' => \App\Http\Middleware\SubscriptionExpiry::class,
         'readonly' => \App\Http\Middleware\ReadOnlyMode::class,
+        'blockWhenUpdating' => \App\Http\Middleware\BlockWhenUpdating::class,
         'dbTransaction' => \App\Http\Middleware\WrapWriteRequestsInTransaction::class,
     ];
 }

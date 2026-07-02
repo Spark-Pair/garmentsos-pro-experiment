@@ -376,14 +376,14 @@ public sealed class MainForm : Form
         copy.Controls.Add(failureButtonsPanel);
 
         content.Controls.Add(copy, 0, 0);
-        content.Controls.Add(BuildPackageVisual(), 1, 0);
+        content.Controls.Add(BuildWindowStackVisual(), 1, 0);
 
         return content;
     }
 
-    private Control BuildPackageVisual()
+    private Control BuildWindowStackVisual()
     {
-        var visual = new PackageVisual
+        var visual = new WindowStackVisual
         {
             Dock = DockStyle.Fill,
             Logo = TryLoadLogoBitmap(26),
@@ -674,11 +674,11 @@ public sealed class MainForm : Form
         return current <= 0 ? 20 : current;
     }
 
-    private void ShowFailureMode()
+    private void ShowFailureMode(string message = "Update failed")
     {
         criticalUpdateStep = false;
         ControlBox = true;
-        SetStep("Update failed", percent: 0);
+        SetStep(message, percent: 0);
         failureButtonsPanel.Visible = true;
         logBox.Visible = true;
         detailsExpanded = true;
@@ -1144,7 +1144,7 @@ public sealed class MainForm : Form
     {
         try
         {
-            var result = await RunProcessCaptureAsync("docker", "info", installDirBox.Text.Trim());
+            var result = await RunProcessCaptureAsync(ResolveDockerCommand(), "info", installDirBox.Text.Trim());
             return result == 0 ? "running" : "not available";
         }
         catch
@@ -1201,14 +1201,164 @@ public sealed class MainForm : Form
     {
         try
         {
-            await RunPowerShellAsync("docker compose up -d", installDirBox.Text.Trim());
+            failureButtonsPanel.Visible = false;
+            logBox.Visible = false;
+            detailsExpanded = false;
+            detailsButton.Text = "Details";
+
+            var installDir = installDirBox.Text.Trim();
+            if (!Directory.Exists(installDir))
+            {
+                throw new DirectoryNotFoundException("Install folder was not found: " + installDir);
+            }
+
+            SetStep("Starting GarmentsOS PRO", percent: 10);
+            Log("Starting GarmentsOS PRO open flow.");
+
+            await EnsureDockerRunningAsync();
+
+            SetStep("Starting app services", percent: 65);
+            Log("Starting app services with docker compose up -d.");
+            await RunProcessAsync(ResolveDockerCommand(), "compose up -d", installDir);
+
+            SetStep("Waiting for app", percent: 82);
+            Log("Waiting for web app to respond at " + AppUrl + ".");
+            if (!await WaitForAppAsync(TimeSpan.FromSeconds(60)))
+            {
+                throw new TimeoutException("GarmentsOS PRO started, but the web app did not respond.");
+            }
+
+            SetStep("Opening app", percent: 95);
+            Log("Opening app in browser: " + AppUrl);
+            OpenUrl(AppUrl);
+
+            SetStep("Ready", percent: 100);
+            await Task.Delay(TimeSpan.FromSeconds(2));
+            Close();
         }
         catch (Exception ex)
         {
-            Log("Could not start services before opening app: " + ex.Message);
+            var message = ex.Message.Contains("Docker could not start", StringComparison.OrdinalIgnoreCase)
+                ? "Docker could not start. Please open Docker Desktop and try again."
+                : ex.Message;
+            Log("Open app failed: " + message);
+            ShowFailureMode(message);
+        }
+    }
+
+    private async Task EnsureDockerRunningAsync()
+    {
+        SetStep("Checking Docker", percent: 20);
+        if (await DockerInfoAsync())
+        {
+            Log("Docker is already running.");
+            return;
         }
 
-        OpenUrl(AppUrl);
+        SetStep("Starting Docker", percent: 35);
+        StartDockerDesktopIfAvailable();
+
+        SetStep("Waiting for Docker", percent: 45);
+        if (!await WaitForDockerAsync(TimeSpan.FromSeconds(120)))
+        {
+            throw new TimeoutException("Docker could not start. Please open Docker Desktop and try again.");
+        }
+
+        Log("Docker is running.");
+    }
+
+    private async Task<bool> DockerInfoAsync()
+    {
+        try
+        {
+            return await RunProcessCaptureAsync(ResolveDockerCommand(), "info", installDirBox.Text.Trim()) == 0;
+        }
+        catch (Exception ex)
+        {
+            Log("Docker check failed: " + ex.Message);
+            return false;
+        }
+    }
+
+    private void StartDockerDesktopIfAvailable()
+    {
+        var candidates = new[]
+        {
+            @"C:\Program Files\Docker\Docker\Docker Desktop.exe",
+        };
+
+        foreach (var candidate in candidates)
+        {
+            if (!File.Exists(candidate))
+            {
+                continue;
+            }
+
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = candidate,
+                UseShellExecute = true,
+                WindowStyle = ProcessWindowStyle.Minimized,
+            });
+            Log("Docker Desktop start requested: " + candidate);
+            return;
+        }
+
+        Log("Docker Desktop executable was not found in common install paths.");
+    }
+
+    private static string ResolveDockerCommand()
+    {
+        const string defaultCommand = "docker";
+        const string dockerDesktopCli = @"C:\Program Files\Docker\Docker\resources\bin\docker.exe";
+
+        return File.Exists(dockerDesktopCli) ? dockerDesktopCli : defaultCommand;
+    }
+
+    private async Task<bool> WaitForDockerAsync(TimeSpan timeout)
+    {
+        var deadline = DateTimeOffset.UtcNow.Add(timeout);
+        while (DateTimeOffset.UtcNow < deadline)
+        {
+            if (await DockerInfoAsync())
+            {
+                return true;
+            }
+
+            await Task.Delay(TimeSpan.FromSeconds(2));
+        }
+
+        return false;
+    }
+
+    private async Task<bool> WaitForAppAsync(TimeSpan timeout)
+    {
+        var deadline = DateTimeOffset.UtcNow.Add(timeout);
+        while (DateTimeOffset.UtcNow < deadline)
+        {
+            if (await IsAppReachableAsync())
+            {
+                return true;
+            }
+
+            await Task.Delay(TimeSpan.FromSeconds(2));
+        }
+
+        return false;
+    }
+
+    private async Task<bool> IsAppReachableAsync()
+    {
+        try
+        {
+            using var response = await http.GetAsync(AppUrl);
+            var code = (int) response.StatusCode;
+            return code >= 200 && code < 500;
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     private async Task<int> RunProcessCaptureAsync(string fileName, string arguments, string workingDirectory)
@@ -2095,11 +2245,11 @@ internal sealed class RichTextLabel : Control
     }
 }
 
-internal sealed class PackageVisual : Control
+internal sealed class WindowStackVisual : Control
 {
     public Bitmap? Logo { get; set; }
 
-    public PackageVisual()
+    public WindowStackVisual()
     {
         SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw | ControlStyles.UserPaint, true);
     }

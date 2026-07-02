@@ -6,6 +6,7 @@ return [
     'feed_timeout' => env('UPDATE_FEED_TIMEOUT', 8),
     'launcher_protocol' => env('UPDATE_LAUNCHER_PROTOCOL', 'garmentsos'),
     'update_request_ttl_minutes' => env('UPDATE_REQUEST_TTL_MINUTES', 10),
+    'update_lock_ttl_minutes' => env('UPDATE_LOCK_TTL_MINUTES', 30),
     'manifest_url' => env('UPDATER_MANIFEST_URL', env('UPDATE_FEED_URL', '')),
     'public_key' => env('UPDATER_PUBLIC_KEY', ''),
     'channel' => env('UPDATE_CHANNEL', env('UPDATER_CHANNEL', 'stable')),

@@ -51,6 +51,8 @@ class ReadOnlyMode
             'developer.backups.verify',
             'developer.updater.check',
             'developer.updater.apply',
+            'developer.updater.launcher-handoff.start',
+            'developer.updater.clear-update-lock',
             'developer.license.activate.post',
             'developer.license.offline.import',
             'developer.license.refresh',

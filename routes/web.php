@@ -70,7 +70,7 @@ Route::middleware(['setup.complete', 'signed'])->group(function () {
     Route::get('developer/updater/update-request/signed', [UpdateController::class, 'signedUpdateRequest'])->name('developer.updater.update-request.signed');
 });
 
-Route::group(['middleware' => ['setup.complete', 'auth', 'activeSession', 'ensureLicense', 'readonly']], function () {
+Route::group(['middleware' => ['setup.complete', 'auth', 'activeSession', 'ensureLicense', 'readonly', 'blockWhenUpdating']], function () {
     Route::get('/backup-db', [BackupController::class, 'legacyDownload'])->name('backup-db');
     Route::get('developer/backups', [BackupController::class, 'index'])->name('developer.backups');
     Route::post('developer/backups', [BackupController::class, 'store'])->name('developer.backups.store');
@@ -81,11 +81,14 @@ Route::group(['middleware' => ['setup.complete', 'auth', 'activeSession', 'ensur
     Route::get('developer/updater', [UpdateController::class, 'index'])->name('developer.updater');
     Route::get('developer/updater/update-request', [UpdateController::class, 'updateRequest'])->name('developer.updater.update-request');
     Route::get('developer/updater/launcher-handoff', [UpdateController::class, 'launcherHandoff'])->name('developer.updater.launcher-handoff');
+    Route::post('developer/updater/launcher-handoff/start', [UpdateController::class, 'startLauncherHandoff'])->name('developer.updater.launcher-handoff.start');
+    Route::get('developer/updater/update-lock-status', [UpdateController::class, 'updateLockStatus'])->name('developer.updater.update-lock-status');
+    Route::post('developer/updater/clear-update-lock', [UpdateController::class, 'clearUpdateLock'])->name('developer.updater.clear-update-lock');
     Route::post('developer/updater/check', [UpdateController::class, 'check'])->name('developer.updater.check');
     Route::post('developer/updater/apply', [UpdateController::class, 'apply'])->name('developer.updater.apply');
 });
 
-Route::group(['middleware' => ['setup.complete', 'auth', 'activeSession', 'ensureLicense', 'readonly', 'dbTransaction']], function () {
+Route::group(['middleware' => ['setup.complete', 'auth', 'activeSession', 'ensureLicense', 'readonly', 'blockWhenUpdating', 'dbTransaction']], function () {
     Route::get('', function () {
         return redirect(route('home'));
     });
