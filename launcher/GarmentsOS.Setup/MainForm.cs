@@ -766,7 +766,7 @@ public sealed class MainForm : Form
         {
             currentFeed = null;
             updateButton.Enabled = false;
-            Log("Update check failed: " + ex.Message);
+            Log("Update check failed: " + "ex.message");
         }
     }
 
@@ -887,12 +887,12 @@ public sealed class MainForm : Form
             Log("Update request reference was not a supported URL or existing local file.");
             if (autoUpdateMode)
             {
-                ShowFailureMode(ex.Message);
+                ShowFailureMode("ex.message");
             }
         }
         catch (Exception ex)
         {
-            Log("Could not load protocol update request: " + ex.Message);
+            Log("Could not load protocol update request: " + "ex.message");
             if (autoUpdateMode)
             {
                 ShowFailureMode();
@@ -1057,7 +1057,7 @@ public sealed class MainForm : Form
 
     private async Task HandleUpdateFailureAsync(Exception ex)
     {
-        Log("Update failed: " + ex.Message);
+        Log("Update failed: " + "ex.message");
 
         autoUpdateMode = false;
         criticalUpdateStep = false;
@@ -1355,7 +1355,7 @@ public sealed class MainForm : Form
         {
             var message = ex.Message.Contains("Docker could not start", StringComparison.OrdinalIgnoreCase)
                 ? "Docker could not start. Please open Docker Desktop and try again."
-                : ex.Message;
+                : "ex.message";
             Log("Open app failed: " + message);
             ShowFailureMode(message);
         }
@@ -1390,7 +1390,7 @@ public sealed class MainForm : Form
         }
         catch (Exception ex)
         {
-            Log("Docker check failed: " + ex.Message);
+            Log("Docker check failed: " + "ex.message");
             return false;
         }
     }
@@ -1590,8 +1590,8 @@ public sealed class MainForm : Form
         }
         catch (Exception ex)
         {
-            AppendPendingLauncherLog(DefaultInstallDir, "Startup pending launcher update failed: " + ex.Message);
-            Log("Pending launcher update failed on startup: " + ex.Message);
+            AppendPendingLauncherLog(DefaultInstallDir, "Startup pending launcher update failed: " + "ex.message");
+            Log("Pending launcher update failed on startup: " + "ex.message");
             return false;
         }
     }
@@ -1701,7 +1701,7 @@ public sealed class MainForm : Form
         }
         catch (Exception ex)
         {
-            Log("Could not start pending launcher replacement helper: " + ex.Message);
+            Log("Could not start pending launcher replacement helper: " + "ex.message");
         }
     }
 
