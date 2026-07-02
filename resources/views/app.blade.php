@@ -622,7 +622,35 @@
         document.addEventListener('DOMContentLoaded', () => {
             const overlay = document.getElementById('update-handoff-overlay');
             const updateLockStatusUrl = @json(Auth::check() ? route('developer.updater.update-lock-status') : null);
+            const updatingUrl = @json(route('updating'));
             let updateLockPoll = null;
+            let closeFallbackStarted = false;
+
+            const closeOrReplaceWithUpdating = (delay = 650) => {
+                if (closeFallbackStarted) {
+                    return;
+                }
+
+                closeFallbackStarted = true;
+                try {
+                    window.close();
+                } catch (error) {
+                }
+
+                try {
+                    window.open('', '_self');
+                    window.close();
+                } catch (error) {
+                }
+
+                window.setTimeout(() => {
+                    try {
+                        window.location.replace(updatingUrl);
+                    } catch (error) {
+                        window.location.href = updatingUrl;
+                    }
+                }, delay);
+            };
 
             const showUpdateOverlay = () => {
                 if (overlay) {
@@ -682,6 +710,9 @@
             @if ($activeUpdateLock)
                 showUpdateOverlay();
                 pollUpdateLock();
+                @unless (request()->routeIs('developer.updater'))
+                    closeOrReplaceWithUpdating();
+                @endunless
             @endif
 
             document.querySelectorAll('.js-update-handoff').forEach((link) => {
@@ -717,6 +748,7 @@
                         }
 
                         window.location.href = payload.protocol_url;
+                        closeOrReplaceWithUpdating();
                     } catch (error) {
                         alert(error.message || 'Update could not be started.');
                         link.dataset.busy = '0';
@@ -741,6 +773,7 @@
                             if (payload?.updating) {
                                 showUpdateOverlay();
                                 pollUpdateLock();
+                                closeOrReplaceWithUpdating();
                             }
                         }).catch(() => {});
                     }

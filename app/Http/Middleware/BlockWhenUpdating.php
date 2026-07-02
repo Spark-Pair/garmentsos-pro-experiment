@@ -10,6 +10,7 @@ use Symfony\Component\HttpFoundation\Response;
 class BlockWhenUpdating
 {
     protected array $exceptRouteNames = [
+        'updating',
         'developer.updater',
         'developer.updater.update-request',
         'developer.updater.update-request.signed',
@@ -29,7 +30,7 @@ class BlockWhenUpdating
     public function handle(Request $request, Closure $next): Response
     {
         $lock = $this->locks->activeLock();
-        if ($lock === null || $request->isMethodSafe() || $this->isExcepted($request)) {
+        if ($lock === null || $this->isExcepted($request)) {
             return $next($request);
         }
 
@@ -37,6 +38,14 @@ class BlockWhenUpdating
             'message' => $lock['message'] ?? 'GarmentsOS PRO is updating. Please wait until the update is complete.',
             'updating' => true,
         ];
+
+        if ($request->isMethodSafe()) {
+            if ($request->expectsJson()) {
+                return response()->json($payload, 423);
+            }
+
+            return redirect()->route('updating');
+        }
 
         if ($request->expectsJson()) {
             return response()->json($payload, 423);

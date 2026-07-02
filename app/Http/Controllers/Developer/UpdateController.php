@@ -165,10 +165,6 @@ class UpdateController extends Controller
 
     public function updateLockStatus(UpdateLockService $locks): JsonResponse
     {
-        if ($resp = $this->denyIfNoRole(['developer', 'admin'])) {
-            abort(403);
-        }
-
         return response()->json($locks->status());
     }
 

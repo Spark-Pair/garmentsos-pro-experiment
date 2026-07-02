@@ -41,6 +41,7 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\UtilityAccountController;
 use App\Http\Controllers\UtilityBillController;
 use App\Http\Controllers\VoucherController;
+use App\Services\Updater\UpdateLockService;
 use Illuminate\Support\Facades\Route;
 /*
 |--------------------------------------------------------------------------
@@ -69,6 +70,15 @@ Route::get('subscription-expired', function () {
 Route::middleware(['setup.complete', 'signed'])->group(function () {
     Route::get('developer/updater/update-request/signed', [UpdateController::class, 'signedUpdateRequest'])->name('developer.updater.update-request.signed');
 });
+
+Route::get('updating', function (UpdateLockService $locks) {
+    $lock = $locks->activeLock();
+    if ($lock === null) {
+        return redirect('/');
+    }
+
+    return view('updater.updating', ['updateLock' => $lock]);
+})->middleware(['setup.complete', 'auth', 'activeSession'])->name('updating');
 
 Route::group(['middleware' => ['setup.complete', 'auth', 'activeSession', 'ensureLicense', 'readonly', 'blockWhenUpdating']], function () {
     Route::get('/backup-db', [BackupController::class, 'legacyDownload'])->name('backup-db');
