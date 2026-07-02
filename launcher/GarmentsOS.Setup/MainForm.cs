@@ -1879,9 +1879,9 @@ internal sealed class UpdaterSplashView : Control
         var rightX = 418;
         var rightY = 120;
 
-        DrawWindowFrame(g, new Rectangle(rightX + 32, rightY + 0, 206, 124), 15, 0.50f, false);
-        DrawWindowFrame(g, new Rectangle(rightX + 16, rightY + 16, 206, 124), 15, 0.74f, false);
-        DrawWindowFrame(g, new Rectangle(rightX + 0, rightY + 32, 206, 124), 15, 1f, true);
+        DrawWindowFrame(g, new Rectangle(rightX + 32, rightY + 0, 206, 124), 12, 0.50f, false);
+        DrawWindowFrame(g, new Rectangle(rightX + 16, rightY + 16, 206, 124), 12, 0.74f, false);
+        DrawWindowFrame(g, new Rectangle(rightX + 0, rightY + 32, 206, 124), 12, 1f, true);
     }
 
     private void DrawWindowFrame(Graphics g, Rectangle rect, int radius, float opacity, bool front)
@@ -1971,7 +1971,7 @@ internal sealed class UpdaterSplashView : Control
     {
         using (var brush = new SolidBrush(Color.White))
         using (var pen = new Pen(WindowSoftBorder, 1f))
-        using (var path = SplashRoundedRect(rect, 11))
+        using (var path = SplashRoundedRect(rect, 10))
         {
             g.FillPath(brush, path);
             g.DrawPath(pen, path);
