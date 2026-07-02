@@ -75,6 +75,11 @@ public sealed class MainForm : Form
 
         Load += async (_, _) =>
         {
+            if (await HandlePendingLauncherUpdateOnStartupAsync())
+            {
+                return;
+            }
+
             await RefreshStatusAsync();
             await HandleStartupArgumentAsync();
         };
@@ -1225,7 +1230,69 @@ public sealed class MainForm : Form
         return process;
     }
 
-    private void StartPendingLauncherReplacementHelper(string installDir)
+    private async Task<bool> HandlePendingLauncherUpdateOnStartupAsync()
+    {
+        var markerPath = Path.Combine(DefaultInstallDir, ".pending-launcher-update.json");
+        if (!File.Exists(markerPath))
+        {
+            return false;
+        }
+
+        Log("Pending launcher update detected on startup.");
+        AppendPendingLauncherLog(DefaultInstallDir, "Pending launcher update detected on startup.");
+
+        try
+        {
+            var marker = await ReadPendingLauncherMarkerAsync(markerPath);
+            if (string.IsNullOrWhiteSpace(marker.PendingPath) || !File.Exists(marker.PendingPath))
+            {
+                AppendPendingLauncherLog(DefaultInstallDir, "Pending launcher path missing: " + marker.PendingPath);
+                Log("Pending launcher update could not be applied because the pending EXE was not found.");
+                return false;
+            }
+
+            if (string.IsNullOrWhiteSpace(marker.DestinationPath))
+            {
+                AppendPendingLauncherLog(DefaultInstallDir, "Pending launcher destination path missing.");
+                Log("Pending launcher update could not be applied because the destination path was missing.");
+                return false;
+            }
+
+            var destinationDir = Path.GetDirectoryName(marker.DestinationPath);
+            if (string.IsNullOrWhiteSpace(destinationDir))
+            {
+                AppendPendingLauncherLog(DefaultInstallDir, "Pending launcher destination folder missing.");
+                Log("Pending launcher update could not be applied because the destination folder was missing.");
+                return false;
+            }
+
+            Directory.CreateDirectory(destinationDir);
+
+            if (IsCurrentProcessPath(marker.DestinationPath))
+            {
+                AppendPendingLauncherLog(DefaultInstallDir, "Destination launcher is the running process. Starting helper and closing current launcher.");
+                StartPendingLauncherReplacementHelper(DefaultInstallDir, relaunchAfterReplace: true, relaunchArgument: startupArgument);
+                BeginInvoke(Close);
+                return true;
+            }
+
+            File.Copy(marker.PendingPath, marker.DestinationPath, overwrite: true);
+            File.Delete(marker.PendingPath);
+            File.Delete(markerPath);
+            RegisterGarmentsProtocol(marker.DestinationPath);
+            AppendPendingLauncherLog(DefaultInstallDir, "Pending launcher update applied on startup.");
+            Log("Pending launcher update applied on startup.");
+            return false;
+        }
+        catch (Exception ex)
+        {
+            AppendPendingLauncherLog(DefaultInstallDir, "Startup pending launcher update failed: " + ex.Message);
+            Log("Pending launcher update failed on startup: " + ex.Message);
+            return false;
+        }
+    }
+
+    private void StartPendingLauncherReplacementHelper(string installDir, bool relaunchAfterReplace = false, string? relaunchArgument = null)
     {
         var markerPath = Path.Combine(installDir, ".pending-launcher-update.json");
         if (!File.Exists(markerPath))
@@ -1238,26 +1305,57 @@ public sealed class MainForm : Form
             Log("Pending launcher update detected.");
             Log("Launcher update will finish after this updater window closes.");
             var helperPath = Path.Combine(Path.GetTempPath(), "GarmentsOSPendingLauncherUpdate.ps1");
+            var relaunchArgumentBase64 = Convert.ToBase64String(Encoding.UTF8.GetBytes(relaunchArgument ?? ""));
             var script = """
                 param(
                     [int]$ParentPid,
-                    [string]$MarkerPath
+                    [string]$MarkerPath,
+                    [bool]$RelaunchAfterReplace = $false,
+                    [string]$RelaunchArgumentBase64 = ""
                 )
 
                 $ErrorActionPreference = "Stop"
 
+                function Write-GarmentsPendingLog($Message) {
+                    try {
+                        $installDir = Split-Path -Parent $MarkerPath
+                        $logPath = Join-Path $installDir "pending-launcher-update.log"
+                        "[$(Get-Date -Format o)] $Message" | Add-Content -Path $logPath
+                    } catch {
+                    }
+                }
+
                 try {
+                    Write-GarmentsPendingLog "helper started"
+                    Write-GarmentsPendingLog "waiting for parent: $ParentPid"
                     Wait-Process -Id $ParentPid -ErrorAction SilentlyContinue
+                    Write-GarmentsPendingLog "parent exited"
                     Start-Sleep -Seconds 1
 
                     if (-not (Test-Path -LiteralPath $MarkerPath)) {
+                        Write-GarmentsPendingLog "marker not found; nothing to replace"
                         exit 0
                     }
 
                     $marker = Get-Content -LiteralPath $MarkerPath -Raw | ConvertFrom-Json
+                    Write-GarmentsPendingLog "pending path: $($marker.pending_path)"
+                    Write-GarmentsPendingLog "destination path: $($marker.destination_path)"
+
+                    if (-not (Test-Path -LiteralPath $marker.pending_path)) {
+                        throw "Pending launcher EXE not found: $($marker.pending_path)"
+                    }
+
+                    $destinationDir = Split-Path -Parent $marker.destination_path
+                    if (-not (Test-Path -LiteralPath $destinationDir)) {
+                        New-Item -ItemType Directory -Force -Path $destinationDir | Out-Null
+                    }
+
                     Copy-Item -LiteralPath $marker.pending_path -Destination $marker.destination_path -Force
+                    Write-GarmentsPendingLog "copy success"
                     Remove-Item -LiteralPath $marker.pending_path -Force -ErrorAction SilentlyContinue
+                    Write-GarmentsPendingLog "pending file removed"
                     Remove-Item -LiteralPath $MarkerPath -Force -ErrorAction SilentlyContinue
+                    Write-GarmentsPendingLog "marker removed"
 
                     $launcher = $marker.destination_path
                     $baseKey = [Microsoft.Win32.Registry]::CurrentUser.CreateSubKey("Software\Classes\garmentsos")
@@ -1268,24 +1366,95 @@ public sealed class MainForm : Form
                     $commandKey = [Microsoft.Win32.Registry]::CurrentUser.CreateSubKey("Software\Classes\garmentsos\shell\open\command")
                     $commandKey.SetValue("", "`"$launcher`" `"%1`"")
                     $commandKey.Close()
+                    Write-GarmentsPendingLog "protocol registered"
+
+                    if ($RelaunchAfterReplace) {
+                        $relaunchArgument = ""
+                        if (-not [string]::IsNullOrWhiteSpace($RelaunchArgumentBase64)) {
+                            $relaunchArgument = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($RelaunchArgumentBase64))
+                        }
+
+                        Write-GarmentsPendingLog "relaunch requested"
+                        if ([string]::IsNullOrWhiteSpace($relaunchArgument)) {
+                            Start-Process -FilePath $launcher -WorkingDirectory (Split-Path -Parent $launcher)
+                        } else {
+                            Start-Process -FilePath $launcher -ArgumentList @($relaunchArgument) -WorkingDirectory (Split-Path -Parent $launcher)
+                        }
+                    }
                 } catch {
-                    $logPath = Join-Path (Split-Path -Parent $MarkerPath) "pending-launcher-update.log"
-                    "[$(Get-Date -Format o)] $($_.Exception.Message)" | Add-Content -Path $logPath
+                    Write-GarmentsPendingLog "error: $($_.Exception.Message)"
                 }
                 """;
             File.WriteAllText(helperPath, script, Encoding.UTF8);
             Process.Start(new ProcessStartInfo
             {
                 FileName = "powershell.exe",
-                Arguments = $"-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File \"{helperPath}\" -ParentPid {Environment.ProcessId} -MarkerPath \"{markerPath}\"",
+                Arguments = $"-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File \"{helperPath}\" -ParentPid {Environment.ProcessId} -MarkerPath \"{markerPath}\" -RelaunchAfterReplace ${relaunchAfterReplace.ToString().ToLowerInvariant()} -RelaunchArgumentBase64 \"{relaunchArgumentBase64}\"",
                 UseShellExecute = false,
                 CreateNoWindow = true,
             });
-            Log("Pending launcher update helper started.");
+            Log("Pending launcher replacement helper started.");
         }
         catch (Exception ex)
         {
             Log("Could not start pending launcher replacement helper: " + ex.Message);
+        }
+    }
+
+    private sealed class PendingLauncherMarker
+    {
+        public string PendingPath { get; init; } = "";
+        public string DestinationPath { get; init; } = "";
+    }
+
+    private static async Task<PendingLauncherMarker> ReadPendingLauncherMarkerAsync(string markerPath)
+    {
+        await using var stream = File.OpenRead(markerPath);
+        using var document = await JsonDocument.ParseAsync(stream);
+        var root = document.RootElement;
+
+        return new PendingLauncherMarker
+        {
+            PendingPath = root.TryGetProperty("pending_path", out var pendingPath) ? pendingPath.GetString() ?? "" : "",
+            DestinationPath = root.TryGetProperty("destination_path", out var destinationPath) ? destinationPath.GetString() ?? "" : "",
+        };
+    }
+
+    private static bool IsCurrentProcessPath(string path)
+    {
+        try
+        {
+            var current = Environment.ProcessPath;
+            return !string.IsNullOrWhiteSpace(current)
+                && string.Equals(Path.GetFullPath(current), Path.GetFullPath(path), StringComparison.OrdinalIgnoreCase);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static void RegisterGarmentsProtocol(string launcherPath)
+    {
+        using var baseKey = Microsoft.Win32.Registry.CurrentUser.CreateSubKey(@"Software\Classes\garmentsos");
+        baseKey?.SetValue("", "URL:GarmentsOS PRO Launcher");
+        baseKey?.SetValue("URL Protocol", "");
+
+        using var commandKey = Microsoft.Win32.Registry.CurrentUser.CreateSubKey(@"Software\Classes\garmentsos\shell\open\command");
+        commandKey?.SetValue("", $"\"{launcherPath}\" \"%1\"");
+    }
+
+    private static void AppendPendingLauncherLog(string installDir, string message)
+    {
+        try
+        {
+            Directory.CreateDirectory(installDir);
+            File.AppendAllText(
+                Path.Combine(installDir, "pending-launcher-update.log"),
+                $"[{DateTime.Now:O}] {message}{Environment.NewLine}");
+        }
+        catch
+        {
         }
     }
 

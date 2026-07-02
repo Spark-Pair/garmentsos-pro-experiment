@@ -33,44 +33,49 @@ function Copy-RootLaunchers($SourceDir, $TargetDir) {
     }
 }
 
-function New-GarmentsShortcut($ShortcutPath, $TargetPath, $WorkingDirectory) {
+function New-GarmentsShortcut($ShortcutPath, $TargetPath, $WorkingDirectory, $Arguments = "", $Description = "Open GarmentsOS PRO", $IconPath = "") {
     try {
+        New-Item -ItemType Directory -Force -Path (Split-Path -Parent $ShortcutPath) | Out-Null
         $shell = New-Object -ComObject WScript.Shell
         $shortcut = $shell.CreateShortcut($ShortcutPath)
         $shortcut.TargetPath = $TargetPath
+        $shortcut.Arguments = $Arguments
         $shortcut.WorkingDirectory = $WorkingDirectory
-        $shortcut.Description = "Open GarmentsOS PRO"
+        $shortcut.Description = $Description
+        if (-not [string]::IsNullOrWhiteSpace($IconPath) -and (Test-Path -LiteralPath $IconPath)) {
+            $shortcut.IconLocation = $IconPath
+        }
         $shortcut.Save()
-        Write-Host "Created shortcut: $ShortcutPath"
+        Write-Host "Shortcut target: $TargetPath $Arguments"
+        Write-Host "Shortcut created: $ShortcutPath"
     } catch {
-        Write-Warning "Could not create shortcut $ShortcutPath. $($_.Exception.Message)"
+        Write-Warning "Shortcut creation failed: $ShortcutPath. $($_.Exception.Message)"
     }
 }
 
 function Install-GarmentsShortcuts($TargetDir) {
     $setupLauncher = Join-Path $TargetDir "GarmentsOS-PRO-Setup.exe"
-    $rootGuiLauncher = Join-Path $TargetDir "GarmentsOS PRO Launcher.exe"
-    $guiLauncher = Join-Path $TargetDir "launcher\GarmentsOS PRO Launcher.exe"
     $openLauncher = Join-Path $TargetDir "Open GarmentsOS.bat"
-    $shortcutTarget = if (Test-Path $setupLauncher) {
+    $shortcutTarget = if (Test-Path -LiteralPath $setupLauncher) {
         $setupLauncher
-    } elseif (Test-Path $rootGuiLauncher) {
-        $rootGuiLauncher
-    } elseif (Test-Path $guiLauncher) {
-        $guiLauncher
     } else {
         $openLauncher
     }
 
-    if (-not (Test-Path $shortcutTarget)) {
+    if (-not (Test-Path -LiteralPath $shortcutTarget)) {
         Write-Warning "GarmentsOS launcher was not found. Shortcuts were not created."
         return
     }
 
+    $usesExe = (Test-Path -LiteralPath $setupLauncher)
+    $openArguments = if ($usesExe) { "garmentsos://open" } else { "" }
+    $iconPath = if ($usesExe) { $setupLauncher } else { "" }
+
     try {
         $desktop = [Environment]::GetFolderPath("Desktop")
         if (-not [string]::IsNullOrWhiteSpace($desktop)) {
-            New-GarmentsShortcut (Join-Path $desktop "GarmentsOS PRO.lnk") $shortcutTarget $TargetDir
+            New-GarmentsShortcut (Join-Path $desktop "GarmentsOS PRO.lnk") $shortcutTarget $TargetDir $openArguments "Open GarmentsOS PRO" $iconPath
+            Write-Host "Desktop shortcut created: $(Join-Path $desktop "GarmentsOS PRO.lnk")"
         }
     } catch {
         Write-Warning "Could not resolve Desktop folder. $($_.Exception.Message)"
@@ -79,9 +84,17 @@ function Install-GarmentsShortcuts($TargetDir) {
     try {
         $programs = [Environment]::GetFolderPath("Programs")
         if (-not [string]::IsNullOrWhiteSpace($programs)) {
-            $sparkPair = Join-Path $programs "SparkPair"
-            New-Item -ItemType Directory -Force -Path $sparkPair | Out-Null
-            New-GarmentsShortcut (Join-Path $sparkPair "GarmentsOS PRO.lnk") $shortcutTarget $TargetDir
+            $startMenuFolder = Join-Path $programs "SparkPair\GarmentsOS PRO"
+            New-GarmentsShortcut (Join-Path $startMenuFolder "GarmentsOS PRO.lnk") $shortcutTarget $TargetDir $openArguments "Open GarmentsOS PRO" $iconPath
+            Write-Host "Start Menu shortcut created: $(Join-Path $startMenuFolder "GarmentsOS PRO.lnk")"
+
+            if ($usesExe) {
+                New-GarmentsShortcut (Join-Path $startMenuFolder "GarmentsOS PRO Updater.lnk") $setupLauncher $TargetDir "" "Open GarmentsOS PRO Updater" $setupLauncher
+                Write-Host "Start Menu shortcut created: $(Join-Path $startMenuFolder "GarmentsOS PRO Updater.lnk")"
+            }
+
+            New-GarmentsShortcut (Join-Path $startMenuFolder "Open Install Folder.lnk") "explorer.exe" $TargetDir "`"$TargetDir`"" "Open GarmentsOS PRO install folder"
+            Write-Host "Start Menu shortcut created: $(Join-Path $startMenuFolder "Open Install Folder.lnk")"
         }
     } catch {
         Write-Warning "Could not create Start Menu shortcut. $($_.Exception.Message)"

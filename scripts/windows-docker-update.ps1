@@ -32,6 +32,74 @@ function Copy-RootLaunchers($SourceDir, $TargetDir) {
     }
 }
 
+function New-GarmentsShortcut($ShortcutPath, $TargetPath, $WorkingDirectory, $Arguments = "", $Description = "Open GarmentsOS PRO", $IconPath = "") {
+    try {
+        New-Item -ItemType Directory -Force -Path (Split-Path -Parent $ShortcutPath) | Out-Null
+        $shell = New-Object -ComObject WScript.Shell
+        $shortcut = $shell.CreateShortcut($ShortcutPath)
+        $shortcut.TargetPath = $TargetPath
+        $shortcut.Arguments = $Arguments
+        $shortcut.WorkingDirectory = $WorkingDirectory
+        $shortcut.Description = $Description
+        if (-not [string]::IsNullOrWhiteSpace($IconPath) -and (Test-Path -LiteralPath $IconPath)) {
+            $shortcut.IconLocation = $IconPath
+        }
+        $shortcut.Save()
+        Write-Host "Shortcut target: $TargetPath $Arguments"
+        Write-Host "Shortcut created: $ShortcutPath"
+    } catch {
+        Write-Warning "Shortcut creation failed: $ShortcutPath. $($_.Exception.Message)"
+    }
+}
+
+function Install-GarmentsShortcuts($TargetDir) {
+    $setupLauncher = Join-Path $TargetDir "GarmentsOS-PRO-Setup.exe"
+    $openLauncher = Join-Path $TargetDir "Open GarmentsOS.bat"
+    $shortcutTarget = if (Test-Path -LiteralPath $setupLauncher) {
+        $setupLauncher
+    } else {
+        $openLauncher
+    }
+
+    if (-not (Test-Path -LiteralPath $shortcutTarget)) {
+        Write-Warning "GarmentsOS launcher was not found. Shortcuts were not created."
+        return
+    }
+
+    $usesExe = (Test-Path -LiteralPath $setupLauncher)
+    $openArguments = if ($usesExe) { "garmentsos://open" } else { "" }
+    $iconPath = if ($usesExe) { $setupLauncher } else { "" }
+
+    try {
+        $desktop = [Environment]::GetFolderPath("Desktop")
+        if (-not [string]::IsNullOrWhiteSpace($desktop)) {
+            New-GarmentsShortcut (Join-Path $desktop "GarmentsOS PRO.lnk") $shortcutTarget $TargetDir $openArguments "Open GarmentsOS PRO" $iconPath
+            Write-Host "Desktop shortcut created: $(Join-Path $desktop "GarmentsOS PRO.lnk")"
+        }
+    } catch {
+        Write-Warning "Could not resolve Desktop folder. $($_.Exception.Message)"
+    }
+
+    try {
+        $programs = [Environment]::GetFolderPath("Programs")
+        if (-not [string]::IsNullOrWhiteSpace($programs)) {
+            $startMenuFolder = Join-Path $programs "SparkPair\GarmentsOS PRO"
+            New-GarmentsShortcut (Join-Path $startMenuFolder "GarmentsOS PRO.lnk") $shortcutTarget $TargetDir $openArguments "Open GarmentsOS PRO" $iconPath
+            Write-Host "Start Menu shortcut created: $(Join-Path $startMenuFolder "GarmentsOS PRO.lnk")"
+
+            if ($usesExe) {
+                New-GarmentsShortcut (Join-Path $startMenuFolder "GarmentsOS PRO Updater.lnk") $setupLauncher $TargetDir "" "Open GarmentsOS PRO Updater" $setupLauncher
+                Write-Host "Start Menu shortcut created: $(Join-Path $startMenuFolder "GarmentsOS PRO Updater.lnk")"
+            }
+
+            New-GarmentsShortcut (Join-Path $startMenuFolder "Open Install Folder.lnk") "explorer.exe" $TargetDir "`"$TargetDir`"" "Open GarmentsOS PRO install folder"
+            Write-Host "Start Menu shortcut created: $(Join-Path $startMenuFolder "Open Install Folder.lnk")"
+        }
+    } catch {
+        Write-Warning "Could not create Start Menu shortcut. $($_.Exception.Message)"
+    }
+}
+
 function Hide-GarmentsTechnicalFiles($TargetDir) {
     $items = @(
         "scripts",
@@ -244,13 +312,14 @@ $envContent = Get-Content $EnvPath -Raw
 $envContent = Set-EnvLine $envContent "RUN_MIGRATIONS_ON_START" "false"
 Set-Content -Path $EnvPath -Value $envContent -Encoding UTF8
 
+Register-GarmentsProtocol $InstallDir
+Install-GarmentsShortcuts $InstallDir
+
 if ($HideTechnicalFiles) {
     Hide-GarmentsTechnicalFiles $InstallDir
 } else {
     Write-Host "Technical files were left visible because HideTechnicalFiles is false."
 }
-
-Register-GarmentsProtocol $InstallDir
 
 Write-Host "Update complete. Volumes were preserved."
 Write-Host "Rollback: load the previous image tar, set GARMENTSOS_IMAGE in .env to the previous tag, then run docker compose up -d."
