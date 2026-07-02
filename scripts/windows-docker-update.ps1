@@ -181,6 +181,121 @@ function Test-GarmentsFileLocked($Path) {
     }
 }
 
+function Start-PendingLauncherReplacementHelper($MarkerPath, $TargetDir) {
+    try {
+        $updatesDir = Join-Path $TargetDir "updates"
+        New-Item -ItemType Directory -Force -Path $updatesDir | Out-Null
+
+        $helperPath = Join-Path $updatesDir "ApplyPendingLauncherUpdate.ps1"
+        $helperScript = @'
+param(
+    [string]$MarkerPath
+)
+
+$ErrorActionPreference = "Stop"
+
+function Write-PendingLauncherLog($Message) {
+    try {
+        $installDir = Split-Path -Parent $MarkerPath
+        $logPath = Join-Path $installDir "pending-launcher-update.log"
+        "[$(Get-Date -Format o)] $Message" | Add-Content -Path $logPath
+    } catch {
+    }
+}
+
+function Register-GarmentsProtocolFromLauncher($LauncherPath) {
+    $baseKey = [Microsoft.Win32.Registry]::CurrentUser.CreateSubKey("Software\Classes\garmentsos")
+    $baseKey.SetValue("", "URL:GarmentsOS PRO Launcher")
+    $baseKey.SetValue("URL Protocol", "")
+    $baseKey.Close()
+
+    $commandKey = [Microsoft.Win32.Registry]::CurrentUser.CreateSubKey("Software\Classes\garmentsos\shell\open\command")
+    $commandKey.SetValue("", "`"$LauncherPath`" `"%1`"")
+    $commandKey.Close()
+}
+
+function Get-LauncherProcesses {
+    $names = @("GarmentsOS-PRO-Setup", "GarmentsOS PRO Launcher")
+    foreach ($name in $names) {
+        Get-Process -Name $name -ErrorAction SilentlyContinue
+    }
+}
+
+Write-PendingLauncherLog "helper started"
+Write-PendingLauncherLog "marker path: $MarkerPath"
+
+$deadline = (Get-Date).AddSeconds(60)
+$lastError = $null
+
+while ((Get-Date) -lt $deadline) {
+    try {
+        if (-not (Test-Path -LiteralPath $MarkerPath)) {
+            Write-PendingLauncherLog "marker not found; nothing to replace"
+            exit 0
+        }
+
+        $marker = Get-Content -LiteralPath $MarkerPath -Raw | ConvertFrom-Json
+        $pendingPath = [string]$marker.pending_path
+        $destinationPath = [string]$marker.destination_path
+
+        Write-PendingLauncherLog "pending path: $pendingPath"
+        Write-PendingLauncherLog "destination path: $destinationPath"
+
+        if (-not (Test-Path -LiteralPath $pendingPath)) {
+            throw "Pending launcher EXE not found: $pendingPath"
+        }
+
+        $processes = @(Get-LauncherProcesses)
+        if ($processes.Count -gt 0) {
+            Write-PendingLauncherLog "waiting for launcher processes: $($processes.ProcessName -join ', ')"
+            Start-Sleep -Seconds 2
+            continue
+        }
+
+        $destinationDir = Split-Path -Parent $destinationPath
+        if (-not (Test-Path -LiteralPath $destinationDir)) {
+            New-Item -ItemType Directory -Force -Path $destinationDir | Out-Null
+        }
+
+        Copy-Item -LiteralPath $pendingPath -Destination $destinationPath -Force
+        Write-PendingLauncherLog "copy success"
+
+        Remove-Item -LiteralPath $pendingPath -Force -ErrorAction SilentlyContinue
+        Write-PendingLauncherLog "pending file removed"
+
+        Remove-Item -LiteralPath $MarkerPath -Force -ErrorAction SilentlyContinue
+        Write-PendingLauncherLog "marker removed"
+
+        Register-GarmentsProtocolFromLauncher $destinationPath
+        Write-PendingLauncherLog "protocol registered"
+        exit 0
+    } catch {
+        $lastError = $_.Exception.Message
+        Write-PendingLauncherLog "copy failure/retry: $lastError"
+        Start-Sleep -Seconds 2
+    }
+}
+
+Write-PendingLauncherLog "error: pending launcher replacement failed after 60 seconds. $lastError"
+exit 1
+'@
+
+        Set-Content -Path $helperPath -Value $helperScript -Encoding UTF8
+        Start-Process -FilePath "powershell.exe" -ArgumentList @(
+            "-NoProfile",
+            "-ExecutionPolicy", "Bypass",
+            "-WindowStyle", "Hidden",
+            "-File", $helperPath,
+            "-MarkerPath", $MarkerPath
+        ) -WindowStyle Hidden
+
+        Write-Host "Pending launcher replacement helper started by update script."
+        Write-Host "Pending launcher helper script: $helperPath"
+    } catch {
+        Write-Warning "Could not start pending launcher replacement helper. $($_.Exception.Message)"
+    }
+}
+
 function Stage-GarmentsLauncherUpdate($SourcePath, $DestinationPath, $TargetDir) {
     $updatesDir = Join-Path $TargetDir "updates"
     New-Item -ItemType Directory -Force -Path $updatesDir | Out-Null
@@ -203,6 +318,7 @@ function Stage-GarmentsLauncherUpdate($SourcePath, $DestinationPath, $TargetDir)
     Write-Warning "Launcher EXE is running; staged launcher update will be applied after updater exits."
     Write-Host "Pending launcher update: $pendingPath"
     Write-Host "Pending launcher marker: $markerPath"
+    Start-PendingLauncherReplacementHelper $markerPath $TargetDir
 }
 
 function Update-LauncherExeFromRelease($ReleaseDir, $InstallDir) {
