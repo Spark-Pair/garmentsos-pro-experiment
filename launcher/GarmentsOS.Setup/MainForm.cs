@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Drawing.Drawing2D;
 using System.IO.Compression;
+using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -12,7 +13,7 @@ public sealed class MainForm : Form
     private const string DefaultInstallDir = @"C:\SparkPair\GarmentsOS";
     private const string AppUrl = "http://localhost:8000";
 
-    private static readonly Color BrandBlue = Color.FromArgb(64, 87, 232);
+    private static readonly Color BrandBlue = Color.FromArgb(37, 99, 235);
     private static readonly Color AppBackground = Color.FromArgb(238, 241, 244);
     private static readonly Color CardBorder = Color.FromArgb(185, 197, 212);
     private static readonly Color SoftBorder = Color.FromArgb(199, 208, 220);
@@ -38,7 +39,9 @@ public sealed class MainForm : Form
     private readonly Label dockerStatusLabel = new() { Text = "Docker status: unknown", AutoSize = true };
     private readonly Label latestVersionLabel = new() { Text = "Latest version: not checked", AutoSize = true };
     private readonly Label mandatoryLabel = new() { Text = "Mandatory: false", AutoSize = true };
-    private readonly Label progressStatusLabel = new() { Text = "Preparing update", AutoSize = true };
+    private readonly Label progressStatusLabel = new() { Text = "Checking update package...", AutoSize = true };
+    private readonly Label progressPercentLabel = new() { Text = "68%", AutoSize = true };
+    private readonly Label installedFooterLabel = new() { Text = "Installed version: checking...", AutoSize = true };
     private readonly ProgressBar progressBar = new() { Style = ProgressBarStyle.Marquee, MarqueeAnimationSpeed = 35, Dock = DockStyle.Top };
     private readonly TextBox notesBox = new() { Multiline = true, ReadOnly = true, ScrollBars = ScrollBars.Vertical };
     private readonly TextBox logBox = new() { Multiline = true, ReadOnly = true, ScrollBars = ScrollBars.Vertical };
@@ -49,6 +52,7 @@ public sealed class MainForm : Form
     private readonly TableLayoutPanel pathsPanel = new() { Dock = DockStyle.Top, ColumnCount = 2, AutoSize = true };
     private readonly TableLayoutPanel statusPanel = new() { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 4 };
     private readonly Panel progressPanel = new() { Dock = DockStyle.Top, Visible = false, Padding = new Padding(0, 10, 0, 10) };
+    private readonly UpdaterSplashView splashView = new();
 
     private readonly string? startupArgument;
     private ReleaseFeed? currentFeed;
@@ -60,18 +64,29 @@ public sealed class MainForm : Form
     {
         this.startupArgument = startupArgument;
         Text = "GarmentsOS PRO Updater";
-        Width = 740;
-        Height = 450;
-        MinimumSize = new Size(740, 450);
-        MaximumSize = new Size(740, 450);
+        ClientSize = new Size(720, 420);
+        MinimumSize = new Size(720, 420);
+        MaximumSize = new Size(720, 420);
         StartPosition = FormStartPosition.CenterScreen;
         BackColor = AppBackground;
         Font = new Font("Segoe UI", 9f);
-        FormBorderStyle = FormBorderStyle.FixedSingle;
+        FormBorderStyle = FormBorderStyle.None;
         MaximizeBox = false;
         DoubleBuffered = true;
+        KeyPreview = true;
 
         Controls.Add(BuildLayout());
+        ContextMenuStrip = BuildContextMenu();
+        MouseDown += (_, e) => BeginDrag(e);
+        KeyDown += (_, e) =>
+        {
+            if (e.KeyCode == Keys.Escape && !criticalUpdateStep)
+            {
+                Close();
+            }
+        };
+        Resize += (_, _) => SetRoundedRegion();
+        Shown += (_, _) => SetRoundedRegion();
 
         Load += async (_, _) =>
         {
@@ -97,37 +112,40 @@ public sealed class MainForm : Form
         base.OnFormClosing(e);
     }
 
+    private ContextMenuStrip BuildContextMenu()
+    {
+        var menu = new ContextMenuStrip();
+        menu.Items.Add("Open App", null, async (_, _) => await OpenAppAsync());
+        menu.Items.Add("Check Update", null, async (_, _) => await CheckUpdateAsync());
+        menu.Items.Add("Update Now", null, async (_, _) => await UpdateNowAsync(requireConfirmation: true, closeAfterSuccess: false));
+        menu.Items.Add("Open Request JSON", null, async (_, _) => await OpenRequestJsonAsync());
+        menu.Items.Add(new ToolStripSeparator());
+        menu.Items.Add("Backup", null, async (_, _) => await RunInstalledScriptAsync("scripts\\windows-docker-backup.ps1"));
+        menu.Items.Add("Repair", null, async (_, _) => await RunPowerShellAsync("docker compose up -d", installDirBox.Text));
+        menu.Items.Add("Stop Services", null, async (_, _) => await StopServicesAsync());
+        menu.Items.Add("Open Install Folder", null, (_, _) => OpenFolder(installDirBox.Text));
+        menu.Items.Add("Save Log", null, (_, _) => SaveLog());
+        menu.Items.Add(new ToolStripSeparator());
+        menu.Items.Add("Close", null, (_, _) => Close());
+        return menu;
+    }
+
     private Control BuildLayout()
     {
         var root = new Panel
         {
             Dock = DockStyle.Fill,
             BackColor = AppBackground,
-            Padding = new Padding(6),
+            Padding = new Padding(0),
         };
 
-        var shell = new RoundedPanel
-        {
-            Dock = DockStyle.Fill,
-            BackColor = Color.White,
-            BorderColor = CardBorder,
-            BorderRadius = 22,
-        };
-        root.Controls.Add(shell);
-
-        var layout = new TableLayoutPanel
-        {
-            Dock = DockStyle.Fill,
-            ColumnCount = 2,
-            RowCount = 1,
-            BackColor = Color.White,
-        };
-        layout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 112));
-        layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        shell.Controls.Add(layout);
-
-        layout.Controls.Add(BuildSideStrip(), 0, 0);
-        layout.Controls.Add(BuildMainArea(), 1, 0);
+        splashView.Dock = DockStyle.Fill;
+        splashView.LogoImage = TryLoadLogoBitmap(24);
+        splashView.ProgressText = "Checking update package...";
+        splashView.ProgressPercent = 68;
+        splashView.InstalledVersionText = "Installed version: checking...";
+        splashView.MouseDown += (_, e) => BeginDrag(e);
+        root.Controls.Add(splashView);
 
         // Hidden fields keep the existing update/feed logic intact without cluttering the UI.
         installDirBox.Visible = false;
@@ -141,12 +159,18 @@ public sealed class MainForm : Form
         logBox.Multiline = true;
         logBox.ReadOnly = true;
         logBox.ScrollBars = ScrollBars.Vertical;
-        logBox.Width = 520;
-        logBox.Height = 140;
-        logBox.Left = 150;
-        logBox.Top = 250;
+        logBox.Width = 640;
+        logBox.Height = 130;
+        logBox.Left = 44;
+        logBox.Top = 222;
         logBox.Anchor = AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Bottom;
         root.Controls.Add(logBox);
+
+        ConfigureActionButtons();
+        failureButtonsPanel.Left = 44;
+        failureButtonsPanel.Top = 358;
+        failureButtonsPanel.BackColor = Color.Transparent;
+        root.Controls.Add(failureButtonsPanel);
 
         return root;
     }
@@ -173,7 +197,7 @@ public sealed class MainForm : Form
 
         var railText = new VerticalLabel
         {
-            Text = "UPDATER",
+            Text = "TOOLS",
             ForeColor = BrandBlue,
             Font = new Font("Segoe UI", 8.5f, FontStyle.Bold),
             Width = 34,
@@ -278,7 +302,7 @@ public sealed class MainForm : Form
         status.Controls.Add(new StatusDot { DotColor = Color.FromArgb(23, 168, 91), Margin = new Padding(0, 6, 8, 0) });
         status.Controls.Add(new Label
         {
-            Text = "Secure Flow",
+            Text = "Secure Updater",
             AutoSize = true,
             Font = new Font("Segoe UI", 8.4f, FontStyle.Bold),
             ForeColor = Color.FromArgb(61, 75, 96),
@@ -307,7 +331,7 @@ public sealed class MainForm : Form
         var copy = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
         copy.Controls.Add(new PillLabel
         {
-            Text = "RELEASE CHECK",
+            Text = "RELEASE FEED",
             Location = new Point(0, 0),
             Width = 112,
             Height = 28,
@@ -315,8 +339,8 @@ public sealed class MainForm : Form
 
         var headline = new RichTextLabel
         {
-            NormalText = "Ready to install",
-            AccentText = "latest update",
+            NormalText = "Preparing your",
+            AccentText = "update",
             FontSize = 33f,
             Location = new Point(0, 45),
             Width = 335,
@@ -326,7 +350,7 @@ public sealed class MainForm : Form
 
         var sub = new Label
         {
-            Text = "The update package is being verified before applying changes safely on this PC.",
+            Text = "GarmentsOS PRO is checking release files and preparing a safe local update.",
             Location = new Point(0, 130),
             Width = 335,
             Height = 46,
@@ -349,7 +373,6 @@ public sealed class MainForm : Form
         copy.Controls.Add(chips);
 
         ConfigureActionButtons();
-        copy.Controls.Add(buttonsPanel);
         copy.Controls.Add(failureButtonsPanel);
 
         content.Controls.Add(copy, 0, 0);
@@ -377,7 +400,7 @@ public sealed class MainForm : Form
             Padding = new Padding(34, 0, 34, 23),
         };
 
-        progressStatusLabel.Text = "Verifying update package...";
+        progressStatusLabel.Text = "Preparing update";
         progressStatusLabel.AutoSize = true;
         progressStatusLabel.Font = new Font("Segoe UI", 8.5f, FontStyle.Bold);
         progressStatusLabel.ForeColor = Color.FromArgb(61, 75, 96);
@@ -385,22 +408,18 @@ public sealed class MainForm : Form
         progressStatusLabel.BackColor = Color.Transparent;
         bottom.Controls.Add(progressStatusLabel);
 
-        var percent = new Label
-        {
-            Text = "58%",
-            AutoSize = true,
-            Font = new Font("Segoe UI", 8.5f, FontStyle.Bold),
-            ForeColor = BrandBlue,
-            BackColor = Color.Transparent,
-            Anchor = AnchorStyles.Top | AnchorStyles.Right,
-            Location = new Point(500, 0),
-        };
-        bottom.Controls.Add(percent);
-        bottom.Resize += (_, _) => percent.Left = bottom.Width - percent.Width - 34;
+        progressPercentLabel.Text = "0%";
+        progressPercentLabel.Font = new Font("Segoe UI", 8.5f, FontStyle.Bold);
+        progressPercentLabel.ForeColor = BrandBlue;
+        progressPercentLabel.BackColor = Color.Transparent;
+        progressPercentLabel.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+        progressPercentLabel.Location = new Point(500, 0);
+        bottom.Controls.Add(progressPercentLabel);
+        bottom.Resize += (_, _) => progressPercentLabel.Left = bottom.Width - progressPercentLabel.Width - 34;
 
         progressBar.Style = ProgressBarStyle.Continuous;
         progressBar.MarqueeAnimationSpeed = 0;
-        progressBar.Value = 58;
+        progressBar.Value = 0;
         progressBar.Height = 8;
         progressBar.Width = 510;
         progressBar.Location = new Point(34, 24);
@@ -419,18 +438,14 @@ public sealed class MainForm : Form
         };
         bottom.Controls.Add(product);
 
-        var footerRight = new Label
-        {
-            Text = "Local updater",
-            AutoSize = true,
-            Font = new Font("Segoe UI", 8.5f),
-            ForeColor = TextHint,
-            BackColor = Color.Transparent,
-            Anchor = AnchorStyles.Bottom | AnchorStyles.Right,
-            Location = new Point(470, 46),
-        };
-        bottom.Controls.Add(footerRight);
-        bottom.Resize += (_, _) => footerRight.Left = bottom.Width - footerRight.Width - 34;
+        installedFooterLabel.Text = "Installed version: checking...";
+        installedFooterLabel.Font = new Font("Segoe UI", 8.5f);
+        installedFooterLabel.ForeColor = TextHint;
+        installedFooterLabel.BackColor = Color.Transparent;
+        installedFooterLabel.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
+        installedFooterLabel.Location = new Point(470, 46);
+        bottom.Controls.Add(installedFooterLabel);
+        bottom.Resize += (_, _) => installedFooterLabel.Left = bottom.Width - installedFooterLabel.Width - 34;
 
         return bottom;
     }
@@ -493,7 +508,7 @@ public sealed class MainForm : Form
         failureButtonsPanel.AutoSize = true;
         failureButtonsPanel.WrapContents = false;
         failureButtonsPanel.BackColor = Color.Transparent;
-        AddButton(failureButtonsPanel, "Open Folder", (_, _) => OpenFolder(installDirBox.Text));
+        AddButton(failureButtonsPanel, "Open Install Folder", (_, _) => OpenFolder(installDirBox.Text));
         AddButton(failureButtonsPanel, "Save Log", (_, _) => SaveLog());
         AddButton(failureButtonsPanel, "Close", (_, _) => Close());
         failureButtonsPanel.Visible = false;
@@ -625,17 +640,38 @@ public sealed class MainForm : Form
         }
 
         progressStatusLabel.Text = message;
+        var nextPercent = percent ?? (marquee ? StepPercent(message, progressBar.Value) : progressBar.Value);
         if (percent.HasValue)
         {
             progressBar.Style = ProgressBarStyle.Continuous;
             progressBar.MarqueeAnimationSpeed = 0;
-            progressBar.Value = Math.Clamp(percent.Value, progressBar.Minimum, progressBar.Maximum);
         }
         else if (marquee)
         {
-            progressBar.Style = ProgressBarStyle.Marquee;
-            progressBar.MarqueeAnimationSpeed = 35;
+            progressBar.Style = ProgressBarStyle.Continuous;
+            progressBar.MarqueeAnimationSpeed = 0;
         }
+
+        progressBar.Value = Math.Clamp(nextPercent, progressBar.Minimum, progressBar.Maximum);
+        progressPercentLabel.Text = $"{progressBar.Value}%";
+        splashView.ProgressText = message;
+        splashView.ProgressPercent = progressBar.Value;
+        splashView.Invalidate();
+        progressPercentLabel.Left = progressPercentLabel.Parent is null
+            ? progressPercentLabel.Left
+            : progressPercentLabel.Parent.Width - progressPercentLabel.Width - 34;
+    }
+
+    private static int StepPercent(string message, int current)
+    {
+        if (message.Contains("Downloading", StringComparison.OrdinalIgnoreCase)) return Math.Max(current, 38);
+        if (message.Contains("Verifying", StringComparison.OrdinalIgnoreCase)) return Math.Max(current, 54);
+        if (message.Contains("backup", StringComparison.OrdinalIgnoreCase)) return Math.Max(current, 64);
+        if (message.Contains("Applying", StringComparison.OrdinalIgnoreCase) || message.Contains("Loaded image", StringComparison.OrdinalIgnoreCase)) return Math.Max(current, 78);
+        if (message.Contains("Restarting", StringComparison.OrdinalIgnoreCase) || message.Contains("started", StringComparison.OrdinalIgnoreCase)) return Math.Max(current, 90);
+        if (message.Contains("Opening", StringComparison.OrdinalIgnoreCase)) return Math.Max(current, 95);
+        if (message.Contains("Preparing", StringComparison.OrdinalIgnoreCase)) return Math.Max(current, 24);
+        return current <= 0 ? 20 : current;
     }
 
     private void ShowFailureMode()
@@ -654,6 +690,9 @@ public sealed class MainForm : Form
         var installDir = installDirBox.Text.Trim();
         var manifest = ReadInstalledManifest(installDir);
         installedVersionLabel.Text = $"Installed version: {manifest?.Version ?? "not found"}";
+        installedFooterLabel.Text = $"Installed version: {manifest?.Version ?? "not found"}";
+        splashView.InstalledVersionText = $"Installed version: {manifest?.Version ?? "not found"}";
+        splashView.Invalidate();
         feedUrlBox.Text = ReadEnvValue(Path.Combine(installDir, ".env"), "UPDATE_FEED_URL")
             ?? ReadEnvValue(Path.Combine(installDir, ".env"), "UPDATER_MANIFEST_URL")
             ?? "";
@@ -910,7 +949,7 @@ public sealed class MainForm : Form
             Log("Downloading update package...");
             await DownloadFileAsync(currentFeed.PackageUrl, packagePath);
 
-            SetStep("Verifying package", marquee: true);
+            SetStep("Verifying package SHA256", marquee: true);
             Log("Verifying package SHA256...");
             var actualSha = await ComputeSha256Async(packagePath);
             if (!actualSha.Equals(currentFeed.PackageSha256, StringComparison.OrdinalIgnoreCase))
@@ -1543,6 +1582,366 @@ public sealed class MainForm : Form
         Directory.CreateDirectory(path);
         Process.Start(new ProcessStartInfo(path) { UseShellExecute = true });
     }
+
+    private void SetRoundedRegion()
+    {
+        if (Width <= 0 || Height <= 0)
+        {
+            return;
+        }
+
+        using var path = RoundedRect(new Rectangle(0, 0, Width, Height), 22);
+        Region = new Region(path);
+    }
+
+    private void BeginDrag(MouseEventArgs e)
+    {
+        if (e.Button != MouseButtons.Left || criticalUpdateStep)
+        {
+            return;
+        }
+
+        ReleaseCapture();
+        SendMessage(Handle, 0xA1, 0x2, 0);
+    }
+
+    private static GraphicsPath RoundedRect(Rectangle rect, int radius)
+    {
+        var path = new GraphicsPath();
+        var d = Math.Max(1, radius * 2);
+        path.AddArc(rect.Left, rect.Top, d, d, 180, 90);
+        path.AddArc(rect.Right - d, rect.Top, d, d, 270, 90);
+        path.AddArc(rect.Right - d, rect.Bottom - d, d, d, 0, 90);
+        path.AddArc(rect.Left, rect.Bottom - d, d, d, 90, 90);
+        path.CloseFigure();
+        return path;
+    }
+
+    [DllImport("user32.dll")]
+    private static extern bool ReleaseCapture();
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr SendMessage(IntPtr hWnd, int msg, int wParam, int lParam);
+}
+
+internal sealed class UpdaterSplashView : Control
+{
+    private static readonly Color BrandBlue = Color.FromArgb(37, 99, 235);
+    private static readonly Color AppBackground = Color.FromArgb(238, 241, 244);
+    private static readonly Color ShellBorder = Color.FromArgb(154, 169, 188);
+    private static readonly Color HeaderBorder = Color.FromArgb(214, 221, 231);
+    private static readonly Color WindowBorder = Color.FromArgb(135, 152, 173);
+    private static readonly Color WindowSoftBorder = Color.FromArgb(174, 185, 200);
+    private static readonly Color TextPrimary = Color.FromArgb(7, 16, 31);
+    private static readonly Color TextMuted = Color.FromArgb(52, 67, 90);
+    private static readonly Color TextHint = Color.FromArgb(108, 122, 144);
+    private static readonly Color Track = Color.FromArgb(220, 226, 237);
+    private static readonly Color GridLine = Color.FromArgb(4, 37, 99, 235);
+
+    private const string EmbeddedLogoPngBase64 = "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";
+
+    public Image? LogoImage { get; set; }
+    public string ProgressText { get; set; } = "Checking update package...";
+    public string InstalledVersionText { get; set; } = "Installed version: unknown";
+    public int ProgressPercent { get; set; } = 68;
+
+    private readonly Font brandFont = new("Segoe UI", 10.5f, FontStyle.Bold);
+    private readonly Font secureFont = new("Segoe UI", 8.2f, FontStyle.Bold);
+    private readonly Font titleFont = new("Segoe UI", 24f, FontStyle.Regular);
+    private readonly Font bodyFont = new("Segoe UI", 9.4f, FontStyle.Regular);
+    private readonly Font pillFont = new("Segoe UI", 8.2f, FontStyle.Bold);
+    private readonly Font smallBoldFont = new("Segoe UI", 8.2f, FontStyle.Bold);
+    private readonly Font footerFont = new("Segoe UI", 8.3f, FontStyle.Regular);
+    private Image? embeddedLogo;
+
+    public UpdaterSplashView()
+    {
+        DoubleBuffered = true;
+        BackColor = AppBackground;
+        SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw | ControlStyles.UserPaint, true);
+    }
+
+    protected override void OnPaint(PaintEventArgs e)
+    {
+        base.OnPaint(e);
+
+        var g = e.Graphics;
+        g.SmoothingMode = SmoothingMode.AntiAlias;
+        g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
+
+        g.Clear(AppBackground);
+
+        // Same as HTML .shell: 720x420, white, 1px #9aa9bc, radius 20.
+        var shell = new Rectangle(0, 0, Width - 1, Height - 1);
+        using (var shellPath = SplashRoundedRect(shell, 20))
+        using (var shellBrush = new SolidBrush(Color.White))
+        using (var shellPen = new Pen(ShellBorder, 1f))
+        {
+            g.FillPath(shellBrush, shellPath);
+            g.DrawPath(shellPen, shellPath);
+        }
+
+        // Header 72px.
+        using (var sepPen = new Pen(HeaderBorder, 1f))
+        {
+            g.DrawLine(sepPen, shell.Left, 72, shell.Right, 72);
+        }
+
+        // Subtle grid only inside main section, same as .main:before.
+        DrawMainGrid(g, new Rectangle(40, 72, 640, 242));
+
+        DrawHeader(g);
+        DrawMainContent(g);
+        DrawWindowStack(g);
+        DrawBottom(g);
+    }
+
+    private void DrawHeader(Graphics g)
+    {
+        // Header padding 40, logo 26 box with 22 image centered.
+        DrawLogo(g, 42, 25, 22);
+        DrawText(g, "GarmentsOS PRO", brandFont, BrandBlue, 78, 36);
+
+        FillCircle(g, BrandBlue, 582, 39, 7);
+        DrawText(g, "Secure Updater", secureFont, TextPrimary, 600, 35);
+    }
+
+    private void DrawMainContent(Graphics g)
+    {
+        // .main padding left 40 + .left padding-left 14.
+        var leftX = 54;
+
+        DrawText(g, "Preparing your", titleFont, Color.Black, leftX, 107);
+        DrawText(g, "update", titleFont, BrandBlue, leftX, 145);
+
+        DrawText(g, "GarmentsOS PRO is checking release files and", bodyFont, TextMuted, leftX, 205);
+        DrawText(g, "preparing a safe local update.", bodyFont, TextMuted, leftX, 228);
+
+        DrawPill(g, new Rectangle(leftX, 268, 100, 28), "Release Feed");
+        DrawPill(g, new Rectangle(leftX + 110, 268, 98, 28), "Backup Safe");
+        DrawPill(g, new Rectangle(leftX + 218, 268, 70, 28), "Docker");
+    }
+
+    private void DrawWindowStack(Graphics g)
+    {
+        // Same HTML layout:
+        // .right transform translate(-22,16), stack front left=0 top=32.
+        var rightX = 418;
+        var rightY = 120;
+
+        DrawWindowFrame(g, new Rectangle(rightX + 32, rightY + 0, 206, 124), 15, 0.50f, false);
+        DrawWindowFrame(g, new Rectangle(rightX + 16, rightY + 16, 206, 124), 15, 0.74f, false);
+        DrawWindowFrame(g, new Rectangle(rightX + 0, rightY + 32, 206, 124), 15, 1f, true);
+    }
+
+    private void DrawWindowFrame(Graphics g, Rectangle rect, int radius, float opacity, bool front)
+    {
+        using var path = SplashRoundedRect(rect, radius);
+        using var whiteBrush = new SolidBrush(Color.FromArgb((int)(255 * opacity), 255, 255, 255));
+        using var borderPen = new Pen(Color.FromArgb((int)(255 * opacity), front ? WindowBorder : WindowSoftBorder), 1f);
+
+        g.FillPath(whiteBrush, path);
+        g.DrawPath(borderPen, path);
+
+        if (!front)
+        {
+            return;
+        }
+
+        // .win-head:before left/right/top 4, height 23, radius 9.
+        var bar = new Rectangle(rect.X + 4, rect.Y + 4, rect.Width - 8, 23);
+        using (var barBrush = new SolidBrush(BrandBlue))
+        {
+            FillRounded(g, barBrush, bar, 9);
+        }
+
+        for (var i = 0; i < 3; i++)
+        {
+            FillCircle(g, Color.FromArgb(230, 255, 255, 255), rect.X + 13 + (i * 11), rect.Y + 13, 5);
+        }
+
+        // Body inner: centered like HTML .inner left 50%, top 45%.
+        var bodyTop = rect.Y + 38;
+        var bodyHeight = 86;
+        var centerX = rect.X + rect.Width / 2;
+        var innerCenterY = bodyTop + (int)(bodyHeight * 0.45f);
+
+        var logoTop = innerCenterY - 28;
+        DrawLogo(g, centerX - 11, logoTop, 22);
+
+        using var blueBrush = new SolidBrush(BrandBlue);
+        using var softBrush = new SolidBrush(Color.FromArgb(88, BrandBlue));
+        using var midBrush = new SolidBrush(Color.FromArgb(132, BrandBlue));
+
+        var line1Y = logoTop + 33;
+        FillRounded(g, blueBrush, new Rectangle(centerX - 39, line1Y, 78, 4), 2);
+        FillRounded(g, softBrush, new Rectangle(centerX - 46, line1Y + 9, 92, 3), 2);
+        FillRounded(g, midBrush, new Rectangle(centerX - 24, line1Y + 19, 48, 2), 2);
+    }
+
+    private void DrawBottom(Graphics g)
+    {
+        // .bottom padding 14px 40px 30px 40px.
+        var bottomX = 40;
+        DrawText(g, ProgressText, smallBoldFont, TextMuted, bottomX, 331);
+        DrawTextRight(g, $"{Math.Clamp(ProgressPercent, 0, 100)}%", smallBoldFont, BrandBlue, 680, 331);
+
+        var trackRect = new Rectangle(bottomX, 360, 640, 3);
+        using (var trackBrush = new SolidBrush(Track))
+        {
+            FillRounded(g, trackBrush, trackRect, 2);
+        }
+
+        var fillWidth = (int)(trackRect.Width * Math.Clamp(ProgressPercent, 0, 100) / 100f);
+        if (fillWidth > 0)
+        {
+            using var fillBrush = new SolidBrush(BrandBlue);
+            FillRounded(g, fillBrush, new Rectangle(trackRect.X, trackRect.Y, fillWidth, trackRect.Height), 2);
+        }
+
+        DrawText(g, "A Product of SparkPair", footerFont, TextHint, bottomX, 381);
+        DrawTextRight(g, InstalledVersionText, footerFont, TextHint, 680, 381);
+    }
+
+    private void DrawMainGrid(Graphics g, Rectangle main)
+    {
+        using var gridPen = new Pen(GridLine, 1f);
+        for (var x = main.Left; x <= main.Right; x += 58)
+        {
+            g.DrawLine(gridPen, x, main.Top, x, main.Bottom);
+        }
+
+        for (var y = main.Top; y <= main.Bottom; y += 58)
+        {
+            g.DrawLine(gridPen, main.Left, y, main.Right, y);
+        }
+    }
+
+    private void DrawPill(Graphics g, Rectangle rect, string text)
+    {
+        using (var brush = new SolidBrush(Color.White))
+        using (var pen = new Pen(WindowSoftBorder, 1f))
+        using (var path = SplashRoundedRect(rect, 11))
+        {
+            g.FillPath(brush, path);
+            g.DrawPath(pen, path);
+        }
+
+        using var sf = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center };
+        using var textBrush = new SolidBrush(Color.FromArgb(30, 42, 61));
+        g.DrawString(text, pillFont, textBrush, rect, sf);
+    }
+
+    private void DrawLogo(Graphics g, int x, int y, int size)
+    {
+        var logo = GetEmbeddedLogo();
+        if (logo is not null)
+        {
+            g.DrawImage(logo, new Rectangle(x, y, size, size));
+            return;
+        }
+
+        // Fallback only if embedded PNG is unavailable.
+        DrawBrandMark(g, x, y, size);
+    }
+
+    private Image? GetEmbeddedLogo()
+    {
+        if (embeddedLogo is not null)
+        {
+            return embeddedLogo;
+        }
+
+        if (string.IsNullOrWhiteSpace(EmbeddedLogoPngBase64))
+        {
+            return null;
+        }
+
+        try
+        {
+            var bytes = Convert.FromBase64String(EmbeddedLogoPngBase64);
+            var stream = new MemoryStream(bytes);
+            embeddedLogo = Image.FromStream(stream);
+            return embeddedLogo;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private void DrawBrandMark(Graphics g, int x, int y, int size)
+    {
+        using var brush = new SolidBrush(BrandBlue);
+
+        var r = new Rectangle(x, y, size, size);
+        var leftBlob = new Rectangle(r.X, r.Y + 1, (int)(size * 0.66), size - 2);
+        var topBlob = new Rectangle(r.X + (int)(size * 0.56), r.Y, (int)(size * 0.38), (int)(size * 0.38));
+        var bottomBlob = new Rectangle(r.X + (int)(size * 0.52), r.Y + (int)(size * 0.52), (int)(size * 0.45), (int)(size * 0.42));
+
+        using (var leftPath = new GraphicsPath())
+        {
+            leftPath.AddPie(leftBlob, 90, 270);
+            g.FillPath(brush, leftPath);
+        }
+
+        g.FillEllipse(brush, topBlob);
+        FillRounded(g, brush, bottomBlob, Math.Max(4, size / 5));
+    }
+
+    private static void DrawText(Graphics g, string text, Font font, Color color, int x, int y)
+    {
+        using var brush = new SolidBrush(color);
+        g.DrawString(text, font, brush, x, y);
+    }
+
+    private static void DrawTextRight(Graphics g, string text, Font font, Color color, int right, int y)
+    {
+        using var brush = new SolidBrush(color);
+        using var format = new StringFormat { Alignment = StringAlignment.Far };
+        g.DrawString(text, font, brush, new RectangleF(0, y, right, 24), format);
+    }
+
+    private static void FillCircle(Graphics g, Color color, int x, int y, int size)
+    {
+        using var brush = new SolidBrush(color);
+        g.FillEllipse(brush, x, y, size, size);
+    }
+
+    private static void FillRounded(Graphics g, Brush brush, Rectangle rect, int radius)
+    {
+        using var path = SplashRoundedRect(rect, radius);
+        g.FillPath(brush, path);
+    }
+
+    private static GraphicsPath SplashRoundedRect(Rectangle rect, int radius)
+    {
+        var path = new GraphicsPath();
+        var d = Math.Max(1, radius * 2);
+        path.AddArc(rect.Left, rect.Top, d, d, 180, 90);
+        path.AddArc(rect.Right - d, rect.Top, d, d, 270, 90);
+        path.AddArc(rect.Right - d, rect.Bottom - d, d, d, 0, 90);
+        path.AddArc(rect.Left, rect.Bottom - d, d, d, 90, 90);
+        path.CloseFigure();
+        return path;
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            embeddedLogo?.Dispose();
+            brandFont.Dispose();
+            secureFont.Dispose();
+            titleFont.Dispose();
+            bodyFont.Dispose();
+            pillFont.Dispose();
+            smallBoldFont.Dispose();
+            footerFont.Dispose();
+        }
+
+        base.Dispose(disposing);
+    }
 }
 
 internal sealed class RoundedPanel : Panel
@@ -1762,8 +2161,8 @@ internal sealed class PackageVisual : Control
         using (var muted = new SolidBrush(Color.FromArgb(83, 97, 113)))
         using (var blueText = new SolidBrush(Color.FromArgb(64, 87, 232)))
         {
-            g.DrawString("PACKAGE", tiny, muted, card.Left + 14, card.Top + 112);
-            g.DrawString("Verified", tiny, blueText, card.Right - 61, card.Top + 112);
+            g.DrawString("FILE", tiny, muted, card.Left + 14, card.Top + 112);
+            g.DrawString("Ready", tiny, blueText, card.Right - 61, card.Top + 112);
         }
     }
 
