@@ -9,6 +9,7 @@ $ErrorActionPreference = "Stop"
 
 $InstallDir = $InstallDir.Trim('"')
 $Version = $Version.Trim('"')
+$script:EnvBackupCreated = $false
 
 function Copy-RootLaunchers($SourceDir, $TargetDir) {
     $launchers = @(
@@ -184,6 +185,54 @@ function Set-EnvLine($Content, $Name, $Value) {
     return ($Content.TrimEnd() + "`n" + $line + "`n")
 }
 
+function Backup-EnvFile($EnvPath) {
+    if ($script:EnvBackupCreated -or -not (Test-Path -LiteralPath $EnvPath)) {
+        return
+    }
+
+    $installRoot = Split-Path -Parent $EnvPath
+    $backupDir = Join-Path $installRoot "backups"
+    New-Item -ItemType Directory -Force -Path $backupDir | Out-Null
+
+    $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
+    $backupPath = Join-Path $backupDir "env_$timestamp.env"
+    Copy-Item -LiteralPath $EnvPath -Destination $backupPath -Force
+    $script:EnvBackupCreated = $true
+    Write-Host "Environment backup created: $backupPath"
+}
+
+function Save-EnvContent($EnvPath, $Content) {
+    Backup-EnvFile $EnvPath
+    Set-Content -Path $EnvPath -Value $Content -Encoding UTF8
+}
+
+function Ensure-EnvKey($EnvPath, $Key, $DefaultValue) {
+    if (-not (Test-Path -LiteralPath $EnvPath)) {
+        throw ".env file not found: $EnvPath"
+    }
+
+    $content = Get-Content -LiteralPath $EnvPath -Raw
+    $pattern = "(?m)^\s*" + [regex]::Escape($Key) + "="
+    if ($content -match $pattern) {
+        Write-Host "Environment key already exists: $Key"
+        return
+    }
+
+    Backup-EnvFile $EnvPath
+    $line = "$Key=$DefaultValue"
+    $lineEnding = if ($content -match "`r`n") { "`r`n" } else { "`n" }
+    $updated = $content.TrimEnd("`r", "`n") + $lineEnding + $line + $lineEnding
+    Set-Content -Path $EnvPath -Value $updated -Encoding UTF8
+    Write-Host "Added missing environment key: $Key"
+}
+
+function Ensure-GarmentsUpdaterEnvKeys($EnvPath) {
+    Ensure-EnvKey $EnvPath "UPDATE_LOCK_TTL_MINUTES" "30"
+    Ensure-EnvKey $EnvPath "UPDATE_CHANNEL" "stable"
+    Ensure-EnvKey $EnvPath "UPDATE_LAUNCHER_PROTOCOL" "garmentsos"
+    Ensure-EnvKey $EnvPath "UPDATE_REQUEST_TTL_MINUTES" "10"
+}
+
 Require-Command docker
 
 docker --version | Out-Host
@@ -230,30 +279,40 @@ if (-not (Test-Path $ImageTar)) {
 docker load -i $ImageTar | Out-Host
 
 $EnvPath = Join-Path $InstallDir ".env"
+$EnvCreated = $false
 if (-not (Test-Path $EnvPath)) {
     Copy-Item (Join-Path $InstallDir ".env.example") $EnvPath
+    $EnvCreated = $true
 }
+
+Ensure-GarmentsUpdaterEnvKeys $EnvPath
 
 $envContent = Get-Content $EnvPath -Raw
-$envContent = Set-EnvLine $envContent "APP_URL" "http://localhost:$Port"
-$envContent = Set-EnvLine $envContent "APP_PORT" $Port
-$envContent = Set-EnvLine $envContent "DB_DATABASE" "/var/www/html/database/database.sqlite"
-$envContent = Set-EnvLine $envContent "LICENSE_ENFORCEMENT_ENABLED" "false"
-if ($envContent -match '(?m)^APP_KEY=\s*$') {
-    $bytes = New-Object byte[] 32
-    $rng = [System.Security.Cryptography.RandomNumberGenerator]::Create()
-    try {
-        $rng.GetBytes($bytes)
-    } finally {
-        $rng.Dispose()
-    }
+if ($EnvCreated) {
+    $envContent = Set-EnvLine $envContent "APP_URL" "http://localhost:$Port"
+    $envContent = Set-EnvLine $envContent "APP_PORT" $Port
+    $envContent = Set-EnvLine $envContent "DB_DATABASE" "/var/www/html/database/database.sqlite"
+    $envContent = Set-EnvLine $envContent "LICENSE_ENFORCEMENT_ENABLED" "false"
+    if ($envContent -match '(?m)^APP_KEY=\s*$') {
+        $bytes = New-Object byte[] 32
+        $rng = [System.Security.Cryptography.RandomNumberGenerator]::Create()
+        try {
+            $rng.GetBytes($bytes)
+        } finally {
+            $rng.Dispose()
+        }
 
-    $appKey = "base64:" + [Convert]::ToBase64String($bytes)
-    $envContent = $envContent -replace '(?m)^APP_KEY=\s*$', "APP_KEY=$appKey"
+        $appKey = "base64:" + [Convert]::ToBase64String($bytes)
+        $envContent = $envContent -replace '(?m)^APP_KEY=\s*$', "APP_KEY=$appKey"
+    }
+    $envContent = Set-EnvLine $envContent "GARMENTSOS_IMAGE" $Manifest.image
+    $envContent = Set-EnvLine $envContent "RUN_MIGRATIONS_ON_START" "true"
+    Save-EnvContent $EnvPath $envContent
+} else {
+    Ensure-EnvKey $EnvPath "APP_PORT" $Port
+    Ensure-EnvKey $EnvPath "LICENSE_ENFORCEMENT_ENABLED" "false"
+    Ensure-EnvKey $EnvPath "GARMENTSOS_IMAGE" $Manifest.image
 }
-$envContent = Set-EnvLine $envContent "GARMENTSOS_IMAGE" $Manifest.image
-$envContent = Set-EnvLine $envContent "RUN_MIGRATIONS_ON_START" "true"
-Set-Content -Path $EnvPath -Value $envContent -Encoding UTF8
 
 Push-Location $InstallDir
 try {
@@ -264,9 +323,11 @@ try {
     Pop-Location
 }
 
-$envContent = Get-Content $EnvPath -Raw
-$envContent = Set-EnvLine $envContent "RUN_MIGRATIONS_ON_START" "false"
-Set-Content -Path $EnvPath -Value $envContent -Encoding UTF8
+if ($EnvCreated) {
+    $envContent = Get-Content $EnvPath -Raw
+    $envContent = Set-EnvLine $envContent "RUN_MIGRATIONS_ON_START" "false"
+    Save-EnvContent $EnvPath $envContent
+}
 
 Install-GarmentsShortcuts $InstallDir
 Register-GarmentsProtocol $InstallDir

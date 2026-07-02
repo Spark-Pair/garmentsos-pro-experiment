@@ -8,6 +8,7 @@ $ErrorActionPreference = "Stop"
 
 $InstallDir = $InstallDir.Trim('"')
 $ReleaseDir = $ReleaseDir.Trim('"')
+$script:EnvBackupCreated = $false
 
 function Copy-RootLaunchers($SourceDir, $TargetDir) {
     $launchers = @(
@@ -362,6 +363,54 @@ function Set-EnvLine($Content, $Name, $Value) {
     return ($Content.TrimEnd() + "`n" + $line + "`n")
 }
 
+function Backup-EnvFile($EnvPath) {
+    if ($script:EnvBackupCreated -or -not (Test-Path -LiteralPath $EnvPath)) {
+        return
+    }
+
+    $installRoot = Split-Path -Parent $EnvPath
+    $backupDir = Join-Path $installRoot "backups"
+    New-Item -ItemType Directory -Force -Path $backupDir | Out-Null
+
+    $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
+    $backupPath = Join-Path $backupDir "env_$timestamp.env"
+    Copy-Item -LiteralPath $EnvPath -Destination $backupPath -Force
+    $script:EnvBackupCreated = $true
+    Write-Host "Environment backup created: $backupPath"
+}
+
+function Save-EnvContent($EnvPath, $Content) {
+    Backup-EnvFile $EnvPath
+    Set-Content -Path $EnvPath -Value $Content -Encoding UTF8
+}
+
+function Ensure-EnvKey($EnvPath, $Key, $DefaultValue) {
+    if (-not (Test-Path -LiteralPath $EnvPath)) {
+        throw ".env file not found: $EnvPath"
+    }
+
+    $content = Get-Content -LiteralPath $EnvPath -Raw
+    $pattern = "(?m)^\s*" + [regex]::Escape($Key) + "="
+    if ($content -match $pattern) {
+        Write-Host "Environment key already exists: $Key"
+        return
+    }
+
+    Backup-EnvFile $EnvPath
+    $line = "$Key=$DefaultValue"
+    $lineEnding = if ($content -match "`r`n") { "`r`n" } else { "`n" }
+    $updated = $content.TrimEnd("`r", "`n") + $lineEnding + $line + $lineEnding
+    Set-Content -Path $EnvPath -Value $updated -Encoding UTF8
+    Write-Host "Added missing environment key: $Key"
+}
+
+function Ensure-GarmentsUpdaterEnvKeys($EnvPath) {
+    Ensure-EnvKey $EnvPath "UPDATE_LOCK_TTL_MINUTES" "30"
+    Ensure-EnvKey $EnvPath "UPDATE_CHANNEL" "stable"
+    Ensure-EnvKey $EnvPath "UPDATE_LAUNCHER_PROTOCOL" "garmentsos"
+    Ensure-EnvKey $EnvPath "UPDATE_REQUEST_TTL_MINUTES" "10"
+}
+
 if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
     throw "Docker Desktop is required."
 }
@@ -412,10 +461,12 @@ if (-not (Test-Path $EnvPath)) {
     throw "Existing .env is required for update."
 }
 
+Ensure-GarmentsUpdaterEnvKeys $EnvPath
+
 $envContent = Get-Content $EnvPath -Raw
 $envContent = Set-EnvLine $envContent "GARMENTSOS_IMAGE" $Manifest.image
 $envContent = Set-EnvLine $envContent "RUN_MIGRATIONS_ON_START" "true"
-Set-Content -Path $EnvPath -Value $envContent -Encoding UTF8
+Save-EnvContent $EnvPath $envContent
 
 Push-Location $InstallDir
 try {
@@ -426,7 +477,7 @@ try {
 
 $envContent = Get-Content $EnvPath -Raw
 $envContent = Set-EnvLine $envContent "RUN_MIGRATIONS_ON_START" "false"
-Set-Content -Path $EnvPath -Value $envContent -Encoding UTF8
+Save-EnvContent $EnvPath $envContent
 
 Register-GarmentsProtocol $InstallDir
 Install-GarmentsShortcuts $InstallDir
