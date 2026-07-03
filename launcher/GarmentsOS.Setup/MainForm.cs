@@ -31,6 +31,14 @@ internal sealed class LauncherStep
     public LauncherStepState State { get; set; } = LauncherStepState.Pending;
 }
 
+internal sealed class DownloadFailedException : Exception
+{
+    public DownloadFailedException(Exception innerException)
+        : base("Download failed. Please check your internet connection and try again.", innerException)
+    {
+    }
+}
+
 public sealed class MainForm : Form
 {
     private const string DefaultInstallDir = @"C:\SparkPair\GarmentsOS";
@@ -49,6 +57,7 @@ public sealed class MainForm : Form
 
 
     private readonly HttpClient http = new() { Timeout = TimeSpan.FromSeconds(30) };
+    private readonly HttpClient downloadHttp = new() { Timeout = TimeSpan.FromMinutes(30) };
     private readonly JsonSerializerOptions jsonOptions = new() { PropertyNameCaseInsensitive = true };
 
     private readonly TextBox installDirBox = new() { Text = DefaultInstallDir };
@@ -733,6 +742,12 @@ public sealed class MainForm : Form
         splashView.Invalidate();
     }
 
+    private void SetStepDetail(string detail)
+    {
+        splashView.HelperText = detail;
+        splashView.Invalidate();
+    }
+
     private static List<LauncherStep> StepsForMode(LauncherMode mode)
     {
         return mode switch
@@ -792,12 +807,40 @@ public sealed class MainForm : Form
             splashView.ProgressText = message;
         }
 
+        ApplyStepDetail(key, message);
+
         var nextPercent = Math.Clamp(percent ?? ProgressForStep(launcherMode, key), progressBar.Minimum, progressBar.Maximum);
         progressBar.Value = nextPercent;
         progressPercentLabel.Text = $"{nextPercent}%";
         splashView.ProgressPercent = nextPercent;
         splashView.ErrorText = null;
         splashView.Invalidate();
+    }
+
+    private void ApplyStepDetail(string key, string? message)
+    {
+        if (!string.IsNullOrWhiteSpace(message)
+            && (message.StartsWith("Downloading package:", StringComparison.OrdinalIgnoreCase)
+                || message.Contains("taking longer", StringComparison.OrdinalIgnoreCase)
+                || message.StartsWith("Package size:", StringComparison.OrdinalIgnoreCase)))
+        {
+            return;
+        }
+
+        splashView.HelperText = key switch
+        {
+            "download_package" => "Downloading installation package. This can take a few minutes.",
+            "download_update" => "Downloading update package. This can take a few minutes.",
+            "check_docker" when launcherMode is LauncherMode.Install or LauncherMode.Open => "Starting Docker Desktop. This may take 1-2 minutes.",
+            "wait_app" => "Waiting for local app to respond.",
+            "start_services" => "Starting local app services.",
+            "open_app" => launcherMode == LauncherMode.Open
+                ? "Opening GarmentsOS PRO in your browser."
+                : "Please do not close this window.",
+            _ => launcherMode == LauncherMode.Open
+                ? "Starting the app. This may take a moment."
+                : "Please do not close this window.",
+        };
     }
 
     private void MarkAllStepsDone(string? message = null)
@@ -1076,9 +1119,12 @@ public sealed class MainForm : Form
     {
         var installDir = installDirBox.Text.Trim();
         var manifest = ReadInstalledManifest(installDir);
-        installedVersionLabel.Text = $"Installed version: {manifest?.Version ?? "not found"}";
-        installedFooterLabel.Text = $"Installed version: {manifest?.Version ?? "not found"}";
-        splashView.InstalledVersionText = $"Installed version: {manifest?.Version ?? "not found"}";
+        var installedVersionText = string.IsNullOrWhiteSpace(manifest?.Version)
+            ? "Fresh installation"
+            : $"Installed version: {manifest.Version}";
+        installedVersionLabel.Text = installedVersionText;
+        installedFooterLabel.Text = installedVersionText;
+        splashView.InstalledVersionText = installedVersionText;
         splashView.Invalidate();
         feedUrlBox.Text = ReadEnvValue(Path.Combine(installDir, ".env"), "UPDATE_FEED_URL")
             ?? ReadEnvValue(Path.Combine(installDir, ".env"), "UPDATER_MANIFEST_URL")
@@ -1345,9 +1391,14 @@ public sealed class MainForm : Form
             Directory.CreateDirectory(workDir);
 
             var packagePath = Path.Combine(workDir, Path.GetFileName(new Uri(currentFeed.PackageUrl).LocalPath));
-            SetStep("Downloading update package...", marquee: true);
+            SetStep("Downloading update package...", percent: 15);
             Log("Downloading update package...");
-            await DownloadFileAsync(currentFeed.PackageUrl, packagePath);
+            var updatePackageSize = await TryGetPackageSizeAsync(currentFeed.PackageUrl);
+            if (updatePackageSize.HasValue)
+            {
+                SetCurrentStep("download_update", "Package size: " + FormatBytes(updatePackageSize.Value), 15);
+            }
+            await DownloadFileAsync(currentFeed.PackageUrl, packagePath, "Downloading package", "download_update", 15, 40, updatePackageSize);
 
             SetStep("Verifying update package...", marquee: true);
             Log("Verifying package SHA256...");
@@ -1411,6 +1462,14 @@ public sealed class MainForm : Form
                 timer.Start();
             }
         }
+        catch (DownloadFailedException ex)
+        {
+            Log("Update package download failed: " + ex.InnerException?.Message);
+            criticalUpdateStep = false;
+            ControlBox = true;
+            updateButton.Enabled = currentFeed is not null;
+            ShowFailureMode(ex.Message, "Download failed");
+        }
         catch (Exception ex)
         {
             await HandleUpdateFailureAsync(ex);
@@ -1442,8 +1501,13 @@ public sealed class MainForm : Form
             Directory.CreateDirectory(workDir);
 
             var packagePath = Path.Combine(workDir, Path.GetFileName(new Uri(currentFeed.PackageUrl).LocalPath));
-            SetStep("Downloading installation package...", percent: 35);
-            await DownloadFileAsync(currentFeed.PackageUrl, packagePath);
+            SetStep("Downloading installation package...", percent: 20);
+            var installPackageSize = await TryGetPackageSizeAsync(currentFeed.PackageUrl);
+            if (installPackageSize.HasValue)
+            {
+                SetCurrentStep("download_package", "Package size: " + FormatBytes(installPackageSize.Value), 20);
+            }
+            await DownloadFileAsync(currentFeed.PackageUrl, packagePath, "Downloading package", "download_package", 20, 45, installPackageSize);
 
             SetStep("Verifying package", percent: 48);
             var actualSha = await ComputeSha256Async(packagePath);
@@ -1496,6 +1560,11 @@ public sealed class MainForm : Form
             SetStep("Ready", percent: 100);
             await Task.Delay(TimeSpan.FromSeconds(2));
             Close();
+        }
+        catch (DownloadFailedException ex)
+        {
+            Log("Install package download failed: " + ex.InnerException?.Message);
+            ShowFailureMode(ex.Message, "Download failed");
         }
         catch (Exception ex)
         {
@@ -1640,11 +1709,140 @@ public sealed class MainForm : Form
         return false;
     }
 
-    private async Task DownloadFileAsync(string url, string destination)
+    private async Task<long?> TryGetPackageSizeAsync(string url)
     {
-        await using var source = await http.GetStreamAsync(url);
-        await using var target = File.Create(destination);
-        await source.CopyToAsync(target);
+        try
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Head, url);
+            using var response = await http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
+            return response.IsSuccessStatusCode ? response.Content.Headers.ContentLength : null;
+        }
+        catch (Exception ex)
+        {
+            Log("Could not read package size before download: " + ex.Message);
+            return null;
+        }
+    }
+
+    private async Task DownloadFileAsync(string url, string destination, string label, string stepKey, int startPercent, int endPercent, long? expectedBytes = null)
+    {
+        try
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Get, url);
+            using var response = await downloadHttp.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
+            response.EnsureSuccessStatusCode();
+
+            var totalBytes = response.Content.Headers.ContentLength ?? expectedBytes;
+            await using var source = await response.Content.ReadAsStreamAsync();
+            await using var target = File.Create(destination);
+
+            var buffer = new byte[1024 * 256];
+            long downloaded = 0;
+            var startedAt = DateTimeOffset.UtcNow;
+            var lastProgressAt = DateTimeOffset.MinValue;
+            var lastByteAt = DateTimeOffset.UtcNow;
+            var slowMessageShown = false;
+
+            SetCurrentStep(stepKey, $"{label}: starting...", startPercent);
+
+            while (true)
+            {
+                var readTask = source.ReadAsync(buffer, 0, buffer.Length);
+                while (!readTask.IsCompleted)
+                {
+                    await Task.WhenAny(readTask, Task.Delay(TimeSpan.FromSeconds(1)));
+                    if (!slowMessageShown && (DateTimeOffset.UtcNow - lastByteAt).TotalSeconds >= 20)
+                    {
+                        var slowMessage = "Download is taking longer than usual. Please keep this window open.";
+                        SetCurrentStep(stepKey, slowMessage, Math.Max(progressBar.Value, startPercent));
+                        SetStepDetail(slowMessage);
+                        Log(slowMessage);
+                        slowMessageShown = true;
+                    }
+                }
+
+                var read = await readTask;
+                if (read <= 0)
+                {
+                    break;
+                }
+
+                await target.WriteAsync(buffer.AsMemory(0, read));
+                downloaded += read;
+                lastByteAt = DateTimeOffset.UtcNow;
+
+                var now = DateTimeOffset.UtcNow;
+                if ((now - lastProgressAt).TotalMilliseconds < 500 && totalBytes.HasValue && downloaded < totalBytes.Value)
+                {
+                    continue;
+                }
+
+                lastProgressAt = now;
+                UpdateDownloadProgress(label, stepKey, downloaded, totalBytes, startedAt, startPercent, endPercent);
+            }
+
+            if (downloaded == 0)
+            {
+                throw new InvalidOperationException("No bytes were received from the update server.");
+            }
+
+            UpdateDownloadProgress(label, stepKey, downloaded, totalBytes ?? downloaded, startedAt, endPercent, endPercent);
+        }
+        catch (Exception ex)
+        {
+            Log("Download failed: " + ex.Message);
+            throw new DownloadFailedException(ex);
+        }
+    }
+
+    private void UpdateDownloadProgress(string label, string stepKey, long downloadedBytes, long? totalBytes, DateTimeOffset startedAt, int startPercent, int endPercent)
+    {
+        var elapsedSeconds = Math.Max(0.1, (DateTimeOffset.UtcNow - startedAt).TotalSeconds);
+        var speedBytesPerSecond = downloadedBytes / elapsedSeconds;
+        var percent = startPercent;
+        var message = $"{label}: {FormatBytes(downloadedBytes)} downloaded - {FormatSpeed(speedBytesPerSecond)}";
+
+        if (totalBytes.HasValue && totalBytes.Value > 0)
+        {
+            var downloadPercent = Math.Clamp(downloadedBytes / (double) totalBytes.Value, 0, 1);
+            percent = startPercent + (int) Math.Round((endPercent - startPercent) * downloadPercent);
+            var remainingSeconds = speedBytesPerSecond > 1
+                ? (totalBytes.Value - downloadedBytes) / speedBytesPerSecond
+                : 0;
+            message = $"{label}: {FormatBytes(downloadedBytes)} / {FormatBytes(totalBytes.Value)} - {(int) Math.Round(downloadPercent * 100)}% - {FormatSpeed(speedBytesPerSecond)} - {FormatEta(remainingSeconds)} left";
+        }
+
+        SetCurrentStep(stepKey, message, Math.Clamp(percent, startPercent, endPercent));
+        SetStepDetail(message);
+    }
+
+    private static string FormatBytes(long bytes)
+    {
+        var mb = bytes / 1024d / 1024d;
+        return mb >= 1024
+            ? $"{mb / 1024d:0.0} GB"
+            : $"{mb:0} MB";
+    }
+
+    private static string FormatSpeed(double bytesPerSecond)
+    {
+        var mb = bytesPerSecond / 1024d / 1024d;
+        return $"{mb:0.0} MB/s";
+    }
+
+    private static string FormatEta(double seconds)
+    {
+        if (seconds <= 0 || double.IsNaN(seconds) || double.IsInfinity(seconds))
+        {
+            return "calculating";
+        }
+
+        if (seconds < 60)
+        {
+            return "under 1 min";
+        }
+
+        return $"about {Math.Max(1, (int) Math.Ceiling(seconds / 60d))} min";
     }
 
     private static async Task<string> ComputeSha256Async(string path)
