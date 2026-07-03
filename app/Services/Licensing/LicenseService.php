@@ -5,8 +5,10 @@ namespace App\Services\Licensing;
 use App\Models\License;
 use App\Models\LicenseCheck;
 use App\Services\AuditLogService;
+use App\Services\Updater\InstalledVersionService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\File;
 
 class LicenseService
 {
@@ -17,6 +19,7 @@ class LicenseService
         protected LicenseActivationClient $activationClient,
         protected LicensePayloadValidator $payloadValidator,
         protected AuditLogService $auditLogs,
+        protected InstalledVersionService $versions,
     ) {
     }
 
@@ -29,6 +32,10 @@ class LicenseService
     {
         if (!$this->enabled()) {
             return LicenseStatus::notEnforced();
+        }
+
+        if ($this->usesConfiguredLicense()) {
+            return $this->statusForConfiguredLicense();
         }
 
         $installation = $this->identity->current();
@@ -46,6 +53,178 @@ class LicenseService
         }
 
         return $this->statusForLicense($license);
+    }
+
+    public function usesConfiguredLicense(): bool
+    {
+        return trim((string) config('licensing.license_key', '')) !== ''
+            || trim((string) config('licensing.client_id', '')) !== '';
+    }
+
+    public function installId(): string
+    {
+        return $this->identity->installId();
+    }
+
+    protected function statusForConfiguredLicense(): LicenseStatus
+    {
+        $licenseKey = trim((string) config('licensing.license_key', ''));
+        $clientId = trim((string) config('licensing.client_id', ''));
+
+        if ($licenseKey === '' || $clientId === '') {
+            return LicenseStatus::problem(
+                'unactivated',
+                'blocked',
+                'License client ID and key must be configured.',
+                ['source' => 'env_config'],
+            );
+        }
+
+        $result = $this->activationClient->verify([
+            'product' => config('updater.app_id', 'garmentsos-pro'),
+            'client_id' => $clientId,
+            'license_key' => $licenseKey,
+            'install_id' => $this->identity->installId(),
+            'app_version' => $this->versions->currentVersion(),
+        ]);
+
+        if (($result['ok'] ?? false) && is_array($result['body'] ?? null)) {
+            $body = $result['body'];
+            if (($body['valid'] ?? false) === true) {
+                $this->writeVerifyCache($body);
+            }
+
+            return $this->statusFromVerifyResponse($body, 'server_verify');
+        }
+
+        return $this->statusFromVerifyCache(
+            $result['message'] ?? 'License server is not reachable.',
+            $result['error'] ?? null,
+        );
+    }
+
+    protected function statusFromVerifyResponse(array $body, string $source): LicenseStatus
+    {
+        $status = strtolower(trim((string) ($body['status'] ?? 'invalid')));
+        $message = trim((string) ($body['message'] ?? 'License verification completed.'));
+        $expiresAt = $this->parseDate($body['expires_at'] ?? null);
+        $graceDays = (int) ($body['grace_days'] ?? config('licensing.offline_grace_days', 7));
+        $graceUntil = $expiresAt ? $expiresAt->copy()->addDays(max(0, $graceDays)) : null;
+
+        if (($body['valid'] ?? false) === true && $status === 'active') {
+            return LicenseStatus::valid($source, [
+                'message' => $message !== '' ? $message : 'License active',
+                'expires_at' => $expiresAt,
+                'grace_until' => $graceUntil,
+            ]);
+        }
+
+        if (in_array($status, ['blocked', 'tampered', 'installation_mismatch', 'security_issue'], true)) {
+            return LicenseStatus::problem(
+                $status,
+                'blocked',
+                $message !== '' ? $message : 'License verification failed.',
+                [
+                    'expires_at' => $expiresAt,
+                    'grace_until' => $graceUntil,
+                    'source' => $source,
+                ],
+            );
+        }
+
+        return LicenseStatus::problem(
+            $status === 'expired' ? 'expired_readonly' : 'invalid_readonly',
+            $this->defaultEnforcementMode(),
+            $message !== '' ? $message : 'License is not valid.',
+            [
+                'expires_at' => $expiresAt,
+                'grace_until' => $graceUntil,
+                'source' => $source,
+            ],
+        );
+    }
+
+    protected function statusFromVerifyCache(string $message, ?string $error = null): LicenseStatus
+    {
+        $cache = $this->readVerifyCache();
+        if (!$cache) {
+            return LicenseStatus::problem(
+                'network_error',
+                'none',
+                $message,
+                ['source' => 'server_unreachable'],
+            );
+        }
+
+        $expiresAt = $this->parseDate($cache['expires_at'] ?? null);
+        $graceDays = (int) ($cache['grace_days'] ?? config('licensing.offline_grace_days', 7));
+        $graceUntil = $expiresAt ? $expiresAt->copy()->addDays(max(0, $graceDays)) : null;
+
+        if (!$expiresAt || Carbon::now()->lessThanOrEqualTo($graceUntil ?? $expiresAt)) {
+            return LicenseStatus::problem(
+                'offline_grace',
+                'none',
+                'License server is unreachable. Using cached license status.',
+                [
+                    'expires_at' => $expiresAt,
+                    'grace_until' => $graceUntil,
+                    'source' => 'verify_cache',
+                    'error' => $error,
+                ],
+            );
+        }
+
+        return LicenseStatus::problem(
+            'expired_readonly',
+            $this->defaultEnforcementMode(),
+            'Cached license grace has expired. App is in read-only mode.',
+            [
+                'expires_at' => $expiresAt,
+                'grace_until' => $graceUntil,
+                'source' => 'verify_cache',
+            ],
+        );
+    }
+
+    protected function writeVerifyCache(array $body): void
+    {
+        $path = (string) config('licensing.verify_cache_path');
+        File::ensureDirectoryExists(dirname($path));
+        File::put($path, json_encode([
+            'valid' => (bool) ($body['valid'] ?? false),
+            'status' => (string) ($body['status'] ?? ''),
+            'client_name' => (string) ($body['client_name'] ?? ''),
+            'expires_at' => (string) ($body['expires_at'] ?? ''),
+            'grace_days' => (int) ($body['grace_days'] ?? config('licensing.offline_grace_days', 7)),
+            'message' => (string) ($body['message'] ?? ''),
+            'checked_at' => now()->utc()->toIso8601String(),
+        ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+    }
+
+    protected function readVerifyCache(): ?array
+    {
+        $path = (string) config('licensing.verify_cache_path');
+        if (!File::exists($path)) {
+            return null;
+        }
+
+        $decoded = json_decode((string) File::get($path), true);
+
+        return is_array($decoded) && ($decoded['valid'] ?? false) === true ? $decoded : null;
+    }
+
+    protected function parseDate(mixed $date): ?Carbon
+    {
+        $date = trim((string) $date);
+        if ($date === '') {
+            return null;
+        }
+
+        try {
+            return Carbon::parse($date);
+        } catch (\Throwable) {
+            return null;
+        }
     }
 
     public function statusForLicense(License $license): LicenseStatus

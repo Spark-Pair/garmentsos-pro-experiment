@@ -271,6 +271,63 @@ jobs:
 
           gh release upload "$channel_tag" "docker-releases/latest.json" --clobber
 
+      - name: Sync release to SparkPair site
+        shell: bash
+        env:
+          SPARKPAIR_RELEASE_SYNC_URL: ${{ secrets.SPARKPAIR_RELEASE_SYNC_URL }}
+          SPARKPAIR_RELEASE_WEBHOOK_SECRET: ${{ secrets.SPARKPAIR_RELEASE_WEBHOOK_SECRET }}
+          PACKAGE_FILE: ${{ steps.assets.outputs.package_file }}
+          SETUP_ASSET: ${{ steps.assets.outputs.setup_asset }}
+        run: |
+          set -euo pipefail
+
+          if [[ -z "${SPARKPAIR_RELEASE_SYNC_URL:-}" || -z "${SPARKPAIR_RELEASE_WEBHOOK_SECRET:-}" ]]; then
+            echo "::warning::SparkPair release sync skipped because SPARKPAIR_RELEASE_SYNC_URL or SPARKPAIR_RELEASE_WEBHOOK_SECRET is not configured."
+            exit 0
+          fi
+
+          package_sha256="$(sha256sum "docker-releases/${PACKAGE_FILE}" | awk '{print $1}')"
+          released_at="$(python - <<'PY'
+          import json
+          with open("docker-releases/latest.json", encoding="utf-8") as handle:
+              print(json.load(handle).get("released_at", ""))
+          PY
+          )"
+          release_base_url="https://github.com/${GITHUB_REPOSITORY}/releases/download/v${VERSION}"
+          export package_sha256 released_at release_base_url
+
+          python - <<'PY'
+          import json
+          import os
+
+          payload = {
+              "product": "garmentsos-pro",
+              "version": os.environ["VERSION"],
+              "channel": os.environ["CHANNEL"],
+              "mandatory": os.environ["MANDATORY"].lower() == "true",
+              "released_at": os.environ["released_at"],
+              "package_file": os.environ["PACKAGE_FILE"],
+              "package_url": f"{os.environ['release_base_url']}/{os.environ['PACKAGE_FILE']}",
+              "package_sha256": os.environ["package_sha256"],
+              "setup_url": f"{os.environ['release_base_url']}/GarmentsOS-PRO.exe",
+              "notes": os.environ["RELEASE_NOTES"],
+          }
+
+          with open("sparkpair-release-sync-payload.json", "w", encoding="utf-8") as handle:
+              json.dump(payload, handle, indent=2)
+              handle.write("\n")
+          PY
+
+          if ! curl --fail-with-body --show-error --silent \
+            --request POST "${SPARKPAIR_RELEASE_SYNC_URL}" \
+            --header "Authorization: Bearer ${SPARKPAIR_RELEASE_WEBHOOK_SECRET}" \
+            --header "Content-Type: application/json" \
+            --data @sparkpair-release-sync-payload.json; then
+            echo "::warning::SparkPair release sync failed. GitHub release assets were already published."
+          else
+            echo "SparkPair release sync completed."
+          fi
+
       - name: Save public feed artifact
         uses: actions/upload-artifact@v4
         with:
@@ -283,7 +340,7 @@ jobs:
           release_url="https://github.com/${GITHUB_REPOSITORY}/releases/tag/v${VERSION}"
           version_latest_url="https://github.com/${GITHUB_REPOSITORY}/releases/download/v${VERSION}/latest.json"
           channel_latest_url="https://github.com/${GITHUB_REPOSITORY}/releases/download/latest-${CHANNEL}/latest.json"
-          public_feed_url="https://updates.sparkpair.dev/garmentsos-pro/${CHANNEL}/latest.json"
+          public_feed_url="https://sparkpair.dev/api/updates/garmentsos-pro/${CHANNEL}/latest.json"
           {
             echo "## GarmentsOS PRO release published"
             echo

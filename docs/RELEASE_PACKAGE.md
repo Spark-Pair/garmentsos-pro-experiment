@@ -43,7 +43,7 @@ Generated Docker releases are ignored by Git and must not be committed.
 The versioned release keeps its own `latest.json` for audit/history. Installed apps should use the stable channel URL instead:
 
 ```env
-UPDATE_FEED_URL=https://github.com/Spark-Pair/garmentsos-pro-experiment/releases/download/latest-stable/latest.json
+UPDATE_FEED_URL=https://sparkpair.dev/api/updates/garmentsos-pro/stable/latest.json
 ```
 
 The moving channel file still points `package_url` at the immutable `vVERSION` package asset.
@@ -62,7 +62,7 @@ The client EXE is copied from the published WinForms launcher output as `Garment
 For private repositories, GitHub release assets require authentication and return `404` to installed clients. Publish `docker-releases/latest.json` to the public SparkPair update feed, for example:
 
 ```env
-UPDATE_FEED_URL=https://updates.sparkpair.dev/garmentsos-pro/stable/latest.json
+UPDATE_FEED_URL=https://sparkpair.dev/api/updates/garmentsos-pro/stable/latest.json
 ```
 
 Validate:

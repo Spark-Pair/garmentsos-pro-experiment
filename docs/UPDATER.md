@@ -10,7 +10,7 @@ The updater is disabled by default:
 
 ```text
 UPDATER_ENABLED=false
-UPDATE_FEED_URL=https://github.com/Spark-Pair/garmentsos-pro-experiment/releases/download/latest-stable/latest.json
+UPDATE_FEED_URL=https://sparkpair.dev/api/updates/garmentsos-pro/stable/latest.json
 UPDATE_FALLBACK_FEED_URL=https://github.com/Spark-Pair/garmentsos-pro-experiment/releases/download/latest-stable/latest.json
 UPDATE_CHANNEL=stable
 UPDATE_LAUNCHER_PROTOCOL=garmentsos
@@ -18,7 +18,7 @@ UPDATE_LAUNCHER_PROTOCOL=garmentsos
 
 No automatic update checks or automatic update apply actions are enabled for normal users.
 
-`UPDATE_FEED_URL` is the release metadata endpoint for `latest.json`. Experiment builds default to the GitHub `latest-stable` release feed. Production can later point to the SparkPair public update server, for example `https://updates.sparkpair.dev/garmentsos-pro/stable/latest.json`, when that server is live.
+`UPDATE_FEED_URL` is the release metadata endpoint for `latest.json`. Client installs should use the public SparkPair feed. The GitHub `latest-stable` release feed remains available as an experiment/developer fallback.
 
 `UPDATE_FALLBACK_FEED_URL` is tried when the primary feed cannot be reached. Existing installed `.env` values are preserved unless a developer/admin explicitly uses the updater page repair action.
 
@@ -191,7 +191,7 @@ Each channel release contains a moving `latest.json` asset uploaded with `--clob
 Private GitHub repositories return `404` for unauthenticated release asset requests. Browsers may appear to work when the developer is logged into GitHub, but installed apps and the Windows launcher are unauthenticated. For client installs, use the public SparkPair update server URL:
 
 ```env
-UPDATE_FEED_URL=https://updates.sparkpair.dev/garmentsos-pro/stable/latest.json
+UPDATE_FEED_URL=https://sparkpair.dev/api/updates/garmentsos-pro/stable/latest.json
 ```
 
 The workflow still publishes `latest.json` to `latest-stable`, `latest-beta`, and `latest-dev` for audit and for public repos, but private repo asset URLs are not a reliable client feed.
@@ -199,7 +199,7 @@ The workflow still publishes `latest.json` to `latest-stable`, `latest-beta`, an
 The installed app can point at the public published feed with:
 
 ```env
-UPDATE_FEED_URL=https://updates.sparkpair.dev/garmentsos-pro/stable/latest.json
+UPDATE_FEED_URL=https://sparkpair.dev/api/updates/garmentsos-pro/stable/latest.json
 UPDATE_CHANNEL=stable
 UPDATE_LAUNCHER_PROTOCOL=garmentsos
 ```
@@ -241,7 +241,7 @@ The response contains:
   "package_file": "garmentsos-pro-1.8.14.zip",
   "package_url": "https://github.com/OWNER/REPO/releases/download/v1.8.14/garmentsos-pro-1.8.14.zip",
   "package_sha256": "...",
-  "setup_url": "https://updates.sparkpair.dev/garmentsos-pro/stable/GarmentsOS-PRO.exe",
+  "setup_url": "https://github.com/OWNER/REPO/releases/download/v1.8.14/GarmentsOS-PRO.exe",
   "mandatory": false,
   "notes": "Release notes",
   "requested_at": "2026-06-30T00:00:00Z",

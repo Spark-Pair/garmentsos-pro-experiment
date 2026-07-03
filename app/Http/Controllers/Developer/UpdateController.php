@@ -17,7 +17,7 @@ use Illuminate\Support\Facades\File;
 
 class UpdateController extends Controller
 {
-    private const EXPERIMENT_STABLE_FEED = 'https://github.com/Spark-Pair/garmentsos-pro-experiment/releases/download/latest-stable/latest.json';
+    private const SPARKPAIR_STABLE_FEED = 'https://sparkpair.dev/api/updates/garmentsos-pro/stable/latest.json';
 
     public function index(InstalledVersionService $versions, ReleaseFeedService $releaseFeed, UpdateLockService $locks)
     {
@@ -202,14 +202,14 @@ class UpdateController extends Controller
         }
 
         try {
-            $this->setEnvValue('UPDATE_FEED_URL', self::EXPERIMENT_STABLE_FEED);
+            $this->setEnvValue('UPDATE_FEED_URL', self::SPARKPAIR_STABLE_FEED);
 
-            config(['updater.feed_url' => self::EXPERIMENT_STABLE_FEED]);
+            config(['updater.feed_url' => self::SPARKPAIR_STABLE_FEED]);
             Artisan::call('config:clear');
 
             return redirect()
                 ->route('developer.updater')
-                ->with('success', 'Update feed set to experiment stable. Existing .env values were preserved.');
+                ->with('success', 'Update feed set to SparkPair stable. Existing unrelated .env values were preserved.');
         } catch (\Throwable $exception) {
             return redirect()
                 ->route('developer.updater')

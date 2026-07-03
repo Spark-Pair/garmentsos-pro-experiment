@@ -2,7 +2,7 @@
 
 return [
     'enabled' => env('UPDATER_ENABLED', false),
-    'feed_url' => env('UPDATE_FEED_URL', env('UPDATER_MANIFEST_URL', 'https://github.com/Spark-Pair/garmentsos-pro-experiment/releases/download/latest-stable/latest.json')),
+    'feed_url' => env('UPDATE_FEED_URL', env('UPDATER_MANIFEST_URL', 'https://sparkpair.dev/api/updates/garmentsos-pro/stable/latest.json')),
     'fallback_feed_url' => env('UPDATE_FALLBACK_FEED_URL', 'https://github.com/Spark-Pair/garmentsos-pro-experiment/releases/download/latest-stable/latest.json'),
     'feed_timeout' => env('UPDATE_FEED_TIMEOUT', 8),
     'launcher_protocol' => env('UPDATE_LAUNCHER_PROTOCOL', 'garmentsos'),

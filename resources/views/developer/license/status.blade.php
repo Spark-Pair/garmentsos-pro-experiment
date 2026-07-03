@@ -105,15 +105,19 @@
                 </div>
                 <div class="{{ $softPanel }}">
                     <div class="text-xs uppercase text-[var(--secondary-text)]">License key</div>
-                    <div class="mt-1 text-lg font-semibold">{{ $licenseConfig['license_key_configured'] ? 'Configured' : 'Not configured' }}</div>
+                    <div class="mt-1 text-lg font-semibold">{{ $licenseConfig['license_key_configured'] ? ($licenseConfig['license_key_masked'] ?: 'Configured') : 'Not configured' }}</div>
                 </div>
                 <div class="{{ $softPanel }}">
                     <div class="text-xs uppercase text-[var(--secondary-text)]">License check URL</div>
-                    <div class="mt-1 text-lg font-semibold">{{ $licenseConfig['check_url_configured'] ? 'Configured' : 'Not configured' }}</div>
+                    <div class="mt-1 break-all text-sm font-semibold">{{ $licenseConfig['check_url_configured'] ? $licenseConfig['check_url'] : 'Not configured' }}</div>
                 </div>
                 <div class="{{ $softPanel }}">
                     <div class="text-xs uppercase text-[var(--secondary-text)]">Last check</div>
                     <div class="mt-1 text-lg font-semibold">{{ $licenseConfig['last_check_at'] ?: '-' }}</div>
+                </div>
+                <div class="{{ $softPanel }}">
+                    <div class="text-xs uppercase text-[var(--secondary-text)]">Install ID</div>
+                    <div class="mt-1 break-all text-sm font-semibold">{{ $licenseConfig['install_id'] ?: '-' }}</div>
                 </div>
             </div>
 

@@ -10,15 +10,8 @@ class ReleaseFeedService
 {
     protected array $requiredFields = [
         'version',
-        'channel',
-        'mandatory',
-        'released_at',
-        'package_file',
-        'package_sha256_file',
         'package_sha256',
         'package_url',
-        'min_launcher_version',
-        'notes',
     ];
 
     public function __construct(protected InstalledVersionService $versions)

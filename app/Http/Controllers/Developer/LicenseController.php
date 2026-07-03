@@ -42,7 +42,7 @@ class LicenseController extends Controller
             ]);
         }
 
-        if (!$this->licenseTablesReady()) {
+        if (!$this->licenseTablesReady() && !$licenses->usesConfiguredLicense()) {
             return view('developer.license.status', [
                 'status' => LicenseStatus::problem(
                     'setup_pending',
@@ -66,21 +66,24 @@ class LicenseController extends Controller
             ]);
         }
 
-        $installation = $identity->current();
-        $installation->update([
-            'fingerprint_hash' => $fingerprints->fingerprintHash(),
-            'last_seen_at' => now(),
-        ]);
+        $installation = null;
+        if (!$licenses->usesConfiguredLicense()) {
+            $installation = $identity->current();
+            $installation->update([
+                'fingerprint_hash' => $fingerprints->fingerprintHash(),
+                'last_seen_at' => now(),
+            ]);
+        }
 
         return view('developer.license.status', [
             'status' => $licenses->currentStatus(),
             'fingerprintPreview' => $fingerprints->fingerprintPreview(),
-            'installationPreview' => $identity->maskedUuid($installation),
-            'installationMode' => $installation->installation_mode,
+            'installationPreview' => $installation ? $identity->maskedUuid($installation) : $licenses->installId(),
+            'installationMode' => $installation?->installation_mode ?? config('licensing.installation_mode', 'local_lan'),
             'licensingEnabled' => $licenses->enabled(),
             'cacheStatus' => $licenses->statusFromSignedCache(),
-            'foundationReady' => true,
-            'missingTables' => [],
+            'foundationReady' => $this->licenseTablesReady(),
+            'missingTables' => $this->missingLicenseTables(),
             'licenseConfig' => $this->licenseConfigSummary(),
         ]);
     }
@@ -96,7 +99,22 @@ class LicenseController extends Controller
             'last_check_at' => (string) config('licensing.last_check_at', ''),
             'env_status' => (string) config('licensing.status', 'active'),
             'license_key_configured' => trim((string) config('licensing.license_key', '')) !== '',
+            'license_key_masked' => $this->maskedLicenseKey((string) config('licensing.license_key', '')),
+            'check_url' => (string) config('licensing.server_url', ''),
+            'install_id' => app(LicenseService::class)->installId(),
         ];
+    }
+
+    protected function maskedLicenseKey(string $key): string
+    {
+        $key = trim($key);
+        if ($key === '') {
+            return '';
+        }
+
+        return strlen($key) <= 8
+            ? str_repeat('*', strlen($key))
+            : substr($key, 0, 4) . str_repeat('*', max(4, strlen($key) - 8)) . substr($key, -4);
     }
 
     public function activate()

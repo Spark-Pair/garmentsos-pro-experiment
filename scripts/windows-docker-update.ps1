@@ -429,12 +429,21 @@ function Ensure-EnvKey($EnvPath, $Key, $DefaultValue) {
 }
 
 function Ensure-GarmentsUpdaterEnvKeys($EnvPath) {
-    Ensure-EnvKey $EnvPath "UPDATE_FEED_URL" "https://github.com/Spark-Pair/garmentsos-pro-experiment/releases/download/latest-stable/latest.json"
+    Ensure-EnvKey $EnvPath "UPDATE_FEED_URL" "https://sparkpair.dev/api/updates/garmentsos-pro/stable/latest.json"
     Ensure-EnvKey $EnvPath "UPDATE_FALLBACK_FEED_URL" "https://github.com/Spark-Pair/garmentsos-pro-experiment/releases/download/latest-stable/latest.json"
     Ensure-EnvKey $EnvPath "UPDATE_LOCK_TTL_MINUTES" "30"
     Ensure-EnvKey $EnvPath "UPDATE_CHANNEL" "stable"
     Ensure-EnvKey $EnvPath "UPDATE_LAUNCHER_PROTOCOL" "garmentsos"
     Ensure-EnvKey $EnvPath "UPDATE_REQUEST_TTL_MINUTES" "10"
+}
+
+function Ensure-GarmentsLicenseEnvKeys($EnvPath) {
+    Ensure-EnvKey $EnvPath "LICENSE_ENABLED" "false"
+    Ensure-EnvKey $EnvPath "LICENSE_CLIENT_ID" ""
+    Ensure-EnvKey $EnvPath "LICENSE_CLIENT_NAME" ""
+    Ensure-EnvKey $EnvPath "LICENSE_KEY" ""
+    Ensure-EnvKey $EnvPath "LICENSE_CHECK_URL" "https://sparkpair.dev/api/licenses/verify"
+    Ensure-EnvKey $EnvPath "LICENSE_GRACE_DAYS" "7"
 }
 
 if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
@@ -488,6 +497,7 @@ if (-not (Test-Path $EnvPath)) {
 }
 
 Ensure-GarmentsUpdaterEnvKeys $EnvPath
+Ensure-GarmentsLicenseEnvKeys $EnvPath
 
 $envContent = Get-Content $EnvPath -Raw
 $envContent = Set-EnvLine $envContent "GARMENTSOS_IMAGE" $Manifest.image

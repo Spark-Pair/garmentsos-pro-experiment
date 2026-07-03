@@ -33,6 +33,24 @@ class InstallationIdentityService
         return $this->readOrCreateUuid();
     }
 
+    public function installId(): string
+    {
+        $path = (string) config('licensing.install_id_path', storage_path('app/install-id.txt'));
+
+        if (File::exists($path)) {
+            $installId = trim((string) File::get($path));
+            if ($installId !== '') {
+                return $installId;
+            }
+        }
+
+        $installId = (string) Str::uuid();
+        File::ensureDirectoryExists(dirname($path));
+        File::put($path, $installId . PHP_EOL);
+
+        return $installId;
+    }
+
     public function installationMode(): string
     {
         $mode = (string) config('licensing.installation_mode', 'local_lan');
