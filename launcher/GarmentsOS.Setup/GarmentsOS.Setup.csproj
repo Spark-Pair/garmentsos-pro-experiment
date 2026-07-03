@@ -9,6 +9,6 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>GarmentsOS-PRO</AssemblyName>
     <RootNamespace>GarmentsOS.Setup</RootNamespace>
-    <ApplicationIcon />
+    <ApplicationIcon>Assets\GarmentsOS.ico</ApplicationIcon>
   </PropertyGroup>
 </Project>

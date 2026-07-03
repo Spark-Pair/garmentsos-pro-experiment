@@ -42,7 +42,8 @@ function New-GarmentsShortcut($ShortcutPath, $TargetPath, $WorkingDirectory, $Ar
         $shortcut.Arguments = $Arguments
         $shortcut.WorkingDirectory = $WorkingDirectory
         $shortcut.Description = $Description
-        if (-not [string]::IsNullOrWhiteSpace($IconPath) -and (Test-Path -LiteralPath $IconPath)) {
+        $iconSourcePath = if ([string]::IsNullOrWhiteSpace($IconPath)) { "" } else { ($IconPath -replace ',\d+$', '') }
+        if (-not [string]::IsNullOrWhiteSpace($IconPath) -and (Test-Path -LiteralPath $iconSourcePath)) {
             $shortcut.IconLocation = $IconPath
         }
         $shortcut.Save()
@@ -69,7 +70,7 @@ function Install-GarmentsShortcuts($TargetDir) {
 
     $usesExe = (Test-Path -LiteralPath $setupLauncher)
     $openArguments = if ($usesExe) { "garmentsos://open" } else { "" }
-    $iconPath = if ($usesExe) { $setupLauncher } else { "" }
+    $iconPath = if ($usesExe) { "$setupLauncher,0" } else { "" }
 
     try {
         $desktop = [Environment]::GetFolderPath("Desktop")
@@ -89,7 +90,7 @@ function Install-GarmentsShortcuts($TargetDir) {
             Write-Host "Start Menu shortcut created: $(Join-Path $startMenuFolder "GarmentsOS PRO.lnk")"
 
             if ($usesExe) {
-                New-GarmentsShortcut (Join-Path $startMenuFolder "GarmentsOS PRO Updater.lnk") $setupLauncher $TargetDir "" "Open GarmentsOS PRO Updater" $setupLauncher
+                New-GarmentsShortcut (Join-Path $startMenuFolder "GarmentsOS PRO Updater.lnk") $setupLauncher $TargetDir "" "Open GarmentsOS PRO Updater" $iconPath
                 Write-Host "Start Menu shortcut created: $(Join-Path $startMenuFolder "GarmentsOS PRO Updater.lnk")"
             }
 
@@ -160,6 +161,10 @@ function Register-GarmentsProtocol($TargetDir) {
         $baseKey.SetValue("URL Protocol", "")
         $baseKey.Close()
 
+        $iconKey = [Microsoft.Win32.Registry]::CurrentUser.CreateSubKey("Software\Classes\garmentsos\DefaultIcon")
+        $iconKey.SetValue("", "$launcher,0")
+        $iconKey.Close()
+
         $commandKey = [Microsoft.Win32.Registry]::CurrentUser.CreateSubKey("Software\Classes\garmentsos\shell\open\command")
         $commandKey.SetValue("", "`"$launcher`" `"%1`"")
         $commandKey.Close()
@@ -211,6 +216,10 @@ function Register-GarmentsProtocolFromLauncher($LauncherPath) {
     $baseKey.SetValue("", "URL:GarmentsOS PRO Launcher")
     $baseKey.SetValue("URL Protocol", "")
     $baseKey.Close()
+
+    $iconKey = [Microsoft.Win32.Registry]::CurrentUser.CreateSubKey("Software\Classes\garmentsos\DefaultIcon")
+    $iconKey.SetValue("", "$LauncherPath,0")
+    $iconKey.Close()
 
     $commandKey = [Microsoft.Win32.Registry]::CurrentUser.CreateSubKey("Software\Classes\garmentsos\shell\open\command")
     $commandKey.SetValue("", "`"$LauncherPath`" `"%1`"")

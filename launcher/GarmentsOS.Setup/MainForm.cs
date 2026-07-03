@@ -8,6 +8,29 @@ using System.Text.Json;
 
 namespace GarmentsOS.Setup;
 
+internal enum LauncherMode
+{
+    Manual,
+    Install,
+    Open,
+    Update,
+}
+
+internal enum LauncherStepState
+{
+    Pending,
+    Current,
+    Done,
+    Failed,
+}
+
+internal sealed class LauncherStep
+{
+    public string Key { get; init; } = "";
+    public string Label { get; init; } = "";
+    public LauncherStepState State { get; set; } = LauncherStepState.Pending;
+}
+
 public sealed class MainForm : Form
 {
     private const string DefaultInstallDir = @"C:\SparkPair\GarmentsOS";
@@ -64,6 +87,8 @@ public sealed class MainForm : Form
 
     private readonly string? startupArgument;
     private ReleaseFeed? currentFeed;
+    private LauncherMode launcherMode = LauncherMode.Manual;
+    private string? currentStepKey;
     private bool autoUpdateMode;
     private bool criticalUpdateStep;
     private bool detailsExpanded;
@@ -72,6 +97,7 @@ public sealed class MainForm : Form
     {
         this.startupArgument = startupArgument;
         Text = "GarmentsOS PRO Launcher";
+        Icon = TryLoadApplicationIcon();
         ClientSize = new Size(720, 420);
         MinimumSize = new Size(720, 420);
         MaximumSize = new Size(720, 420);
@@ -183,6 +209,20 @@ public sealed class MainForm : Form
         failureButtonsPanel.BringToFront();
 
         return root;
+    }
+
+    private static Icon? TryLoadApplicationIcon()
+    {
+        try
+        {
+            return string.IsNullOrWhiteSpace(Environment.ProcessPath)
+                ? null
+                : Icon.ExtractAssociatedIcon(Environment.ProcessPath);
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     private Control BuildSideStrip()
@@ -626,79 +666,223 @@ public sealed class MainForm : Form
 
     private void ConfigureSplashForLauncher()
     {
-        ConfigureSplashMode(
-            titleLine1: "Starting",
-            titleLine2: "GarmentsOS PRO",
-            descriptionLine1: "GarmentsOS PRO is preparing local services and",
-            descriptionLine2: "opening the app.",
-            pill1: "Docker",
-            pill2: "Local App",
-            pill3: "Browser",
-            progressText: "Opening GarmentsOS PRO...");
+        SetMode(LauncherMode.Manual);
     }
 
     private void ConfigureSplashForInstall()
     {
-        ConfigureSplashMode(
-            titleLine1: "Preparing your",
-            titleLine2: "install",
-            descriptionLine1: "GarmentsOS PRO is preparing a safe local",
-            descriptionLine2: "installation package.",
-            pill1: "Docker",
-            pill2: "Local Setup",
-            pill3: "Backup Safe",
-            progressText: "Preparing installation");
+        SetMode(LauncherMode.Install);
     }
 
     private void ConfigureSplashForOpen()
     {
-        ConfigureSplashMode(
-            titleLine1: "Starting",
-            titleLine2: "GarmentsOS PRO",
-            descriptionLine1: "GarmentsOS PRO is starting local services and",
-            descriptionLine2: "opening the browser.",
-            pill1: "Docker",
-            pill2: "Local App",
-            pill3: "Browser",
-            progressText: "Starting GarmentsOS PRO");
+        SetMode(LauncherMode.Open);
     }
 
     private void ConfigureSplashForUpdate()
     {
-        ConfigureSplashMode(
-            titleLine1: "Preparing your",
-            titleLine2: "update",
-            descriptionLine1: "GarmentsOS PRO is checking release files and",
-            descriptionLine2: "preparing a safe local update.",
-            pill1: "Release Feed",
-            pill2: "Backup Safe",
-            pill3: "Docker",
-            progressText: "Preparing update");
+        SetMode(LauncherMode.Update);
     }
 
-    private void ConfigureSplashMode(
-        string titleLine1,
-        string titleLine2,
-        string descriptionLine1,
-        string descriptionLine2,
-        string pill1,
-        string pill2,
-        string pill3,
-        string progressText)
+    private void SetMode(LauncherMode mode)
     {
+        launcherMode = mode;
+        currentStepKey = null;
+
         splashView.BadgeText = "Secure Launcher";
-        splashView.TitleLine1 = titleLine1;
-        splashView.TitleLine2 = titleLine2;
-        splashView.DescriptionLine1 = descriptionLine1;
-        splashView.DescriptionLine2 = descriptionLine2;
-        splashView.Pill1 = pill1;
-        splashView.Pill2 = pill2;
-        splashView.Pill3 = pill3;
-        splashView.ProgressText = progressText;
         splashView.ProgressPercent = 0;
         splashView.IsIndeterminate = false;
         splashView.ErrorText = null;
+        splashView.Steps = StepsForMode(mode);
+
+        switch (mode)
+        {
+            case LauncherMode.Install:
+                splashView.TitleLine1 = "Installing";
+                splashView.TitleLine2 = "GarmentsOS PRO";
+                splashView.Subtitle = "Setting up the app on this computer.";
+                splashView.HelperText = "Please do not close this window.";
+                splashView.ProgressText = "Preparing installation...";
+                SetCurrentStep("check_docker", "Checking Docker", 10);
+                break;
+            case LauncherMode.Open:
+                splashView.TitleLine1 = "Starting";
+                splashView.TitleLine2 = "GarmentsOS PRO";
+                splashView.Subtitle = "Starting local services and opening the app.";
+                splashView.HelperText = "Starting the app. This may take a moment.";
+                splashView.ProgressText = "Starting GarmentsOS PRO...";
+                SetCurrentStep("check_docker", "Checking Docker", 20);
+                break;
+            case LauncherMode.Update:
+                splashView.TitleLine1 = "Updating";
+                splashView.TitleLine2 = "GarmentsOS PRO";
+                splashView.Subtitle = "Applying a safe local update. Please wait.";
+                splashView.HelperText = "Please do not close this window.";
+                splashView.ProgressText = "Preparing update...";
+                SetCurrentStep("download_update", "Preparing update", 10);
+                break;
+            default:
+                splashView.TitleLine1 = "GarmentsOS";
+                splashView.TitleLine2 = "PRO";
+                splashView.Subtitle = "Ready to start, install, or update.";
+                splashView.HelperText = "";
+                splashView.ProgressText = "Ready";
+                break;
+        }
+
         splashView.Invalidate();
+    }
+
+    private static List<LauncherStep> StepsForMode(LauncherMode mode)
+    {
+        return mode switch
+        {
+            LauncherMode.Install => new List<LauncherStep>
+            {
+                NewStep("check_docker", "Check Docker"),
+                NewStep("download_package", "Download package"),
+                NewStep("verify_package", "Verify package"),
+                NewStep("install_files", "Install files"),
+                NewStep("start_services", "Start services"),
+                NewStep("open_app", "Open app"),
+            },
+            LauncherMode.Open => new List<LauncherStep>
+            {
+                NewStep("check_docker", "Check Docker"),
+                NewStep("start_services", "Start services"),
+                NewStep("wait_app", "Wait for app"),
+                NewStep("open_app", "Open app"),
+            },
+            LauncherMode.Update => new List<LauncherStep>
+            {
+                NewStep("download_update", "Download update"),
+                NewStep("verify_package", "Verify package"),
+                NewStep("create_backup", "Create backup"),
+                NewStep("apply_update", "Apply update"),
+                NewStep("restart_services", "Restart services"),
+                NewStep("open_app", "Open app"),
+            },
+            _ => new List<LauncherStep>(),
+        };
+    }
+
+    private static LauncherStep NewStep(string key, string label)
+    {
+        return new LauncherStep { Key = key, Label = label };
+    }
+
+    private void SetCurrentStep(string key, string? message = null, int? percent = null)
+    {
+        currentStepKey = key;
+        var steps = splashView.Steps;
+        var index = steps.FindIndex(step => string.Equals(step.Key, key, StringComparison.OrdinalIgnoreCase));
+
+        for (var i = 0; i < steps.Count; i++)
+        {
+            steps[i].State = i < index
+                ? LauncherStepState.Done
+                : i == index
+                    ? LauncherStepState.Current
+                    : LauncherStepState.Pending;
+        }
+
+        if (!string.IsNullOrWhiteSpace(message))
+        {
+            progressStatusLabel.Text = message;
+            splashView.ProgressText = message;
+        }
+
+        var nextPercent = Math.Clamp(percent ?? ProgressForStep(launcherMode, key), progressBar.Minimum, progressBar.Maximum);
+        progressBar.Value = nextPercent;
+        progressPercentLabel.Text = $"{nextPercent}%";
+        splashView.ProgressPercent = nextPercent;
+        splashView.ErrorText = null;
+        splashView.Invalidate();
+    }
+
+    private void MarkAllStepsDone(string? message = null)
+    {
+        foreach (var step in splashView.Steps)
+        {
+            step.State = LauncherStepState.Done;
+        }
+
+        currentStepKey = null;
+        if (!string.IsNullOrWhiteSpace(message))
+        {
+            progressStatusLabel.Text = message;
+            splashView.ProgressText = message;
+        }
+
+        progressBar.Value = 100;
+        progressPercentLabel.Text = "100%";
+        splashView.ProgressPercent = 100;
+        splashView.IsIndeterminate = false;
+        splashView.ErrorText = null;
+        splashView.Invalidate();
+    }
+
+    private void FailCurrentStep(string friendlyMessage)
+    {
+        var steps = splashView.Steps;
+        var key = currentStepKey ?? steps.FirstOrDefault(step => step.State == LauncherStepState.Current)?.Key;
+        var index = key is null ? -1 : steps.FindIndex(step => string.Equals(step.Key, key, StringComparison.OrdinalIgnoreCase));
+
+        if (index >= 0)
+        {
+            for (var i = 0; i < steps.Count; i++)
+            {
+                steps[i].State = i < index
+                    ? LauncherStepState.Done
+                    : i == index
+                        ? LauncherStepState.Failed
+                        : LauncherStepState.Pending;
+            }
+        }
+
+        splashView.TitleLine1 = "Something";
+        splashView.TitleLine2 = "went wrong";
+        splashView.Subtitle = friendlyMessage;
+        splashView.HelperText = "Open details if support asks for the technical log.";
+        splashView.ErrorText = ShortUiMessage(friendlyMessage);
+        splashView.IsIndeterminate = false;
+        splashView.Invalidate();
+    }
+
+    private static int ProgressForStep(LauncherMode mode, string key)
+    {
+        return mode switch
+        {
+            LauncherMode.Install => key switch
+            {
+                "check_docker" => 10,
+                "download_package" => 30,
+                "verify_package" => 45,
+                "install_files" => 60,
+                "start_services" => 80,
+                "open_app" => 95,
+                _ => 10,
+            },
+            LauncherMode.Open => key switch
+            {
+                "check_docker" => 20,
+                "start_services" => 50,
+                "wait_app" => 75,
+                "open_app" => 95,
+                _ => 20,
+            },
+            LauncherMode.Update => key switch
+            {
+                "download_update" => 30,
+                "verify_package" => 50,
+                "create_backup" => 65,
+                "apply_update" => 78,
+                "restart_services" => 90,
+                "open_app" => 95,
+                _ => 20,
+            },
+            _ => 0,
+        };
     }
 
     private void EnterAutoUpdateMode()
@@ -741,7 +925,30 @@ public sealed class MainForm : Form
         progressStatusLabel.Text = message;
 
         var isIndeterminate = marquee && !percent.HasValue;
-        var nextPercent = percent ?? (isIndeterminate ? progressBar.Value : progressBar.Value);
+        var stepKey = StepKeyForMessage(launcherMode, message);
+        var nextPercent = percent
+            ?? (stepKey is not null
+                ? ProgressForStep(launcherMode, stepKey)
+                : isIndeterminate
+                    ? Math.Max(progressBar.Value, StepPercent(message, progressBar.Value))
+                    : progressBar.Value);
+
+        if (stepKey is not null)
+        {
+            SetCurrentStep(stepKey, message, nextPercent);
+            if (nextPercent >= 100
+                || message.Contains("Ready", StringComparison.OrdinalIgnoreCase)
+                || message.Contains("complete", StringComparison.OrdinalIgnoreCase))
+            {
+                MarkAllStepsDone(message);
+            }
+        }
+        else if (nextPercent >= 100
+            || message.Contains("Ready", StringComparison.OrdinalIgnoreCase)
+            || message.Contains("complete", StringComparison.OrdinalIgnoreCase))
+        {
+            MarkAllStepsDone(message);
+        }
 
         progressBar.Style = ProgressBarStyle.Continuous;
         progressBar.MarqueeAnimationSpeed = 0;
@@ -752,7 +959,10 @@ public sealed class MainForm : Form
         splashView.ProgressText = message;
         splashView.ProgressPercent = progressBar.Value;
         splashView.IsIndeterminate = isIndeterminate;
-        splashView.ErrorText = null;
+        if (!message.Contains("failed", StringComparison.OrdinalIgnoreCase))
+        {
+            splashView.ErrorText = null;
+        }
         splashView.Invalidate();
 
         progressPercentLabel.Left = progressPercentLabel.Parent is null
@@ -772,6 +982,66 @@ public sealed class MainForm : Form
         return current <= 0 ? 20 : current;
     }
 
+    private static string? StepKeyForMessage(LauncherMode mode, string message)
+    {
+        var text = message.Trim();
+
+        return mode switch
+        {
+            LauncherMode.Install => InstallStepKey(text),
+            LauncherMode.Open => OpenStepKey(text),
+            LauncherMode.Update => UpdateStepKey(text),
+            _ => null,
+        };
+    }
+
+    private static string? InstallStepKey(string message)
+    {
+        if (IsDockerMessage(message)) return "check_docker";
+        if (message.Contains("Downloading", StringComparison.OrdinalIgnoreCase)) return "download_package";
+        if (message.Contains("Verifying", StringComparison.OrdinalIgnoreCase)) return "verify_package";
+        if (message.Contains("Extracting", StringComparison.OrdinalIgnoreCase)
+            || message.Contains("Creating environment", StringComparison.OrdinalIgnoreCase)
+            || message.Contains("Loading Docker image", StringComparison.OrdinalIgnoreCase)
+            || message.Contains("Creating shortcuts", StringComparison.OrdinalIgnoreCase)) return "install_files";
+        if (message.Contains("Starting app services", StringComparison.OrdinalIgnoreCase)) return "start_services";
+        if (message.Contains("Opening", StringComparison.OrdinalIgnoreCase) || message.Contains("Ready", StringComparison.OrdinalIgnoreCase)) return "open_app";
+        return null;
+    }
+
+    private static string? OpenStepKey(string message)
+    {
+        if (IsDockerMessage(message)) return "check_docker";
+        if (message.Contains("Starting app services", StringComparison.OrdinalIgnoreCase)) return "start_services";
+        if (message.Contains("Waiting for app", StringComparison.OrdinalIgnoreCase)) return "wait_app";
+        if (message.Contains("Opening", StringComparison.OrdinalIgnoreCase) || message.Contains("Ready", StringComparison.OrdinalIgnoreCase)) return "open_app";
+        return null;
+    }
+
+    private static string? UpdateStepKey(string message)
+    {
+        if (message.Contains("Downloading", StringComparison.OrdinalIgnoreCase)
+            || message.Equals("Preparing update...", StringComparison.OrdinalIgnoreCase)
+            || message.Equals("Preparing update", StringComparison.OrdinalIgnoreCase)) return "download_update";
+        if (message.Contains("Verifying", StringComparison.OrdinalIgnoreCase)
+            || message.Contains("Preparing update files", StringComparison.OrdinalIgnoreCase)) return "verify_package";
+        if (message.Contains("backup", StringComparison.OrdinalIgnoreCase)) return "create_backup";
+        if (message.Contains("Applying", StringComparison.OrdinalIgnoreCase)
+            || message.Contains("Loaded image", StringComparison.OrdinalIgnoreCase)) return "apply_update";
+        if (message.Contains("Restarting", StringComparison.OrdinalIgnoreCase)
+            || message.Contains("started", StringComparison.OrdinalIgnoreCase)) return "restart_services";
+        if (message.Contains("Opening", StringComparison.OrdinalIgnoreCase)
+            || message.Contains("complete", StringComparison.OrdinalIgnoreCase)) return "open_app";
+        return null;
+    }
+
+    private static bool IsDockerMessage(string message)
+    {
+        return message.Contains("Checking Docker", StringComparison.OrdinalIgnoreCase)
+            || message.Contains("Starting Docker", StringComparison.OrdinalIgnoreCase)
+            || message.Contains("Waiting for Docker", StringComparison.OrdinalIgnoreCase);
+    }
+
     private void ShowFailureMode(string message = "Update failed", string title = "Update failed")
     {
         autoUpdateMode = false;
@@ -779,10 +1049,10 @@ public sealed class MainForm : Form
         ControlBox = true;
         updateButton.Enabled = currentFeed is not null;
 
-        SetStep(title, percent: 0);
-        splashView.ErrorText = ShortUiMessage(message);
-        splashView.IsIndeterminate = false;
-        splashView.Invalidate();
+        progressStatusLabel.Text = title;
+        progressBar.Value = 0;
+        progressPercentLabel.Text = "0%";
+        FailCurrentStep(message);
 
         failureButtonsPanel.Dock = DockStyle.None;
         failureButtonsPanel.Left = 52;
@@ -1087,7 +1357,7 @@ public sealed class MainForm : Form
                 throw new InvalidOperationException($"SHA256 mismatch. Expected {currentFeed.PackageSha256}, got {actualSha}.");
             }
 
-            SetStep("Preparing update...", percent: 0);
+            SetStep("Preparing update files...", percent: 55);
             var extractDir = Path.Combine(workDir, "extracted");
             Directory.CreateDirectory(extractDir);
             ExtractPackage(packagePath, extractDir);
@@ -1164,6 +1434,7 @@ public sealed class MainForm : Form
             await EnsureDockerRunningAsync();
 
             var feedUrl = GetConfiguredFeedUrl(installDir);
+            SetStep("Downloading installation package...", percent: 30);
             Log("Fetching release feed.");
             currentFeed = await FetchFeedAsync(feedUrl);
 
@@ -1171,7 +1442,7 @@ public sealed class MainForm : Form
             Directory.CreateDirectory(workDir);
 
             var packagePath = Path.Combine(workDir, Path.GetFileName(new Uri(currentFeed.PackageUrl).LocalPath));
-            SetStep("Downloading installation package", percent: 35);
+            SetStep("Downloading installation package...", percent: 35);
             await DownloadFileAsync(currentFeed.PackageUrl, packagePath);
 
             SetStep("Verifying package", percent: 48);
@@ -1908,6 +2179,10 @@ public sealed class MainForm : Form
                     $baseKey.SetValue("URL Protocol", "")
                     $baseKey.Close()
 
+                    $iconKey = [Microsoft.Win32.Registry]::CurrentUser.CreateSubKey("Software\Classes\garmentsos\DefaultIcon")
+                    $iconKey.SetValue("", "$launcher,0")
+                    $iconKey.Close()
+
                     $commandKey = [Microsoft.Win32.Registry]::CurrentUser.CreateSubKey("Software\Classes\garmentsos\shell\open\command")
                     $commandKey.SetValue("", "`"$launcher`" `"%1`"")
                     $commandKey.Close()
@@ -1984,6 +2259,9 @@ public sealed class MainForm : Form
         using var baseKey = Microsoft.Win32.Registry.CurrentUser.CreateSubKey(@"Software\Classes\garmentsos");
         baseKey?.SetValue("", "URL:GarmentsOS PRO Launcher");
         baseKey?.SetValue("URL Protocol", "");
+
+        using var iconKey = Microsoft.Win32.Registry.CurrentUser.CreateSubKey(@"Software\Classes\garmentsos\DefaultIcon");
+        iconKey?.SetValue("", $"{launcherPath},0");
 
         using var commandKey = Microsoft.Win32.Registry.CurrentUser.CreateSubKey(@"Software\Classes\garmentsos\shell\open\command");
         commandKey?.SetValue("", $"\"{launcherPath}\" \"%1\"");
@@ -2155,11 +2433,9 @@ internal sealed class UpdaterSplashView : Control
     public string BadgeText { get; set; } = "Secure Launcher";
     public string TitleLine1 { get; set; } = "Starting";
     public string TitleLine2 { get; set; } = "GarmentsOS PRO";
-    public string DescriptionLine1 { get; set; } = "GarmentsOS PRO is preparing local services and";
-    public string DescriptionLine2 { get; set; } = "opening the app.";
-    public string Pill1 { get; set; } = "Docker";
-    public string Pill2 { get; set; } = "Local App";
-    public string Pill3 { get; set; } = "Browser";
+    public string Subtitle { get; set; } = "Ready to start, install, or update.";
+    public string HelperText { get; set; } = "";
+    public List<LauncherStep> Steps { get; set; } = new();
 
     private readonly Font brandFont = new("Segoe UI", 10.5f, FontStyle.Bold);
     private readonly Font secureFont = new("Segoe UI", 8.2f, FontStyle.Bold);
@@ -2230,15 +2506,13 @@ internal sealed class UpdaterSplashView : Control
         DrawText(g, TitleLine1, titleFont, Color.Black, leftX, 107);
         DrawText(g, TitleLine2, titleFont, BrandBlue, leftX, 145);
 
-        DrawText(g, DescriptionLine1, bodyFont, TextMuted, leftX, 205);
-        DrawText(g, DescriptionLine2, bodyFont, TextMuted, leftX, 228);
+        DrawText(g, Subtitle, bodyFont, TextMuted, leftX, 205);
+        DrawStepList(g, leftX, 245);
 
-        var pill1Width = PillWidth(Pill1);
-        var pill2Width = PillWidth(Pill2);
-        var pill3Width = PillWidth(Pill3);
-        DrawPill(g, new Rectangle(leftX, 268, pill1Width, 28), Pill1);
-        DrawPill(g, new Rectangle(leftX + pill1Width + 10, 268, pill2Width, 28), Pill2);
-        DrawPill(g, new Rectangle(leftX + pill1Width + pill2Width + 20, 268, pill3Width, 28), Pill3);
+        if (!string.IsNullOrWhiteSpace(HelperText))
+        {
+            DrawText(g, HelperText, footerFont, TextHint, leftX, 309);
+        }
     }
 
     private void DrawWindowStack(Graphics g)
@@ -2251,6 +2525,64 @@ internal sealed class UpdaterSplashView : Control
         DrawWindowFrame(g, new Rectangle(rightX + 32, rightY + 0, 206, 124), 12, 0.50f, false);
         DrawWindowFrame(g, new Rectangle(rightX + 16, rightY + 16, 206, 124), 12, 0.74f, false);
         DrawWindowFrame(g, new Rectangle(rightX + 0, rightY + 32, 206, 124), 12, 1f, true);
+    }
+
+    private void DrawStepList(Graphics g, int x, int y)
+    {
+        if (Steps.Count == 0)
+        {
+            return;
+        }
+
+        const int rowHeight = 19;
+        const int columnWidth = 170;
+        var rowsPerColumn = Steps.Count <= 4 ? Steps.Count : 3;
+
+        for (var i = 0; i < Steps.Count; i++)
+        {
+            var column = i / rowsPerColumn;
+            var row = i % rowsPerColumn;
+            DrawStep(g, Steps[i], x + (column * columnWidth), y + (row * rowHeight));
+        }
+    }
+
+    private void DrawStep(Graphics g, LauncherStep step, int x, int y)
+    {
+        var markerRect = new Rectangle(x, y + 3, 11, 11);
+        var color = step.State switch
+        {
+            LauncherStepState.Current => BrandBlue,
+            LauncherStepState.Done => BrandBlue,
+            LauncherStepState.Failed => Color.FromArgb(185, 28, 28),
+            _ => Color.FromArgb(150, 163, 184),
+        };
+
+        using var pen = new Pen(color, 1.7f);
+        using var brush = new SolidBrush(color);
+
+        switch (step.State)
+        {
+            case LauncherStepState.Done:
+                g.DrawEllipse(pen, markerRect);
+                g.DrawLine(pen, markerRect.Left + 3, markerRect.Top + 6, markerRect.Left + 5, markerRect.Top + 8);
+                g.DrawLine(pen, markerRect.Left + 5, markerRect.Top + 8, markerRect.Left + 9, markerRect.Top + 3);
+                break;
+            case LauncherStepState.Current:
+                g.FillEllipse(brush, markerRect);
+                break;
+            case LauncherStepState.Failed:
+                g.DrawEllipse(pen, markerRect);
+                g.DrawLine(pen, markerRect.Left + 3, markerRect.Top + 3, markerRect.Right - 3, markerRect.Bottom - 3);
+                g.DrawLine(pen, markerRect.Right - 3, markerRect.Top + 3, markerRect.Left + 3, markerRect.Bottom - 3);
+                break;
+            default:
+                g.DrawEllipse(pen, markerRect);
+                break;
+        }
+
+        using var textBrush = new SolidBrush(step.State == LauncherStepState.Failed ? Color.FromArgb(185, 28, 28) : step.State == LauncherStepState.Pending ? TextHint : TextMuted);
+        using var font = new Font("Segoe UI", 8.2f, step.State == LauncherStepState.Current ? FontStyle.Bold : FontStyle.Regular);
+        g.DrawString(step.Label, font, textBrush, x + 18, y - 1);
     }
 
     private void DrawWindowFrame(Graphics g, Rectangle rect, int radius, float opacity, bool front)
