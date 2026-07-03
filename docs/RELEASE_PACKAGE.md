@@ -52,12 +52,12 @@ If the feed includes a real `setup_url`, the Developer Updater page shows a `Dow
 
 Expected release assets:
 
-- `GarmentsOS-PRO-Setup.exe`
+- `GarmentsOS-PRO.exe`
 - `garmentsos-pro-VERSION.tar.gz` or `garmentsos-pro-VERSION.zip`
 - `garmentsos-pro-VERSION.sha256`
 - `latest.json`
 
-The setup EXE is copied from the published WinForms launcher output as `GarmentsOS-PRO-Setup.exe`. If the launcher build fails, the GitHub workflow skips it with a warning and the package still has BAT/PowerShell fallback launchers.
+The client EXE is copied from the published WinForms launcher output as `GarmentsOS-PRO.exe`. If the launcher build fails, the GitHub workflow skips it with a warning and the package still has BAT/PowerShell fallback launchers.
 
 For private repositories, GitHub release assets require authentication and return `404` to installed clients. Publish `docker-releases/latest.json` to the public SparkPair update feed, for example:
 

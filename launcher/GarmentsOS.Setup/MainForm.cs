@@ -12,6 +12,8 @@ public sealed class MainForm : Form
 {
     private const string DefaultInstallDir = @"C:\SparkPair\GarmentsOS";
     private const string AppUrl = "http://localhost:8000";
+    private const string DefaultFeedUrl = "https://updates.sparkpair.dev/garmentsos-pro/stable/latest.json";
+    private const string PrimaryLauncherExeName = "GarmentsOS-PRO.exe";
 
     private static readonly Color BrandBlue = Color.FromArgb(37, 99, 235);
     private static readonly Color AppBackground = Color.FromArgb(238, 241, 244);
@@ -766,7 +768,7 @@ public sealed class MainForm : Form
         {
             currentFeed = null;
             updateButton.Enabled = false;
-            Log("Update check failed: " + "ex.message");
+            Log("Update check failed: " + ex.Message);
         }
     }
 
@@ -790,6 +792,16 @@ public sealed class MainForm : Form
     {
         if (string.IsNullOrWhiteSpace(startupArgument))
         {
+            if (IsInstalled(installDirBox.Text.Trim()))
+            {
+                Log("Installed app detected. Opening GarmentsOS PRO.");
+                await OpenAppAsync();
+            }
+            else
+            {
+                Log("No installed app detected. Starting fresh install.");
+                await InstallAppAsync();
+            }
             return;
         }
 
@@ -887,15 +899,15 @@ public sealed class MainForm : Form
             Log("Update request reference was not a supported URL or existing local file.");
             if (autoUpdateMode)
             {
-                ShowFailureMode("ex.message");
+                ShowFailureMode("Update request reference was not a supported URL or existing local file.");
             }
         }
         catch (Exception ex)
         {
-            Log("Could not load protocol update request: " + "ex.message");
+            Log("Could not load protocol update request: " + ex.Message);
             if (autoUpdateMode)
             {
-                ShowFailureMode();
+                ShowFailureMode(ex.Message);
             }
         }
     }
@@ -1055,9 +1067,94 @@ public sealed class MainForm : Form
         }
     }
 
+    private async Task InstallAppAsync()
+    {
+        try
+        {
+            failureButtonsPanel.Visible = false;
+            logBox.Visible = false;
+            detailsExpanded = false;
+            detailsButton.Text = "Details";
+
+            var installDir = installDirBox.Text.Trim();
+            SetStep("Preparing installation", percent: 10);
+            Log("Starting fresh install flow.");
+
+            await EnsureDockerRunningAsync();
+
+            var feedUrl = GetConfiguredFeedUrl(installDir);
+            Log("Fetching release feed.");
+            currentFeed = await FetchFeedAsync(feedUrl);
+
+            var workDir = Path.Combine(Path.GetTempPath(), "GarmentsOSInstall", DateTime.Now.ToString("yyyyMMdd_HHmmss"));
+            Directory.CreateDirectory(workDir);
+
+            var packagePath = Path.Combine(workDir, Path.GetFileName(new Uri(currentFeed.PackageUrl).LocalPath));
+            SetStep("Downloading app package", percent: 35);
+            await DownloadFileAsync(currentFeed.PackageUrl, packagePath);
+
+            SetStep("Verifying package", percent: 48);
+            var actualSha = await ComputeSha256Async(packagePath);
+            if (!actualSha.Equals(currentFeed.PackageSha256, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException($"SHA256 mismatch. Expected {currentFeed.PackageSha256}, got {actualSha}.");
+            }
+
+            SetStep("Extracting files", percent: 58);
+            var extractDir = Path.Combine(workDir, "extracted");
+            Directory.CreateDirectory(extractDir);
+            ExtractPackage(packagePath, extractDir);
+            var releaseDir = FindReleaseDir(extractDir);
+            CopyCurrentLauncherIntoRelease(releaseDir);
+
+            var script = Path.Combine(releaseDir, "scripts", "windows-docker-install.ps1");
+            if (!File.Exists(script))
+            {
+                throw new FileNotFoundException("Install script not found in package.", script);
+            }
+
+            SetStep("Creating environment", percent: 64);
+            await RunProcessAsync(
+                "powershell.exe",
+                $"-NoProfile -ExecutionPolicy Bypass -File \"{script}\" -InstallDir \"{installDir}\"",
+                releaseDir,
+                line =>
+                {
+                    if (line.Contains("docker load", StringComparison.OrdinalIgnoreCase) || line.Contains("Loaded image", StringComparison.OrdinalIgnoreCase))
+                    {
+                        SetStep("Loading Docker image", percent: 74);
+                    }
+                    else if (line.Contains("compose", StringComparison.OrdinalIgnoreCase) || line.Contains("started", StringComparison.OrdinalIgnoreCase))
+                    {
+                        SetStep("Starting app services", percent: 84);
+                    }
+                    else if (line.Contains("Shortcut", StringComparison.OrdinalIgnoreCase) || line.Contains("protocol", StringComparison.OrdinalIgnoreCase))
+                    {
+                        SetStep("Creating shortcuts", percent: 90);
+                    }
+                });
+
+            SetStep("Opening app", percent: 95);
+            if (!await WaitForAppAsync(TimeSpan.FromSeconds(60)))
+            {
+                throw new TimeoutException("GarmentsOS PRO installed, but the web app did not respond.");
+            }
+
+            OpenUrl(AppUrl);
+            SetStep("Ready", percent: 100);
+            await Task.Delay(TimeSpan.FromSeconds(2));
+            Close();
+        }
+        catch (Exception ex)
+        {
+            Log("Install failed: " + ex.Message);
+            ShowFailureMode(ex.Message);
+        }
+    }
+
     private async Task HandleUpdateFailureAsync(Exception ex)
     {
-        Log("Update failed: " + "ex.message");
+        Log("Update failed: " + ex.Message);
 
         autoUpdateMode = false;
         criticalUpdateStep = false;
@@ -1234,6 +1331,36 @@ public sealed class MainForm : Form
         }
     }
 
+    private static bool IsInstalled(string installDir)
+    {
+        return File.Exists(Path.Combine(installDir, "manifest.json"))
+            && File.Exists(Path.Combine(installDir, "docker-compose.yml"));
+    }
+
+    private string GetConfiguredFeedUrl(string installDir)
+    {
+        return ReadEnvValue(Path.Combine(installDir, ".env"), "UPDATE_FEED_URL")
+            ?? ReadEnvValue(Path.Combine(installDir, ".env"), "UPDATER_MANIFEST_URL")
+            ?? DefaultFeedUrl;
+    }
+
+    private static void CopyCurrentLauncherIntoRelease(string releaseDir)
+    {
+        var destination = Path.Combine(releaseDir, PrimaryLauncherExeName);
+        if (File.Exists(destination))
+        {
+            return;
+        }
+
+        var current = Environment.ProcessPath;
+        if (string.IsNullOrWhiteSpace(current) || !File.Exists(current))
+        {
+            return;
+        }
+
+        File.Copy(current, destination, overwrite: true);
+    }
+
     private static string? ReadEnvValue(string envPath, string key)
     {
         if (!File.Exists(envPath))
@@ -1355,7 +1482,7 @@ public sealed class MainForm : Form
         {
             var message = ex.Message.Contains("Docker could not start", StringComparison.OrdinalIgnoreCase)
                 ? "Docker could not start. Please open Docker Desktop and try again."
-                : "ex.message";
+                : ex.Message;
             Log("Open app failed: " + message);
             ShowFailureMode(message);
         }
@@ -1390,7 +1517,7 @@ public sealed class MainForm : Form
         }
         catch (Exception ex)
         {
-            Log("Docker check failed: " + "ex.message");
+            Log("Docker check failed: " + ex.Message);
             return false;
         }
     }
@@ -1590,8 +1717,8 @@ public sealed class MainForm : Form
         }
         catch (Exception ex)
         {
-            AppendPendingLauncherLog(DefaultInstallDir, "Startup pending launcher update failed: " + "ex.message");
-            Log("Pending launcher update failed on startup: " + "ex.message");
+            AppendPendingLauncherLog(DefaultInstallDir, "Startup pending launcher update failed: " + ex.Message);
+            Log("Pending launcher update failed on startup: " + ex.Message);
             return false;
         }
     }
@@ -1701,7 +1828,7 @@ public sealed class MainForm : Form
         }
         catch (Exception ex)
         {
-            Log("Could not start pending launcher replacement helper: " + "ex.message");
+            Log("Could not start pending launcher replacement helper: " + ex.Message);
         }
     }
 

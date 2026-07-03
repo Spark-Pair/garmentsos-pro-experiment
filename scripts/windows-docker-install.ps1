@@ -55,7 +55,7 @@ function New-GarmentsShortcut($ShortcutPath, $TargetPath, $WorkingDirectory, $Ar
 }
 
 function Install-GarmentsShortcuts($TargetDir) {
-    $setupLauncher = Join-Path $TargetDir "GarmentsOS-PRO-Setup.exe"
+    $setupLauncher = Join-Path $TargetDir "GarmentsOS-PRO.exe"
     $openLauncher = Join-Path $TargetDir "Open GarmentsOS.bat"
     $shortcutTarget = if (Test-Path -LiteralPath $setupLauncher) {
         $setupLauncher
@@ -104,8 +104,10 @@ function Install-GarmentsShortcuts($TargetDir) {
 
 function Resolve-GarmentsGuiLauncher($TargetDir) {
     $candidates = @(
+        (Join-Path $TargetDir "GarmentsOS-PRO.exe"),
         (Join-Path $TargetDir "GarmentsOS-PRO-Setup.exe"),
         (Join-Path $TargetDir "GarmentsOS PRO Launcher.exe"),
+        (Join-Path $TargetDir "launcher\GarmentsOS-PRO.exe"),
         (Join-Path $TargetDir "launcher\GarmentsOS-PRO-Setup.exe"),
         (Join-Path $TargetDir "launcher\GarmentsOS PRO Launcher.exe")
     )
@@ -250,8 +252,10 @@ Copy-Item -Recurse -Force (Join-Path $Source "docs") $InstallDir
 Copy-Item -Recurse -Force (Join-Path $Source "images") $InstallDir
 Copy-Item -Recurse -Force (Join-Path $Source "checksums") $InstallDir
 Copy-Item -Force (Join-Path $Source "manifest.json") $InstallDir
-if (Test-Path (Join-Path $Source "GarmentsOS-PRO-Setup.exe")) {
-    Copy-Item -Force (Join-Path $Source "GarmentsOS-PRO-Setup.exe") $InstallDir
+if (Test-Path (Join-Path $Source "GarmentsOS-PRO.exe")) {
+    Copy-Item -Force (Join-Path $Source "GarmentsOS-PRO.exe") $InstallDir
+} elseif (Test-Path (Join-Path $Source "GarmentsOS-PRO-Setup.exe")) {
+    Copy-Item -Force (Join-Path $Source "GarmentsOS-PRO-Setup.exe") (Join-Path $InstallDir "GarmentsOS-PRO.exe")
 }
 if (Test-Path (Join-Path $Source "GarmentsOS PRO Launcher.exe")) {
     Copy-Item -Force (Join-Path $Source "GarmentsOS PRO Launcher.exe") $InstallDir
@@ -259,9 +263,12 @@ if (Test-Path (Join-Path $Source "GarmentsOS PRO Launcher.exe")) {
 if (Test-Path (Join-Path $Source "launcher")) {
     Copy-Item -Recurse -Force (Join-Path $Source "launcher") $InstallDir
 }
-$installedSetupLauncher = Join-Path $InstallDir "GarmentsOS-PRO-Setup.exe"
+$installedSetupLauncher = Join-Path $InstallDir "GarmentsOS-PRO.exe"
+$installedNestedPrimaryLauncher = Join-Path $InstallDir "launcher\GarmentsOS-PRO.exe"
 $installedNestedLauncher = Join-Path $InstallDir "launcher\GarmentsOS PRO Launcher.exe"
-if (-not (Test-Path $installedSetupLauncher) -and (Test-Path $installedNestedLauncher)) {
+if (-not (Test-Path $installedSetupLauncher) -and (Test-Path $installedNestedPrimaryLauncher)) {
+    Copy-Item -Force $installedNestedPrimaryLauncher $installedSetupLauncher
+} elseif (-not (Test-Path $installedSetupLauncher) -and (Test-Path $installedNestedLauncher)) {
     Copy-Item -Force $installedNestedLauncher $installedSetupLauncher
 }
 Copy-RootLaunchers $Source $InstallDir

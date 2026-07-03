@@ -2,7 +2,7 @@
 
 Use this for existing Docker client installs.
 
-Scripts support Windows PowerShell 5.1 or newer. For normal users, prefer the GUI launcher at `launcher\GarmentsOS PRO Launcher.exe`. The BAT/PowerShell scripts remain fallback and automation entrypoints.
+Scripts support Windows PowerShell 5.1 or newer. For normal users, prefer the GUI bootstrapper at `C:\SparkPair\GarmentsOS\GarmentsOS-PRO.exe`. The BAT/PowerShell scripts remain fallback and automation entrypoints.
 
 The old `1.8.0` Docker release built before the Windows PowerShell compatibility fix should be treated as invalid/replaced.
 
@@ -10,7 +10,7 @@ The old `1.8.0` Docker release built before the Windows PowerShell compatibility
 
 GUI flow:
 
-1. Open `launcher\GarmentsOS PRO Launcher.exe`.
+1. Open `C:\SparkPair\GarmentsOS\GarmentsOS-PRO.exe`.
 2. Click `Check Update`.
 3. Click `Update Now`.
 
@@ -49,7 +49,7 @@ The GUI updater performs the download and SHA256 verification before delegating 
 If the updater cannot overwrite the running GUI launcher, it writes:
 
 ```text
-C:\SparkPair\GarmentsOS\updates\GarmentsOS-PRO-Setup.exe.pending
+C:\SparkPair\GarmentsOS\updates\GarmentsOS-PRO.exe.pending
 C:\SparkPair\GarmentsOS\.pending-launcher-update.json
 ```
 

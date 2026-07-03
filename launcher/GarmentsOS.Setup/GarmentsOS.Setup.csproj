@@ -7,7 +7,7 @@
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <AssemblyName>GarmentsOS PRO Launcher</AssemblyName>
+    <AssemblyName>GarmentsOS-PRO</AssemblyName>
     <RootNamespace>GarmentsOS.Setup</RootNamespace>
     <ApplicationIcon />
   </PropertyGroup>

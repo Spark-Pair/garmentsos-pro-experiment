@@ -77,32 +77,34 @@ jobs:
           dotnet publish launcher/GarmentsOS.Setup/GarmentsOS.Setup.csproj \
             -c Release \
             -r win-x64 \
-            --self-contained false \
-            -p:PublishSingleFile=true
+            --self-contained true \
+            -p:PublishSingleFile=true \
+            -p:EnableCompressionInSingleFile=true \
+            -p:IncludeNativeLibrariesForSelfExtract=true
 
       - name: Warn if GUI launcher was not built
         if: ${{ steps.launcher.outcome != 'success' }}
         run: |
-          echo "::warning::GarmentsOS PRO Launcher.exe was not built. Release package will use BAT/PowerShell fallback launchers."
+          echo "::warning::GarmentsOS-PRO.exe was not built. Release package will use BAT/PowerShell fallback launchers."
 
-      - name: Prepare setup EXE asset
+      - name: Prepare client EXE asset
         if: ${{ steps.launcher.outcome == 'success' }}
         shell: bash
         run: |
           set -euo pipefail
 
-          launcher_exe="$(find launcher/GarmentsOS.Setup/bin/Release -type f -name 'GarmentsOS PRO Launcher.exe' -path '*/publish/*' -print -quit)"
+          launcher_exe="$(find launcher/GarmentsOS.Setup/bin/Release -type f -name 'GarmentsOS-PRO.exe' -path '*/publish/*' -print -quit)"
           if [[ -z "$launcher_exe" ]]; then
             launcher_exe="$(find launcher/GarmentsOS.Setup/bin/Release -type f -name 'GarmentsOS PRO Launcher.exe' -print -quit)"
           fi
 
           if [[ -z "$launcher_exe" ]]; then
-            echo "::warning::Published GarmentsOS PRO Launcher.exe was not found. GarmentsOS-PRO-Setup.exe will be skipped."
+            echo "::warning::Published GarmentsOS-PRO.exe was not found. GarmentsOS-PRO.exe will be skipped."
             exit 0
           fi
 
-          cp "$launcher_exe" GarmentsOS-PRO-Setup.exe
-          echo "Prepared setup asset from: $launcher_exe"
+          cp "$launcher_exe" GarmentsOS-PRO.exe
+          echo "Prepared client asset from: $launcher_exe"
 
       - name: Build Docker release package
         env:
@@ -140,9 +142,9 @@ jobs:
             exit 1
           fi
 
-          setup_asset="$(find . -path './.git' -prune -o -type f -name 'GarmentsOS-PRO-Setup.exe' -print -quit)"
+          setup_asset="$(find . -path './.git' -prune -o -type f -name 'GarmentsOS-PRO.exe' -print -quit)"
           if [[ -z "$setup_asset" ]]; then
-            echo "::warning::GarmentsOS-PRO-Setup.exe was not found. The setup asset will be skipped."
+            echo "::warning::GarmentsOS-PRO.exe was not found. The client EXE asset will be skipped."
           fi
 
           {
@@ -185,9 +187,9 @@ jobs:
               "package_sha256": os.environ["package_sha256"],
               "package_url": f"{os.environ['release_base_url']}/{os.environ['PACKAGE_FILE']}",
               "setup_url": (
-                  f"{os.environ['release_base_url']}/GarmentsOS-PRO-Setup.exe"
+                  f"{os.environ['release_base_url']}/GarmentsOS-PRO.exe"
                   if os.environ["SETUP_ASSET"]
-                  else "PLACEHOLDER_GITHUB_RELEASE_ASSET_URL/GarmentsOS-PRO-Setup.exe"
+                  else "PLACEHOLDER_GITHUB_RELEASE_ASSET_URL/GarmentsOS-PRO.exe"
               ),
               "min_launcher_version": os.environ["MIN_LAUNCHER_VERSION"],
               "notes": os.environ["RELEASE_NOTES"],
@@ -209,9 +211,9 @@ jobs:
             echo "- ${{ steps.assets.outputs.checksum_file }}"
             echo "- latest.json"
             if [[ -n "${{ steps.assets.outputs.setup_asset }}" ]]; then
-              echo "- GarmentsOS-PRO-Setup.exe"
+              echo "- GarmentsOS-PRO.exe"
             else
-              echo "- GarmentsOS-PRO-Setup.exe skipped: setup builder is not enabled in this workflow yet."
+              echo "- GarmentsOS-PRO.exe skipped: launcher builder is not enabled in this workflow yet."
             fi
           } > release-notes.md
 
@@ -233,7 +235,7 @@ jobs:
             --notes-file release-notes.md \
             $prerelease_flag
 
-      - name: Upload setup asset if present
+      - name: Upload client EXE asset if present
         if: ${{ steps.assets.outputs.setup_asset != '' }}
         shell: bash
         run: |

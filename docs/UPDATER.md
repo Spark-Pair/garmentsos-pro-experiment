@@ -85,7 +85,7 @@ Docker release builds generate `docker-releases/latest.json` for GitHub/SparkPai
 
 Expected GitHub release assets:
 
-- `GarmentsOS-PRO-Setup.exe`
+- `GarmentsOS-PRO.exe`
 - `garmentsos-pro-VERSION.tar.gz` or `garmentsos-pro-VERSION.zip`
 - `garmentsos-pro-VERSION.sha256`
 - `latest.json`
@@ -133,9 +133,9 @@ Uploaded assets:
 - `garmentsos-pro-VERSION.tar.gz`, `garmentsos-pro-VERSION.zip`, or another archive produced by the build script.
 - `garmentsos-pro-VERSION.sha256`
 - `latest.json`
-- `GarmentsOS-PRO-Setup.exe`, copied from the published `GarmentsOS PRO Launcher.exe` when the launcher build succeeds.
+- `GarmentsOS-PRO.exe`, copied from the published `GarmentsOS-PRO.exe` when the launcher build succeeds.
 
-If the Windows setup EXE is not available on the GitHub-hosted runner, the workflow prints a warning and publishes the Docker release assets without failing.
+If the Windows client EXE is not available on the GitHub-hosted runner, the workflow prints a warning and publishes the Docker release assets without failing.
 
 Channel feed releases:
 
@@ -198,7 +198,7 @@ The response contains:
   "package_file": "garmentsos-pro-1.8.14.zip",
   "package_url": "https://github.com/OWNER/REPO/releases/download/v1.8.14/garmentsos-pro-1.8.14.zip",
   "package_sha256": "...",
-  "setup_url": "https://updates.sparkpair.dev/garmentsos-pro/stable/GarmentsOS-PRO-Setup.exe",
+  "setup_url": "https://updates.sparkpair.dev/garmentsos-pro/stable/GarmentsOS-PRO.exe",
   "mandatory": false,
   "notes": "Release notes",
   "requested_at": "2026-06-30T00:00:00Z",
@@ -234,7 +234,7 @@ Developer users also see a non-invasive in-app update banner when the feed statu
 Troubleshooting fallback flow:
 
 ```text
-Download Update Request -> Open GarmentsOS-PRO-Setup.exe -> Open Request JSON -> Update Now
+Download Update Request -> Open GarmentsOS-PRO.exe -> Open Request JSON -> Update Now
 ```
 
 Use the fallback only if the protocol link does not open the updater. If an update fails, the updater shows details and troubleshooting actions instead of hiding the error.

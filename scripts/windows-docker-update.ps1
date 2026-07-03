@@ -54,7 +54,7 @@ function New-GarmentsShortcut($ShortcutPath, $TargetPath, $WorkingDirectory, $Ar
 }
 
 function Install-GarmentsShortcuts($TargetDir) {
-    $setupLauncher = Join-Path $TargetDir "GarmentsOS-PRO-Setup.exe"
+    $setupLauncher = Join-Path $TargetDir "GarmentsOS-PRO.exe"
     $openLauncher = Join-Path $TargetDir "Open GarmentsOS.bat"
     $shortcutTarget = if (Test-Path -LiteralPath $setupLauncher) {
         $setupLauncher
@@ -130,8 +130,10 @@ function Hide-GarmentsTechnicalFiles($TargetDir) {
 
 function Resolve-GarmentsGuiLauncher($TargetDir) {
     $candidates = @(
+        (Join-Path $TargetDir "GarmentsOS-PRO.exe"),
         (Join-Path $TargetDir "GarmentsOS-PRO-Setup.exe"),
         (Join-Path $TargetDir "GarmentsOS PRO Launcher.exe"),
+        (Join-Path $TargetDir "launcher\GarmentsOS-PRO.exe"),
         (Join-Path $TargetDir "launcher\GarmentsOS-PRO-Setup.exe"),
         (Join-Path $TargetDir "launcher\GarmentsOS PRO Launcher.exe")
     )
@@ -216,7 +218,7 @@ function Register-GarmentsProtocolFromLauncher($LauncherPath) {
 }
 
 function Get-LauncherProcesses {
-    $names = @("GarmentsOS-PRO-Setup", "GarmentsOS PRO Launcher")
+    $names = @("GarmentsOS-PRO", "GarmentsOS-PRO-Setup", "GarmentsOS PRO Launcher")
     foreach ($name in $names) {
         Get-Process -Name $name -ErrorAction SilentlyContinue
     }
@@ -301,7 +303,7 @@ function Stage-GarmentsLauncherUpdate($SourcePath, $DestinationPath, $TargetDir)
     $updatesDir = Join-Path $TargetDir "updates"
     New-Item -ItemType Directory -Force -Path $updatesDir | Out-Null
 
-    $pendingPath = Join-Path $updatesDir "GarmentsOS-PRO-Setup.exe.pending"
+    $pendingPath = Join-Path $updatesDir "GarmentsOS-PRO.exe.pending"
     Copy-Item -Force -LiteralPath $SourcePath -Destination $pendingPath
 
     $markerPath = Join-Path $TargetDir ".pending-launcher-update.json"
@@ -323,8 +325,21 @@ function Stage-GarmentsLauncherUpdate($SourcePath, $DestinationPath, $TargetDir)
 }
 
 function Update-LauncherExeFromRelease($ReleaseDir, $InstallDir) {
-    $sourceLauncher = Join-Path $ReleaseDir "GarmentsOS-PRO-Setup.exe"
-    $destLauncher = Join-Path $InstallDir "GarmentsOS-PRO-Setup.exe"
+    $sourceLauncher = Join-Path $ReleaseDir "GarmentsOS-PRO.exe"
+    if (-not (Test-Path -LiteralPath $sourceLauncher)) {
+        $legacySourceLauncher = Join-Path $ReleaseDir "launcher\GarmentsOS-PRO.exe"
+        if (Test-Path -LiteralPath $legacySourceLauncher) {
+            $sourceLauncher = $legacySourceLauncher
+        }
+    }
+    if (-not (Test-Path -LiteralPath $sourceLauncher)) {
+        $legacySourceLauncher = Join-Path $ReleaseDir "GarmentsOS-PRO-Setup.exe"
+        if (Test-Path -LiteralPath $legacySourceLauncher) {
+            $sourceLauncher = $legacySourceLauncher
+        }
+    }
+
+    $destLauncher = Join-Path $InstallDir "GarmentsOS-PRO.exe"
 
     if (-not (Test-Path -LiteralPath $sourceLauncher)) {
         Write-Host "Launcher EXE not found in release package; continuing app update only."

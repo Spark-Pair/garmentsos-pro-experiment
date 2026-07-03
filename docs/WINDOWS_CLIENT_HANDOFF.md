@@ -11,8 +11,8 @@ GarmentsOS-Docker-Release/
   Update GarmentsOS.bat
   Stop GarmentsOS.bat
   Backup GarmentsOS.bat
+  GarmentsOS-PRO.exe
   launcher/
-    GarmentsOS PRO Launcher.exe
   scripts/
     windows-docker-install.ps1
     windows-docker-update.ps1
@@ -33,7 +33,7 @@ GarmentsOS-Docker-Release/
 For Windows clients, use Windows PowerShell 5.1 or newer. The easiest entrypoints are the root launchers:
 
 ```text
-launcher\GarmentsOS PRO Launcher.exe
+GarmentsOS-PRO.exe
 Install GarmentsOS.bat
 Update GarmentsOS.bat
 Open GarmentsOS.bat
@@ -45,7 +45,7 @@ Client flow:
 
 1. First install: double-click `Install GarmentsOS.bat`.
 2. Daily use: use the Desktop shortcut named `GarmentsOS PRO`, the Start Menu shortcut under `SparkPair`, or double-click `Open GarmentsOS.bat`.
-3. GUI update: open `GarmentsOS PRO Launcher.exe`, click `Check Update`, then `Update Now`.
+3. GUI update: open `GarmentsOS-PRO.exe`; it can open the app, install on a clean PC, or apply an update handoff.
 4. Handoff update: in the app Developer Updater page, click `Prepare Update`, then open the downloaded JSON in the launcher.
 5. Fallback update: extract the new package and double-click `Update GarmentsOS.bat`.
 6. Stop the app: double-click `Stop GarmentsOS.bat`.

@@ -3,7 +3,7 @@
 GarmentsOS PRO includes a lightweight Windows launcher:
 
 ```text
-launcher\GarmentsOS PRO Launcher.exe
+GarmentsOS-PRO.exe
 ```
 
 It is a host-side updater. Laravel does not update its own running Docker container.
@@ -82,10 +82,10 @@ HKCU\Software\Classes\garmentsos
   URL Protocol = ""
 
 HKCU\Software\Classes\garmentsos\shell\open\command
-  (Default) = "C:\SparkPair\GarmentsOS\GarmentsOS-PRO-Setup.exe" "%1"
+  (Default) = "C:\SparkPair\GarmentsOS\GarmentsOS-PRO.exe" "%1"
 ```
 
-The command target can also be `GarmentsOS PRO Launcher.exe` when that is the installed GUI launcher path.
+Older installs may still have `GarmentsOS-PRO-Setup.exe` or `GarmentsOS PRO Launcher.exe`, but new installs register `GarmentsOS-PRO.exe`.
 
 When opened with `garmentsos://update`, the launcher opens normally and focuses the update flow. When opened with `garmentsos://update?request=<encoded-url-or-path>`, it attempts to load that request JSON from a local path, `file://` URL, or `http/https` URL. If loading fails, the user can still choose `Open Request JSON`.
 
@@ -94,7 +94,7 @@ When opened with `autoStart=1`, the launcher hides the normal technical buttons 
 If the running launcher EXE is locked during update, the PowerShell updater stages the new launcher at:
 
 ```text
-C:\SparkPair\GarmentsOS\updates\GarmentsOS-PRO-Setup.exe.pending
+C:\SparkPair\GarmentsOS\updates\GarmentsOS-PRO.exe.pending
 ```
 
 and writes:
@@ -103,7 +103,7 @@ and writes:
 C:\SparkPair\GarmentsOS\.pending-launcher-update.json
 ```
 
-After the updater exits, a detached helper replaces `C:\SparkPair\GarmentsOS\GarmentsOS-PRO-Setup.exe` and re-registers `garmentsos://` under HKCU.
+After the updater exits, a detached helper replaces `C:\SparkPair\GarmentsOS\GarmentsOS-PRO.exe` and re-registers `garmentsos://` under HKCU.
 
 ## Developer Build
 
@@ -113,10 +113,10 @@ Build:
 dotnet build launcher\GarmentsOS.Setup\GarmentsOS.Setup.csproj -c Release
 ```
 
-Publish a compact framework-dependent EXE:
+Publish a self-contained single-file EXE so client PCs do not need a separate .NET Desktop Runtime install:
 
 ```powershell
-dotnet publish launcher\GarmentsOS.Setup\GarmentsOS.Setup.csproj -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true
+dotnet publish launcher\GarmentsOS.Setup\GarmentsOS.Setup.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true
 ```
 
-The Docker release builder includes the launcher automatically when `GarmentsOS PRO Launcher.exe` exists under the launcher publish/build output. If it is missing, the release still works with BAT/PowerShell fallback launchers.
+The Docker release builder includes the launcher automatically when `GarmentsOS-PRO.exe` exists under the launcher publish/build output. If it is missing, the release still works with BAT/PowerShell fallback launchers.
