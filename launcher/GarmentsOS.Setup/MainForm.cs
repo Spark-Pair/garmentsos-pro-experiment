@@ -12,7 +12,7 @@ public sealed class MainForm : Form
 {
     private const string DefaultInstallDir = @"C:\SparkPair\GarmentsOS";
     private const string AppUrl = "http://localhost:8000";
-    private const string DefaultFeedUrl = "https://updates.sparkpair.dev/garmentsos-pro/stable/latest.json";
+    private const string DefaultFeedUrl = "https://github.com/Spark-Pair/garmentsos-pro-experiment/releases/download/latest-stable/latest.json";
     private const string PrimaryLauncherExeName = "GarmentsOS-PRO.exe";
 
     private static readonly Color BrandBlue = Color.FromArgb(37, 99, 235);
@@ -32,7 +32,7 @@ public sealed class MainForm : Form
     private readonly TextBox feedUrlBox = new();
     private readonly Label titleLabel = new()
     {
-        Text = "GarmentsOS PRO Updater / Setup Launcher",
+        Text = "GarmentsOS PRO Launcher / Setup",
         Font = new Font(SystemFonts.DefaultFont.FontFamily, 14, FontStyle.Bold),
         AutoSize = true,
     };
@@ -71,7 +71,7 @@ public sealed class MainForm : Form
     public MainForm(string? startupArgument = null)
     {
         this.startupArgument = startupArgument;
-        Text = "GarmentsOS PRO Updater";
+        Text = "GarmentsOS PRO Launcher";
         ClientSize = new Size(720, 420);
         MinimumSize = new Size(720, 420);
         MaximumSize = new Size(720, 420);
@@ -149,8 +149,7 @@ public sealed class MainForm : Form
 
         splashView.Dock = DockStyle.Fill;
         splashView.LogoImage = TryLoadLogoBitmap(24);
-        splashView.ProgressText = "Opening GarmentsOS PRO...";
-        splashView.ProgressPercent = 0;
+        ConfigureSplashForLauncher();
         splashView.InstalledVersionText = "Installed version: checking...";
         splashView.MouseDown += (_, e) => BeginDrag(e);
         root.Controls.Add(splashView);
@@ -313,7 +312,7 @@ public sealed class MainForm : Form
         status.Controls.Add(new StatusDot { DotColor = Color.FromArgb(23, 168, 91), Margin = new Padding(0, 6, 8, 0) });
         status.Controls.Add(new Label
         {
-            Text = "Secure Updater",
+            Text = "Secure Launcher",
             AutoSize = true,
             Font = new Font("Segoe UI", 8.4f, FontStyle.Bold),
             ForeColor = Color.FromArgb(61, 75, 96),
@@ -350,8 +349,8 @@ public sealed class MainForm : Form
 
         var headline = new RichTextLabel
         {
-            NormalText = "Preparing your",
-            AccentText = "update",
+            NormalText = "Starting",
+            AccentText = "GarmentsOS PRO",
             FontSize = 33f,
             Location = new Point(0, 45),
             Width = 335,
@@ -361,7 +360,7 @@ public sealed class MainForm : Form
 
         var sub = new Label
         {
-            Text = "GarmentsOS PRO is checking release files and preparing a safe local update.",
+            Text = "GarmentsOS PRO is preparing local services and opening the app.",
             Location = new Point(0, 130),
             Width = 335,
             Height = 46,
@@ -378,9 +377,9 @@ public sealed class MainForm : Form
             WrapContents = false,
             BackColor = Color.Transparent,
         };
-        chips.Controls.Add(new PillLabel { Text = "Manifest", Width = 78, Height = 28 });
-        chips.Controls.Add(new PillLabel { Text = "SHA256", Width = 70, Height = 28 });
-        chips.Controls.Add(new PillLabel { Text = "Backup", Width = 68, Height = 28 });
+        chips.Controls.Add(new PillLabel { Text = "Docker", Width = 78, Height = 28 });
+        chips.Controls.Add(new PillLabel { Text = "Local App", Width = 82, Height = 28 });
+        chips.Controls.Add(new PillLabel { Text = "Browser", Width = 72, Height = 28 });
         copy.Controls.Add(chips);
 
         ConfigureActionButtons();
@@ -521,8 +520,7 @@ public sealed class MainForm : Form
         failureButtonsPanel.WrapContents = false;
         failureButtonsPanel.BackColor = Color.Transparent;
         AddButton(failureButtonsPanel, "Details", (_, _) => ToggleDetails());
-        AddButton(failureButtonsPanel, "Open App", async (_, _) => await OpenAppAsync());
-        AddButton(failureButtonsPanel, "Open Folder", (_, _) => OpenFolder(installDirBox.Text));
+        AddButton(failureButtonsPanel, "Open Install Folder", (_, _) => OpenFolder(installDirBox.Text));
         AddButton(failureButtonsPanel, "Save Log", (_, _) => SaveLog());
         AddButton(failureButtonsPanel, "Close", (_, _) => Close());
         failureButtonsPanel.Visible = false;
@@ -540,13 +538,14 @@ public sealed class MainForm : Form
     {
         button.Text = text;
         button.AutoSize = false;
-        button.Width = primary ? 76 : 72;
+        button.Font = new Font("Segoe UI", 8.2f, FontStyle.Bold);
+        var measuredWidth = TextRenderer.MeasureText(text, button.Font).Width + 28;
+        button.Width = primary ? Math.Max(76, measuredWidth) : Math.Max(72, measuredWidth);
         button.Height = 32;
         button.Margin = new Padding(0, 0, 8, 0);
         button.Padding = new Padding(8, 0, 8, 0);
         button.FlatStyle = FlatStyle.Flat;
         button.Cursor = Cursors.Hand;
-        button.Font = new Font("Segoe UI", 8.2f, FontStyle.Bold);
         button.BackColor = primary ? BrandBlue : Color.White;
         button.ForeColor = primary ? Color.White : Color.FromArgb(64, 82, 82);
         button.FlatAppearance.BorderColor = primary ? BrandBlue : SoftBorder;
@@ -625,8 +624,86 @@ public sealed class MainForm : Form
         return null;
     }
 
+    private void ConfigureSplashForLauncher()
+    {
+        ConfigureSplashMode(
+            titleLine1: "Starting",
+            titleLine2: "GarmentsOS PRO",
+            descriptionLine1: "GarmentsOS PRO is preparing local services and",
+            descriptionLine2: "opening the app.",
+            pill1: "Docker",
+            pill2: "Local App",
+            pill3: "Browser",
+            progressText: "Opening GarmentsOS PRO...");
+    }
+
+    private void ConfigureSplashForInstall()
+    {
+        ConfigureSplashMode(
+            titleLine1: "Preparing your",
+            titleLine2: "install",
+            descriptionLine1: "GarmentsOS PRO is preparing a safe local",
+            descriptionLine2: "installation package.",
+            pill1: "Docker",
+            pill2: "Local Setup",
+            pill3: "Backup Safe",
+            progressText: "Preparing installation");
+    }
+
+    private void ConfigureSplashForOpen()
+    {
+        ConfigureSplashMode(
+            titleLine1: "Starting",
+            titleLine2: "GarmentsOS PRO",
+            descriptionLine1: "GarmentsOS PRO is starting local services and",
+            descriptionLine2: "opening the browser.",
+            pill1: "Docker",
+            pill2: "Local App",
+            pill3: "Browser",
+            progressText: "Starting GarmentsOS PRO");
+    }
+
+    private void ConfigureSplashForUpdate()
+    {
+        ConfigureSplashMode(
+            titleLine1: "Preparing your",
+            titleLine2: "update",
+            descriptionLine1: "GarmentsOS PRO is checking release files and",
+            descriptionLine2: "preparing a safe local update.",
+            pill1: "Release Feed",
+            pill2: "Backup Safe",
+            pill3: "Docker",
+            progressText: "Preparing update");
+    }
+
+    private void ConfigureSplashMode(
+        string titleLine1,
+        string titleLine2,
+        string descriptionLine1,
+        string descriptionLine2,
+        string pill1,
+        string pill2,
+        string pill3,
+        string progressText)
+    {
+        splashView.BadgeText = "Secure Launcher";
+        splashView.TitleLine1 = titleLine1;
+        splashView.TitleLine2 = titleLine2;
+        splashView.DescriptionLine1 = descriptionLine1;
+        splashView.DescriptionLine2 = descriptionLine2;
+        splashView.Pill1 = pill1;
+        splashView.Pill2 = pill2;
+        splashView.Pill3 = pill3;
+        splashView.ProgressText = progressText;
+        splashView.ProgressPercent = 0;
+        splashView.IsIndeterminate = false;
+        splashView.ErrorText = null;
+        splashView.Invalidate();
+    }
+
     private void EnterAutoUpdateMode()
     {
+        ConfigureSplashForUpdate();
         autoUpdateMode = true;
         criticalUpdateStep = false;
         detailsExpanded = false;
@@ -695,14 +772,14 @@ public sealed class MainForm : Form
         return current <= 0 ? 20 : current;
     }
 
-    private void ShowFailureMode(string message = "Update failed")
+    private void ShowFailureMode(string message = "Update failed", string title = "Update failed")
     {
         autoUpdateMode = false;
         criticalUpdateStep = false;
         ControlBox = true;
         updateButton.Enabled = currentFeed is not null;
 
-        SetStep("Update failed", percent: 0);
+        SetStep(title, percent: 0);
         splashView.ErrorText = ShortUiMessage(message);
         splashView.IsIndeterminate = false;
         splashView.Invalidate();
@@ -842,6 +919,7 @@ public sealed class MainForm : Form
         }
         else
         {
+            ConfigureSplashForUpdate();
             Log("Launcher opened from garmentsos://update.");
         }
 
@@ -956,6 +1034,8 @@ public sealed class MainForm : Form
 
     private async Task UpdateNowAsync(bool requireConfirmation, bool closeAfterSuccess)
     {
+        ConfigureSplashForUpdate();
+
         if (currentFeed is null)
         {
             Log("No update feed/request is loaded.");
@@ -1071,6 +1151,7 @@ public sealed class MainForm : Form
     {
         try
         {
+            ConfigureSplashForInstall();
             failureButtonsPanel.Visible = false;
             logBox.Visible = false;
             detailsExpanded = false;
@@ -1090,7 +1171,7 @@ public sealed class MainForm : Form
             Directory.CreateDirectory(workDir);
 
             var packagePath = Path.Combine(workDir, Path.GetFileName(new Uri(currentFeed.PackageUrl).LocalPath));
-            SetStep("Downloading app package", percent: 35);
+            SetStep("Downloading installation package", percent: 35);
             await DownloadFileAsync(currentFeed.PackageUrl, packagePath);
 
             SetStep("Verifying package", percent: 48);
@@ -1148,7 +1229,7 @@ public sealed class MainForm : Form
         catch (Exception ex)
         {
             Log("Install failed: " + ex.Message);
-            ShowFailureMode(ex.Message);
+            ShowFailureMode(FriendlyInstallError(ex), "Install failed");
         }
     }
 
@@ -1258,6 +1339,36 @@ public sealed class MainForm : Form
         return feed;
     }
 
+    private static string FriendlyInstallError(Exception ex)
+    {
+        return LooksLikeFeedNetworkError(ex)
+            ? "Installation package could not be reached. Please check internet connection or update feed URL."
+            : ex.Message;
+    }
+
+    private static bool LooksLikeFeedNetworkError(Exception ex)
+    {
+        for (var current = ex; current is not null; current = current.InnerException)
+        {
+            if (current is HttpRequestException || current is TaskCanceledException)
+            {
+                return true;
+            }
+
+            var message = current.Message;
+            if (message.Contains("No such host", StringComparison.OrdinalIgnoreCase)
+                || message.Contains("could not be resolved", StringComparison.OrdinalIgnoreCase)
+                || message.Contains("Name or service not known", StringComparison.OrdinalIgnoreCase)
+                || message.Contains("nodename nor servname", StringComparison.OrdinalIgnoreCase)
+                || message.Contains("actively refused", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     private async Task DownloadFileAsync(string url, string destination)
     {
         await using var source = await http.GetStreamAsync(url);
@@ -1334,7 +1445,9 @@ public sealed class MainForm : Form
     private static bool IsInstalled(string installDir)
     {
         return File.Exists(Path.Combine(installDir, "manifest.json"))
-            && File.Exists(Path.Combine(installDir, "docker-compose.yml"));
+            && File.Exists(Path.Combine(installDir, "docker-compose.yml"))
+            && File.Exists(Path.Combine(installDir, ".env"))
+            && File.Exists(Path.Combine(installDir, "scripts", "windows-docker-update.ps1"));
     }
 
     private string GetConfiguredFeedUrl(string installDir)
@@ -1443,6 +1556,7 @@ public sealed class MainForm : Form
     {
         try
         {
+            ConfigureSplashForOpen();
             failureButtonsPanel.Visible = false;
             logBox.Visible = false;
             detailsExpanded = false;
@@ -2038,6 +2152,14 @@ internal sealed class UpdaterSplashView : Control
     public int ProgressPercent { get; set; } = 0;
     public bool IsIndeterminate { get; set; }
     public string? ErrorText { get; set; }
+    public string BadgeText { get; set; } = "Secure Launcher";
+    public string TitleLine1 { get; set; } = "Starting";
+    public string TitleLine2 { get; set; } = "GarmentsOS PRO";
+    public string DescriptionLine1 { get; set; } = "GarmentsOS PRO is preparing local services and";
+    public string DescriptionLine2 { get; set; } = "opening the app.";
+    public string Pill1 { get; set; } = "Docker";
+    public string Pill2 { get; set; } = "Local App";
+    public string Pill3 { get; set; } = "Browser";
 
     private readonly Font brandFont = new("Segoe UI", 10.5f, FontStyle.Bold);
     private readonly Font secureFont = new("Segoe UI", 8.2f, FontStyle.Bold);
@@ -2097,7 +2219,7 @@ internal sealed class UpdaterSplashView : Control
         DrawText(g, "GarmentsOS PRO", brandFont, BrandBlue, 78, 27);
 
         FillCircle(g, BrandBlue, 582, 39, 7);
-        DrawText(g, "Secure Updater", secureFont, TextPrimary, 600, 35);
+        DrawText(g, BadgeText, secureFont, TextPrimary, 600, 35);
     }
 
     private void DrawMainContent(Graphics g)
@@ -2105,15 +2227,18 @@ internal sealed class UpdaterSplashView : Control
         // .main padding left 40 + .left padding-left 14.
         var leftX = 54;
 
-        DrawText(g, "Preparing your", titleFont, Color.Black, leftX, 107);
-        DrawText(g, "update", titleFont, BrandBlue, leftX, 145);
+        DrawText(g, TitleLine1, titleFont, Color.Black, leftX, 107);
+        DrawText(g, TitleLine2, titleFont, BrandBlue, leftX, 145);
 
-        DrawText(g, "GarmentsOS PRO is checking release files and", bodyFont, TextMuted, leftX, 205);
-        DrawText(g, "preparing a safe local update.", bodyFont, TextMuted, leftX, 228);
+        DrawText(g, DescriptionLine1, bodyFont, TextMuted, leftX, 205);
+        DrawText(g, DescriptionLine2, bodyFont, TextMuted, leftX, 228);
 
-        DrawPill(g, new Rectangle(leftX, 268, 100, 28), "Release Feed");
-        DrawPill(g, new Rectangle(leftX + 110, 268, 98, 28), "Backup Safe");
-        DrawPill(g, new Rectangle(leftX + 218, 268, 70, 28), "Docker");
+        var pill1Width = PillWidth(Pill1);
+        var pill2Width = PillWidth(Pill2);
+        var pill3Width = PillWidth(Pill3);
+        DrawPill(g, new Rectangle(leftX, 268, pill1Width, 28), Pill1);
+        DrawPill(g, new Rectangle(leftX + pill1Width + 10, 268, pill2Width, 28), Pill2);
+        DrawPill(g, new Rectangle(leftX + pill1Width + pill2Width + 20, 268, pill3Width, 28), Pill3);
     }
 
     private void DrawWindowStack(Graphics g)
@@ -2238,6 +2363,17 @@ internal sealed class UpdaterSplashView : Control
         using var sf = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center };
         using var textBrush = new SolidBrush(Color.FromArgb(30, 42, 61));
         g.DrawString(text, pillFont, textBrush, rect, sf);
+    }
+
+    private static int PillWidth(string text)
+    {
+        return text.Length switch
+        {
+            >= 12 => 112,
+            >= 10 => 100,
+            >= 8 => 88,
+            _ => 72,
+        };
     }
 
     private void DrawLogo(Graphics g, int x, int y, int size)
