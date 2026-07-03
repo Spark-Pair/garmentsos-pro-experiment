@@ -101,29 +101,24 @@ for doc in \
 done
 
 launcher_source=""
-for candidate in \
-  "$ROOT/launcher/GarmentsOS.Setup/bin/Release/net8.0-windows/win-x64/publish" \
-  "$ROOT/launcher/GarmentsOS.Setup/bin/Release/net8.0-windows/publish" \
-  "$ROOT/launcher/GarmentsOS.Setup/bin/Release/net8.0-windows"; do
-  if [[ -f "$candidate/GarmentsOS-PRO.exe" || -f "$candidate/GarmentsOS PRO Launcher.exe" ]]; then
-    launcher_source="$candidate"
-    break
-  fi
-done
+launcher_publish_dir="$ROOT/launcher/GarmentsOS.Setup/bin/Release/net8.0-windows/win-x64/publish"
+if [[ -d "$launcher_publish_dir" ]]; then
+  launcher_source="$launcher_publish_dir"
+fi
 
 if [[ -n "$launcher_source" ]]; then
   mkdir -p "$DEST/launcher"
   cp -R "$launcher_source"/. "$DEST/launcher/"
 else
-  echo "Warning: GarmentsOS-PRO.exe was not found. Release package will use BAT/PowerShell fallback launchers only." >&2
+  echo "Error: launcher publish directory was not found: $launcher_publish_dir" >&2
+  echo "Run dotnet publish for the self-contained Windows launcher before building the release package." >&2
+  exit 1
 fi
 
 app_asset=""
 for candidate in \
   "$ROOT/GarmentsOS-PRO.exe" \
-  "$launcher_source/GarmentsOS-PRO.exe" \
-  "$ROOT/GarmentsOS-PRO-Setup.exe" \
-  "$launcher_source/GarmentsOS PRO Launcher.exe"; do
+  "$launcher_source/GarmentsOS-PRO.exe"; do
   if [[ -n "$candidate" && -f "$candidate" ]]; then
     app_asset="$candidate"
     break
@@ -131,10 +126,21 @@ for candidate in \
 done
 
 if [[ -n "$app_asset" ]]; then
+  app_asset_size="$(wc -c < "$app_asset" | tr -d '[:space:]')"
+  app_asset_sha256="$(sha256sum "$app_asset" | awk '{print $1}')"
+  echo "Selected GarmentsOS-PRO.exe: $app_asset"
+  echo "GarmentsOS-PRO.exe size: $app_asset_size bytes"
+  echo "GarmentsOS-PRO.exe sha256: $app_asset_sha256"
+  if (( app_asset_size < 20 * 1024 * 1024 )); then
+    echo "Error: GarmentsOS-PRO.exe is too small for a self-contained launcher. Refusing to package likely stub EXE." >&2
+    exit 1
+  fi
+
   cp "$app_asset" "$DEST/GarmentsOS-PRO.exe"
   echo "Included GarmentsOS-PRO.exe at release package root from: $app_asset"
 else
-  echo "Warning: GarmentsOS-PRO.exe was not found. Release package will use launcher/BAT fallback entrypoints." >&2
+  echo "Error: GarmentsOS-PRO.exe was not found in root or exact publish folder." >&2
+  exit 1
 fi
 
 echo "Release package root contents:"
@@ -218,6 +224,12 @@ archive_checksum="$(sha256sum "$ARCHIVE_PATH" | awk '{print $1}')"
 printf '%s  %s\n' "$archive_checksum" "$(basename "$ARCHIVE_PATH")" > "$SHA_PATH"
 
 if [[ -f "$DEST/GarmentsOS-PRO.exe" ]]; then
+  package_exe_size="$(wc -c < "$DEST/GarmentsOS-PRO.exe" | tr -d '[:space:]')"
+  if (( package_exe_size < 20 * 1024 * 1024 )); then
+    echo "Error: release package root GarmentsOS-PRO.exe is too small: $package_exe_size bytes." >&2
+    exit 1
+  fi
+
   archive_has_app="false"
   if [[ "$ARCHIVE_PATH" == *.zip ]] && command -v unzip >/dev/null 2>&1; then
     if unzip -Z1 "$ARCHIVE_PATH" | grep -Fxq "$PACKAGE_NAME/GarmentsOS-PRO.exe"; then
@@ -250,6 +262,9 @@ if [[ -f "$DEST/GarmentsOS-PRO.exe" ]]; then
   elif [[ "$archive_has_app" == "true" ]]; then
     echo "Verified archive contains: $PACKAGE_NAME/GarmentsOS-PRO.exe"
   fi
+else
+  echo "Error: release package root is missing GarmentsOS-PRO.exe." >&2
+  exit 1
 fi
 
 "$ROOT/scripts/validate-docker-release.sh" "$DEST"

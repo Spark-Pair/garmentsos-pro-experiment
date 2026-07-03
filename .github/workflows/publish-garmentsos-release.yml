@@ -72,7 +72,6 @@ jobs:
 
       - name: Publish Windows GUI launcher
         id: launcher
-        continue-on-error: true
         run: |
           dotnet publish launcher/GarmentsOS.Setup/GarmentsOS.Setup.csproj \
             -c Release \
@@ -82,29 +81,37 @@ jobs:
             -p:EnableCompressionInSingleFile=true \
             -p:IncludeNativeLibrariesForSelfExtract=true
 
-      - name: Warn if GUI launcher was not built
-        if: ${{ steps.launcher.outcome != 'success' }}
-        run: |
-          echo "::warning::GarmentsOS-PRO.exe was not built. Release package will use BAT/PowerShell fallback launchers."
-
       - name: Prepare client EXE asset
-        if: ${{ steps.launcher.outcome == 'success' }}
         shell: bash
         run: |
           set -euo pipefail
 
-          launcher_exe="$(find launcher/GarmentsOS.Setup/bin/Release -type f -name 'GarmentsOS-PRO.exe' -path '*/publish/*' -print -quit)"
-          if [[ -z "$launcher_exe" ]]; then
-            launcher_exe="$(find launcher/GarmentsOS.Setup/bin/Release -type f -name 'GarmentsOS PRO Launcher.exe' -print -quit)"
+          publish_dir="launcher/GarmentsOS.Setup/bin/Release/net8.0-windows/win-x64/publish"
+          echo "Publish directory: ${publish_dir}"
+          find "$publish_dir" -maxdepth 1 -type f -printf '%p %s bytes\n' | sort
+
+          launcher_exe="${publish_dir}/GarmentsOS-PRO.exe"
+          if [[ ! -f "$launcher_exe" && -f "${publish_dir}/GarmentsOS PRO Launcher.exe" ]]; then
+            launcher_exe="${publish_dir}/GarmentsOS PRO Launcher.exe"
           fi
 
-          if [[ -z "$launcher_exe" ]]; then
-            echo "::warning::Published GarmentsOS-PRO.exe was not found. GarmentsOS-PRO.exe will be skipped."
-            exit 0
+          if [[ ! -f "$launcher_exe" ]]; then
+            echo "GarmentsOS-PRO.exe was not found in the self-contained publish directory." >&2
+            exit 1
           fi
 
           cp "$launcher_exe" GarmentsOS-PRO.exe
-          echo "Prepared client asset from: $launcher_exe"
+          exe_size="$(wc -c < GarmentsOS-PRO.exe | tr -d '[:space:]')"
+          exe_sha256="$(sha256sum GarmentsOS-PRO.exe | awk '{print $1}')"
+          echo "Selected launcher EXE: $launcher_exe"
+          echo "Prepared client asset: GarmentsOS-PRO.exe"
+          echo "GarmentsOS-PRO.exe size: ${exe_size} bytes"
+          echo "GarmentsOS-PRO.exe sha256: ${exe_sha256}"
+
+          if (( exe_size < 20 * 1024 * 1024 )); then
+            echo "GarmentsOS-PRO.exe is too small for a self-contained launcher. Refusing to publish likely stub EXE." >&2
+            exit 1
+          fi
 
       - name: Build Docker release package
         env:
@@ -142,9 +149,18 @@ jobs:
             exit 1
           fi
 
-          setup_asset="$(find . -path './.git' -prune -o -type f -name 'GarmentsOS-PRO.exe' -print -quit)"
-          if [[ -z "$setup_asset" ]]; then
-            echo "::warning::GarmentsOS-PRO.exe was not found. The client EXE asset will be skipped."
+          setup_asset="GarmentsOS-PRO.exe"
+          if [[ ! -f "$setup_asset" ]]; then
+            echo "GarmentsOS-PRO.exe was not found. The client EXE asset is required." >&2
+            exit 1
+          fi
+
+          exe_size="$(wc -c < "$setup_asset" | tr -d '[:space:]')"
+          echo "Release client EXE asset: $setup_asset (${exe_size} bytes)"
+          sha256sum "$setup_asset"
+          if (( exe_size < 20 * 1024 * 1024 )); then
+            echo "GarmentsOS-PRO.exe is too small for a self-contained launcher. Refusing release." >&2
+            exit 1
           fi
 
           {
@@ -213,7 +229,7 @@ jobs:
             if [[ -n "${{ steps.assets.outputs.setup_asset }}" ]]; then
               echo "- GarmentsOS-PRO.exe"
             else
-              echo "- GarmentsOS-PRO.exe skipped: launcher builder is not enabled in this workflow yet."
+              echo "- GarmentsOS-PRO.exe missing: release should fail before upload."
             fi
           } > release-notes.md
 
