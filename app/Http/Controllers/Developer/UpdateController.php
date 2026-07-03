@@ -12,9 +12,13 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\File;
 
 class UpdateController extends Controller
 {
+    private const EXPERIMENT_STABLE_FEED = 'https://github.com/Spark-Pair/garmentsos-pro-experiment/releases/download/latest-stable/latest.json';
+
     public function index(InstalledVersionService $versions, ReleaseFeedService $releaseFeed, UpdateLockService $locks)
     {
         if ($resp = $this->denyIfNoRole(['developer', 'admin'])) {
@@ -41,6 +45,7 @@ class UpdateController extends Controller
             'updateFeedUrl' => $feedUrl,
             'updateFeedUrlConfigured' => $feedUrl !== '',
             'releaseFeedStatus' => $releaseFeedStatus,
+            'curlDiagnostics' => $releaseFeed->curlDiagnostics(),
             'launcherProtocolUrl' => $releaseFeed->launcherProtocolUrl(),
             'launcherHandoff' => $launcherHandoff,
             'manifestUrlConfigured' => (string) config('updater.manifest_url', '') !== '',
@@ -188,5 +193,59 @@ class UpdateController extends Controller
         return redirect()
             ->route('developer.updater')
             ->with('success', $payload['message']);
+    }
+
+    public function setExperimentFeed(): RedirectResponse
+    {
+        if ($resp = $this->denyIfNoRole(['developer', 'admin'])) {
+            return $resp;
+        }
+
+        try {
+            $this->setEnvValue('UPDATE_FEED_URL', self::EXPERIMENT_STABLE_FEED);
+
+            config(['updater.feed_url' => self::EXPERIMENT_STABLE_FEED]);
+            Artisan::call('config:clear');
+
+            return redirect()
+                ->route('developer.updater')
+                ->with('success', 'Update feed set to experiment stable. Existing .env values were preserved.');
+        } catch (\Throwable $exception) {
+            return redirect()
+                ->route('developer.updater')
+                ->with('error', 'Could not update feed URL: ' . $exception->getMessage());
+        }
+    }
+
+    protected function setEnvValue(string $key, string $value): void
+    {
+        $envPath = base_path('.env');
+        if (!File::exists($envPath)) {
+            throw new \RuntimeException('.env file was not found.');
+        }
+
+        $content = File::get($envPath);
+        $backupDir = storage_path('app/backups');
+        File::ensureDirectoryExists($backupDir);
+        File::put($backupDir . DIRECTORY_SEPARATOR . 'env_' . now()->format('Ymd_His') . '.env', $content);
+
+        $line = $key . '=' . $this->quoteEnvValue($value);
+        $pattern = '/^' . preg_quote($key, '/') . '=.*$/m';
+
+        if (preg_match($pattern, $content)) {
+            $content = preg_replace($pattern, $line, $content, 1);
+        } else {
+            $ending = str_contains($content, "\r\n") ? "\r\n" : "\n";
+            $content = rtrim($content, "\r\n") . $ending . $line . $ending;
+        }
+
+        File::put($envPath, $content);
+    }
+
+    protected function quoteEnvValue(string $value): string
+    {
+        return preg_match('/\s|#|"|\'/', $value)
+            ? '"' . str_replace('"', '\"', $value) . '"'
+            : $value;
     }
 }

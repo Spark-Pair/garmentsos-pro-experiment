@@ -10,20 +10,63 @@ The updater is disabled by default:
 
 ```text
 UPDATER_ENABLED=false
-UPDATE_FEED_URL=https://updates.sparkpair.dev/garmentsos-pro/stable/latest.json
+UPDATE_FEED_URL=https://github.com/Spark-Pair/garmentsos-pro-experiment/releases/download/latest-stable/latest.json
+UPDATE_FALLBACK_FEED_URL=https://github.com/Spark-Pair/garmentsos-pro-experiment/releases/download/latest-stable/latest.json
 UPDATE_CHANNEL=stable
 UPDATE_LAUNCHER_PROTOCOL=garmentsos
 ```
 
 No automatic update checks or automatic update apply actions are enabled for normal users.
 
-`UPDATE_FEED_URL` is the SparkPair public release metadata endpoint for `latest.json`. It is displayed on the Developer Updater page so installed package state can be checked, but it does not enable automatic update apply.
+`UPDATE_FEED_URL` is the release metadata endpoint for `latest.json`. Experiment builds default to the GitHub `latest-stable` release feed. Production can later point to the SparkPair public update server, for example `https://updates.sparkpair.dev/garmentsos-pro/stable/latest.json`, when that server is live.
+
+`UPDATE_FALLBACK_FEED_URL` is tried when the primary feed cannot be reached. Existing installed `.env` values are preserved unless a developer/admin explicitly uses the updater page repair action.
 
 Optional timeout:
 
 ```text
 UPDATE_FEED_TIMEOUT=8
 ```
+
+## Windows PHP cURL CA Certificate Setup
+
+The Developer Updater page fetches `latest.json` with PHP HTTP/cURL. On Windows, PHP may fail HTTPS requests if `curl.cainfo` or `openssl.cafile` points to a missing certificate bundle. A common error is:
+
+```text
+cURL error 77: error setting certificate file: C:\certs\cacert.pem
+```
+
+When this happens, the updater page shows the friendly message:
+
+```text
+HTTPS certificate bundle is missing. Please configure PHP curl.cainfo.
+```
+
+Recommended recovery:
+
+1. Download a current CA bundle from the official curl CA extract page: `https://curl.se/docs/caextract.html`
+2. Save it on the Windows host, for example:
+
+```text
+C:\certs\cacert.pem
+```
+
+3. Edit the PHP `php.ini` used by the app/PHP runtime:
+
+```ini
+curl.cainfo="C:\certs\cacert.pem"
+openssl.cafile="C:\certs\cacert.pem"
+```
+
+4. Restart the PHP process/container/app service so PHP reloads `php.ini`.
+5. Reopen Developer -> Updater and check the PHP HTTPS diagnostics:
+
+- PHP cURL available
+- `curl.cainfo`
+- `openssl.cafile`
+- certificate file exists
+
+If a future GarmentsOS PRO package ships its own PHP runtime or `php.ini`, the bundled `php.ini` should point `curl.cainfo` and `openssl.cafile` to the packaged CA bundle path inside that runtime. Do not place secrets in the CA bundle path or updater feed settings.
 
 ## No GitHub Credentials On Client PCs
 

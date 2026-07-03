@@ -38,6 +38,7 @@ class LicenseController extends Controller
                 'cacheStatus' => LicenseStatus::notEnforced(),
                 'foundationReady' => $this->licenseTablesReady(),
                 'missingTables' => $this->missingLicenseTables(),
+                'licenseConfig' => $this->licenseConfigSummary(),
             ]);
         }
 
@@ -61,6 +62,7 @@ class LicenseController extends Controller
                 ),
                 'foundationReady' => false,
                 'missingTables' => $this->missingLicenseTables(),
+                'licenseConfig' => $this->licenseConfigSummary(),
             ]);
         }
 
@@ -79,7 +81,22 @@ class LicenseController extends Controller
             'cacheStatus' => $licenses->statusFromSignedCache(),
             'foundationReady' => true,
             'missingTables' => [],
+            'licenseConfig' => $this->licenseConfigSummary(),
         ]);
+    }
+
+    protected function licenseConfigSummary(): array
+    {
+        return [
+            'client_id' => (string) config('licensing.client_id', ''),
+            'client_name' => (string) config('licensing.client_name', ''),
+            'expires_at' => (string) config('licensing.expires_at', ''),
+            'grace_days' => (int) config('licensing.offline_grace_days', 7),
+            'check_url_configured' => trim((string) config('licensing.server_url', '')) !== '',
+            'last_check_at' => (string) config('licensing.last_check_at', ''),
+            'env_status' => (string) config('licensing.status', 'active'),
+            'license_key_configured' => trim((string) config('licensing.license_key', '')) !== '',
+        ];
     }
 
     public function activate()

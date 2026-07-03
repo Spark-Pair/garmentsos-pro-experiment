@@ -9,7 +9,6 @@ use Illuminate\Support\Facades\URL;
 class ReleaseFeedService
 {
     protected array $requiredFields = [
-        'app',
         'version',
         'channel',
         'mandatory',
@@ -30,8 +29,13 @@ class ReleaseFeedService
     {
         $feedUrl = trim((string) config('updater.feed_url', ''));
         $currentVersion = $this->versions->currentVersion();
+        $fallbackFeedUrl = trim((string) config('updater.fallback_feed_url', ''));
 
         if ($feedUrl === '') {
+            if ($fallbackFeedUrl !== '') {
+                return $this->checkUrlWithFallbackContext($fallbackFeedUrl, $currentVersion, null);
+            }
+
             return $this->result('feed_not_configured', 'Update feed is not configured.', [
                 'success' => false,
                 'feed_url' => '',
@@ -40,16 +44,64 @@ class ReleaseFeedService
             ]);
         }
 
+        $primary = $this->checkUrl($feedUrl, $currentVersion);
+        if (!empty($primary['success'])) {
+            return $primary;
+        }
+
+        if ($fallbackFeedUrl !== '' && !hash_equals($feedUrl, $fallbackFeedUrl)) {
+            return $this->checkUrlWithFallbackContext($fallbackFeedUrl, $currentVersion, $primary);
+        }
+
+        return $primary;
+    }
+
+    protected function checkUrlWithFallbackContext(string $feedUrl, string $currentVersion, ?array $primaryFailure): array
+    {
+        $fallback = $this->checkUrl($feedUrl, $currentVersion);
+
+        if (!empty($fallback['success'])) {
+            return array_merge($fallback, [
+                'code' => !empty($fallback['update_available']) ? 'update_available' : 'up_to_date',
+                'message' => $primaryFailure
+                    ? 'Primary feed failed, using fallback feed.'
+                    : ($fallback['message'] ?? 'Fallback feed used.'),
+                'fallback_used' => true,
+                'fallback_feed_url' => $feedUrl,
+                'primary_feed_failed' => $primaryFailure,
+            ]);
+        }
+
+        if ($primaryFailure) {
+            return array_merge($primaryFailure, [
+                'fallback_used' => false,
+                'fallback_feed_url' => $feedUrl,
+                'fallback_feed_failed' => $fallback,
+            ]);
+        }
+
+        return $fallback;
+    }
+
+    protected function checkUrl(string $feedUrl, string $currentVersion): array
+    {
         try {
             $response = Http::timeout((int) config('updater.feed_timeout', 8))
                 ->acceptJson()
                 ->get($feedUrl);
         } catch (\Throwable $exception) {
-            return $this->result('feed_unreachable', 'Update feed could not be reached.', [
+            $diagnostics = $this->curlDiagnostics();
+            $isMissingCertificateBundle = $this->isMissingCertificateBundleError($exception);
+
+            return $this->result('feed_unreachable', $isMissingCertificateBundle
+                ? 'HTTPS certificate bundle is missing. Please configure PHP curl.cainfo.'
+                : 'Update feed could not be reached.', [
                 'success' => false,
                 'feed_url' => $feedUrl,
                 'current_version' => $currentVersion,
                 'error' => $exception->getMessage(),
+                'diagnostic_code' => $isMissingCertificateBundle ? 'curl_ca_missing' : 'network_error',
+                'diagnostics' => $diagnostics,
                 'update_available' => false,
             ]);
         }
@@ -96,13 +148,22 @@ class ReleaseFeedService
             }
         }
 
-        if ((string) ($feed['app'] ?? '') !== config('updater.app_id', 'garmentsos-pro')) {
+        $app = trim((string) ($feed['app'] ?? ''));
+        if ($app !== '' && $app !== config('updater.app_id', 'garmentsos-pro')) {
             return $this->invalidFeed($feedUrl, $currentVersion, 'Feed is for a different app.');
         }
 
         $latestVersion = trim((string) ($feed['version'] ?? ''));
         if ($latestVersion === '') {
             return $this->invalidFeed($feedUrl, $currentVersion, 'Feed version is empty.');
+        }
+
+        if (trim((string) ($feed['package_url'] ?? '')) === '') {
+            return $this->invalidFeed($feedUrl, $currentVersion, 'Feed package_url is empty.');
+        }
+
+        if (trim((string) ($feed['package_sha256'] ?? '')) === '') {
+            return $this->invalidFeed($feedUrl, $currentVersion, 'Feed package_sha256 is empty.');
         }
 
         $updateAvailable = version_compare($latestVersion, $currentVersion, '>');
@@ -201,6 +262,35 @@ class ReleaseFeedService
             'current_version' => $currentVersion,
             'update_available' => false,
         ]);
+    }
+
+    public function curlDiagnostics(): array
+    {
+        $curlCaInfo = (string) ini_get('curl.cainfo');
+        $opensslCaFile = (string) ini_get('openssl.cafile');
+        $candidate = $curlCaInfo !== '' ? $curlCaInfo : $opensslCaFile;
+
+        return [
+            'php_curl_available' => extension_loaded('curl'),
+            'curl_cainfo' => $curlCaInfo,
+            'openssl_cafile' => $opensslCaFile,
+            'certificate_file_exists' => $candidate !== '' && is_file($candidate),
+        ];
+    }
+
+    protected function isMissingCertificateBundleError(\Throwable $exception): bool
+    {
+        for ($current = $exception; $current; $current = $current->getPrevious()) {
+            $message = $current->getMessage();
+            if (str_contains($message, 'cURL error 77')
+                || str_contains($message, 'error setting certificate file')
+                || str_contains($message, 'cacert.pem')
+            ) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     protected function sanitizeFeed(array $feed): array

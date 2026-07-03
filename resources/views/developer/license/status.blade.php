@@ -91,6 +91,30 @@
                     <div class="text-xs uppercase text-[var(--secondary-text)]">Offline grace until</div>
                     <div class="mt-1 text-lg font-semibold">{{ $status->graceUntil?->format('Y-m-d') ?? '-' }}</div>
                 </div>
+                <div class="{{ $softPanel }}">
+                    <div class="text-xs uppercase text-[var(--secondary-text)]">Client ID</div>
+                    <div class="mt-1 text-lg font-semibold">{{ $licenseConfig['client_id'] ?: '-' }}</div>
+                </div>
+                <div class="{{ $softPanel }}">
+                    <div class="text-xs uppercase text-[var(--secondary-text)]">Client name</div>
+                    <div class="mt-1 text-lg font-semibold">{{ $licenseConfig['client_name'] ?: '-' }}</div>
+                </div>
+                <div class="{{ $softPanel }}">
+                    <div class="text-xs uppercase text-[var(--secondary-text)]">Grace days</div>
+                    <div class="mt-1 text-lg font-semibold">{{ $licenseConfig['grace_days'] }}</div>
+                </div>
+                <div class="{{ $softPanel }}">
+                    <div class="text-xs uppercase text-[var(--secondary-text)]">License key</div>
+                    <div class="mt-1 text-lg font-semibold">{{ $licenseConfig['license_key_configured'] ? 'Configured' : 'Not configured' }}</div>
+                </div>
+                <div class="{{ $softPanel }}">
+                    <div class="text-xs uppercase text-[var(--secondary-text)]">License check URL</div>
+                    <div class="mt-1 text-lg font-semibold">{{ $licenseConfig['check_url_configured'] ? 'Configured' : 'Not configured' }}</div>
+                </div>
+                <div class="{{ $softPanel }}">
+                    <div class="text-xs uppercase text-[var(--secondary-text)]">Last check</div>
+                    <div class="mt-1 text-lg font-semibold">{{ $licenseConfig['last_check_at'] ?: '-' }}</div>
+                </div>
             </div>
 
             <div class="mt-5 flex flex-wrap gap-3">

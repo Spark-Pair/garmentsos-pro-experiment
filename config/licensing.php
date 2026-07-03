@@ -10,9 +10,21 @@ return [
     | must not change normal application behavior.
     |
     */
-    'enabled' => env('LICENSE_ENFORCEMENT_ENABLED', false),
+    'enabled' => env('LICENSE_ENABLED', env('LICENSE_ENFORCEMENT_ENABLED', false)),
 
-    'server_url' => env('LICENSE_SERVER_URL', ''),
+    'client_id' => env('LICENSE_CLIENT_ID', ''),
+
+    'client_name' => env('LICENSE_CLIENT_NAME', ''),
+
+    'license_key' => env('LICENSE_KEY', ''),
+
+    'expires_at' => env('LICENSE_EXPIRES_AT', ''),
+
+    'server_url' => env('LICENSE_CHECK_URL', env('LICENSE_SERVER_URL', '')),
+
+    'last_check_at' => env('LICENSE_LAST_CHECK_AT', ''),
+
+    'status' => env('LICENSE_STATUS', 'active'),
 
     'installation_mode' => env('INSTALLATION_MODE', 'local_lan'),
 
@@ -26,7 +38,7 @@ return [
     */
     'public_key' => env('LICENSE_PUBLIC_KEY', ''),
 
-    'offline_grace_days' => (int) env('LICENSE_OFFLINE_GRACE_DAYS', 7),
+    'offline_grace_days' => (int) env('LICENSE_GRACE_DAYS', env('LICENSE_OFFLINE_GRACE_DAYS', 7)),
 
     'expiring_soon_days' => (int) env('LICENSE_EXPIRING_SOON_DAYS', 14),
 

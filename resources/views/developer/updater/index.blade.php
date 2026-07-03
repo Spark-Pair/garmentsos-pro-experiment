@@ -15,6 +15,11 @@
         $updateAvailable = !empty($releaseFeedStatus['update_available']);
         $upToDate = !empty($releaseFeedStatus['success']) && $releaseFeedCode === 'up_to_date';
         $feedUnreachable = $releaseFeedCode === 'feed_unreachable';
+        $fallbackUsed = !empty($releaseFeedStatus['fallback_used']);
+        $primaryFeedFailed = $releaseFeedStatus['primary_feed_failed'] ?? null;
+        $activeFeedUrl = $releaseFeedStatus['feed_url'] ?? $updateFeedUrl;
+        $feedDiagnostics = $releaseFeedStatus['diagnostics'] ?? $curlDiagnostics ?? [];
+        $feedDiagnosticCode = $releaseFeedStatus['diagnostic_code'] ?? null;
         $setupUrl = $releaseFeed['setup_url'] ?? '';
         $setupUrlAvailable = is_string($setupUrl)
             && $setupUrl !== ''
@@ -87,6 +92,14 @@
 
             <div class="mb-4 rounded-lg border {{ $upToDate ? 'border-[var(--border-success)] bg-[var(--bg-success)] text-[var(--text-success)]' : ($updateAvailable ? 'border-[var(--border-warning)] bg-[var(--bg-warning)] text-[var(--text-warning)]' : 'border-gray-600 bg-[var(--h-bg-color)] text-[var(--secondary-text)]') }} p-4">
                 {{ $statusMessage }}
+                @if ($fallbackUsed)
+                    <div class="mt-2 text-xs">
+                        Primary feed failed{{ $primaryFeedFailed ? ': ' . ($primaryFeedFailed['message'] ?? $primaryFeedFailed['code'] ?? 'unreachable') : '' }}. Using fallback feed.
+                    </div>
+                    <div class="mt-1 break-all font-mono text-xs">
+                        Fallback: {{ $releaseFeedStatus['fallback_feed_url'] ?? $activeFeedUrl }}
+                    </div>
+                @endif
                 @if ($feedUnreachable && (($releaseFeedStatus['http_status'] ?? null) === 404))
                     <div class="mt-2 text-xs">
                         If this feed points to a private GitHub release asset, unauthenticated apps may receive 404. Use a public SparkPair update feed URL.
@@ -94,6 +107,11 @@
                 @endif
                 @if (!empty($releaseFeedStatus['http_status']))
                     <div class="mt-2 text-xs">HTTP status: {{ $releaseFeedStatus['http_status'] }}</div>
+                @endif
+                @if ($feedDiagnosticCode === 'curl_ca_missing')
+                    <div class="mt-2 text-xs font-semibold">
+                        HTTPS certificate bundle is missing. Please configure PHP curl.cainfo.
+                    </div>
                 @endif
             </div>
 
@@ -110,8 +128,26 @@
                     <dd class="mt-1 text-xs text-[var(--secondary-text)]">Channel: {{ $releaseFeed['channel'] ?? $channel }}</dd>
                 </div>
                 <div class="{{ $softPanel }} md:col-span-2">
-                    <dt class="text-[var(--secondary-text)]">Feed URL</dt>
+                    <dt class="text-[var(--secondary-text)]">Configured feed URL</dt>
                     <dd class="mt-1 break-all font-mono text-xs">{{ $updateFeedUrlConfigured ? $updateFeedUrl : 'Not configured' }}</dd>
+                </div>
+                <div class="{{ $softPanel }} md:col-span-2">
+                    <dt class="text-[var(--secondary-text)]">Active feed URL</dt>
+                    <dd class="mt-1 break-all font-mono text-xs">{{ $activeFeedUrl ?: 'Not configured' }}</dd>
+                    @if ($fallbackUsed)
+                        <dd class="mt-1 text-xs text-[var(--text-warning)]">Fallback feed is being used for this check.</dd>
+                    @endif
+                </div>
+                <div class="{{ $softPanel }} md:col-span-2">
+                    <dt class="text-[var(--secondary-text)]">PHP HTTPS diagnostics</dt>
+                    <dd class="mt-1 text-xs text-[var(--secondary-text)]">
+                        cURL available: {{ !empty($feedDiagnostics['php_curl_available']) ? 'yes' : 'no' }}
+                    </dd>
+                    <dd class="mt-1 break-all font-mono text-xs">curl.cainfo: {{ $feedDiagnostics['curl_cainfo'] ?? '' ?: '-' }}</dd>
+                    <dd class="mt-1 break-all font-mono text-xs">openssl.cafile: {{ $feedDiagnostics['openssl_cafile'] ?? '' ?: '-' }}</dd>
+                    <dd class="mt-1 text-xs text-[var(--secondary-text)]">
+                        certificate file exists: {{ !empty($feedDiagnostics['certificate_file_exists']) ? 'yes' : 'no' }}
+                    </dd>
                 </div>
                 <div class="{{ $softPanel }}">
                     <dt class="text-[var(--secondary-text)]">Mandatory</dt>
@@ -181,6 +217,23 @@
                     </div>
                 </details>
             @endif
+
+            <div class="mt-5 rounded-lg border border-[var(--h-bg-color)] bg-[var(--h-bg-color)]/50 p-4">
+                <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                    <div>
+                        <div class="font-semibold">Update feed repair</div>
+                        <p class="mt-1 text-sm text-[var(--secondary-text)]">
+                            Use this if the installed `.env` points to the inactive production feed.
+                        </p>
+                    </div>
+                    <form method="POST" action="{{ route('developer.updater.set-experiment-feed') }}">
+                        @csrf
+                        <button type="submit" class="{{ $secondaryButton }}">
+                            Set feed to experiment stable
+                        </button>
+                    </form>
+                </div>
+            </div>
         </section>
 
         <details class="{{ $panel }}">

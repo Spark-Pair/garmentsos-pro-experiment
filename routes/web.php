@@ -94,6 +94,7 @@ Route::group(['middleware' => ['setup.complete', 'auth', 'activeSession', 'ensur
     Route::post('developer/updater/launcher-handoff/start', [UpdateController::class, 'startLauncherHandoff'])->name('developer.updater.launcher-handoff.start');
     Route::get('developer/updater/update-lock-status', [UpdateController::class, 'updateLockStatus'])->name('developer.updater.update-lock-status');
     Route::post('developer/updater/clear-update-lock', [UpdateController::class, 'clearUpdateLock'])->name('developer.updater.clear-update-lock');
+    Route::post('developer/updater/set-experiment-feed', [UpdateController::class, 'setExperimentFeed'])->name('developer.updater.set-experiment-feed');
     Route::post('developer/updater/check', [UpdateController::class, 'check'])->name('developer.updater.check');
     Route::post('developer/updater/apply', [UpdateController::class, 'apply'])->name('developer.updater.apply');
 });

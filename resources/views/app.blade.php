@@ -626,30 +626,54 @@
             let updateLockPoll = null;
             let closeFallbackStarted = false;
 
-            const closeOrReplaceWithUpdating = (delay = 650) => {
+            const closeOrReplaceWithUpdating = (delay = 4000) => {
                 if (closeFallbackStarted) {
                     return;
                 }
 
                 closeFallbackStarted = true;
-                try {
-                    window.close();
-                } catch (error) {
-                }
-
-                try {
-                    window.open('', '_self');
-                    window.close();
-                } catch (error) {
-                }
 
                 window.setTimeout(() => {
+                    try {
+                        window.close();
+                    } catch (error) {
+                    }
+
+                    try {
+                        window.open('', '_self');
+                        window.close();
+                    } catch (error) {
+                    }
+
                     try {
                         window.location.replace(updatingUrl);
                     } catch (error) {
                         window.location.href = updatingUrl;
                     }
                 }, delay);
+            };
+
+            const launchUpdaterProtocol = (protocolUrl) => {
+                const iframe = document.createElement('iframe');
+                iframe.style.display = 'none';
+                iframe.setAttribute('aria-hidden', 'true');
+                document.body.appendChild(iframe);
+
+                try {
+                    iframe.src = protocolUrl;
+                } catch (error) {
+                }
+
+                window.setTimeout(() => {
+                    try {
+                        window.location.href = protocolUrl;
+                    } catch (error) {
+                    }
+                }, 250);
+
+                window.setTimeout(() => {
+                    iframe.remove();
+                }, 5000);
             };
 
             const showUpdateOverlay = () => {
@@ -747,8 +771,8 @@
                             throw new Error(payload.message || 'Update could not be started.');
                         }
 
-                        window.location.href = payload.protocol_url;
-                        closeOrReplaceWithUpdating();
+                        launchUpdaterProtocol(payload.protocol_url);
+                        closeOrReplaceWithUpdating(4500);
                     } catch (error) {
                         alert(error.message || 'Update could not be started.');
                         link.dataset.busy = '0';
