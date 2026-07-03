@@ -234,6 +234,44 @@
                     </form>
                 </div>
             </div>
+
+            <div class="mt-5 rounded-lg border border-[var(--h-bg-color)] bg-[var(--h-bg-color)]/50 p-4">
+                <div class="font-semibold">Database and backup diagnostics</div>
+                <dl class="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
+                    <div>
+                        <dt class="text-xs uppercase text-[var(--secondary-text)]">DB connection</dt>
+                        <dd class="mt-1 font-mono text-xs">{{ $databaseDiagnostics['connection'] ?? '-' }}</dd>
+                    </div>
+                    <div>
+                        <dt class="text-xs uppercase text-[var(--secondary-text)]">Container DB path</dt>
+                        <dd class="mt-1 break-all font-mono text-xs">{{ $databaseDiagnostics['container_database_path'] ?? '-' }}</dd>
+                    </div>
+                    <div>
+                        <dt class="text-xs uppercase text-[var(--secondary-text)]">Host DB path</dt>
+                        <dd class="mt-1 break-all font-mono text-xs">{{ $databaseDiagnostics['host_database_path'] ?: 'Not bind-mounted / not visible to Laravel container' }}</dd>
+                    </div>
+                    <div>
+                        <dt class="text-xs uppercase text-[var(--secondary-text)]">Docker volumes</dt>
+                        <dd class="mt-1 break-all font-mono text-xs">
+                            DB: {{ $databaseDiagnostics['database_volume'] ?? '-' }}<br>
+                            Storage: {{ $databaseDiagnostics['storage_volume'] ?? '-' }}
+                        </dd>
+                    </div>
+                    <div>
+                        <dt class="text-xs uppercase text-[var(--secondary-text)]">Last backup path</dt>
+                        <dd class="mt-1 break-all font-mono text-xs">{{ $databaseDiagnostics['last_backup_path'] ?: '-' }}</dd>
+                    </div>
+                    <div>
+                        <dt class="text-xs uppercase text-[var(--secondary-text)]">Last backup status</dt>
+                        <dd class="mt-1 font-mono text-xs">
+                            {{ $databaseDiagnostics['last_backup_status'] ?: '-' }}
+                            @if (!empty($databaseDiagnostics['last_backup_timestamp']))
+                                <span class="text-[var(--secondary-text)]">({{ $databaseDiagnostics['last_backup_timestamp'] }})</span>
+                            @endif
+                        </dd>
+                    </div>
+                </dl>
+            </div>
         </section>
 
         <details class="{{ $panel }}">

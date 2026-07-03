@@ -9,6 +9,18 @@ use Symfony\Component\HttpFoundation\Response;
 
 class EnsureValidLicense
 {
+    protected array $alwaysAllowedRoutePrefixes = [
+        'developer.license',
+        'developer.updater',
+    ];
+
+    protected array $alwaysAllowedRouteNames = [
+        'updating',
+        'login',
+        'loginPost',
+        'logout',
+    ];
+
     public function handle(Request $request, Closure $next): Response
     {
         $licenseService = app(LicenseService::class);
@@ -22,6 +34,10 @@ class EnsureValidLicense
 
         $status = $licenseService->currentStatus();
         $request->attributes->set('license_status', $status);
+
+        if ($this->isAlwaysAllowed($request)) {
+            return $next($request);
+        }
 
         if ($status->shouldReadOnly()) {
             session()->forget('readonly');
@@ -43,5 +59,25 @@ class EnsureValidLicense
         }
 
         return $next($request);
+    }
+
+    protected function isAlwaysAllowed(Request $request): bool
+    {
+        $routeName = (string) $request->route()?->getName();
+        if ($routeName === '') {
+            return false;
+        }
+
+        if (in_array($routeName, $this->alwaysAllowedRouteNames, true)) {
+            return true;
+        }
+
+        foreach ($this->alwaysAllowedRoutePrefixes as $prefix) {
+            if (str_starts_with($routeName, $prefix)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

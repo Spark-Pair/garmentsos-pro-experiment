@@ -94,8 +94,6 @@ function Install-GarmentsShortcuts($TargetDir) {
                 Write-Host "Start Menu shortcut created: $(Join-Path $startMenuFolder "GarmentsOS PRO Updater.lnk")"
             }
 
-            New-GarmentsShortcut (Join-Path $startMenuFolder "Open Install Folder.lnk") "explorer.exe" $TargetDir "`"$TargetDir`"" "Open GarmentsOS PRO install folder"
-            Write-Host "Start Menu shortcut created: $(Join-Path $startMenuFolder "Open Install Folder.lnk")"
         }
     } catch {
         Write-Warning "Could not create Start Menu shortcut. $($_.Exception.Message)"
@@ -126,6 +124,25 @@ function Hide-GarmentsTechnicalFiles($TargetDir) {
         } catch {
             Write-Warning "Could not hide $path. $($_.Exception.Message)"
         }
+    }
+}
+
+function Protect-GarmentsInstallFolder($TargetDir) {
+    try {
+        $currentUser = (whoami)
+        if ([string]::IsNullOrWhiteSpace($currentUser)) {
+            Write-Warning "Could not determine current Windows user for ACL hardening."
+            return
+        }
+
+        icacls $TargetDir /inheritance:r `
+            /grant:r "*S-1-5-18:(OI)(CI)F" `
+            /grant:r "*S-1-5-32-544:(OI)(CI)F" `
+            /grant:r "${currentUser}:(OI)(CI)F" `
+            /grant:r "*S-1-5-32-545:(OI)(CI)RX" | Out-Null
+        Write-Host "Install folder permissions hardened for standard users: $TargetDir"
+    } catch {
+        Write-Warning "Could not harden install folder permissions. $($_.Exception.Message)"
     }
 }
 
@@ -439,10 +456,10 @@ function Ensure-GarmentsUpdaterEnvKeys($EnvPath) {
 
 function Ensure-GarmentsLicenseEnvKeys($EnvPath) {
     Ensure-EnvKey $EnvPath "LICENSE_ENABLED" "false"
-    Ensure-EnvKey $EnvPath "LICENSE_CLIENT_ID" ""
-    Ensure-EnvKey $EnvPath "LICENSE_CLIENT_NAME" ""
-    Ensure-EnvKey $EnvPath "LICENSE_KEY" ""
-    Ensure-EnvKey $EnvPath "LICENSE_CHECK_URL" "https://sparkpair.dev/api/licenses/verify"
+    Ensure-EnvKey $EnvPath "LICENSE_ENFORCEMENT_ENABLED" "false"
+    Ensure-EnvKey $EnvPath "LICENSE_AUTO_REGISTER" "true"
+    Ensure-EnvKey $EnvPath "LICENSE_CHECK_URL" "https://www.sparkpair.dev/api/licenses/verify"
+    Ensure-EnvKey $EnvPath "LICENSE_REGISTER_URL" "https://www.sparkpair.dev/api/licenses/register-install"
     Ensure-EnvKey $EnvPath "LICENSE_GRACE_DAYS" "7"
 }
 
@@ -461,6 +478,17 @@ if (-not (Test-Path $ImageTar)) {
     throw "Docker image tar not found: $ImageTar"
 }
 
+$InstalledManifestPath = Join-Path $InstallDir "manifest.json"
+$FromVersion = ""
+if (Test-Path -LiteralPath $InstalledManifestPath) {
+    try {
+        $InstalledManifest = Get-Content -LiteralPath $InstalledManifestPath -Raw | ConvertFrom-Json
+        $FromVersion = [string]$InstalledManifest.version
+    } catch {
+        Write-Warning "Could not read installed manifest version. $($_.Exception.Message)"
+    }
+}
+
 $ReleaseBackupScript = Join-Path $ReleaseDir "scripts\windows-docker-backup.ps1"
 $InstalledBackupScript = Join-Path $InstallDir "scripts\windows-docker-backup.ps1"
 $BackupScript = if (Test-Path $ReleaseBackupScript) {
@@ -474,7 +502,12 @@ if (-not (Test-Path $BackupScript)) {
 }
 
 Write-Host "Using backup script: $BackupScript"
-& $BackupScript -InstallDir $InstallDir
+try {
+    & $BackupScript -InstallDir $InstallDir -FromVersion $FromVersion -ToVersion ([string]$Manifest.version) -PackageSha256 ([string]$Manifest.image_sha256)
+} catch {
+    Write-Error "Pre-update backup failed. Update was not applied. $($_.Exception.Message)"
+    throw
+}
 
 docker load -i $ImageTar | Out-Host
 
@@ -485,9 +518,6 @@ Copy-Item -Recurse -Force (Join-Path $ReleaseDir "docs") $InstallDir
 Copy-Item -Recurse -Force (Join-Path $ReleaseDir "images") $InstallDir
 Copy-Item -Recurse -Force (Join-Path $ReleaseDir "checksums") $InstallDir
 Copy-Item -Force (Join-Path $ReleaseDir "manifest.json") $InstallDir
-if (Test-Path (Join-Path $ReleaseDir "launcher")) {
-    Copy-Item -Recurse -Force (Join-Path $ReleaseDir "launcher") $InstallDir
-}
 Update-LauncherExeFromRelease $ReleaseDir $InstallDir
 Copy-RootLaunchers $ReleaseDir $InstallDir
 
@@ -523,6 +553,7 @@ if ($HideTechnicalFiles) {
 } else {
     Write-Host "Technical files were left visible because HideTechnicalFiles is false."
 }
+Protect-GarmentsInstallFolder $InstallDir
 
 Write-Host "Update complete. Volumes were preserved."
 Write-Host "Rollback: load the previous image tar, set GARMENTSOS_IMAGE in .env to the previous tag, then run docker compose up -d."

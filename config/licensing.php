@@ -20,7 +20,13 @@ return [
 
     'expires_at' => env('LICENSE_EXPIRES_AT', ''),
 
-    'server_url' => env('LICENSE_CHECK_URL', env('LICENSE_SERVER_URL', 'https://sparkpair.dev/api/licenses/verify')),
+    'server_url' => env('LICENSE_CHECK_URL', env('LICENSE_SERVER_URL', 'https://www.sparkpair.dev/api/licenses/verify')),
+
+    'register_url' => env('LICENSE_REGISTER_URL', 'https://www.sparkpair.dev/api/licenses/register-install'),
+
+    'auto_register' => env('LICENSE_AUTO_REGISTER', true),
+
+    'enforcement_enabled' => env('LICENSE_ENFORCEMENT_ENABLED', false),
 
     'last_check_at' => env('LICENSE_LAST_CHECK_AT', ''),
 
@@ -45,6 +51,8 @@ return [
     'cache_path' => storage_path('app/license/license.json'),
 
     'verify_cache_path' => storage_path('app/license/verify-cache.json'),
+
+    'registration_cache_path' => storage_path('app/license/registration-cache.json'),
 
     'identity_path' => storage_path('app/license/installation.json'),
 

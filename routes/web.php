@@ -97,6 +97,16 @@ Route::group(['middleware' => ['setup.complete', 'auth', 'activeSession', 'ensur
     Route::post('developer/updater/set-experiment-feed', [UpdateController::class, 'setExperimentFeed'])->name('developer.updater.set-experiment-feed');
     Route::post('developer/updater/check', [UpdateController::class, 'check'])->name('developer.updater.check');
     Route::post('developer/updater/apply', [UpdateController::class, 'apply'])->name('developer.updater.apply');
+    Route::get('developer/license', [LicenseController::class, 'status'])->name('developer.license.status');
+    Route::get('developer/license/activate', [LicenseController::class, 'activate'])->name('developer.license.activate');
+    Route::post('developer/license/activate', [LicenseController::class, 'activatePost'])->name('developer.license.activate.post');
+    Route::post('developer/license/register', [LicenseController::class, 'registerDevice'])->name('developer.license.register');
+    Route::post('developer/license/check', [LicenseController::class, 'checkDevice'])->name('developer.license.check');
+    Route::get('developer/license/offline', [LicenseController::class, 'offline'])->name('developer.license.offline');
+    Route::post('developer/license/offline/import', [LicenseController::class, 'importOffline'])->name('developer.license.offline.import');
+    Route::post('developer/license/refresh', [LicenseController::class, 'refresh'])->name('developer.license.refresh');
+    Route::post('developer/license/reactivation-request', [LicenseController::class, 'reactivationRequest'])->name('developer.license.reactivation-request');
+    Route::get('developer/audit-logs', [LicenseController::class, 'auditLogs'])->name('developer.audit-logs');
 });
 
 Route::group(['middleware' => ['setup.complete', 'auth', 'activeSession', 'ensureLicense', 'readonly', 'blockWhenUpdating', 'dbTransaction']], function () {
@@ -114,14 +124,6 @@ Route::group(['middleware' => ['setup.complete', 'auth', 'activeSession', 'ensur
 
     Route::resource('setups', SetupController::class);
     Route::get('permissions-report', [PermissionReportController::class, 'index'])->name('permissions-report');
-    Route::get('developer/license', [LicenseController::class, 'status'])->name('developer.license.status');
-    Route::get('developer/license/activate', [LicenseController::class, 'activate'])->name('developer.license.activate');
-    Route::post('developer/license/activate', [LicenseController::class, 'activatePost'])->name('developer.license.activate.post');
-    Route::get('developer/license/offline', [LicenseController::class, 'offline'])->name('developer.license.offline');
-    Route::post('developer/license/offline/import', [LicenseController::class, 'importOffline'])->name('developer.license.offline.import');
-    Route::post('developer/license/refresh', [LicenseController::class, 'refresh'])->name('developer.license.refresh');
-    Route::post('developer/license/reactivation-request', [LicenseController::class, 'reactivationRequest'])->name('developer.license.reactivation-request');
-    Route::get('developer/audit-logs', [LicenseController::class, 'auditLogs'])->name('developer.audit-logs');
     Route::get('developer/settings', [SettingsController::class, 'index'])->name('developer.settings');
     Route::post('developer/settings/labels', [SettingsController::class, 'saveLabel'])->name('developer.settings.labels.save');
     Route::post('developer/settings/labels/{key}/reset', [SettingsController::class, 'resetLabel'])->name('developer.settings.labels.reset');

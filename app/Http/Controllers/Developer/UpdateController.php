@@ -59,6 +59,7 @@ class UpdateController extends Controller
             'rollbackAvailable' => false,
             'lastUpdateResult' => null,
             'updateLockStatus' => $locks->status(),
+            'databaseDiagnostics' => $this->databaseDiagnostics(),
             'result' => session('updater_result'),
             'applyResult' => session('updater_apply_result'),
         ]);
@@ -247,5 +248,38 @@ class UpdateController extends Controller
         return preg_match('/\s|#|"|\'/', $value)
             ? '"' . str_replace('"', '\"', $value) . '"'
             : $value;
+    }
+
+    protected function databaseDiagnostics(): array
+    {
+        $connection = (string) config('database.default', '');
+        $databasePath = (string) config('database.connections.sqlite.database', env('DB_DATABASE', ''));
+        $hostPath = '';
+
+        if ($databasePath !== '' && !str_starts_with($databasePath, '/')) {
+            $candidate = base_path($databasePath);
+            if (File::exists($candidate)) {
+                $hostPath = $candidate;
+            }
+        }
+
+        $lastBackupPath = storage_path('app/private/update-backup-status.json');
+        $lastBackup = [];
+        if (File::exists($lastBackupPath)) {
+            $decoded = json_decode((string) File::get($lastBackupPath), true);
+            $lastBackup = is_array($decoded) ? $decoded : [];
+        }
+
+        return [
+            'connection' => $connection,
+            'container_database_path' => $databasePath,
+            'host_database_path' => $hostPath,
+            'database_volume' => 'garmentsos-pro_garmentsos_database',
+            'storage_volume' => 'garmentsos-pro_garmentsos_storage',
+            'last_backup_path' => (string) ($lastBackup['backup_path'] ?? ''),
+            'last_backup_status' => (string) ($lastBackup['backup_status'] ?? ''),
+            'last_backup_timestamp' => (string) ($lastBackup['timestamp'] ?? ''),
+            'last_backup_database_path' => (string) ($lastBackup['database_path'] ?? ''),
+        ];
     }
 }

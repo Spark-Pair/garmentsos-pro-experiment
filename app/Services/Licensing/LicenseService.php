@@ -20,6 +20,7 @@ class LicenseService
         protected LicensePayloadValidator $payloadValidator,
         protected AuditLogService $auditLogs,
         protected InstalledVersionService $versions,
+        protected MachineFingerprintService $machine,
     ) {
     }
 
@@ -34,9 +35,7 @@ class LicenseService
             return LicenseStatus::notEnforced();
         }
 
-        if ($this->usesConfiguredLicense()) {
-            return $this->statusForConfiguredLicense();
-        }
+        return $this->statusForDeviceLicense();
 
         $installation = $this->identity->current();
         $license = License::query()
@@ -66,34 +65,63 @@ class LicenseService
         return $this->identity->installId();
     }
 
-    protected function statusForConfiguredLicense(): LicenseStatus
+    public function machineName(): string
     {
-        $licenseKey = trim((string) config('licensing.license_key', ''));
-        $clientId = trim((string) config('licensing.client_id', ''));
+        return $this->machine->machineName();
+    }
 
-        if ($licenseKey === '' || $clientId === '') {
-            return LicenseStatus::problem(
-                'unactivated',
-                'blocked',
-                'License client ID and key must be configured.',
-                ['source' => 'env_config'],
-            );
+    public function machineHash(): string
+    {
+        return $this->machine->machineHash();
+    }
+
+    public function machineHashPreview(): string
+    {
+        return $this->machine->shortHash();
+    }
+
+    public function registerInstall(): array
+    {
+        $result = $this->activationClient->registerInstall([
+            'product' => config('updater.app_id', 'garmentsos-pro'),
+            'install_id' => $this->identity->installId(),
+            'machine_hash' => $this->machine->machineHash(),
+            'machine_name' => $this->machine->machineName(),
+            'app_version' => $this->versions->currentVersion(),
+        ]);
+
+        if (($result['ok'] ?? false) && is_array($result['body'] ?? null)) {
+            $this->writeRegistrationCache($result['body']);
         }
 
+        return $result;
+    }
+
+    public function autoRegisterIfEnabled(): ?array
+    {
+        if (!(bool) config('licensing.auto_register', true)) {
+            return null;
+        }
+
+        return $this->registerInstall();
+    }
+
+    public function verifyNow(): LicenseStatus
+    {
+        return $this->statusForDeviceLicense();
+    }
+
+    protected function statusForDeviceLicense(): LicenseStatus
+    {
         $result = $this->activationClient->verify([
             'product' => config('updater.app_id', 'garmentsos-pro'),
-            'client_id' => $clientId,
-            'license_key' => $licenseKey,
             'install_id' => $this->identity->installId(),
+            'machine_hash' => $this->machine->machineHash(),
             'app_version' => $this->versions->currentVersion(),
         ]);
 
         if (($result['ok'] ?? false) && is_array($result['body'] ?? null)) {
             $body = $result['body'];
-            if (($body['valid'] ?? false) === true) {
-                $this->writeVerifyCache($body);
-            }
-
             return $this->statusFromVerifyResponse($body, 'server_verify');
         }
 
@@ -112,6 +140,8 @@ class LicenseService
         $graceUntil = $expiresAt ? $expiresAt->copy()->addDays(max(0, $graceDays)) : null;
 
         if (($body['valid'] ?? false) === true && $status === 'active') {
+            $this->writeVerifyCache($body);
+
             return LicenseStatus::valid($source, [
                 'message' => $message !== '' ? $message : 'License active',
                 'expires_at' => $expiresAt,
@@ -119,9 +149,37 @@ class LicenseService
             ]);
         }
 
-        if (in_array($status, ['blocked', 'tampered', 'installation_mismatch', 'security_issue'], true)) {
+        if (($body['valid'] ?? false) === true && $status === 'grace') {
+            $this->writeVerifyCache($body);
+
             return LicenseStatus::problem(
-                $status,
+                'grace_period',
+                'none',
+                $message !== '' ? $message : 'License grace period is active.',
+                [
+                    'expires_at' => $expiresAt,
+                    'grace_until' => $graceUntil,
+                    'source' => $source,
+                ],
+            );
+        }
+
+        if ($status === 'pending') {
+            return LicenseStatus::problem(
+                'pending',
+                $this->enforcementEnabled() ? 'blocked' : 'none',
+                $message !== '' ? $message : 'This device is registered and waiting for approval from SparkPair.',
+                [
+                    'expires_at' => $expiresAt,
+                    'grace_until' => $graceUntil,
+                    'source' => $source,
+                ],
+            );
+        }
+
+        if (in_array($status, ['suspended', 'blocked', 'tampered', 'installation_mismatch', 'security_issue'], true)) {
+            return LicenseStatus::problem(
+                $status === 'suspended' ? 'suspended' : $status,
                 'blocked',
                 $message !== '' ? $message : 'License verification failed.',
                 [
@@ -213,6 +271,32 @@ class LicenseService
         return is_array($decoded) && ($decoded['valid'] ?? false) === true ? $decoded : null;
     }
 
+    public function registrationCache(): ?array
+    {
+        $path = (string) config('licensing.registration_cache_path');
+        if (!File::exists($path)) {
+            return null;
+        }
+
+        $decoded = json_decode((string) File::get($path), true);
+
+        return is_array($decoded) ? $decoded : null;
+    }
+
+    public function verifyCache(): ?array
+    {
+        return $this->readVerifyCache();
+    }
+
+    protected function writeRegistrationCache(array $body): void
+    {
+        $path = (string) config('licensing.registration_cache_path');
+        File::ensureDirectoryExists(dirname($path));
+        File::put($path, json_encode(array_merge($body, [
+            'registered_at' => now()->utc()->toIso8601String(),
+        ]), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+    }
+
     protected function parseDate(mixed $date): ?Carbon
     {
         $date = trim((string) $date);
@@ -225,6 +309,11 @@ class LicenseService
         } catch (\Throwable) {
             return null;
         }
+    }
+
+    protected function enforcementEnabled(): bool
+    {
+        return (bool) config('licensing.enforcement_enabled', false);
     }
 
     public function statusForLicense(License $license): LicenseStatus

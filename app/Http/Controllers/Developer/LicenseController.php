@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Developer;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\ActivateLicenseRequest;
 use App\Http\Requests\ImportOfflineLicenseRequest;
 use App\Http\Requests\ReactivateLicenseRequest;
 use App\Http\Requests\RefreshLicenseRequest;
@@ -14,6 +13,7 @@ use App\Services\Licensing\InstallationIdentityService;
 use App\Services\Licensing\LicenseService;
 use App\Services\Licensing\LicenseStatus;
 use App\Services\Licensing\OfflineActivationService;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Schema;
 
 class LicenseController extends Controller
@@ -28,93 +28,59 @@ class LicenseController extends Controller
             return $resp;
         }
 
-        if (!$licenses->enabled()) {
-            return view('developer.license.status', [
-                'status' => LicenseStatus::notEnforced(),
-                'fingerprintPreview' => $this->safeValue(fn () => $fingerprints->fingerprintPreview(), 'Pending'),
-                'installationPreview' => $this->safeValue(fn () => $identity->maskedUuid(), 'Pending'),
-                'installationMode' => config('licensing.installation_mode', 'local_lan'),
-                'licensingEnabled' => false,
-                'cacheStatus' => LicenseStatus::notEnforced(),
-                'foundationReady' => $this->licenseTablesReady(),
-                'missingTables' => $this->missingLicenseTables(),
-                'licenseConfig' => $this->licenseConfigSummary(),
-            ]);
+        $registrationResult = null;
+        if ($licenses->enabled()) {
+            $registrationResult = $licenses->autoRegisterIfEnabled();
         }
 
-        if (!$this->licenseTablesReady() && !$licenses->usesConfiguredLicense()) {
-            return view('developer.license.status', [
-                'status' => LicenseStatus::problem(
-                    'setup_pending',
-                    'none',
-                    'Licensing tables are not available yet. Run migrations on a verified staging/client-copy database before using activation.',
-                    ['source' => 'setup_check'],
-                ),
-                'fingerprintPreview' => $fingerprints->fingerprintPreview(),
-                'installationPreview' => $identity->maskedUuid(),
-                'installationMode' => $identity->installationMode(),
-                'licensingEnabled' => $licenses->enabled(),
-                'cacheStatus' => LicenseStatus::problem(
-                    'setup_pending',
-                    'none',
-                    'Signed cache checks are waiting for licensing tables.',
-                    ['source' => 'setup_check'],
-                ),
-                'foundationReady' => false,
-                'missingTables' => $this->missingLicenseTables(),
-                'licenseConfig' => $this->licenseConfigSummary(),
-            ]);
-        }
-
-        $installation = null;
-        if (!$licenses->usesConfiguredLicense()) {
-            $installation = $identity->current();
-            $installation->update([
-                'fingerprint_hash' => $fingerprints->fingerprintHash(),
-                'last_seen_at' => now(),
-            ]);
-        }
+        $status = $licenses->enabled()
+            ? $licenses->currentStatus()
+            : LicenseStatus::notEnforced();
 
         return view('developer.license.status', [
-            'status' => $licenses->currentStatus(),
-            'fingerprintPreview' => $fingerprints->fingerprintPreview(),
-            'installationPreview' => $installation ? $identity->maskedUuid($installation) : $licenses->installId(),
-            'installationMode' => $installation?->installation_mode ?? config('licensing.installation_mode', 'local_lan'),
+            'status' => $status,
+            'fingerprintPreview' => $licenses->machineHashPreview(),
+            'installationPreview' => $licenses->installId(),
+            'installationMode' => config('licensing.installation_mode', 'local_lan'),
             'licensingEnabled' => $licenses->enabled(),
-            'cacheStatus' => $licenses->statusFromSignedCache(),
+            'cacheStatus' => $licenses->verifyCache()
+                ? LicenseStatus::valid('verify_cache', ['message' => 'Verify cache is present.'])
+                : LicenseStatus::problem('cache_missing', 'none', 'No device verify cache is present.', ['source' => 'verify_cache']),
             'foundationReady' => $this->licenseTablesReady(),
             'missingTables' => $this->missingLicenseTables(),
             'licenseConfig' => $this->licenseConfigSummary(),
+            'registrationResult' => $registrationResult,
         ]);
     }
 
     protected function licenseConfigSummary(): array
     {
+        $licenses = app(LicenseService::class);
+        $verifyCache = $licenses->verifyCache();
+        $registrationCache = $licenses->registrationCache();
+
         return [
-            'client_id' => (string) config('licensing.client_id', ''),
-            'client_name' => (string) config('licensing.client_name', ''),
+            'client_id' => (string) ($verifyCache['client_id'] ?? config('licensing.client_id', '')),
+            'client_name' => (string) ($verifyCache['client_name'] ?? config('licensing.client_name', '')),
             'expires_at' => (string) config('licensing.expires_at', ''),
             'grace_days' => (int) config('licensing.offline_grace_days', 7),
             'check_url_configured' => trim((string) config('licensing.server_url', '')) !== '',
             'last_check_at' => (string) config('licensing.last_check_at', ''),
             'env_status' => (string) config('licensing.status', 'active'),
-            'license_key_configured' => trim((string) config('licensing.license_key', '')) !== '',
-            'license_key_masked' => $this->maskedLicenseKey((string) config('licensing.license_key', '')),
             'check_url' => (string) config('licensing.server_url', ''),
-            'install_id' => app(LicenseService::class)->installId(),
+            'register_url' => (string) config('licensing.register_url', ''),
+            'auto_register' => (bool) config('licensing.auto_register', true),
+            'enforcement_enabled' => (bool) config('licensing.enforcement_enabled', false),
+            'install_id' => $licenses->installId(),
+            'machine_name' => $licenses->machineName(),
+            'machine_hash' => $licenses->machineHash(),
+            'machine_hash_preview' => $licenses->machineHashPreview(),
+            'app_version' => app(\App\Services\Updater\InstalledVersionService::class)->currentVersion(),
+            'last_check_at' => (string) ($verifyCache['checked_at'] ?? config('licensing.last_check_at', '')),
+            'last_registration_at' => (string) ($registrationCache['registered_at'] ?? ''),
+            'device_status' => (string) ($registrationCache['status'] ?? $verifyCache['status'] ?? ''),
+            'customer_name' => (string) ($verifyCache['client_name'] ?? $registrationCache['client_name'] ?? ''),
         ];
-    }
-
-    protected function maskedLicenseKey(string $key): string
-    {
-        $key = trim($key);
-        if ($key === '') {
-            return '';
-        }
-
-        return strlen($key) <= 8
-            ? str_repeat('*', strlen($key))
-            : substr($key, 0, 4) . str_repeat('*', max(4, strlen($key) - 8)) . substr($key, -4);
     }
 
     public function activate()
@@ -123,34 +89,48 @@ class LicenseController extends Controller
             return $resp;
         }
 
-        return view('developer.license.activate');
+        return redirect()
+            ->route('developer.license.status')
+            ->with('info', 'Manual license-key activation is no longer used. Register this device from the license status page.');
     }
 
-    public function activatePost(ActivateLicenseRequest $request, LicenseService $licenses)
+    public function activatePost()
     {
         if ($resp = $this->denyIfNoRole(['developer', 'admin'])) {
             return $resp;
         }
 
-        if (!$this->licenseTablesReady()) {
-            return redirect()
-                ->route('developer.license.status')
-                ->with('error', 'Licensing tables are not available yet. Run migrations on a verified staging/client-copy database before activation.');
+        return redirect()
+            ->route('developer.license.status')
+            ->with('info', 'Manual license-key activation is no longer used. Register this device from the license status page.');
+    }
+
+    public function registerDevice(LicenseService $licenses): RedirectResponse
+    {
+        if ($resp = $this->denyIfNoRole(['developer', 'admin'])) {
+            return $resp;
         }
 
-        $data = $request->validated();
-
-        $status = $licenses->activate($data['license_key']);
-
-        if (!$status->isAllowed()) {
-            return redirect()
-                ->back()
-                ->with('error', $status->message);
-        }
+        $result = $licenses->registerInstall();
+        $body = $result['body'] ?? [];
+        $message = $body['message'] ?? $result['message'] ?? 'Device registration request sent.';
 
         return redirect()
             ->route('developer.license.status')
-            ->with('success', $status->message);
+            ->with(($result['ok'] ?? false) ? 'success' : 'error', $message);
+    }
+
+    public function checkDevice(LicenseService $licenses): RedirectResponse
+    {
+        if ($resp = $this->denyIfNoRole(['developer', 'admin'])) {
+            return $resp;
+        }
+
+        $status = $licenses->verifyNow();
+
+        return redirect()
+            ->route('developer.license.status')
+            ->with($status->shouldBlock() ? 'error' : 'success', $status->message);
     }
 
     public function offline(OfflineActivationService $offline)

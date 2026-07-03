@@ -7,6 +7,20 @@ use Throwable;
 
 class LicenseActivationClient
 {
+    public function registerInstall(array $payload): array
+    {
+        $registerUrl = trim((string) config('licensing.register_url', ''));
+
+        if ($registerUrl === '') {
+            return [
+                'ok' => false,
+                'message' => 'License registration URL is not configured.',
+            ];
+        }
+
+        return $this->postJson($registerUrl, $payload, 'Device registration failed.');
+    }
+
     public function verify(array $payload): array
     {
         $verifyUrl = trim((string) config('licensing.server_url', ''));
@@ -18,33 +32,7 @@ class LicenseActivationClient
             ];
         }
 
-        try {
-            $response = Http::timeout((int) config('licensing.request_timeout_seconds', 10))
-                ->acceptJson()
-                ->post($verifyUrl, $payload);
-        } catch (Throwable $e) {
-            return [
-                'ok' => false,
-                'message' => 'License server is not reachable.',
-                'error' => $e->getMessage(),
-            ];
-        }
-
-        if (!$response->successful()) {
-            return [
-                'ok' => false,
-                'message' => $response->json('message') ?: 'License verification failed.',
-                'status' => $response->status(),
-            ];
-        }
-
-        $body = $response->json();
-
-        return [
-            'ok' => is_array($body),
-            'message' => is_array($body) ? ($body['message'] ?? 'License verification completed.') : 'License verification response was invalid.',
-            'body' => is_array($body) ? $body : null,
-        ];
+        return $this->postJson($verifyUrl, $payload, 'License verification failed.');
     }
 
     public function activate(string $licenseKey, array $installationContext): array
@@ -138,5 +126,36 @@ class LicenseActivationClient
         }
 
         return $serverUrl . $path;
+    }
+
+    protected function postJson(string $url, array $payload, string $fallbackMessage): array
+    {
+        try {
+            $response = Http::timeout((int) config('licensing.request_timeout_seconds', 10))
+                ->acceptJson()
+                ->post($url, $payload);
+        } catch (Throwable $e) {
+            return [
+                'ok' => false,
+                'message' => 'License server is not reachable.',
+                'error' => $e->getMessage(),
+            ];
+        }
+
+        if (!$response->successful()) {
+            return [
+                'ok' => false,
+                'message' => $response->json('message') ?: $fallbackMessage,
+                'status' => $response->status(),
+            ];
+        }
+
+        $body = $response->json();
+
+        return [
+            'ok' => is_array($body),
+            'message' => is_array($body) ? ($body['message'] ?? 'Request completed.') : 'Response was invalid.',
+            'body' => is_array($body) ? $body : null,
+        ];
     }
 }

@@ -84,23 +84,34 @@ Installed clients should use:
 
 ```env
 LICENSE_ENABLED=false
-LICENSE_CLIENT_ID=
-LICENSE_CLIENT_NAME=
-LICENSE_KEY=
-LICENSE_CHECK_URL=https://sparkpair.dev/api/licenses/verify
+LICENSE_ENFORCEMENT_ENABLED=false
+LICENSE_AUTO_REGISTER=true
+LICENSE_CHECK_URL=https://www.sparkpair.dev/api/licenses/verify
+LICENSE_REGISTER_URL=https://www.sparkpair.dev/api/licenses/register-install
 LICENSE_GRACE_DAYS=7
 ```
 
-`LICENSE_ENABLED=false` keeps local/dev builds allowed. Production/client installs can enable licensing after a customer and license are created in the SparkPair admin panel.
+`LICENSE_ENABLED=false` keeps local/dev builds allowed. Production/client installs can enable licensing after the SparkPair admin panel approval flow is ready.
+
+Register request:
+
+```json
+{
+  "product": "garmentsos-pro",
+  "install_id": "local-random-install-id",
+  "machine_hash": "hashed-safe-local-signals",
+  "machine_name": "CLIENT-PC",
+  "app_version": "1.8.40"
+}
+```
 
 Verify request:
 
 ```json
 {
   "product": "garmentsos-pro",
-  "client_id": "abc-garments",
-  "license_key": "GOS-XXXX-XXXX-XXXX-XXXX",
   "install_id": "local-random-install-id",
+  "machine_hash": "hashed-safe-local-signals",
   "app_version": "1.8.40"
 }
 ```
@@ -113,4 +124,4 @@ storage/app/install-id.txt
 
 Successful active verify responses are cached locally. If SparkPair is unreachable later, the app uses the cached status and grace window instead of immediately blocking. Expired or invalid licenses enter read-only mode. Updater routes remain available so support can recover/update the installation.
 
-The local app must never log or display the full `LICENSE_KEY`; developer pages show a masked key only.
+Client users do not enter license keys inside GarmentsOS PRO. SparkPair admins approve devices/licenses from the SparkPair site.
