@@ -307,6 +307,7 @@ jobs:
               print(json.load(handle).get("released_at", ""))
           PY
           )"
+
           release_base_url="https://github.com/${GITHUB_REPOSITORY}/releases/download/v${VERSION}"
           export package_sha256 released_at release_base_url
 
@@ -368,7 +369,7 @@ jobs:
             fail_sync "SparkPair release sync returned a redirect body instead of JSON."
           fi
 
-          python - "$response_body" "$VERSION" <<'PY' || fail_sync "SparkPair release sync response JSON was invalid or did not contain release.version."
+          if ! python - "$response_body" "$VERSION" <<'PY'
           import json
           import sys
 
@@ -387,6 +388,9 @@ jobs:
           if version != expected:
               raise SystemExit(f"release.version mismatch: {version} != {expected}")
           PY
+          then
+            fail_sync "SparkPair release sync response JSON was invalid or did not contain matching release.version."
+          fi
 
           echo "SparkPair release sync completed."
 
@@ -404,21 +408,23 @@ jobs:
               exit 1
             fi
 
-            python - "$feed_body" "$VERSION" <<'PY' || {
-              echo "::error::SparkPair stable feed version does not match release version."
-              head -c 2000 "$feed_body" || true
-              exit 1
-            }
+            if ! python - "$feed_body" "$VERSION" <<'PY'
           import json
           import sys
 
           path, expected = sys.argv[1], sys.argv[2]
           with open(path, encoding="utf-8") as handle:
               data = json.load(handle)
+
           version = str(data.get("version", ""))
           if version != expected:
               raise SystemExit(f"feed version mismatch: {version} != {expected}")
           PY
+            then
+              echo "::error::SparkPair stable feed version does not match release version."
+              head -c 2000 "$feed_body" || true
+              exit 1
+            fi
 
             echo "SparkPair stable feed version verified: ${VERSION}"
           fi
