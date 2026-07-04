@@ -623,8 +623,45 @@
             const overlay = document.getElementById('update-handoff-overlay');
             const updateLockStatusUrl = @json(Auth::check() ? route('developer.updater.update-lock-status') : null);
             const updatingUrl = @json(route('updating'));
+            const launchGuardKey = 'garmentsos_update_launching';
             let updateLockPoll = null;
             let closeFallbackStarted = false;
+
+            const launchGuardActive = () => {
+                try {
+                    const payload = JSON.parse(sessionStorage.getItem(launchGuardKey) || 'null');
+                    if (!payload || !payload.expiresAt) {
+                        return false;
+                    }
+
+                    if (Date.now() > payload.expiresAt) {
+                        sessionStorage.removeItem(launchGuardKey);
+                        return false;
+                    }
+
+                    return true;
+                } catch (error) {
+                    sessionStorage.removeItem(launchGuardKey);
+                    return false;
+                }
+            };
+
+            const setLaunchGuard = () => {
+                try {
+                    sessionStorage.setItem(launchGuardKey, JSON.stringify({
+                        startedAt: Date.now(),
+                        expiresAt: Date.now() + 60000,
+                    }));
+                } catch (error) {
+                }
+            };
+
+            const clearLaunchGuard = () => {
+                try {
+                    sessionStorage.removeItem(launchGuardKey);
+                } catch (error) {
+                }
+            };
 
             const closeOrReplaceWithUpdating = (delay = 4000) => {
                 if (closeFallbackStarted) {
@@ -663,13 +700,6 @@
                     iframe.src = protocolUrl;
                 } catch (error) {
                 }
-
-                window.setTimeout(() => {
-                    try {
-                        window.location.href = protocolUrl;
-                    } catch (error) {
-                    }
-                }, 250);
 
                 window.setTimeout(() => {
                     iframe.remove();
@@ -742,7 +772,8 @@
             document.querySelectorAll('.js-update-handoff').forEach((link) => {
                 link.addEventListener('click', async (event) => {
                     event.preventDefault();
-                    if (link.dataset.busy === '1') {
+                    if (link.dataset.busy === '1' || launchGuardActive()) {
+                        alert('Update launcher is already opening.');
                         return;
                     }
 
@@ -752,6 +783,14 @@
                     }
 
                     link.dataset.busy = '1';
+                    link.setAttribute('aria-disabled', 'true');
+                    const originalText = link.textContent;
+                    link.textContent = 'Launcher opening...';
+                    document.querySelectorAll('.js-update-handoff').forEach((otherLink) => {
+                        otherLink.dataset.busy = '1';
+                        otherLink.setAttribute('aria-disabled', 'true');
+                    });
+                    setLaunchGuard();
                     showUpdateOverlay();
                     pollUpdateLock();
 
@@ -771,11 +810,27 @@
                             throw new Error(payload.message || 'Update could not be started.');
                         }
 
+                        try {
+                            sessionStorage.setItem(launchGuardKey, JSON.stringify({
+                                startedAt: Date.now(),
+                                expiresAt: Date.now() + 60000,
+                                requestId: payload.request_id || null,
+                            }));
+                        } catch (error) {
+                        }
+
                         launchUpdaterProtocol(payload.protocol_url);
                         closeOrReplaceWithUpdating(4500);
                     } catch (error) {
+                        clearLaunchGuard();
                         alert(error.message || 'Update could not be started.');
                         link.dataset.busy = '0';
+                        link.removeAttribute('aria-disabled');
+                        link.textContent = originalText;
+                        document.querySelectorAll('.js-update-handoff').forEach((otherLink) => {
+                            otherLink.dataset.busy = '0';
+                            otherLink.removeAttribute('aria-disabled');
+                        });
                         hideUpdateOverlay();
                     }
                 });

@@ -115,9 +115,9 @@ class UpdateController extends Controller
             ->header('Content-Disposition', 'attachment; filename="garmentsos-update-request.json"');
     }
 
-    public function signedUpdateRequest(ReleaseFeedService $releaseFeed): JsonResponse
+    public function signedUpdateRequest(Request $request, ReleaseFeedService $releaseFeed): JsonResponse
     {
-        $result = $releaseFeed->prepareUpdateRequest();
+        $result = $releaseFeed->prepareUpdateRequest(requestId: (string) $request->query('request_id', ''));
         $payload = $result['request'] ?? [
             'app' => config('updater.app_id', 'garmentsos-pro'),
             'error' => $result['code'] ?? 'update_request_unavailable',
@@ -160,6 +160,7 @@ class UpdateController extends Controller
                 'name' => $user->name ?? $user->username ?? null,
             ] : null,
             'target_version' => $status['latest_version'] ?? ($status['feed']['version'] ?? null),
+            'request_id' => $result['request_id'] ?? null,
         ]);
 
         return response()->json(array_merge($result, [
@@ -172,6 +173,14 @@ class UpdateController extends Controller
     public function updateLockStatus(UpdateLockService $locks): JsonResponse
     {
         return response()->json($locks->status());
+    }
+
+    public function signedUpdateFailed(Request $request, UpdateLockService $locks): JsonResponse
+    {
+        return response()->json($locks->fail(
+            requestId: (string) $request->query('request_id', ''),
+            message: 'Launcher handoff failed before update started.'
+        ));
     }
 
     public function clearUpdateLock(Request $request, UpdateLockService $locks): JsonResponse|RedirectResponse

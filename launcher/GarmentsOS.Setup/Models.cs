@@ -46,6 +46,9 @@ public sealed class ReleaseFeed
 
 public sealed class UpdateRequest
 {
+    [JsonPropertyName("request_id")]
+    public string RequestId { get; set; } = "";
+
     [JsonPropertyName("current_version")]
     public string CurrentVersion { get; set; } = "";
 
@@ -66,6 +69,9 @@ public sealed class UpdateRequest
 
     [JsonPropertyName("setup_url")]
     public string SetupUrl { get; set; } = "";
+
+    [JsonPropertyName("update_lock_failed_url")]
+    public string UpdateLockFailedUrl { get; set; } = "";
 
     [JsonPropertyName("mandatory")]
     public bool Mandatory { get; set; }

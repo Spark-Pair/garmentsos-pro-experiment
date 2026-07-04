@@ -5,6 +5,7 @@ namespace App\Services\Updater;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\URL;
+use Illuminate\Support\Str;
 
 class ReleaseFeedService
 {
@@ -171,9 +172,10 @@ class ReleaseFeedService
         ]);
     }
 
-    public function prepareUpdateRequest(?array $status = null): array
+    public function prepareUpdateRequest(?array $status = null, ?string $requestId = null): array
     {
         $status ??= $this->checkConfigured();
+        $requestId = $requestId ?: (string) Str::uuid();
 
         if (empty($status['update_available']) || empty($status['feed'])) {
             return $this->result('update_not_available', 'No update is available to prepare.', [
@@ -184,6 +186,7 @@ class ReleaseFeedService
         }
 
         $feed = $status['feed'];
+        $expiresAt = now()->addMinutes(max(1, (int) config('updater.update_request_ttl_minutes', 10)));
 
         return $this->result('update_request_prepared', 'Update request prepared for Windows launcher handoff.', [
             'success' => true,
@@ -198,9 +201,13 @@ class ReleaseFeedService
                 'setup_url' => $this->validSetupUrl($feed['setup_url']) ? $feed['setup_url'] : null,
                 'mandatory' => (bool) $feed['mandatory'],
                 'notes' => $feed['notes'],
+                'request_id' => $requestId,
                 'requested_at' => now()->utc()->toIso8601String(),
                 'apply_method' => 'windows-launcher-required',
                 'launcher_protocol_url' => $this->launcherProtocolUrl(),
+                'update_lock_failed_url' => URL::temporarySignedRoute('developer.updater.update-lock-failed.signed', $expiresAt, [
+                    'request_id' => $requestId,
+                ]),
             ],
         ]);
     }
@@ -217,13 +224,17 @@ class ReleaseFeedService
         }
 
         $expiresAt = now()->addMinutes(max(1, (int) config('updater.update_request_ttl_minutes', 10)));
-        $signedUrl = URL::temporarySignedRoute('developer.updater.update-request.signed', $expiresAt);
+        $requestId = (string) Str::uuid();
+        $signedUrl = URL::temporarySignedRoute('developer.updater.update-request.signed', $expiresAt, [
+            'request_id' => $requestId,
+        ]);
         $protocolUrl = $this->launcherProtocolUrl();
 
         return $this->result('launcher_handoff_prepared', 'Launcher handoff URL prepared.', [
             'success' => true,
-            'protocol_url' => $protocolUrl ? $protocolUrl . '?request=' . rawurlencode($signedUrl) . '&autoStart=1' : null,
+            'protocol_url' => $protocolUrl ? $protocolUrl . '?request=' . rawurlencode($signedUrl) . '&autoStart=1&requestId=' . rawurlencode($requestId) : null,
             'signed_request_url' => $signedUrl,
+            'request_id' => $requestId,
             'expires_at' => $expiresAt->utc()->toIso8601String(),
         ]);
     }

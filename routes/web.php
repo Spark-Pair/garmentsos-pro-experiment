@@ -69,6 +69,7 @@ Route::get('subscription-expired', function () {
 
 Route::middleware(['setup.complete', 'signed'])->group(function () {
     Route::get('developer/updater/update-request/signed', [UpdateController::class, 'signedUpdateRequest'])->name('developer.updater.update-request.signed');
+    Route::get('developer/updater/update-lock-failed/signed', [UpdateController::class, 'signedUpdateFailed'])->name('developer.updater.update-lock-failed.signed');
 });
 
 Route::get('updating', function (UpdateLockService $locks) {

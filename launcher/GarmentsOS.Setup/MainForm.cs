@@ -34,7 +34,9 @@ internal sealed class LauncherStep
 internal sealed class DownloadFailedException : Exception
 {
     public DownloadFailedException(Exception innerException)
-        : base("Download failed. Please check your internet connection and try again.", innerException)
+        : base(innerException is InvalidOperationException
+            ? innerException.Message
+            : "Download failed. Please check your internet connection and try again.", innerException)
     {
     }
 }
@@ -45,6 +47,9 @@ public sealed class MainForm : Form
     private const string AppUrl = "http://localhost:8000";
     private const string DefaultFeedUrl = "https://github.com/Spark-Pair/garmentsos-pro-experiment/releases/download/latest-stable/latest.json";
     private const string PrimaryLauncherExeName = "GarmentsOS-PRO.exe";
+    private const string UpdateMutexName = @"Local\GarmentsOS_PRO_Update";
+    private const string OpenMutexName = @"Local\GarmentsOS_PRO_Launcher_Open";
+    private static readonly TimeSpan ActiveUpdateTtl = TimeSpan.FromMinutes(60);
 
     private static readonly Color BrandBlue = Color.FromArgb(37, 99, 235);
     private static readonly Color AppBackground = Color.FromArgb(238, 241, 244);
@@ -98,6 +103,12 @@ public sealed class MainForm : Form
     private ReleaseFeed? currentFeed;
     private LauncherMode launcherMode = LauncherMode.Manual;
     private string? currentStepKey;
+    private string? lastSupportLogPath;
+    private Mutex? modeMutex;
+    private bool ownsModeMutex;
+    private string? startupRequestId;
+    private string? startupLockFailedUrl;
+    private string? activeUpdateRequestId;
     private bool autoUpdateMode;
     private bool criticalUpdateStep;
     private bool detailsExpanded;
@@ -153,6 +164,12 @@ public sealed class MainForm : Form
         }
 
         base.OnFormClosing(e);
+    }
+
+    protected override void OnFormClosed(FormClosedEventArgs e)
+    {
+        ReleaseModeMutex();
+        base.OnFormClosed(e);
     }
 
     private ContextMenuStrip BuildContextMenu()
@@ -569,8 +586,8 @@ public sealed class MainForm : Form
         failureButtonsPanel.WrapContents = false;
         failureButtonsPanel.BackColor = Color.Transparent;
         AddButton(failureButtonsPanel, "Details", (_, _) => ToggleDetails());
-        AddButton(failureButtonsPanel, "Open Install Folder", (_, _) => OpenFolder(installDirBox.Text));
         AddButton(failureButtonsPanel, "Save Log", (_, _) => SaveLog());
+        AddButton(failureButtonsPanel, "Open Support Folder", (_, _) => OpenSupportFolder());
         AddButton(failureButtonsPanel, "Close", (_, _) => Close());
         failureButtonsPanel.Visible = false;
     }
@@ -1091,6 +1108,7 @@ public sealed class MainForm : Form
         criticalUpdateStep = false;
         ControlBox = true;
         updateButton.Enabled = currentFeed is not null;
+        SaveLauncherErrorLog(title, message);
 
         progressStatusLabel.Text = title;
         progressBar.Value = 0;
@@ -1181,6 +1199,261 @@ public sealed class MainForm : Form
         await LoadRequestJsonFromFileAsync(dialog.FileName);
     }
 
+    private bool TryAcquireModeMutex(LauncherMode mode)
+    {
+        if (ownsModeMutex)
+        {
+            return true;
+        }
+
+        var mutexName = mode == LauncherMode.Update
+            ? UpdateMutexName
+            : mode == LauncherMode.Open
+                ? OpenMutexName
+                : null;
+
+        if (mutexName is null)
+        {
+            return true;
+        }
+
+        try
+        {
+            modeMutex = new Mutex(false, mutexName);
+            ownsModeMutex = modeMutex.WaitOne(0, false);
+            if (ownsModeMutex)
+            {
+                Log("Launcher mutex acquired: " + mutexName);
+                return true;
+            }
+
+            Log("Launcher mutex is already held: " + mutexName);
+            TryBringExistingLauncherToFront();
+            modeMutex.Dispose();
+            modeMutex = null;
+            return false;
+        }
+        catch (Exception ex)
+        {
+            Log("Could not acquire launcher mutex: " + ex.Message);
+            return true;
+        }
+    }
+
+    private void ReleaseModeMutex()
+    {
+        if (modeMutex is null)
+        {
+            return;
+        }
+
+        try
+        {
+            if (ownsModeMutex)
+            {
+                modeMutex.ReleaseMutex();
+            }
+        }
+        catch
+        {
+        }
+        finally
+        {
+            ownsModeMutex = false;
+            modeMutex.Dispose();
+            modeMutex = null;
+        }
+    }
+
+    private static void TryBringExistingLauncherToFront()
+    {
+        try
+        {
+            var currentId = Environment.ProcessId;
+            var processes = Process.GetProcesses()
+                .Where(process =>
+                    process.Id != currentId &&
+                    (process.ProcessName.Equals("GarmentsOS-PRO", StringComparison.OrdinalIgnoreCase)
+                        || process.ProcessName.Equals("GarmentsOS-PRO-Setup", StringComparison.OrdinalIgnoreCase)
+                        || process.ProcessName.Equals("GarmentsOS PRO Launcher", StringComparison.OrdinalIgnoreCase)))
+                .ToList();
+
+            foreach (var process in processes)
+            {
+                if (process.MainWindowHandle == IntPtr.Zero)
+                {
+                    continue;
+                }
+
+                ShowWindow(process.MainWindowHandle, 9);
+                SetForegroundWindow(process.MainWindowHandle);
+                return;
+            }
+        }
+        catch
+        {
+        }
+    }
+
+    private void CloseSoon(int milliseconds = 700)
+    {
+        var timer = new System.Windows.Forms.Timer { Interval = milliseconds };
+        timer.Tick += (_, _) =>
+        {
+            timer.Stop();
+            Close();
+        };
+        timer.Start();
+    }
+
+    private bool TryBeginActiveUpdate(string? requestId, string targetVersion)
+    {
+        var installDir = installDirBox.Text.Trim();
+        var updatesDir = Path.Combine(installDir, "updates");
+        var markerPath = ActiveUpdateMarkerPath(installDir);
+        requestId = string.IsNullOrWhiteSpace(requestId) ? Guid.NewGuid().ToString("D") : requestId.Trim();
+
+        try
+        {
+            Directory.CreateDirectory(updatesDir);
+
+            if (File.Exists(markerPath))
+            {
+                var active = ReadActiveUpdateMarker(markerPath);
+                if (active is not null && !ActiveUpdateExpired(active.Value.StartedAt))
+                {
+                    var existingId = active.Value.RequestId;
+                    var message = string.Equals(existingId, requestId, StringComparison.OrdinalIgnoreCase)
+                        ? "This update request is already running in another launcher window."
+                        : "Another GarmentsOS PRO update is already running. Please wait for it to finish.";
+
+                    Log(message);
+                    ShowFailureMode(message, "Update already running");
+                    return false;
+                }
+
+                var stalePath = Path.Combine(
+                    Path.GetDirectoryName(markerPath) ?? updatesDir,
+                    "active-update.stale-" + DateTime.Now.ToString("yyyyMMdd_HHmmss") + ".json");
+                File.Move(markerPath, stalePath, overwrite: true);
+                Log("Active update marker was stale and moved to: " + stalePath);
+            }
+
+            var marker = new
+            {
+                app = "garmentsos-pro",
+                request_id = requestId,
+                started_at = DateTimeOffset.UtcNow.ToString("O"),
+                target_version = targetVersion,
+            };
+
+            File.WriteAllText(markerPath, JsonSerializer.Serialize(marker, new JsonSerializerOptions
+            {
+                WriteIndented = true,
+            }));
+
+            activeUpdateRequestId = requestId;
+            Log("Active update marker created: " + markerPath);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Log("Could not create active update marker: " + ex.Message);
+            return true;
+        }
+    }
+
+    private void ClearActiveUpdateMarker()
+    {
+        var markerPath = ActiveUpdateMarkerPath(installDirBox.Text.Trim());
+        if (activeUpdateRequestId is null || !File.Exists(markerPath))
+        {
+            activeUpdateRequestId = null;
+            return;
+        }
+
+        try
+        {
+            var active = ReadActiveUpdateMarker(markerPath);
+            if (active is null || string.Equals(active.Value.RequestId, activeUpdateRequestId, StringComparison.OrdinalIgnoreCase))
+            {
+                File.Delete(markerPath);
+                Log("Active update marker cleared.");
+            }
+        }
+        catch (Exception ex)
+        {
+            Log("Could not clear active update marker: " + ex.Message);
+        }
+        finally
+        {
+            activeUpdateRequestId = null;
+        }
+    }
+
+    private static string ActiveUpdateMarkerPath(string installDir)
+    {
+        return Path.Combine(installDir, "updates", "active-update.json");
+    }
+
+    private static (string RequestId, DateTimeOffset StartedAt)? ReadActiveUpdateMarker(string markerPath)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(File.ReadAllText(markerPath));
+            var root = document.RootElement;
+            var requestId = root.TryGetProperty("request_id", out var id) ? id.GetString() ?? "" : "";
+            var startedAtText = root.TryGetProperty("started_at", out var started) ? started.GetString() ?? "" : "";
+
+            if (!DateTimeOffset.TryParse(startedAtText, out var startedAt))
+            {
+                return null;
+            }
+
+            return (requestId, startedAt);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static bool ActiveUpdateExpired(DateTimeOffset startedAt)
+    {
+        return DateTimeOffset.UtcNow - startedAt.ToUniversalTime() > ActiveUpdateTtl;
+    }
+
+    private static bool HasActiveUpdateMarker(string installDir)
+    {
+        var markerPath = ActiveUpdateMarkerPath(installDir);
+        if (!File.Exists(markerPath))
+        {
+            return false;
+        }
+
+        var active = ReadActiveUpdateMarker(markerPath);
+        return active is not null && !ActiveUpdateExpired(active.Value.StartedAt);
+    }
+
+    private static bool IsMutexHeld(string mutexName)
+    {
+        try
+        {
+            using var mutex = new Mutex(false, mutexName);
+            if (mutex.WaitOne(0, false))
+            {
+                mutex.ReleaseMutex();
+                return false;
+            }
+
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
     private async Task HandleStartupArgumentAsync()
     {
         if (string.IsNullOrWhiteSpace(startupArgument))
@@ -1211,6 +1484,13 @@ public sealed class MainForm : Form
 
         if (string.Equals(action, "open", StringComparison.OrdinalIgnoreCase))
         {
+            if (!TryAcquireModeMutex(LauncherMode.Open))
+            {
+                Log("Another GarmentsOS PRO launcher is already opening the app.");
+                CloseSoon();
+                return;
+            }
+
             Log("Launcher opened from garmentsos://open.");
             await OpenAppAsync();
             return;
@@ -1224,9 +1504,17 @@ public sealed class MainForm : Form
 
         var query = ProtocolQuery(startupArgument, uri.Query);
         var request = QueryValue(query, "request");
+        startupRequestId = QueryValue(query, "requestId") ?? QueryValue(query, "request_id");
         var autoStart = IsTruthy(QueryValue(query, "autoStart"))
             || IsTruthy(QueryValue(query, "autostart"))
             || IsTruthy(QueryValue(query, "auto"));
+
+        if (!TryAcquireModeMutex(LauncherMode.Update))
+        {
+            Log("Another GarmentsOS PRO update window is already running.");
+            CloseSoon();
+            return;
+        }
 
         if (autoStart)
         {
@@ -1334,6 +1622,12 @@ public sealed class MainForm : Form
             Mandatory = request.Mandatory,
             Notes = request.Notes,
         };
+        startupRequestId = !string.IsNullOrWhiteSpace(request.RequestId)
+            ? request.RequestId
+            : startupRequestId;
+        startupLockFailedUrl = !string.IsNullOrWhiteSpace(request.UpdateLockFailedUrl)
+            ? request.UpdateLockFailedUrl
+            : startupLockFailedUrl;
 
         latestVersionLabel.Text = $"Latest version: {currentFeed.Version}";
         mandatoryLabel.Text = $"Mandatory: {currentFeed.Mandatory}";
@@ -1364,6 +1658,13 @@ public sealed class MainForm : Form
             return;
         }
 
+        if (!TryAcquireModeMutex(LauncherMode.Update))
+        {
+            Log("Another GarmentsOS PRO update is already running.");
+            ShowFailureMode("Another GarmentsOS PRO update is already running. Please use the existing updater window.", "Update already running");
+            return;
+        }
+
         if (requireConfirmation)
         {
             var confirm = MessageBox.Show(
@@ -1376,6 +1677,13 @@ public sealed class MainForm : Form
             {
                 return;
             }
+        }
+
+        if (!TryBeginActiveUpdate(startupRequestId, currentFeed.Version))
+        {
+            ReleaseModeMutex();
+            CloseSoon();
+            return;
         }
 
         updateButton.Enabled = false;
@@ -1422,25 +1730,33 @@ public sealed class MainForm : Form
             }
 
             SetStep("Creating backup...", marquee: true);
-            await RunProcessAsync(
-                "powershell.exe",
-                $"-NoProfile -ExecutionPolicy Bypass -File \"{script}\" -InstallDir \"{installDirBox.Text.Trim()}\" -ReleaseDir \"{releaseDir}\"",
-                releaseDir,
-                line =>
-                {
-                    if (line.Contains("backup", StringComparison.OrdinalIgnoreCase))
+            try
+            {
+                await RunProcessAsync(
+                    "powershell.exe",
+                    $"-NoProfile -ExecutionPolicy Bypass -File \"{script}\" -InstallDir \"{installDirBox.Text.Trim()}\" -ReleaseDir \"{releaseDir}\"",
+                    releaseDir,
+                    line =>
                     {
-                        SetStep("Creating backup...", marquee: true);
-                    }
-                    else if (line.Contains("docker load", StringComparison.OrdinalIgnoreCase) || line.Contains("Loaded image", StringComparison.OrdinalIgnoreCase))
-                    {
-                        SetStep("Applying update...", marquee: true);
-                    }
-                    else if (line.Contains("compose", StringComparison.OrdinalIgnoreCase) || line.Contains("started", StringComparison.OrdinalIgnoreCase))
-                    {
-                        SetStep("Restarting services...", marquee: true);
-                    }
-                });
+                        if (line.Contains("backup", StringComparison.OrdinalIgnoreCase))
+                        {
+                            SetStep("Creating backup...", marquee: true);
+                        }
+                        else if (line.Contains("docker load", StringComparison.OrdinalIgnoreCase) || line.Contains("Loaded image", StringComparison.OrdinalIgnoreCase))
+                        {
+                            SetStep("Applying update...", marquee: true);
+                        }
+                        else if (line.Contains("compose", StringComparison.OrdinalIgnoreCase) || line.Contains("started", StringComparison.OrdinalIgnoreCase))
+                        {
+                            SetStep("Restarting services...", marquee: true);
+                        }
+                    });
+            }
+            catch (Exception updateScriptEx)
+            {
+                var restartLog = await CaptureRestartServicesDiagnosticsAsync(installDirBox.Text.Trim(), updateScriptEx);
+                throw new InvalidOperationException("Restart services failed. Details were saved to: " + restartLog, updateScriptEx);
+            }
 
             SetStep("Opening app...", percent: 95);
             StartPendingLauncherReplacementHelper(installDirBox.Text.Trim());
@@ -1465,6 +1781,7 @@ public sealed class MainForm : Form
         catch (DownloadFailedException ex)
         {
             Log("Update package download failed: " + ex.InnerException?.Message);
+            await NotifyUpdateLockFailedAsync();
             criticalUpdateStep = false;
             ControlBox = true;
             updateButton.Enabled = currentFeed is not null;
@@ -1473,6 +1790,11 @@ public sealed class MainForm : Form
         catch (Exception ex)
         {
             await HandleUpdateFailureAsync(ex);
+        }
+        finally
+        {
+            ClearActiveUpdateMarker();
+            ReleaseModeMutex();
         }
     }
 
@@ -1576,6 +1898,10 @@ public sealed class MainForm : Form
     private async Task HandleUpdateFailureAsync(Exception ex)
     {
         Log("Update failed: " + ex.Message);
+        await NotifyUpdateLockFailedAsync();
+        var rollbackLogPath = CreateRollbackLogPath();
+        AppendRollbackLog(rollbackLogPath, "Update failed: " + ex.Message);
+        var backupPath = FindLatestValidBackupPath(installDirBox.Text.Trim());
 
         autoUpdateMode = false;
         criticalUpdateStep = false;
@@ -1583,31 +1909,47 @@ public sealed class MainForm : Form
         updateButton.Enabled = currentFeed is not null;
 
         SetStep("Restoring previous version...", marquee: true);
-        var rollbackOk = await TryRestorePreviousVersionAsync();
+        var rollbackOk = await TryRestorePreviousVersionAsync(rollbackLogPath);
 
         if (rollbackOk)
         {
             Log("Previous version restore/start completed.");
+            AppendRollbackLog(rollbackLogPath, "Previous version restore/start completed.");
             ShowFailureMode("Update failed. Previous version was restored. Open details to see the reason.");
         }
         else
         {
             Log("Previous version restore/start could not be completed automatically.");
-            ShowFailureMode("Update failed. Automatic rollback could not complete. Open details to see the reason.");
+            AppendRollbackLog(rollbackLogPath, "Rollback failed or backup was not valid.");
+            var message = backupPath is null
+                ? "Update failed. Backup was not valid. Please contact support."
+                : "Rollback could not complete automatically. Backup is available at: " + backupPath;
+            ShowFailureMode(message, "Update failed");
         }
 
         await RefreshStatusAsync();
     }
 
-    private async Task<bool> TryRestorePreviousVersionAsync()
+    private async Task<bool> TryRestorePreviousVersionAsync(string rollbackLogPath)
     {
         var installDir = installDirBox.Text.Trim();
 
         if (string.IsNullOrWhiteSpace(installDir) || !Directory.Exists(installDir))
         {
             Log("Rollback skipped because install folder was not found: " + installDir);
+            AppendRollbackLog(rollbackLogPath, "Rollback skipped; install folder not found: " + installDir);
             return false;
         }
+
+        var backupPath = FindLatestValidBackupPath(installDir);
+        if (backupPath is null)
+        {
+            Log("Rollback skipped because no valid backup was found.");
+            AppendRollbackLog(rollbackLogPath, "Rollback skipped; no valid backup was found.");
+            return false;
+        }
+
+        AppendRollbackLog(rollbackLogPath, "Backup candidate: " + backupPath);
 
         var rollbackScripts = new[]
         {
@@ -1627,18 +1969,27 @@ public sealed class MainForm : Form
             {
                 SetStep("Rolling back to previous version...", marquee: true);
                 Log("Running rollback script: " + script);
+                AppendRollbackLog(rollbackLogPath, "Running rollback script: " + script);
                 await RunProcessAsync(
                     "powershell.exe",
                     $"-NoProfile -ExecutionPolicy Bypass -File \"{script}\" -InstallDir \"{installDir}\"",
-                    installDir);
+                    installDir,
+                    onOutput: line => AppendRollbackLog(rollbackLogPath, line),
+                    timeout: TimeSpan.FromMinutes(5));
 
                 SetStep("Starting previous version...", marquee: true);
-                await RunProcessAsync(ResolveDockerCommand(), "compose up -d", installDir);
+                await RunProcessAsync(
+                    ResolveDockerCommand(),
+                    "compose up -d",
+                    installDir,
+                    onOutput: line => AppendRollbackLog(rollbackLogPath, line),
+                    timeout: TimeSpan.FromMinutes(5));
                 return true;
             }
             catch (Exception rollbackEx)
             {
                 Log("Rollback script failed: " + rollbackEx.Message);
+                AppendRollbackLog(rollbackLogPath, "Rollback script failed: " + rollbackEx.Message);
                 return false;
             }
         }
@@ -1649,13 +2000,224 @@ public sealed class MainForm : Form
             // currently installed/previous compose stack back up so the app is accessible.
             SetStep("Starting previous version...", marquee: true);
             Log("No rollback script found. Starting existing compose stack as fallback.");
-            await RunProcessAsync(ResolveDockerCommand(), "compose up -d", installDir);
+            AppendRollbackLog(rollbackLogPath, "No rollback script found. Starting existing compose stack as fallback.");
+            await RunProcessAsync(
+                ResolveDockerCommand(),
+                "compose up -d",
+                installDir,
+                onOutput: line => AppendRollbackLog(rollbackLogPath, line),
+                timeout: TimeSpan.FromMinutes(5));
             return true;
         }
         catch (Exception startEx)
         {
             Log("Fallback start failed: " + startEx.Message);
+            AppendRollbackLog(rollbackLogPath, "Fallback start failed: " + startEx.Message);
             return false;
+        }
+    }
+
+    private string CreateRollbackLogPath()
+    {
+        var installDir = installDirBox.Text.Trim();
+        var logDir = Path.Combine(string.IsNullOrWhiteSpace(installDir) ? DefaultInstallDir : installDir, "logs");
+        Directory.CreateDirectory(logDir);
+        return Path.Combine(logDir, "rollback-" + DateTime.Now.ToString("yyyyMMdd_HHmmss") + ".log");
+    }
+
+    private static void AppendRollbackLog(string path, string message)
+    {
+        try
+        {
+            File.AppendAllText(path, $"[{DateTime.Now:O}] {message}{Environment.NewLine}");
+        }
+        catch
+        {
+        }
+    }
+
+    private async Task<string> CaptureRestartServicesDiagnosticsAsync(string installDir, Exception exception)
+    {
+        var logPath = CreateSupportLogPath("restart-services");
+        lastSupportLogPath = logPath;
+
+        AppendSupportLog(logPath, "Restart services diagnostics");
+        AppendSupportLog(logPath, "InstallDir: " + installDir);
+        AppendSupportLog(logPath, "Exception: " + exception.GetType().Name + ": " + exception.Message);
+        AppendSupportLog(logPath, "");
+        AppendSupportLog(logPath, "[.env update/app fields]");
+        foreach (var line in ReadRedactedEnvDiagnostics(Path.Combine(installDir, ".env")))
+        {
+            AppendSupportLog(logPath, line);
+        }
+
+        await CaptureCommandDiagnosticsAsync(logPath, ResolveDockerCommand(), "compose ps", installDir, "docker compose ps");
+        await CaptureCommandDiagnosticsAsync(logPath, ResolveDockerCommand(), "compose logs --tail=200", installDir, "docker compose logs --tail=200");
+
+        Log("Restart services diagnostics saved to: " + logPath);
+        return logPath;
+    }
+
+    private async Task CaptureCommandDiagnosticsAsync(string logPath, string fileName, string arguments, string workingDirectory, string heading)
+    {
+        AppendSupportLog(logPath, "");
+        AppendSupportLog(logPath, "[" + heading + "]");
+
+        try
+        {
+            var result = await RunProcessCaptureTextAsync(fileName, arguments, workingDirectory, TimeSpan.FromMinutes(2));
+            AppendSupportLog(logPath, "Exit code: " + result.ExitCode);
+            if (!string.IsNullOrWhiteSpace(result.Output))
+            {
+                AppendSupportLog(logPath, result.Output.TrimEnd());
+            }
+            if (!string.IsNullOrWhiteSpace(result.Error))
+            {
+                AppendSupportLog(logPath, "[stderr]");
+                AppendSupportLog(logPath, result.Error.TrimEnd());
+            }
+        }
+        catch (Exception ex)
+        {
+            AppendSupportLog(logPath, "Diagnostic command failed: " + ex.Message);
+        }
+    }
+
+    private static IEnumerable<string> ReadRedactedEnvDiagnostics(string envPath)
+    {
+        if (!File.Exists(envPath))
+        {
+            yield return ".env not found: " + envPath;
+            yield break;
+        }
+
+        var allowedPrefixes = new[]
+        {
+            "APP_VERSION=",
+            "GARMENTSOS_IMAGE=",
+            "UPDATE_FEED_URL=",
+            "UPDATE_CHANNEL=",
+            "UPDATE_LAUNCHER_PROTOCOL=",
+            "UPDATE_LOCK_TTL_MINUTES=",
+        };
+
+        foreach (var line in File.ReadLines(envPath))
+        {
+            var trimmed = line.Trim();
+            if (allowedPrefixes.Any(prefix => trimmed.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)))
+            {
+                yield return trimmed;
+            }
+        }
+    }
+
+    private string CreateSupportLogPath(string prefix)
+    {
+        var logDir = SupportLogDir();
+        Directory.CreateDirectory(logDir);
+        return Path.Combine(logDir, prefix + "-" + DateTime.Now.ToString("yyyyMMdd_HHmmss") + ".log");
+    }
+
+    private string SupportLogDir()
+    {
+        var installDir = installDirBox.Text.Trim();
+        return Path.Combine(string.IsNullOrWhiteSpace(installDir) ? DefaultInstallDir : installDir, "logs");
+    }
+
+    private void SaveLauncherErrorLog(string title, string message)
+    {
+        try
+        {
+            var logPath = CreateSupportLogPath("launcher-error");
+            lastSupportLogPath = logPath;
+            AppendSupportLog(logPath, title);
+            AppendSupportLog(logPath, message);
+            AppendSupportLog(logPath, "");
+            AppendSupportLog(logPath, logBox.Text);
+            Log("Launcher error log saved to: " + logPath);
+        }
+        catch
+        {
+        }
+    }
+
+    private static void AppendSupportLog(string path, string message)
+    {
+        try
+        {
+            File.AppendAllText(path, $"[{DateTime.Now:O}] {message}{Environment.NewLine}");
+        }
+        catch
+        {
+        }
+    }
+
+    private static string? FindLatestValidBackupPath(string installDir)
+    {
+        var backupsDir = Path.Combine(installDir, "backups");
+        if (!Directory.Exists(backupsDir))
+        {
+            return null;
+        }
+
+        var candidates = Directory.EnumerateFileSystemEntries(backupsDir)
+            .Where(path =>
+            {
+                var name = Path.GetFileName(path);
+                return !name.StartsWith("cleanup_", StringComparison.OrdinalIgnoreCase)
+                    && !name.StartsWith("env_", StringComparison.OrdinalIgnoreCase)
+                    && !name.Contains(".env", StringComparison.OrdinalIgnoreCase);
+            })
+            .Select(path => new FileSystemInfoWrapper(path))
+            .Where(item => item.Exists && item.LengthOrNonEmpty > 0)
+            .OrderByDescending(item => item.LastWriteTimeUtc)
+            .FirstOrDefault();
+
+        return candidates?.Path;
+    }
+
+    private sealed class FileSystemInfoWrapper
+    {
+        public FileSystemInfoWrapper(string path)
+        {
+            Path = path;
+            if (File.Exists(path))
+            {
+                var file = new FileInfo(path);
+                Exists = file.Exists;
+                LastWriteTimeUtc = file.LastWriteTimeUtc;
+                LengthOrNonEmpty = file.Length;
+            }
+            else if (Directory.Exists(path))
+            {
+                var directory = new DirectoryInfo(path);
+                Exists = directory.Exists;
+                LastWriteTimeUtc = directory.LastWriteTimeUtc;
+                LengthOrNonEmpty = directory.EnumerateFileSystemInfos().Any() ? 1 : 0;
+            }
+        }
+
+        public string Path { get; }
+        public bool Exists { get; }
+        public DateTime LastWriteTimeUtc { get; }
+        public long LengthOrNonEmpty { get; }
+    }
+
+    private async Task NotifyUpdateLockFailedAsync()
+    {
+        if (string.IsNullOrWhiteSpace(startupLockFailedUrl))
+        {
+            return;
+        }
+
+        try
+        {
+            using var response = await http.GetAsync(startupLockFailedUrl);
+            Log($"Update lock failure callback returned HTTP {(int) response.StatusCode}.");
+        }
+        catch (Exception callbackEx)
+        {
+            Log("Could not notify app about failed update handoff: " + callbackEx.Message);
         }
     }
 
@@ -1730,9 +2292,17 @@ public sealed class MainForm : Form
         {
             using var request = new HttpRequestMessage(HttpMethod.Get, url);
             using var response = await downloadHttp.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
-            response.EnsureSuccessStatusCode();
-
+            var finalUrl = response.RequestMessage?.RequestUri?.ToString() ?? url;
+            var contentType = response.Content.Headers.ContentType?.ToString() ?? "";
             var totalBytes = response.Content.Headers.ContentLength ?? expectedBytes;
+
+            Log($"Download response: status={(int) response.StatusCode} {response.ReasonPhrase}; url={url}; final_url={finalUrl}; content_type={contentType}; bytes_expected={(totalBytes.HasValue ? totalBytes.Value.ToString() : "unknown")}");
+
+            if (!response.IsSuccessStatusCode)
+            {
+                throw new InvalidOperationException(DownloadHttpErrorMessage(url, finalUrl, (int) response.StatusCode, response.ReasonPhrase, contentType));
+            }
+
             await using var source = await response.Content.ReadAsStreamAsync();
             await using var target = File.Create(destination);
 
@@ -1786,13 +2356,30 @@ public sealed class MainForm : Form
                 throw new InvalidOperationException("No bytes were received from the update server.");
             }
 
+            Log($"Download completed: url={url}; final_url={finalUrl}; bytes_downloaded={downloaded}; content_type={contentType}");
             UpdateDownloadProgress(label, stepKey, downloaded, totalBytes ?? downloaded, startedAt, endPercent, endPercent);
         }
         catch (Exception ex)
         {
-            Log("Download failed: " + ex.Message);
+            Log($"Download failed: url={url}; destination={destination}; exception={ex.GetType().Name}; message={ex.Message}");
             throw new DownloadFailedException(ex);
         }
+    }
+
+    private static string DownloadHttpErrorMessage(string url, string finalUrl, int statusCode, string? reasonPhrase, string contentType)
+    {
+        var status = $"{statusCode} {reasonPhrase}".Trim();
+        if (statusCode is 401 or 403)
+        {
+            return $"Download failed with HTTP {status}. The update package may require authentication or the feed may point to a private release asset. URL: {url}. Final URL: {finalUrl}.";
+        }
+
+        if (statusCode == 404)
+        {
+            return $"Download failed with HTTP 404. The update package URL was not reachable or the release asset is private/missing. URL: {url}. Final URL: {finalUrl}.";
+        }
+
+        return $"Download failed with HTTP {status}. URL: {url}. Final URL: {finalUrl}. Content-Type: {contentType}.";
     }
 
     private void UpdateDownloadProgress(string label, string stepKey, long downloadedBytes, long? totalBytes, DateTimeOffset startedAt, int startPercent, int endPercent)
@@ -2023,6 +2610,21 @@ public sealed class MainForm : Form
 
     private async Task OpenAppAsync()
     {
+        if (IsMutexHeld(UpdateMutexName) || HasActiveUpdateMarker(installDirBox.Text.Trim()))
+        {
+            Log("Open app skipped because an update is already running.");
+            ShowFailureMode("GarmentsOS PRO is updating. Please wait for the update to finish.", "Update in progress");
+            CloseSoon(1200);
+            return;
+        }
+
+        if (!TryAcquireModeMutex(LauncherMode.Open))
+        {
+            Log("Another GarmentsOS PRO launcher is already opening the app.");
+            CloseSoon();
+            return;
+        }
+
         try
         {
             ConfigureSplashForOpen();
@@ -2068,6 +2670,10 @@ public sealed class MainForm : Form
                 : ex.Message;
             Log("Open app failed: " + message);
             ShowFailureMode(message);
+        }
+        finally
+        {
+            ReleaseModeMutex();
         }
     }
 
@@ -2195,7 +2801,30 @@ public sealed class MainForm : Form
         return process.ExitCode;
     }
 
-    private async Task RunProcessAsync(string fileName, string arguments, string workingDirectory, Action<string>? onOutput = null)
+    private async Task<(int ExitCode, string Output, string Error)> RunProcessCaptureTextAsync(string fileName, string arguments, string workingDirectory, TimeSpan timeout)
+    {
+        var process = StartProcess(fileName, arguments, workingDirectory);
+        var outputTask = process.StandardOutput.ReadToEndAsync();
+        var errorTask = process.StandardError.ReadToEndAsync();
+
+        var exited = await Task.Run(() => process.WaitForExit((int) timeout.TotalMilliseconds));
+        if (!exited)
+        {
+            try
+            {
+                process.Kill(entireProcessTree: true);
+            }
+            catch
+            {
+            }
+
+            throw new TimeoutException($"{fileName} diagnostics timed out after {timeout.TotalMinutes:0} minutes.");
+        }
+
+        return (process.ExitCode, await outputTask, await errorTask);
+    }
+
+    private async Task RunProcessAsync(string fileName, string arguments, string workingDirectory, Action<string>? onOutput = null, TimeSpan? timeout = null)
     {
         var process = StartProcess(fileName, arguments, workingDirectory);
         process.OutputDataReceived += (_, e) =>
@@ -2216,7 +2845,27 @@ public sealed class MainForm : Form
         };
         process.BeginOutputReadLine();
         process.BeginErrorReadLine();
-        await process.WaitForExitAsync();
+        if (timeout.HasValue)
+        {
+            var exited = await Task.Run(() => process.WaitForExit((int) timeout.Value.TotalMilliseconds));
+            if (!exited)
+            {
+                try
+                {
+                    process.Kill(entireProcessTree: true);
+                }
+                catch
+                {
+                }
+
+                throw new TimeoutException($"{fileName} timed out after {timeout.Value.TotalMinutes:0} minutes.");
+            }
+        }
+        else
+        {
+            await process.WaitForExitAsync();
+        }
+
         if (process.ExitCode != 0)
         {
             throw new InvalidOperationException($"{fileName} exited with code {process.ExitCode}.");
@@ -2565,6 +3214,11 @@ public sealed class MainForm : Form
         Process.Start(new ProcessStartInfo(path) { UseShellExecute = true });
     }
 
+    private void OpenSupportFolder()
+    {
+        OpenFolder(SupportLogDir());
+    }
+
     private void SetRoundedRegion()
     {
         if (Width <= 0 || Height <= 0)
@@ -2604,6 +3258,12 @@ public sealed class MainForm : Form
 
     [DllImport("user32.dll")]
     private static extern IntPtr SendMessage(IntPtr hWnd, int msg, int wParam, int lParam);
+
+    [DllImport("user32.dll")]
+    private static extern bool SetForegroundWindow(IntPtr hWnd);
+
+    [DllImport("user32.dll")]
+    private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
 }
 
 internal sealed class UpdaterSplashView : Control
