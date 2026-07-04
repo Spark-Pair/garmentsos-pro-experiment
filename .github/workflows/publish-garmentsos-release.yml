@@ -239,7 +239,7 @@ jobs:
           set -euo pipefail
 
           prerelease_flag=""
-          if [[ "$PRERELEASE" == "true" ]]; then
+          if [[ "$CHANNEL" != "stable" ]]; then
             prerelease_flag="--prerelease"
           fi
 
@@ -274,15 +274,29 @@ jobs:
       - name: Sync release to SparkPair site
         shell: bash
         env:
-          SPARKPAIR_RELEASE_SYNC_URL: ${{ secrets.SPARKPAIR_RELEASE_SYNC_URL }}
           SPARKPAIR_RELEASE_WEBHOOK_SECRET: ${{ secrets.SPARKPAIR_RELEASE_WEBHOOK_SECRET }}
           PACKAGE_FILE: ${{ steps.assets.outputs.package_file }}
           SETUP_ASSET: ${{ steps.assets.outputs.setup_asset }}
         run: |
           set -euo pipefail
 
-          if [[ -z "${SPARKPAIR_RELEASE_SYNC_URL:-}" || -z "${SPARKPAIR_RELEASE_WEBHOOK_SECRET:-}" ]]; then
-            echo "::warning::SparkPair release sync skipped because SPARKPAIR_RELEASE_SYNC_URL or SPARKPAIR_RELEASE_WEBHOOK_SECRET is not configured."
+          sync_url="https://www.sparkpair.dev/api/admin/releases/sync-github"
+          public_feed_url="https://www.sparkpair.dev/api/updates/garmentsos-pro/${CHANNEL}/latest.json"
+
+          echo "SparkPair sync URL configured: yes"
+          if [[ -n "${SPARKPAIR_RELEASE_WEBHOOK_SECRET:-}" ]]; then
+            echo "SparkPair sync secret configured: yes"
+          else
+            echo "SparkPair sync secret configured: no"
+          fi
+
+          if [[ -z "${SPARKPAIR_RELEASE_WEBHOOK_SECRET:-}" ]]; then
+            message="SparkPair release sync skipped because SPARKPAIR_RELEASE_WEBHOOK_SECRET is not configured."
+            if [[ "$CHANNEL" == "stable" ]]; then
+              echo "::error::$message"
+              exit 1
+            fi
+            echo "::warning::$message"
             exit 0
           fi
 
@@ -318,14 +332,95 @@ jobs:
               handle.write("\n")
           PY
 
-          if ! curl --fail-with-body --show-error --silent \
-            --request POST "${SPARKPAIR_RELEASE_SYNC_URL}" \
+          response_body="$(mktemp)"
+          http_status="$(curl --location --show-error --silent \
+            --output "$response_body" \
+            --write-out "%{http_code}" \
+            --request POST "${sync_url}" \
             --header "Authorization: Bearer ${SPARKPAIR_RELEASE_WEBHOOK_SECRET}" \
             --header "Content-Type: application/json" \
-            --data @sparkpair-release-sync-payload.json; then
-            echo "::warning::SparkPair release sync failed. GitHub release assets were already published."
-          else
-            echo "SparkPair release sync completed."
+            --data @sparkpair-release-sync-payload.json)"
+
+          echo "SparkPair sync HTTP status: ${http_status}"
+
+          fail_sync() {
+            local message="$1"
+            echo "::error::${message}"
+            echo "SparkPair response body (first 2000 chars):"
+            head -c 2000 "$response_body" || true
+            echo
+            if [[ "$CHANNEL" == "stable" ]]; then
+              exit 1
+            fi
+            echo "::warning::SparkPair sync failed for ${CHANNEL}; continuing because non-stable sync is warning-only."
+            exit 0
+          }
+
+          if [[ ! "$http_status" =~ ^2[0-9][0-9]$ ]]; then
+            fail_sync "SparkPair release sync returned non-2xx HTTP status."
+          fi
+
+          if [[ ! -s "$response_body" ]]; then
+            fail_sync "SparkPair release sync response body was empty."
+          fi
+
+          if grep -qi "Redirecting" "$response_body"; then
+            fail_sync "SparkPair release sync returned a redirect body instead of JSON."
+          fi
+
+          python - "$response_body" "$VERSION" <<'PY' || fail_sync "SparkPair release sync response JSON was invalid or did not contain release.version."
+          import json
+          import sys
+
+          path, expected = sys.argv[1], sys.argv[2]
+          with open(path, encoding="utf-8") as handle:
+              data = json.load(handle)
+
+          release = data.get("release")
+          if not isinstance(release, dict):
+              raise SystemExit("missing release object")
+
+          version = str(release.get("version", ""))
+          if not version:
+              raise SystemExit("missing release.version")
+
+          if version != expected:
+              raise SystemExit(f"release.version mismatch: {version} != {expected}")
+          PY
+
+          echo "SparkPair release sync completed."
+
+          feed_body="$(mktemp)"
+          feed_status="$(curl --location --show-error --silent \
+            --output "$feed_body" \
+            --write-out "%{http_code}" \
+            "${public_feed_url}" || true)"
+          echo "SparkPair feed verification HTTP status: ${feed_status}"
+
+          if [[ "$CHANNEL" == "stable" ]]; then
+            if [[ ! "$feed_status" =~ ^2[0-9][0-9]$ || ! -s "$feed_body" ]]; then
+              echo "::error::SparkPair stable feed could not be fetched after sync."
+              head -c 2000 "$feed_body" || true
+              exit 1
+            fi
+
+            python - "$feed_body" "$VERSION" <<'PY' || {
+              echo "::error::SparkPair stable feed version does not match release version."
+              head -c 2000 "$feed_body" || true
+              exit 1
+            }
+          import json
+          import sys
+
+          path, expected = sys.argv[1], sys.argv[2]
+          with open(path, encoding="utf-8") as handle:
+              data = json.load(handle)
+          version = str(data.get("version", ""))
+          if version != expected:
+              raise SystemExit(f"feed version mismatch: {version} != {expected}")
+          PY
+
+            echo "SparkPair stable feed version verified: ${VERSION}"
           fi
 
       - name: Save public feed artifact
@@ -340,7 +435,7 @@ jobs:
           release_url="https://github.com/${GITHUB_REPOSITORY}/releases/tag/v${VERSION}"
           version_latest_url="https://github.com/${GITHUB_REPOSITORY}/releases/download/v${VERSION}/latest.json"
           channel_latest_url="https://github.com/${GITHUB_REPOSITORY}/releases/download/latest-${CHANNEL}/latest.json"
-          public_feed_url="https://sparkpair.dev/api/updates/garmentsos-pro/${CHANNEL}/latest.json"
+          public_feed_url="https://www.sparkpair.dev/api/updates/garmentsos-pro/${CHANNEL}/latest.json"
           {
             echo "## GarmentsOS PRO release published"
             echo
