@@ -422,7 +422,49 @@ function Backup-EnvFile($EnvPath) {
 
 function Save-EnvContent($EnvPath, $Content) {
     Backup-EnvFile $EnvPath
-    Set-Content -Path $EnvPath -Value $Content -Encoding UTF8
+    $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+    [System.IO.File]::WriteAllText($EnvPath, $Content, $utf8NoBom)
+}
+
+function Read-EnvValue($Content, $Name) {
+    $pattern = "(?m)^\s*" + [regex]::Escape($Name) + "=(.*)$"
+    $match = [regex]::Match($Content, $pattern)
+    if (-not $match.Success) {
+        return ""
+    }
+
+    return $match.Groups[1].Value.Trim().Trim('"').Trim("'")
+}
+
+function Update-GarmentsEnvForRelease($EnvPath, $TargetVersion, $TargetImage) {
+    $before = Get-Content -LiteralPath $EnvPath -Raw
+    $beforeAppVersion = Read-EnvValue $before "APP_VERSION"
+    $beforeImage = Read-EnvValue $before "GARMENTSOS_IMAGE"
+
+    Write-Host "Before .env APP_VERSION: [$beforeAppVersion]"
+    Write-Host "Before .env GARMENTSOS_IMAGE: [$beforeImage]"
+
+    $updated = Set-EnvLine $before "APP_VERSION" $TargetVersion
+    $updated = Set-EnvLine $updated "GARMENTSOS_IMAGE" $TargetImage
+    $updated = Set-EnvLine $updated "RUN_MIGRATIONS_ON_START" "true"
+    Save-EnvContent $EnvPath $updated
+
+    $after = Get-Content -LiteralPath $EnvPath -Raw
+    $afterAppVersion = Read-EnvValue $after "APP_VERSION"
+    $afterImage = Read-EnvValue $after "GARMENTSOS_IMAGE"
+
+    Write-Host "After .env APP_VERSION: [$afterAppVersion]"
+    Write-Host "After .env GARMENTSOS_IMAGE: [$afterImage]"
+
+    if ($afterAppVersion -ne $TargetVersion) {
+        throw ".env APP_VERSION mismatch after update. Expected [$TargetVersion], got [$afterAppVersion]."
+    }
+
+    if ($afterImage -ne $TargetImage) {
+        throw ".env GARMENTSOS_IMAGE mismatch after update. Expected [$TargetImage], got [$afterImage]."
+    }
+
+    Write-Host ".env release values verified for target version $TargetVersion."
 }
 
 function Ensure-EnvKey($EnvPath, $Key, $DefaultValue) {
@@ -529,10 +571,13 @@ if (-not (Test-Path $EnvPath)) {
 Ensure-GarmentsUpdaterEnvKeys $EnvPath
 Ensure-GarmentsLicenseEnvKeys $EnvPath
 
-$envContent = Get-Content $EnvPath -Raw
-$envContent = Set-EnvLine $envContent "GARMENTSOS_IMAGE" $Manifest.image
-$envContent = Set-EnvLine $envContent "RUN_MIGRATIONS_ON_START" "true"
-Save-EnvContent $EnvPath $envContent
+$TargetVersion = [string]$Manifest.version
+$TargetImage = [string]$Manifest.image
+if ([string]::IsNullOrWhiteSpace($TargetImage)) {
+    $TargetImage = "sparkpair/garmentsos-pro:$TargetVersion"
+}
+
+Update-GarmentsEnvForRelease $EnvPath $TargetVersion $TargetImage
 
 Push-Location $InstallDir
 try {
