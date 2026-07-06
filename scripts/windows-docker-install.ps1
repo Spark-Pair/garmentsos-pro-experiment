@@ -193,6 +193,48 @@ function Protect-GarmentsInstallFolder($TargetDir) {
     }
 }
 
+function Repair-GarmentsInstallFolderAccess($TargetDir) {
+    Write-Host "Repairing install folder permissions before .env handling: $TargetDir"
+    try {
+        New-Item -ItemType Directory -Force -Path $TargetDir | Out-Null
+        $currentUser = (whoami)
+        if (-not [string]::IsNullOrWhiteSpace($currentUser)) {
+            icacls $TargetDir /inheritance:e `
+                /grant "*S-1-5-18:(OI)(CI)F" `
+                /grant "*S-1-5-32-544:(OI)(CI)F" `
+                /grant "${currentUser}:(OI)(CI)F" | Out-Null
+        }
+        Write-Host "Install folder permission repair completed."
+    } catch {
+        Write-Warning "Install folder permission repair warning: $($_.Exception.Message)"
+    }
+}
+
+function Clear-GarmentsFileAttributes($Path) {
+    if (-not (Test-Path -LiteralPath $Path)) {
+        return
+    }
+
+    try {
+        Get-ChildItem -LiteralPath $Path -Force -Recurse -ErrorAction SilentlyContinue | ForEach-Object {
+            try {
+                $_.Attributes = $_.Attributes -band (-bnot [System.IO.FileAttributes]::ReadOnly)
+                $_.Attributes = $_.Attributes -band (-bnot [System.IO.FileAttributes]::Hidden)
+                $_.Attributes = $_.Attributes -band (-bnot [System.IO.FileAttributes]::System)
+            } catch {
+                Write-Warning "Could not clear attributes: $($_.FullName). $($_.Exception.Message)"
+            }
+        }
+        $item = Get-Item -LiteralPath $Path -Force
+        $item.Attributes = $item.Attributes -band (-bnot [System.IO.FileAttributes]::ReadOnly)
+        $item.Attributes = $item.Attributes -band (-bnot [System.IO.FileAttributes]::Hidden)
+        $item.Attributes = $item.Attributes -band (-bnot [System.IO.FileAttributes]::System)
+        Write-Host "Cleared readonly/hidden/system attributes under: $Path"
+    } catch {
+        Write-Warning "Could not clear attributes under $Path. $($_.Exception.Message)"
+    }
+}
+
 function Require-Command($Name) {
     if (-not (Get-Command $Name -ErrorAction SilentlyContinue)) {
         throw "$Name is required. Install Docker Desktop and try again."
@@ -227,7 +269,56 @@ function Backup-EnvFile($EnvPath) {
 
 function Save-EnvContent($EnvPath, $Content) {
     Backup-EnvFile $EnvPath
-    Set-Content -Path $EnvPath -Value $Content -Encoding UTF8
+    $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+    [System.IO.File]::WriteAllText($EnvPath, $Content, $utf8NoBom)
+}
+
+function Read-EnvContentSafe($EnvPath) {
+    try {
+        return Get-Content -LiteralPath $EnvPath -Raw -ErrorAction Stop
+    } catch {
+        Write-Warning "Could not read .env: $($_.Exception.Message)"
+        throw
+    }
+}
+
+function Initialize-FreshInstallEnv($InstallDir, $EnvPath) {
+    Repair-GarmentsInstallFolderAccess $InstallDir
+    Clear-GarmentsFileAttributes $InstallDir
+
+    $template = Join-Path $InstallDir ".env.example"
+    if (-not (Test-Path -LiteralPath $template)) {
+        throw ".env.example was not found: $template"
+    }
+
+    $envExists = Test-Path -LiteralPath $EnvPath
+    if ($envExists) {
+        try {
+            $null = Get-Content -LiteralPath $EnvPath -Raw -ErrorAction Stop
+            Write-Host "Existing .env is readable and will be reused: $EnvPath"
+            return $false
+        } catch {
+            Write-Warning "Existing .env cannot be read: $($_.Exception.Message)"
+            $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
+            $lockedPath = Join-Path (Split-Path -Parent $EnvPath) ".env.locked-$timestamp"
+            try {
+                Rename-Item -LiteralPath $EnvPath -NewName (Split-Path -Leaf $lockedPath) -Force -ErrorAction Stop
+                Write-Warning "Unreadable .env renamed to: $lockedPath"
+            } catch {
+                throw "Install folder is locked. Close apps or run installer as administrator."
+            }
+        }
+    }
+
+    try {
+        $templateContent = Get-Content -LiteralPath $template -Raw -ErrorAction Stop
+        $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+        [System.IO.File]::WriteAllText($EnvPath, $templateContent, $utf8NoBom)
+        Write-Host "Created fresh .env from template: $EnvPath"
+        return $true
+    } catch {
+        throw "Install folder is locked. Close apps or run installer as administrator."
+    }
 }
 
 function Ensure-EnvKey($EnvPath, $Key, $DefaultValue) {
@@ -235,7 +326,7 @@ function Ensure-EnvKey($EnvPath, $Key, $DefaultValue) {
         throw ".env file not found: $EnvPath"
     }
 
-    $content = Get-Content -LiteralPath $EnvPath -Raw
+    $content = Read-EnvContentSafe $EnvPath
     $pattern = "(?m)^\s*" + [regex]::Escape($Key) + "="
     if ($content -match $pattern) {
         Write-Host "Environment key already exists: $Key"
@@ -246,7 +337,7 @@ function Ensure-EnvKey($EnvPath, $Key, $DefaultValue) {
     $line = "$Key=$DefaultValue"
     $lineEnding = if ($content -match "`r`n") { "`r`n" } else { "`n" }
     $updated = $content.TrimEnd("`r", "`n") + $lineEnding + $line + $lineEnding
-    Set-Content -Path $EnvPath -Value $updated -Encoding UTF8
+    Save-EnvContent $EnvPath $updated
     Write-Host "Added missing environment key: $Key"
 }
 
@@ -277,6 +368,8 @@ docker info | Out-Null
 $Source = Split-Path -Parent $PSScriptRoot
 New-Item -ItemType Directory -Force -Path $InstallDir | Out-Null
 New-Item -ItemType Directory -Force -Path (Join-Path $InstallDir "backups") | Out-Null
+Repair-GarmentsInstallFolderAccess $InstallDir
+Clear-GarmentsFileAttributes $InstallDir
 
 Copy-Item -Force (Join-Path $Source "docker-compose.yml") $InstallDir
 Copy-Item -Force (Join-Path $Source ".env.example") $InstallDir
@@ -316,16 +409,12 @@ if (-not (Test-Path $ImageTar)) {
 docker load -i $ImageTar | Out-Host
 
 $EnvPath = Join-Path $InstallDir ".env"
-$EnvCreated = $false
-if (-not (Test-Path $EnvPath)) {
-    Copy-Item (Join-Path $InstallDir ".env.example") $EnvPath
-    $EnvCreated = $true
-}
+$EnvCreated = Initialize-FreshInstallEnv $InstallDir $EnvPath
 
 Ensure-GarmentsUpdaterEnvKeys $EnvPath
 Ensure-GarmentsLicenseEnvKeys $EnvPath
 
-$envContent = Get-Content $EnvPath -Raw
+$envContent = Read-EnvContentSafe $EnvPath
 if ($EnvCreated) {
     $envContent = Set-EnvLine $envContent "APP_URL" "http://localhost:$Port"
     $envContent = Set-EnvLine $envContent "APP_PORT" $Port
@@ -362,7 +451,7 @@ try {
 }
 
 if ($EnvCreated) {
-    $envContent = Get-Content $EnvPath -Raw
+    $envContent = Read-EnvContentSafe $EnvPath
     $envContent = Set-EnvLine $envContent "RUN_MIGRATIONS_ON_START" "false"
     Save-EnvContent $EnvPath $envContent
 }
