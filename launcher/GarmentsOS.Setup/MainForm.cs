@@ -24,6 +24,12 @@ internal enum LauncherStepState
     Failed,
 }
 
+internal enum FailureActionMode
+{
+    General,
+    Docker,
+}
+
 internal sealed class LauncherStep
 {
     public string Key { get; init; } = "";
@@ -566,6 +572,7 @@ public sealed class MainForm : Form
     private void ConfigureActionButtons()
     {
         buttonsPanel.Controls.Clear();
+        buttonsPanel.Visible = false;
         buttonsPanel.Location = new Point(0, 231);
         buttonsPanel.AutoSize = true;
         buttonsPanel.WrapContents = false;
@@ -579,25 +586,44 @@ public sealed class MainForm : Form
         AddButton(buttonsPanel, "Open App", async (_, _) => await OpenAppAsync());
         AddButton(buttonsPanel, "Check", async (_, _) => await CheckUpdateAsync());
 
-        failureButtonsPanel.Controls.Clear();
         failureButtonsPanel.Dock = DockStyle.None;
         failureButtonsPanel.Location = new Point(52, 372);
         failureButtonsPanel.AutoSize = true;
         failureButtonsPanel.WrapContents = false;
         failureButtonsPanel.BackColor = Color.Transparent;
-        AddButton(failureButtonsPanel, "Details", (_, _) => ToggleDetails());
-        AddButton(failureButtonsPanel, "Save Log", (_, _) => SaveLog());
-        AddButton(failureButtonsPanel, "Open Support Folder", (_, _) => OpenSupportFolder());
-        AddButton(failureButtonsPanel, "Close", (_, _) => Close());
-        failureButtonsPanel.Visible = false;
+        ConfigureFailureButtons(FailureActionMode.General);
     }
 
-    private static void AddButton(Control parent, string text, EventHandler handler)
+    private void ConfigureFailureButtons(FailureActionMode mode)
+    {
+        failureButtonsPanel.SuspendLayout();
+        failureButtonsPanel.Controls.Clear();
+
+        if (mode == FailureActionMode.Docker)
+        {
+            AddButton(failureButtonsPanel, "Start Docker / Retry", async (_, _) => await OpenAppAsync(), primary: true);
+            AddButton(failureButtonsPanel, "Details", (_, _) => ToggleDetails());
+            AddButton(failureButtonsPanel, "Close", (_, _) => Close());
+        }
+        else
+        {
+            AddButton(failureButtonsPanel, "Details", (_, _) => ToggleDetails());
+            AddButton(failureButtonsPanel, "Save Log", (_, _) => SaveLog());
+            AddButton(failureButtonsPanel, "Open Support Folder", (_, _) => OpenSupportFolder());
+            AddButton(failureButtonsPanel, "Close", (_, _) => Close());
+        }
+
+        failureButtonsPanel.Visible = false;
+        failureButtonsPanel.ResumeLayout();
+    }
+
+    private static Button AddButton(Control parent, string text, EventHandler handler, bool primary = false)
     {
         var button = new Button();
-        StyleButton(button, text);
+        StyleButton(button, text, primary);
         button.Click += handler;
         parent.Controls.Add(button);
+        return button;
     }
 
     private static void StyleButton(Button button, string text, bool primary = false)
@@ -611,12 +637,30 @@ public sealed class MainForm : Form
         button.Margin = new Padding(0, 0, 8, 0);
         button.Padding = new Padding(8, 0, 8, 0);
         button.FlatStyle = FlatStyle.Flat;
+        button.UseVisualStyleBackColor = false;
         button.Cursor = Cursors.Hand;
         button.BackColor = primary ? BrandBlue : Color.White;
         button.ForeColor = primary ? Color.White : Color.FromArgb(64, 82, 82);
         button.FlatAppearance.BorderColor = primary ? BrandBlue : SoftBorder;
         button.FlatAppearance.BorderSize = 1;
         button.FlatAppearance.MouseOverBackColor = primary ? Color.FromArgb(50, 72, 210) : SurfaceSoft;
+        button.FlatAppearance.MouseDownBackColor = primary ? Color.FromArgb(29, 78, 216) : Color.FromArgb(241, 245, 249);
+        button.TextAlign = ContentAlignment.MiddleCenter;
+        button.TabStop = false;
+        ApplyButtonRegion(button);
+        button.Resize += (_, _) => ApplyButtonRegion(button);
+    }
+
+    private static void ApplyButtonRegion(Button button)
+    {
+        if (button.Width <= 0 || button.Height <= 0)
+        {
+            return;
+        }
+
+        using var path = RoundedRect(new Rectangle(0, 0, button.Width, button.Height), 10);
+        button.Region?.Dispose();
+        button.Region = new Region(path);
     }
 
     private Control CreateLogoBox(int size, int imageSize, int radius)
@@ -714,6 +758,7 @@ public sealed class MainForm : Form
     {
         launcherMode = mode;
         currentStepKey = null;
+        SetWorkingStateUI();
 
         splashView.BadgeText = "Secure Launcher";
         splashView.ProgressPercent = 0;
@@ -757,6 +802,15 @@ public sealed class MainForm : Form
         }
 
         splashView.Invalidate();
+    }
+
+    private void SetWorkingStateUI()
+    {
+        buttonsPanel.Visible = false;
+        failureButtonsPanel.Visible = false;
+        logBox.Visible = false;
+        detailsExpanded = false;
+        detailsButton.Text = "Details";
     }
 
     private void SetStepDetail(string detail)
@@ -1110,7 +1164,7 @@ public sealed class MainForm : Form
             || message.Contains("Waiting for Docker", StringComparison.OrdinalIgnoreCase);
     }
 
-    private void ShowFailureMode(string message = "Update failed", string title = "Update failed")
+    private void ShowFailureMode(string message = "Update failed", string title = "Update failed", FailureActionMode? actionMode = null)
     {
         autoUpdateMode = false;
         criticalUpdateStep = false;
@@ -1123,6 +1177,7 @@ public sealed class MainForm : Form
         progressPercentLabel.Text = "0%";
         FailCurrentStep(message);
 
+        ConfigureFailureButtons(actionMode ?? FailureActionModeFor(message, title));
         failureButtonsPanel.Dock = DockStyle.None;
         failureButtonsPanel.Left = 52;
         failureButtonsPanel.Top = 372;
@@ -1132,6 +1187,19 @@ public sealed class MainForm : Form
         logBox.Visible = false;
         detailsExpanded = false;
         detailsButton.Text = "Details";
+    }
+
+    private static FailureActionMode FailureActionModeFor(string message, string title)
+    {
+        return IsDockerFailureMessage(message) || IsDockerFailureMessage(title)
+            ? FailureActionMode.Docker
+            : FailureActionMode.General;
+    }
+
+    private static bool IsDockerFailureMessage(string value)
+    {
+        return value.Contains("Docker", StringComparison.OrdinalIgnoreCase)
+            || value.Contains("docker compose", StringComparison.OrdinalIgnoreCase);
     }
 
     private static string ShortUiMessage(string message)
@@ -2808,7 +2876,11 @@ public sealed class MainForm : Form
                 ? "Docker could not start. Please open Docker Desktop and try again."
                 : ex.Message;
             Log("Open app failed: " + message);
-            ShowFailureMode(message);
+            var actionMode = FailureActionModeFor(message, "Open app failed");
+            ShowFailureMode(
+                message,
+                actionMode == FailureActionMode.Docker ? "Docker needs attention" : "Open app failed",
+                actionMode);
         }
         finally
         {
@@ -3505,11 +3577,6 @@ internal sealed class UpdaterSplashView : Control
 
         DrawText(g, Subtitle, bodyFont, TextMuted, leftX, 205);
         DrawStepList(g, leftX, 245);
-
-        if (!string.IsNullOrWhiteSpace(HelperText))
-        {
-            DrawText(g, HelperText, footerFont, TextHint, leftX, 309);
-        }
     }
 
     private void DrawWindowStack(Graphics g)
