@@ -45,7 +45,7 @@ public sealed class MainForm : Form
 {
     private const string DefaultInstallDir = @"C:\SparkPair\GarmentsOS";
     private const string AppUrl = "http://localhost:8000";
-    private const string DefaultFeedUrl = "https://github.com/Spark-Pair/garmentsos-pro-experiment/releases/download/latest-stable/latest.json";
+    private const string DefaultFeedUrl = "https://www.sparkpair.dev/api/updates/garmentsos-pro/stable/latest.json";
     private const string PrimaryLauncherExeName = "GarmentsOS-PRO.exe";
     private const string UpdateMutexName = @"Local\GarmentsOS_PRO_Update";
     private const string OpenMutexName = @"Local\GarmentsOS_PRO_Launcher_Open";
@@ -959,6 +959,14 @@ public sealed class MainForm : Form
         SetStep("Preparing update...", percent: 0);
     }
 
+    private void EnterManualBridgeMode()
+    {
+        EnterAutoUpdateMode();
+        SetStep("Preparing manual update...", percent: 10);
+        splashView.HelperText = "Fetching the latest approved release directly from SparkPair.";
+        splashView.Invalidate();
+    }
+
     private void ToggleDetails()
     {
         detailsExpanded = !detailsExpanded;
@@ -1508,6 +1516,9 @@ public sealed class MainForm : Form
         var autoStart = IsTruthy(QueryValue(query, "autoStart"))
             || IsTruthy(QueryValue(query, "autostart"))
             || IsTruthy(QueryValue(query, "auto"));
+        var manualBridge = IsTruthy(QueryValue(query, "manualBridge"))
+            || IsTruthy(QueryValue(query, "manualbridge"))
+            || IsTruthy(QueryValue(query, "manual"));
 
         if (!TryAcquireModeMutex(LauncherMode.Update))
         {
@@ -1518,13 +1529,28 @@ public sealed class MainForm : Form
 
         if (autoStart)
         {
-            EnterAutoUpdateMode();
-            Log("Launcher opened from garmentsos://update auto-start mode.");
+            if (manualBridge)
+            {
+                EnterManualBridgeMode();
+            }
+            else
+            {
+                EnterAutoUpdateMode();
+            }
+            Log(manualBridge
+                ? "Launcher opened from garmentsos://update manual bridge mode."
+                : "Launcher opened from garmentsos://update auto-start mode.");
         }
         else
         {
             ConfigureSplashForUpdate();
             Log("Launcher opened from garmentsos://update.");
+        }
+
+        if (manualBridge)
+        {
+            await StartManualBridgeUpdateAsync(autoStart);
+            return;
         }
 
         if (string.IsNullOrWhiteSpace(request))
@@ -1592,6 +1618,89 @@ public sealed class MainForm : Form
                 ShowFailureMode(ex.Message);
             }
         }
+    }
+
+    private async Task StartManualBridgeUpdateAsync(bool autoStart)
+    {
+        try
+        {
+            ConfigureSplashForUpdate();
+            SetStep("Preparing manual update...", percent: 10);
+
+            var installDir = installDirBox.Text.Trim();
+            var feedUrl = GetConfiguredFeedUrl(installDir);
+            var installedVersion = GetInstalledVersion(installDir);
+
+            Log("Manual bridge update requested.");
+            Log("Manual bridge feed URL: " + feedUrl);
+            Log("Manual bridge installed version: " + installedVersion);
+
+            SetStep("Preparing manual update...", percent: 15);
+            currentFeed = await FetchFeedAsync(feedUrl);
+            startupRequestId = "manual-bridge-" + Guid.NewGuid().ToString("N");
+            startupLockFailedUrl = null;
+
+            WriteManualBridgeLog(installDir, feedUrl, installedVersion, currentFeed);
+
+            if (VersionCompare(currentFeed.Version, installedVersion) <= 0)
+            {
+                SetStep("Already up to date", percent: 100);
+                Log($"Already up to date. Installed={installedVersion}; Latest={currentFeed.Version}");
+                ShowFailureMode("Already up to date.", "Already up to date");
+                return;
+            }
+
+            Log($"Manual bridge update available: {installedVersion} -> {currentFeed.Version}");
+
+            if (autoStart)
+            {
+                await UpdateNowAsync(requireConfirmation: false, closeAfterSuccess: true);
+            }
+            else
+            {
+                updateButton.Enabled = true;
+                Log("Manual bridge update is ready. Use Update Now from the context menu if needed.");
+            }
+        }
+        catch (Exception ex)
+        {
+            Log("Manual bridge update failed: " + ex.Message);
+            ShowFailureMode(ex.Message, "Manual update failed");
+        }
+    }
+
+    private string GetInstalledVersion(string installDir)
+    {
+        var envVersion = ReadEnvValue(Path.Combine(installDir, ".env"), "APP_VERSION");
+        if (!string.IsNullOrWhiteSpace(envVersion))
+        {
+            return envVersion;
+        }
+
+        return ReadInstalledManifest(installDir)?.Version ?? "0.0.0";
+    }
+
+    private void WriteManualBridgeLog(string installDir, string feedUrl, string installedVersion, ReleaseFeed feed)
+    {
+        var logPath = CreateSupportLogPath("launcher-manual-bridge");
+        lastSupportLogPath = logPath;
+
+        AppendSupportLog(logPath, "Manual bridge update");
+        AppendSupportLog(logPath, "Installed version: " + installedVersion);
+        AppendSupportLog(logPath, "Feed URL: " + feedUrl);
+        AppendSupportLog(logPath, "Target version: " + feed.Version);
+        AppendSupportLog(logPath, "Package URL host: " + SafeHost(feed.PackageUrl));
+        AppendSupportLog(logPath, "Package sha256: " + feed.PackageSha256);
+        AppendSupportLog(logPath, "InstallDir: " + installDir);
+
+        Log("Manual bridge log saved to: " + logPath);
+    }
+
+    private static string SafeHost(string url)
+    {
+        return Uri.TryCreate(url, UriKind.Absolute, out var uri)
+            ? uri.Host
+            : "invalid-url";
     }
 
     private async Task LoadRequestJsonFromFileAsync(string path)
@@ -1754,6 +1863,11 @@ public sealed class MainForm : Form
             }
             catch (Exception updateScriptEx)
             {
+                if (IsPreUpdateBackupFailure(updateScriptEx))
+                {
+                    throw new InvalidOperationException("Pre-update backup failed. Current version is still running. updateApplied=false", updateScriptEx);
+                }
+
                 var restartLog = await CaptureRestartServicesDiagnosticsAsync(installDirBox.Text.Trim(), updateScriptEx);
                 throw new InvalidOperationException("Restart services failed. Details were saved to: " + restartLog, updateScriptEx);
             }
@@ -1908,6 +2022,15 @@ public sealed class MainForm : Form
         ControlBox = true;
         updateButton.Enabled = currentFeed is not null;
 
+        if (IsPreUpdateBackupFailure(ex))
+        {
+            AppendRollbackLog(rollbackLogPath, "Rollback skipped because pre-update backup failed before update was applied.");
+            Log("Rollback skipped because pre-update backup failed before update was applied.");
+            ShowFailureMode("Pre-update backup failed. Current version is still running.", "Pre-update backup failed");
+            await RefreshStatusAsync();
+            return;
+        }
+
         SetStep("Restoring previous version...", marquee: true);
         var rollbackOk = await TryRestorePreviousVersionAsync(rollbackLogPath);
 
@@ -2023,6 +2146,22 @@ public sealed class MainForm : Form
         var logDir = Path.Combine(string.IsNullOrWhiteSpace(installDir) ? DefaultInstallDir : installDir, "logs");
         Directory.CreateDirectory(logDir);
         return Path.Combine(logDir, "rollback-" + DateTime.Now.ToString("yyyyMMdd_HHmmss") + ".log");
+    }
+
+    private bool IsPreUpdateBackupFailure(Exception exception)
+    {
+        for (var current = exception; current is not null; current = current.InnerException)
+        {
+            if (current.Message.Contains("Pre-update backup failed", StringComparison.OrdinalIgnoreCase)
+                || current.Message.Contains("Backup did not complete successfully", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return logBox.Text.Contains("Pre-update backup failed", StringComparison.OrdinalIgnoreCase)
+            || logBox.Text.Contains("Backup failed:", StringComparison.OrdinalIgnoreCase)
+            || logBox.Text.Contains("Backup did not complete successfully", StringComparison.OrdinalIgnoreCase);
     }
 
     private static void AppendRollbackLog(string path, string message)
