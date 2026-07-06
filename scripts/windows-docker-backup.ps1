@@ -67,66 +67,122 @@ function Normalize-ContainerPath($Path) {
     return ([string]$Path).Replace("`r", "").Replace("`n", "").Trim().Trim('"').Trim("'")
 }
 
+function ConvertTo-SafeText($Value) {
+    if ($null -eq $Value) {
+        return ""
+    }
+
+    if ($Value -is [array]) {
+        return (($Value | ForEach-Object {
+            if ($null -eq $_) { "" } else { [string]$_ }
+        }) -join "`n").Trim()
+    }
+
+    return ([string]$Value).Trim()
+}
+
 function Invoke-ComposeExec($InstallDir, [string[]]$Arguments) {
     Push-Location $InstallDir
     try {
-        $stdoutFile = [System.IO.Path]::GetTempFileName()
         $stderrFile = [System.IO.Path]::GetTempFileName()
+
         try {
             $output = & docker compose exec -T app @Arguments 2> $stderrFile
             $exitCode = $LASTEXITCODE
-            $stderr = if (Test-Path -LiteralPath $stderrFile) { Get-Content -LiteralPath $stderrFile -Raw } else { "" }
+
+            $stderr = ""
+            if (Test-Path -LiteralPath $stderrFile) {
+                $stderr = Get-Content -LiteralPath $stderrFile -Raw -ErrorAction SilentlyContinue
+            }
 
             return [ordered]@{
                 exit_code = $exitCode
-                stdout = (($output -join "`n").Trim())
-                stderr = ($stderr.Trim())
+                stdout = ConvertTo-SafeText $output
+                stderr = ConvertTo-SafeText $stderr
             }
-        } finally {
-            Remove-Item -LiteralPath $stdoutFile -Force -ErrorAction SilentlyContinue
+        }
+        finally {
             Remove-Item -LiteralPath $stderrFile -Force -ErrorAction SilentlyContinue
         }
-    } finally {
+    }
+    finally {
         Pop-Location
     }
 }
 
 function Get-ContainerSqlitePath($InstallDir) {
-    $laravelCommand = 'php artisan tinker --execute=''echo config("database.connections.sqlite.database");'''
-    $result = Invoke-ComposeExec $InstallDir @("sh", "-lc", $laravelCommand)
-    $dbPath = Normalize-ContainerPath $result.stdout
+    $checkedPaths = New-Object System.Collections.Generic.List[string]
 
+    $laravelCommand = @'
+php -r 'require "vendor/autoload.php"; $app = require "bootstrap/app.php"; $kernel = $app->make(Illuminate\Contracts\Console\Kernel::class); $kernel->bootstrap(); echo config("database.connections.sqlite.database");'
+'@
+
+    $result = Invoke-ComposeExec $InstallDir @("sh", "-lc", $laravelCommand)
     Write-BackupLog "Laravel SQLite path command exit code: $($result.exit_code)"
+
+    if (-not [string]::IsNullOrWhiteSpace($result.stdout)) {
+        Write-BackupLog "Laravel SQLite path stdout: $($result.stdout)"
+    }
     if (-not [string]::IsNullOrWhiteSpace($result.stderr)) {
         Write-BackupLog "Laravel SQLite path stderr: $($result.stderr)"
     }
 
-    if ($result.exit_code -eq 0 -and -not [string]::IsNullOrWhiteSpace($dbPath)) {
-        return $dbPath
+    $candidate = Normalize-ContainerPath $result.stdout
+
+    if (
+        $result.exit_code -eq 0 -and
+        -not [string]::IsNullOrWhiteSpace($candidate) -and
+        $candidate -notmatch "Error|Exception|Undefined constant|Fatal|Parse error"
+    ) {
+        $checkedPaths.Add($candidate)
     }
 
-    $envCommand = @'
-FOUND_DB="$(grep -E '^DB_DATABASE=' /var/www/html/.env 2>/dev/null | tail -n 1 | cut -d= -f2- | tr -d '"' | tr -d "'" || true)
-printf '%s' "${FOUND_DB:-/var/www/html/database/database.sqlite}"
-'@
-    $fallback = Invoke-ComposeExec $InstallDir @("sh", "-lc", $envCommand)
-    $fallbackPath = Normalize-ContainerPath $fallback.stdout
+    $fallbackPaths = @(
+        "/var/www/html/database/database.sqlite",
+        "/var/www/html/database/garmentsos.sqlite",
+        "/var/www/html/storage/app/database.sqlite",
+        "/var/www/html/storage/app/db.sqlite",
+        "/var/www/html/storage/database.sqlite"
+    )
 
-    Write-BackupLog "Fallback SQLite path command exit code: $($fallback.exit_code)"
-    if (-not [string]::IsNullOrWhiteSpace($fallback.stderr)) {
-        Write-BackupLog "Fallback SQLite path stderr: $($fallback.stderr)"
+    foreach ($path in $fallbackPaths) {
+        if (-not $checkedPaths.Contains($path)) {
+            $checkedPaths.Add($path)
+        }
     }
 
-    if ([string]::IsNullOrWhiteSpace($fallbackPath)) {
-        return "/var/www/html/database/database.sqlite"
+    foreach ($path in $checkedPaths) {
+        $safePath = Normalize-ContainerPath $path
+        if ([string]::IsNullOrWhiteSpace($safePath)) {
+            continue
+        }
+
+        Write-BackupLog "Checking SQLite path: [$safePath]"
+
+        $checkCommand = 'DB_PATH="$1"; test -f "$DB_PATH" && ls -lah "$DB_PATH"'
+        $check = Invoke-ComposeExec $InstallDir @("sh", "-lc", $checkCommand, "sh", $safePath)
+
+        Write-BackupLog "SQLite path check exit code: $($check.exit_code)"
+        if (-not [string]::IsNullOrWhiteSpace($check.stdout)) {
+            Write-BackupLog "SQLite path check stdout: $($check.stdout)"
+        }
+        if (-not [string]::IsNullOrWhiteSpace($check.stderr)) {
+            Write-BackupLog "SQLite path check stderr: $($check.stderr)"
+        }
+
+        if ($check.exit_code -eq 0) {
+            Write-BackupLog "Detected SQLite path: [$safePath]"
+            return $safePath
+        }
     }
 
-    return $fallbackPath
+    throw "SQLite database not found. Checked paths: $($checkedPaths -join ', ')"
 }
 
 function Test-ContainerDbPath($InstallDir, $DbPath) {
     $checkScript = 'DB_PATH="$1"; test -f "$DB_PATH" && ls -lah "$DB_PATH"'
     $result = Invoke-ComposeExec $InstallDir @("sh", "-lc", $checkScript, "sh", $DbPath)
+
     Write-BackupLog "Checked SQLite path: [$DbPath]"
     Write-BackupLog "SQLite test -f exit code: $($result.exit_code)"
     if (-not [string]::IsNullOrWhiteSpace($result.stdout)) {
@@ -142,6 +198,7 @@ function Test-ContainerDbPath($InstallDir, $DbPath) {
 
     $statScript = 'DB_PATH="$1"; stat "$DB_PATH"'
     $stat = Invoke-ComposeExec $InstallDir @("sh", "-lc", $statScript, "sh", $DbPath)
+
     Write-BackupLog "SQLite stat exit code: $($stat.exit_code)"
     if (-not [string]::IsNullOrWhiteSpace($stat.stdout)) {
         Write-BackupLog "SQLite stat stdout: $($stat.stdout)"
@@ -159,7 +216,8 @@ function Backup-DatabaseFromRunningContainer($InstallDir, $BackupDir) {
         throw "App container is not running; cannot create safe SQLite backup."
     }
 
-    $containerBackupPath = "/tmp/garmentsos-database-backup.sqlite"
+    $containerBackupPath = "/tmp/garmentsos-backup.sqlite"
+    $containerDbPathMarker = "/tmp/garmentsos-database-path.txt"
     $hostBackupPath = Join-Path $BackupDir "database.sqlite"
 
     Push-Location $InstallDir
@@ -183,8 +241,13 @@ function Backup-DatabaseFromRunningContainer($InstallDir, $BackupDir) {
             throw "sqlite3 was not found in the app container."
         }
 
-        $backupScript = 'DB_PATH="$1"; rm -f /tmp/garmentsos-backup.sqlite; sqlite3 "$DB_PATH" ".backup ''/tmp/garmentsos-backup.sqlite''"; test -s /tmp/garmentsos-backup.sqlite; printf "%s" "$DB_PATH" > /tmp/garmentsos-database-path.txt'
-        $backupResult = Invoke-ComposeExec $InstallDir @("sh", "-lc", $backupScript, "sh", $dbPath)
+        $cleanupResult = Invoke-ComposeExec $InstallDir @("rm", "-f", $containerBackupPath, $containerDbPathMarker)
+        Write-BackupLog "SQLite temp cleanup exit code: $($cleanupResult.exit_code)"
+        if (-not [string]::IsNullOrWhiteSpace($cleanupResult.stderr)) {
+            Write-BackupLog "SQLite temp cleanup stderr: $($cleanupResult.stderr)"
+        }
+
+        $backupResult = Invoke-ComposeExec $InstallDir @("sqlite3", $dbPath, ".backup $containerBackupPath")
         Write-BackupLog "SQLite .backup exit code: $($backupResult.exit_code)"
         if (-not [string]::IsNullOrWhiteSpace($backupResult.stdout)) {
             Write-BackupLog "SQLite .backup stdout: $($backupResult.stdout)"
@@ -196,13 +259,34 @@ function Backup-DatabaseFromRunningContainer($InstallDir, $BackupDir) {
             throw "Container SQLite backup command failed with exit code $($backupResult.exit_code)."
         }
 
-        docker cp "${containerId}:/tmp/garmentsos-backup.sqlite" $hostBackupPath
+        $verifyBackupResult = Invoke-ComposeExec $InstallDir @("sh", "-lc", "test -s /tmp/garmentsos-backup.sqlite && ls -lah /tmp/garmentsos-backup.sqlite")
+        Write-BackupLog "SQLite backup verify exit code: $($verifyBackupResult.exit_code)"
+        if (-not [string]::IsNullOrWhiteSpace($verifyBackupResult.stdout)) {
+            Write-BackupLog "SQLite backup verify stdout: $($verifyBackupResult.stdout)"
+        }
+        if (-not [string]::IsNullOrWhiteSpace($verifyBackupResult.stderr)) {
+            Write-BackupLog "SQLite backup verify stderr: $($verifyBackupResult.stderr)"
+        }
+        if ($verifyBackupResult.exit_code -ne 0) {
+            throw "SQLite backup file was not created in container."
+        }
+
+        $pathWriteResult = Invoke-ComposeExec $InstallDir @("sh", "-lc", 'printf "%s" "$1" > /tmp/garmentsos-database-path.txt', "sh", $dbPath)
+        Write-BackupLog "SQLite path marker write exit code: $($pathWriteResult.exit_code)"
+        if (-not [string]::IsNullOrWhiteSpace($pathWriteResult.stderr)) {
+            Write-BackupLog "SQLite path marker stderr: $($pathWriteResult.stderr)"
+        }
+        if ($pathWriteResult.exit_code -ne 0) {
+            throw "SQLite path marker could not be written in container."
+        }
+
+        docker cp "${containerId}:${containerBackupPath}" $hostBackupPath
         if ($LASTEXITCODE -ne 0) {
             throw "docker cp failed while copying database backup."
         }
 
         $dbPathFile = Join-Path $BackupDir "database-path.txt"
-        docker cp "${containerId}:/tmp/garmentsos-database-path.txt" $dbPathFile 2>$null | Out-Null
+        docker cp "${containerId}:${containerDbPathMarker}" $dbPathFile 2>$null | Out-Null
 
         if (-not (Test-Path -LiteralPath $hostBackupPath)) {
             throw "Database backup file was not created."
@@ -215,17 +299,24 @@ function Backup-DatabaseFromRunningContainer($InstallDir, $BackupDir) {
 
         Write-BackupLog "Database backup size: $dbSize bytes"
         Write-BackupLog "SQLite database backup created: $hostBackupPath ($dbSize bytes)"
+
         return @{
             ok = $true
             path = $hostBackupPath
             size = $dbSize
-            container_database_path = if (Test-Path -LiteralPath $dbPathFile) { (Get-Content -LiteralPath $dbPathFile -Raw).Trim() } else { "" }
+            container_database_path = if (Test-Path -LiteralPath $dbPathFile) {
+                (Get-Content -LiteralPath $dbPathFile -Raw).Trim()
+            } else {
+                ""
+            }
         }
-    } finally {
+    }
+    finally {
         try {
-            & docker compose exec -T app sh -lc "rm -f /tmp/garmentsos-backup.sqlite /tmp/garmentsos-database-path.txt" 2>$null | Out-Null
+            & docker compose exec -T app rm -f $containerBackupPath $containerDbPathMarker 2>$null | Out-Null
         } catch {
         }
+
         Pop-Location
     }
 }
