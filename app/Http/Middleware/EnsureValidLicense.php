@@ -55,7 +55,9 @@ class EnsureValidLicense
                 ], 403);
             }
 
-            return response($status->message, 403);
+            return redirect()
+                ->route('developer.license.status')
+                ->with('warning', $status->message);
         }
 
         return $next($request);

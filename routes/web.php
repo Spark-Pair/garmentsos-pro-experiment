@@ -101,6 +101,7 @@ Route::group(['middleware' => ['setup.complete', 'auth', 'activeSession', 'ensur
     Route::get('developer/license', [LicenseController::class, 'status'])->name('developer.license.status');
     Route::get('developer/license/activate', [LicenseController::class, 'activate'])->name('developer.license.activate');
     Route::post('developer/license/activate', [LicenseController::class, 'activatePost'])->name('developer.license.activate.post');
+    Route::post('developer/license/request-demo', [LicenseController::class, 'requestDemo'])->name('developer.license.request-demo');
     Route::post('developer/license/register', [LicenseController::class, 'registerDevice'])->name('developer.license.register');
     Route::post('developer/license/check', [LicenseController::class, 'checkDevice'])->name('developer.license.check');
     Route::get('developer/license/offline', [LicenseController::class, 'offline'])->name('developer.license.offline');

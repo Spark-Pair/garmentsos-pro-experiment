@@ -6,11 +6,11 @@ return [
     | Licensing Enforcement
     |--------------------------------------------------------------------------
     |
-    | Keep disabled by default. When disabled, licensing middleware and services
-    | must not change normal application behavior.
+    | Client builds should enable licensing and enforcement. A separate explicit
+    | development bypass is available for local/demo builds.
     |
     */
-    'enabled' => env('LICENSE_ENABLED', env('LICENSE_ENFORCEMENT_ENABLED', false)),
+    'enabled' => env('LICENSE_ENABLED', true),
 
     'client_id' => env('LICENSE_CLIENT_ID', ''),
 
@@ -24,9 +24,13 @@ return [
 
     'register_url' => env('LICENSE_REGISTER_URL', 'https://www.sparkpair.dev/api/licenses/register-install'),
 
+    'request_demo_url' => env('LICENSE_REQUEST_DEMO_URL', 'https://www.sparkpair.dev/api/licenses/request-demo'),
+
     'auto_register' => env('LICENSE_AUTO_REGISTER', true),
 
-    'enforcement_enabled' => env('LICENSE_ENFORCEMENT_ENABLED', false),
+    'enforcement_enabled' => env('LICENSE_ENFORCEMENT_ENABLED', true),
+
+    'development_bypass' => env('LICENSE_DEVELOPMENT_BYPASS', false),
 
     'last_check_at' => env('LICENSE_LAST_CHECK_AT', ''),
 
@@ -53,6 +57,8 @@ return [
     'verify_cache_path' => storage_path('app/license/verify-cache.json'),
 
     'registration_cache_path' => storage_path('app/license/registration-cache.json'),
+
+    'request_cache_path' => storage_path('app/license/request-cache.json'),
 
     'identity_path' => storage_path('app/license/installation.json'),
 

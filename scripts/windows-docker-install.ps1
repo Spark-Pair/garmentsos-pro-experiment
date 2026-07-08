@@ -351,11 +351,13 @@ function Ensure-GarmentsUpdaterEnvKeys($EnvPath) {
 }
 
 function Ensure-GarmentsLicenseEnvKeys($EnvPath) {
-    Ensure-EnvKey $EnvPath "LICENSE_ENABLED" "false"
-    Ensure-EnvKey $EnvPath "LICENSE_ENFORCEMENT_ENABLED" "false"
+    Ensure-EnvKey $EnvPath "LICENSE_ENABLED" "true"
+    Ensure-EnvKey $EnvPath "LICENSE_ENFORCEMENT_ENABLED" "true"
     Ensure-EnvKey $EnvPath "LICENSE_AUTO_REGISTER" "true"
     Ensure-EnvKey $EnvPath "LICENSE_CHECK_URL" "https://www.sparkpair.dev/api/licenses/verify"
     Ensure-EnvKey $EnvPath "LICENSE_REGISTER_URL" "https://www.sparkpair.dev/api/licenses/register-install"
+    Ensure-EnvKey $EnvPath "LICENSE_REQUEST_DEMO_URL" "https://www.sparkpair.dev/api/licenses/request-demo"
+    Ensure-EnvKey $EnvPath "LICENSE_DEVELOPMENT_BYPASS" "false"
     Ensure-EnvKey $EnvPath "LICENSE_GRACE_DAYS" "7"
 }
 
@@ -419,7 +421,8 @@ if ($EnvCreated) {
     $envContent = Set-EnvLine $envContent "APP_URL" "http://localhost:$Port"
     $envContent = Set-EnvLine $envContent "APP_PORT" $Port
     $envContent = Set-EnvLine $envContent "DB_DATABASE" "/var/www/html/database/database.sqlite"
-    $envContent = Set-EnvLine $envContent "LICENSE_ENFORCEMENT_ENABLED" "false"
+    $envContent = Set-EnvLine $envContent "LICENSE_ENABLED" "true"
+    $envContent = Set-EnvLine $envContent "LICENSE_ENFORCEMENT_ENABLED" "true"
     if ($envContent -match '(?m)^APP_KEY=\s*$') {
         $bytes = New-Object byte[] 32
         $rng = [System.Security.Cryptography.RandomNumberGenerator]::Create()
@@ -437,7 +440,7 @@ if ($EnvCreated) {
     Save-EnvContent $EnvPath $envContent
 } else {
     Ensure-EnvKey $EnvPath "APP_PORT" $Port
-    Ensure-EnvKey $EnvPath "LICENSE_ENFORCEMENT_ENABLED" "false"
+    Ensure-EnvKey $EnvPath "LICENSE_ENFORCEMENT_ENABLED" "true"
     Ensure-EnvKey $EnvPath "GARMENTSOS_IMAGE" $Manifest.image
 }
 

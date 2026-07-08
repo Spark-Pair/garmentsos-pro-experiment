@@ -55,6 +55,7 @@ class ReadOnlyMode
             'developer.updater.clear-update-lock',
             'developer.updater.set-experiment-feed',
             'developer.license.activate.post',
+            'developer.license.request-demo',
             'developer.license.register',
             'developer.license.check',
             'developer.license.offline.import',

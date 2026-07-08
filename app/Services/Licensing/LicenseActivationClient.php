@@ -35,6 +35,20 @@ class LicenseActivationClient
         return $this->postJson($verifyUrl, $payload, 'License verification failed.');
     }
 
+    public function requestDemo(array $payload): array
+    {
+        $requestUrl = trim((string) config('licensing.request_demo_url', ''));
+
+        if ($requestUrl === '') {
+            return [
+                'ok' => false,
+                'message' => 'License demo request URL is not configured.',
+            ];
+        }
+
+        return $this->postJson($requestUrl, $payload, 'Demo/trial request failed.');
+    }
+
     public function activate(string $licenseKey, array $installationContext): array
     {
         $serverUrl = rtrim((string) config('licensing.server_url', ''), '/');

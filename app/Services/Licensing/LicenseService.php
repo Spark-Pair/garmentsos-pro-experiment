@@ -97,6 +97,35 @@ class LicenseService
         return $result;
     }
 
+    public function requestDemo(array $customer): array
+    {
+        $payload = array_merge($customer, [
+            'product' => config('updater.app_id', 'garmentsos-pro'),
+            'install_id' => $this->identity->installId(),
+            'machine_hash' => $this->machine->machineHash(),
+            'machine_name' => $this->machine->machineName(),
+            'app_version' => $this->versions->currentVersion(),
+            'license_check_url' => (string) config('licensing.server_url', ''),
+            'license_register_url' => (string) config('licensing.register_url', ''),
+            'license_enforcement_enabled' => (bool) config('licensing.enforcement_enabled', false),
+            'license_auto_register' => (bool) config('licensing.auto_register', true),
+            'license_development_bypass' => (bool) config('licensing.development_bypass', false),
+        ]);
+
+        $result = $this->activationClient->requestDemo($payload);
+        if (($result['ok'] ?? false) && is_array($result['body'] ?? null)) {
+            $body = $result['body'];
+            $this->writeRequestCache(array_merge($payload, $body));
+            $this->writeRegistrationCache([
+                'status' => $body['status'] ?? 'pending',
+                'message' => $body['message'] ?? 'Waiting for SparkPair approval.',
+                'client_name' => $customer['business_name'] ?? '',
+            ]);
+        }
+
+        return $result;
+    }
+
     public function autoRegisterIfEnabled(): ?array
     {
         if (!(bool) config('licensing.auto_register', true)) {
@@ -167,7 +196,7 @@ class LicenseService
         if ($status === 'pending') {
             return LicenseStatus::problem(
                 'pending',
-                $this->enforcementEnabled() ? 'blocked' : 'none',
+                $this->shouldEnforceUsage() ? 'blocked' : 'none',
                 $message !== '' ? $message : 'This device is registered and waiting for approval from SparkPair.',
                 [
                     'expires_at' => $expiresAt,
@@ -192,7 +221,7 @@ class LicenseService
 
         return LicenseStatus::problem(
             $status === 'expired' ? 'expired_readonly' : 'invalid_readonly',
-            $this->defaultEnforcementMode(),
+            $this->shouldEnforceUsage() ? $this->defaultEnforcementMode() : 'none',
             $message !== '' ? $message : 'License is not valid.',
             [
                 'expires_at' => $expiresAt,
@@ -207,9 +236,9 @@ class LicenseService
         $cache = $this->readVerifyCache();
         if (!$cache) {
             return LicenseStatus::problem(
-                'network_error',
-                'none',
-                $message,
+                'activation_required',
+                $this->shouldEnforceUsage() ? 'blocked' : 'none',
+                'License activation is required. Request a demo/trial or register this device with SparkPair.',
                 ['source' => 'server_unreachable'],
             );
         }
@@ -251,7 +280,9 @@ class LicenseService
         File::put($path, json_encode([
             'valid' => (bool) ($body['valid'] ?? false),
             'status' => (string) ($body['status'] ?? ''),
-            'client_name' => (string) ($body['client_name'] ?? ''),
+            'client_id' => (string) ($body['client_id'] ?? ''),
+            'client_name' => (string) ($body['client_name'] ?? $body['customer_name'] ?? ''),
+            'customer_name' => (string) ($body['customer_name'] ?? $body['client_name'] ?? ''),
             'expires_at' => (string) ($body['expires_at'] ?? ''),
             'grace_days' => (int) ($body['grace_days'] ?? config('licensing.offline_grace_days', 7)),
             'message' => (string) ($body['message'] ?? ''),
@@ -288,12 +319,34 @@ class LicenseService
         return $this->readVerifyCache();
     }
 
+    public function requestCache(): ?array
+    {
+        $path = (string) config('licensing.request_cache_path');
+        if (!File::exists($path)) {
+            return null;
+        }
+
+        $decoded = json_decode((string) File::get($path), true);
+
+        return is_array($decoded) ? $decoded : null;
+    }
+
     protected function writeRegistrationCache(array $body): void
     {
         $path = (string) config('licensing.registration_cache_path');
         File::ensureDirectoryExists(dirname($path));
         File::put($path, json_encode(array_merge($body, [
             'registered_at' => now()->utc()->toIso8601String(),
+        ]), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+    }
+
+    protected function writeRequestCache(array $body): void
+    {
+        $path = (string) config('licensing.request_cache_path');
+        File::ensureDirectoryExists(dirname($path));
+        File::put($path, json_encode(array_merge($body, [
+            'status' => $body['status'] ?? 'pending',
+            'requested_at' => now()->utc()->toIso8601String(),
         ]), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
     }
 
@@ -314,6 +367,11 @@ class LicenseService
     protected function enforcementEnabled(): bool
     {
         return (bool) config('licensing.enforcement_enabled', false);
+    }
+
+    protected function shouldEnforceUsage(): bool
+    {
+        return $this->enforcementEnabled() || !(bool) config('licensing.development_bypass', false);
     }
 
     public function statusForLicense(License $license): LicenseStatus

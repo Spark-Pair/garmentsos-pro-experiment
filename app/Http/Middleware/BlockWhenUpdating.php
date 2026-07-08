@@ -20,6 +20,7 @@ class BlockWhenUpdating
         'developer.updater.clear-update-lock',
         'developer.updater.set-experiment-feed',
         'developer.license.status',
+        'developer.license.request-demo',
         'developer.license.register',
         'developer.license.check',
         'developer.license.refresh',

@@ -14,6 +14,7 @@ use App\Services\Licensing\LicenseService;
 use App\Services\Licensing\LicenseStatus;
 use App\Services\Licensing\OfflineActivationService;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
 
 class LicenseController extends Controller
@@ -50,6 +51,7 @@ class LicenseController extends Controller
             'missingTables' => $this->missingLicenseTables(),
             'licenseConfig' => $this->licenseConfigSummary(),
             'registrationResult' => $registrationResult,
+            'requestCache' => $licenses->requestCache(),
         ]);
     }
 
@@ -58,6 +60,7 @@ class LicenseController extends Controller
         $licenses = app(LicenseService::class);
         $verifyCache = $licenses->verifyCache();
         $registrationCache = $licenses->registrationCache();
+        $requestCache = $licenses->requestCache();
 
         return [
             'client_id' => (string) ($verifyCache['client_id'] ?? config('licensing.client_id', '')),
@@ -69,8 +72,10 @@ class LicenseController extends Controller
             'env_status' => (string) config('licensing.status', 'active'),
             'check_url' => (string) config('licensing.server_url', ''),
             'register_url' => (string) config('licensing.register_url', ''),
+            'request_demo_url' => (string) config('licensing.request_demo_url', ''),
             'auto_register' => (bool) config('licensing.auto_register', true),
             'enforcement_enabled' => (bool) config('licensing.enforcement_enabled', false),
+            'development_bypass' => (bool) config('licensing.development_bypass', false),
             'install_id' => $licenses->installId(),
             'machine_name' => $licenses->machineName(),
             'machine_hash' => $licenses->machineHash(),
@@ -78,9 +83,35 @@ class LicenseController extends Controller
             'app_version' => app(\App\Services\Updater\InstalledVersionService::class)->currentVersion(),
             'last_check_at' => (string) ($verifyCache['checked_at'] ?? config('licensing.last_check_at', '')),
             'last_registration_at' => (string) ($registrationCache['registered_at'] ?? ''),
-            'device_status' => (string) ($registrationCache['status'] ?? $verifyCache['status'] ?? ''),
-            'customer_name' => (string) ($verifyCache['client_name'] ?? $registrationCache['client_name'] ?? ''),
+            'last_request_at' => (string) ($requestCache['requested_at'] ?? ''),
+            'device_status' => (string) ($registrationCache['status'] ?? $verifyCache['status'] ?? $requestCache['status'] ?? ''),
+            'customer_name' => (string) ($verifyCache['customer_name'] ?? $verifyCache['client_name'] ?? $registrationCache['client_name'] ?? $requestCache['business_name'] ?? ''),
         ];
+    }
+
+    public function requestDemo(Request $request, LicenseService $licenses): RedirectResponse
+    {
+        if ($resp = $this->denyIfNoRole(['developer', 'admin'])) {
+            return $resp;
+        }
+
+        $validated = $request->validate([
+            'business_name' => ['required', 'string', 'max:160'],
+            'owner_name' => ['required', 'string', 'max:160'],
+            'phone' => ['required', 'string', 'max:40'],
+            'email' => ['nullable', 'email', 'max:160'],
+            'city' => ['required', 'string', 'max:120'],
+            'address' => ['nullable', 'string', 'max:500'],
+            'request_type' => ['required', 'in:demo_trial,paid_activation'],
+        ]);
+
+        $result = $licenses->requestDemo($validated);
+        $body = $result['body'] ?? [];
+        $message = $body['message'] ?? $result['message'] ?? 'Activation request sent. Waiting for SparkPair approval.';
+
+        return redirect()
+            ->route('developer.license.status')
+            ->with(($result['ok'] ?? false) ? 'success' : 'error', $message);
     }
 
     public function activate()

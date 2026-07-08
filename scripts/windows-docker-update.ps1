@@ -497,11 +497,13 @@ function Ensure-GarmentsUpdaterEnvKeys($EnvPath) {
 }
 
 function Ensure-GarmentsLicenseEnvKeys($EnvPath) {
-    Ensure-EnvKey $EnvPath "LICENSE_ENABLED" "false"
-    Ensure-EnvKey $EnvPath "LICENSE_ENFORCEMENT_ENABLED" "false"
+    Ensure-EnvKey $EnvPath "LICENSE_ENABLED" "true"
+    Ensure-EnvKey $EnvPath "LICENSE_ENFORCEMENT_ENABLED" "true"
     Ensure-EnvKey $EnvPath "LICENSE_AUTO_REGISTER" "true"
     Ensure-EnvKey $EnvPath "LICENSE_CHECK_URL" "https://www.sparkpair.dev/api/licenses/verify"
     Ensure-EnvKey $EnvPath "LICENSE_REGISTER_URL" "https://www.sparkpair.dev/api/licenses/register-install"
+    Ensure-EnvKey $EnvPath "LICENSE_REQUEST_DEMO_URL" "https://www.sparkpair.dev/api/licenses/request-demo"
+    Ensure-EnvKey $EnvPath "LICENSE_DEVELOPMENT_BYPASS" "false"
     Ensure-EnvKey $EnvPath "LICENSE_GRACE_DAYS" "7"
 }
 

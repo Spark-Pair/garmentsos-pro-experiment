@@ -30,7 +30,7 @@ class LicenseStatus
         return new self(
             state: 'not_enforced',
             enforcement: 'none',
-            message: 'License enforcement is disabled. App is not blocked by missing license.',
+            message: 'Licensing enforcement is disabled for this build.',
         );
     }
 

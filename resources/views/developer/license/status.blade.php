@@ -1,47 +1,52 @@
 @extends('app')
 
-@section('title', 'License Status | ' . $client_company->name)
+@section('title', 'License Activation | ' . $client_company->name)
 
 @section('content')
     @php
         $panel = 'bg-[var(--secondary-bg-color)] text-sm rounded-xl shadow-lg p-7 border border-[var(--h-bg-color)] pt-12 relative overflow-hidden';
         $softPanel = 'rounded-lg border border-[var(--h-bg-color)] bg-[var(--h-bg-color)]/50 p-4';
-        $badge = 'inline-flex items-center rounded-lg border px-2.5 py-1 text-xs font-semibold';
+        $input = 'w-full rounded-lg border border-[var(--h-bg-color)] bg-[var(--h-bg-color)] px-3 py-2 text-sm text-[var(--text-color)] outline-none focus:border-[var(--primary-color)]';
+        $textarea = $input . ' min-h-[86px]';
         $primaryButton = 'px-4 py-2 bg-[var(--primary-color)] text-[var(--text-color)] font-medium text-nowrap rounded-lg hover:bg-[var(--h-primary-color)] hover:scale-95 transition-all duration-300 ease-in-out cursor-pointer';
         $secondaryButton = 'px-4 py-2 bg-[var(--h-bg-color)] border border-gray-600 text-[var(--secondary-text)] font-medium text-nowrap rounded-lg hover:bg-[var(--secondary-bg-color)] hover:scale-95 transition-all duration-300 ease-in-out cursor-pointer';
-        $disabledButton = 'px-4 py-2 bg-[var(--h-bg-color)] border border-gray-600 text-[var(--secondary-text)] font-medium text-nowrap rounded-lg opacity-60 cursor-not-allowed';
+        $badge = 'inline-flex items-center rounded-lg border px-2.5 py-1 text-xs font-semibold';
         $foundationReady = $foundationReady ?? true;
         $missingTables = $missingTables ?? [];
-        $inactiveButNotEnforced = !$licensingEnabled;
-        $bannerType = $inactiveButNotEnforced
-            ? 'border-gray-600 bg-[var(--h-bg-color)] text-[var(--secondary-text)]'
-            : match ($status->state) {
-                'active' => 'border-[var(--border-success)] bg-[var(--bg-success)] text-[var(--text-success)]',
-                'expiring_soon', 'grace_period', 'offline_grace', 'expired_readonly' => 'border-[var(--border-warning)] bg-[var(--bg-warning)] text-[var(--text-warning)]',
-                default => 'border-[var(--border-error)] bg-[var(--bg-error)] text-[var(--text-error)]',
-            };
-        $displayMessage = $inactiveButNotEnforced
-            ? 'License enforcement is disabled. App is not blocked by missing license.'
-            : ($status->message ?: 'License status calculated.');
-        $displayState = $inactiveButNotEnforced ? 'Not enforced' : ucfirst(str_replace('_', ' ', $status->state));
-        $displayEnforcement = $inactiveButNotEnforced ? 'Not enforced' : ucfirst($status->enforcement);
-        $pendingApproval = $status->state === 'pending';
+        $requestCache = $requestCache ?? null;
+        $isActive = $status->state === 'active';
+        $isPending = in_array($status->state, ['pending', 'activation_required'], true) || (($licenseConfig['device_status'] ?? '') === 'pending');
+        $isDevelopmentBypass = !$licensingEnabled || ($licenseConfig['development_bypass'] ?? false);
+        $bannerClass = $isActive
+            ? 'border-[var(--border-success)] bg-[var(--bg-success)] text-[var(--text-success)]'
+            : ($isDevelopmentBypass
+                ? 'border-[var(--border-warning)] bg-[var(--bg-warning)] text-[var(--text-warning)]'
+                : 'border-[var(--border-error)] bg-[var(--bg-error)] text-[var(--text-error)]');
+        $stateLabel = ucfirst(str_replace('_', ' ', $status->state));
+        $requestType = old('request_type', $requestCache['request_type'] ?? 'demo_trial');
     @endphp
 
     <div class="mb-5 max-w-6xl mx-auto">
-        <x-search-header heading="License Status" />
+        <x-search-header heading="License Activation" />
     </div>
 
     <div class="max-w-6xl mx-auto space-y-4">
         <section class="{{ $panel }}">
-            <x-form-title-bar title="License Status" />
+            <x-form-title-bar title="License Activation" />
 
             <div class="mb-4 flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                <p class="max-w-3xl text-sm text-[var(--secondary-text)]">
-                    This license is approved from SparkPair by install ID and machine fingerprint. No license key is entered in this app.
-                </p>
-                <span class="{{ $badge }} {{ $licensingEnabled ? 'border-[var(--border-warning)] bg-[var(--bg-warning)] text-[var(--text-warning)]' : 'border-gray-600 bg-[var(--h-bg-color)] text-[var(--secondary-text)]' }}">
-                    Enforcement {{ $licensingEnabled ? 'enabled' : 'disabled' }}
+                <div>
+                    <p class="max-w-3xl text-sm text-[var(--secondary-text)]">
+                        GarmentsOS PRO is activated by SparkPair using this installation ID and device fingerprint. No license key is entered in the app.
+                    </p>
+                    @if ($isDevelopmentBypass)
+                        <p class="mt-2 text-sm font-semibold text-[var(--text-warning)]">
+                            Licensing enforcement is disabled for this build. This should only be used for development or approved demo testing.
+                        </p>
+                    @endif
+                </div>
+                <span class="{{ $badge }} {{ $isActive ? 'border-[var(--border-success)] bg-[var(--bg-success)] text-[var(--text-success)]' : 'border-[var(--border-warning)] bg-[var(--bg-warning)] text-[var(--text-warning)]' }}">
+                    {{ $isActive ? 'License active' : 'Activation required' }}
                 </span>
             </div>
 
@@ -55,31 +60,55 @@
                 </div>
             @endif
 
-            <div class="mb-4 rounded-lg border p-4 {{ $bannerType }}">
-                {{ $displayMessage }}
-                @if ($pendingApproval)
-                    <div class="mt-2 text-sm font-semibold">
-                        This device is registered and waiting for approval from SparkPair.
-                    </div>
+            @if ($errors->any())
+                <div class="mb-4 rounded-lg border border-[var(--border-error)] bg-[var(--bg-error)] p-4 text-sm text-[var(--text-error)]">
+                    <div class="font-semibold">Please fix the highlighted fields before continuing.</div>
+                    <ul class="mt-2 list-disc space-y-1 pl-5">
+                        @foreach ($errors->all() as $error)
+                            <li>{{ $error }}</li>
+                        @endforeach
+                    </ul>
+                </div>
+            @endif
+
+            <div class="mb-5 rounded-lg border p-4 {{ $bannerClass }}">
+                @if ($isActive)
+                    <div class="font-semibold">License active</div>
+                    <p class="mt-1">
+                        {{ $licenseConfig['customer_name'] ?: 'This device is approved by SparkPair.' }}
+                        @if ($status->expiresAt)
+                            Valid until {{ $status->expiresAt->format('Y-m-d') }}.
+                        @endif
+                    </p>
+                @elseif ($isPending)
+                    <div class="font-semibold">Waiting for SparkPair approval</div>
+                    <p class="mt-1">{{ $status->message ?: 'This device or demo request is pending approval.' }}</p>
+                @else
+                    <div class="font-semibold">License activation is required</div>
+                    <p class="mt-1">{{ $status->message ?: 'Request a demo/trial or register this device with SparkPair.' }}</p>
                 @endif
             </div>
 
             <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
                 <div class="{{ $softPanel }}">
                     <div class="text-xs uppercase text-[var(--secondary-text)]">Current state</div>
-                    <div class="mt-1 text-lg font-semibold">{{ $displayState }}</div>
-                </div>
-                <div class="{{ $softPanel }}">
-                    <div class="text-xs uppercase text-[var(--secondary-text)]">Action mode</div>
-                    <div class="mt-1 text-lg font-semibold">{{ $displayEnforcement }}</div>
+                    <div class="mt-1 text-lg font-semibold">{{ $stateLabel }}</div>
                 </div>
                 <div class="{{ $softPanel }}">
                     <div class="text-xs uppercase text-[var(--secondary-text)]">Device approval</div>
-                    <div class="mt-1 text-lg font-semibold">{{ $licenseConfig['device_status'] ? ucfirst(str_replace('_', ' ', $licenseConfig['device_status'])) : $displayState }}</div>
+                    <div class="mt-1 text-lg font-semibold">{{ $licenseConfig['device_status'] ? ucfirst(str_replace('_', ' ', $licenseConfig['device_status'])) : $stateLabel }}</div>
                 </div>
                 <div class="{{ $softPanel }}">
-                    <div class="text-xs uppercase text-[var(--secondary-text)]">App version</div>
-                    <div class="mt-1 text-lg font-semibold">{{ $licenseConfig['app_version'] ?: '-' }}</div>
+                    <div class="text-xs uppercase text-[var(--secondary-text)]">Customer</div>
+                    <div class="mt-1 text-lg font-semibold">{{ $licenseConfig['customer_name'] ?: '-' }}</div>
+                </div>
+                <div class="{{ $softPanel }}">
+                    <div class="text-xs uppercase text-[var(--secondary-text)]">Valid until</div>
+                    <div class="mt-1 text-lg font-semibold">{{ $status->expiresAt?->format('Y-m-d') ?? '-' }}</div>
+                </div>
+                <div class="{{ $softPanel }}">
+                    <div class="text-xs uppercase text-[var(--secondary-text)]">Install ID</div>
+                    <div class="mt-1 break-all text-sm font-semibold" id="license-install-id">{{ $licenseConfig['install_id'] ?: '-' }}</div>
                 </div>
                 <div class="{{ $softPanel }}">
                     <div class="text-xs uppercase text-[var(--secondary-text)]">Machine name</div>
@@ -90,47 +119,81 @@
                     <div class="mt-1 break-all text-lg font-semibold">{{ $licenseConfig['machine_hash_preview'] ?: '-' }}</div>
                 </div>
                 <div class="{{ $softPanel }}">
-                    <div class="text-xs uppercase text-[var(--secondary-text)]">Install ID</div>
-                    <div class="mt-1 break-all text-sm font-semibold" id="license-install-id">{{ $licenseConfig['install_id'] ?: '-' }}</div>
+                    <div class="text-xs uppercase text-[var(--secondary-text)]">App version</div>
+                    <div class="mt-1 text-lg font-semibold">{{ $licenseConfig['app_version'] ?: '-' }}</div>
                 </div>
                 <div class="{{ $softPanel }}">
-                    <div class="text-xs uppercase text-[var(--secondary-text)]">Customer / license</div>
-                    <div class="mt-1 text-lg font-semibold">{{ $licenseConfig['customer_name'] ?: ($licenseConfig['client_name'] ?: '-') }}</div>
-                </div>
-                <div class="{{ $softPanel }}">
-                    <div class="text-xs uppercase text-[var(--secondary-text)]">Expires</div>
-                    <div class="mt-1 text-lg font-semibold">{{ $status->expiresAt?->format('Y-m-d') ?? '-' }}</div>
-                </div>
-                <div class="{{ $softPanel }}">
-                    <div class="text-xs uppercase text-[var(--secondary-text)]">Grace until</div>
-                    <div class="mt-1 text-lg font-semibold">{{ $status->graceUntil?->format('Y-m-d') ?? '-' }}</div>
+                    <div class="text-xs uppercase text-[var(--secondary-text)]">Last request</div>
+                    <div class="mt-1 text-lg font-semibold">{{ $licenseConfig['last_request_at'] ?: '-' }}</div>
                 </div>
                 <div class="{{ $softPanel }}">
                     <div class="text-xs uppercase text-[var(--secondary-text)]">Last check</div>
                     <div class="mt-1 text-lg font-semibold">{{ $licenseConfig['last_check_at'] ?: '-' }}</div>
                 </div>
                 <div class="{{ $softPanel }}">
-                    <div class="text-xs uppercase text-[var(--secondary-text)]">Last registration</div>
-                    <div class="mt-1 text-lg font-semibold">{{ $licenseConfig['last_registration_at'] ?: '-' }}</div>
-                </div>
-                <div class="{{ $softPanel }}">
                     <div class="text-xs uppercase text-[var(--secondary-text)]">Check URL</div>
                     <div class="mt-1 break-all text-sm font-semibold">{{ $licenseConfig['check_url_configured'] ? $licenseConfig['check_url'] : 'Not configured' }}</div>
                 </div>
                 <div class="{{ $softPanel }}">
-                    <div class="text-xs uppercase text-[var(--secondary-text)]">Register URL</div>
-                    <div class="mt-1 break-all text-sm font-semibold">{{ $licenseConfig['register_url'] ?: '-' }}</div>
+                    <div class="text-xs uppercase text-[var(--secondary-text)]">Request URL</div>
+                    <div class="mt-1 break-all text-sm font-semibold">{{ $licenseConfig['request_demo_url'] ?: '-' }}</div>
                 </div>
             </div>
+        </section>
 
-            <div class="mt-5 flex flex-wrap gap-3">
+        @if (!$isActive)
+            <section class="{{ $panel }}">
+                <x-form-title-bar title="Request Demo / Trial" />
+                <form method="POST" action="{{ route('developer.license.request-demo') }}" class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                    @csrf
+                    <div>
+                        <label class="mb-1 block text-sm font-medium">Business / customer name</label>
+                        <input name="business_name" value="{{ old('business_name', $requestCache['business_name'] ?? '') }}" class="{{ $input }}" required>
+                    </div>
+                    <div>
+                        <label class="mb-1 block text-sm font-medium">Owner name</label>
+                        <input name="owner_name" value="{{ old('owner_name', $requestCache['owner_name'] ?? '') }}" class="{{ $input }}" required>
+                    </div>
+                    <div>
+                        <label class="mb-1 block text-sm font-medium">Phone</label>
+                        <input name="phone" value="{{ old('phone', $requestCache['phone'] ?? '') }}" class="{{ $input }}" required>
+                    </div>
+                    <div>
+                        <label class="mb-1 block text-sm font-medium">Email optional</label>
+                        <input type="email" name="email" value="{{ old('email', $requestCache['email'] ?? '') }}" class="{{ $input }}">
+                    </div>
+                    <div>
+                        <label class="mb-1 block text-sm font-medium">City</label>
+                        <input name="city" value="{{ old('city', $requestCache['city'] ?? '') }}" class="{{ $input }}" required>
+                    </div>
+                    <div>
+                        <label class="mb-1 block text-sm font-medium">Request type</label>
+                        <select name="request_type" class="{{ $input }}" required>
+                            <option value="demo_trial" @selected($requestType === 'demo_trial')>Demo / trial request</option>
+                            <option value="paid_activation" @selected($requestType === 'paid_activation')>Paid activation</option>
+                        </select>
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="mb-1 block text-sm font-medium">Address optional</label>
+                        <textarea name="address" class="{{ $textarea }}">{{ old('address', $requestCache['address'] ?? '') }}</textarea>
+                    </div>
+                    <div class="flex flex-wrap gap-3 md:col-span-2">
+                        <button type="submit" class="{{ $primaryButton }}">Request Demo / Trial</button>
+                    </div>
+                </form>
+            </section>
+        @endif
+
+        <section class="{{ $panel }}">
+            <x-form-title-bar title="Device Actions" />
+            <div class="flex flex-wrap gap-3">
                 <form method="POST" action="{{ route('developer.license.register') }}">
                     @csrf
-                    <button type="submit" class="{{ $primaryButton }}">Register this device</button>
+                    <button type="submit" class="{{ $primaryButton }}">Activate Existing License / Register Device</button>
                 </form>
                 <form method="POST" action="{{ route('developer.license.check') }}">
                     @csrf
-                    <button type="submit" class="{{ $secondaryButton }}">Check license now</button>
+                    <button type="submit" class="{{ $secondaryButton }}">Check Status</button>
                 </form>
                 <button type="button" class="{{ $secondaryButton }}" onclick="navigator.clipboard && navigator.clipboard.writeText(document.getElementById('license-install-id').innerText)">
                     Copy Install ID
