@@ -2,7 +2,8 @@ param(
     [string]$InstallDir = "C:\SparkPair\GarmentsOS",
     [string]$Version = "",
     [int]$Port = 8000,
-    [bool]$HideTechnicalFiles = $true
+    [bool]$HideTechnicalFiles = $true,
+    [switch]$FreshReset
 )
 
 $ErrorActionPreference = "Stop"
@@ -10,6 +11,21 @@ $ErrorActionPreference = "Stop"
 $InstallDir = $InstallDir.Trim('"')
 $Version = $Version.Trim('"')
 $script:EnvBackupCreated = $false
+$script:ResetLogPath = $null
+
+function Write-ResetLog($Message) {
+    if ([string]::IsNullOrWhiteSpace($script:ResetLogPath)) {
+        Write-Host $Message
+        return
+    }
+
+    try {
+        "[$(Get-Date -Format o)] $Message" | Add-Content -LiteralPath $script:ResetLogPath
+    } catch {
+    }
+
+    Write-Host $Message
+}
 
 function Copy-RootLaunchers($SourceDir, $TargetDir) {
     $launchers = @(
@@ -147,6 +163,55 @@ function Register-GarmentsProtocol($TargetDir) {
     }
 }
 
+function Unregister-GarmentsProtocol() {
+    try {
+        $protocolKey = "HKCU:\Software\Classes\garmentsos"
+        if (Test-Path -LiteralPath $protocolKey) {
+            Remove-Item -LiteralPath $protocolKey -Recurse -Force
+            Write-Host "Removed garmentsos:// protocol registration."
+        } else {
+            Write-Host "garmentsos:// protocol registration was not present."
+        }
+    } catch {
+        Write-Warning "Could not remove garmentsos:// protocol registration. $($_.Exception.Message)"
+    }
+}
+
+function Remove-GarmentsShortcuts() {
+    $paths = @()
+
+    try {
+        $desktop = [Environment]::GetFolderPath("Desktop")
+        if (-not [string]::IsNullOrWhiteSpace($desktop)) {
+            $paths += (Join-Path $desktop "GarmentsOS PRO.lnk")
+        }
+    } catch {
+        Write-Warning "Could not resolve Desktop folder while removing shortcuts. $($_.Exception.Message)"
+    }
+
+    try {
+        $programs = [Environment]::GetFolderPath("Programs")
+        if (-not [string]::IsNullOrWhiteSpace($programs)) {
+            $paths += (Join-Path $programs "SparkPair\GarmentsOS PRO\GarmentsOS PRO.lnk")
+            $paths += (Join-Path $programs "SparkPair\GarmentsOS PRO\GarmentsOS PRO Updater.lnk")
+            $paths += (Join-Path $programs "SparkPair\GarmentsOS PRO\Open Install Folder.lnk")
+        }
+    } catch {
+        Write-Warning "Could not resolve Start Menu folder while removing shortcuts. $($_.Exception.Message)"
+    }
+
+    foreach ($path in $paths) {
+        try {
+            if (Test-Path -LiteralPath $path) {
+                Remove-Item -LiteralPath $path -Force
+                Write-Host "Removed shortcut: $path"
+            }
+        } catch {
+            Write-Warning "Could not remove shortcut: $path. $($_.Exception.Message)"
+        }
+    }
+}
+
 function Hide-GarmentsTechnicalFiles($TargetDir) {
     $items = @(
         "scripts",
@@ -235,6 +300,130 @@ function Clear-GarmentsFileAttributes($Path) {
     }
 }
 
+function Remove-GarmentsDockerState($TargetDir) {
+    Write-Host "Reset mode selected: stopping and removing Docker containers/volumes."
+    try {
+        if (Test-Path -LiteralPath (Join-Path $TargetDir "docker-compose.yml")) {
+            Push-Location $TargetDir
+            try {
+                docker compose down --volumes --remove-orphans | Out-Host
+            } finally {
+                Pop-Location
+            }
+        } else {
+            Write-Host "docker-compose.yml not found in install folder; removing known GarmentsOS Docker resources."
+        }
+    } catch {
+        Write-Warning "Docker compose reset warning: $($_.Exception.Message)"
+    }
+
+    foreach ($container in @("garmentsos-pro-app-1", "garmentsos-pro-app", "garmentsos-app", "garmentsos-app-1")) {
+        try {
+            docker rm -f $container 2>$null | Out-Null
+            Write-Host "Removed Docker container if present: $container"
+        } catch {
+        }
+    }
+
+    foreach ($volume in @("garmentsos-pro_garmentsos_database", "garmentsos-pro_garmentsos_storage", "garmentsos_garmentsos_database", "garmentsos_garmentsos_storage")) {
+        try {
+            docker volume rm -f $volume 2>$null | Out-Null
+            Write-Host "Removed Docker volume if present: $volume"
+        } catch {
+        }
+    }
+}
+
+function Remove-GarmentsLocalCaches($TargetDir) {
+    $candidates = @(
+        (Join-Path $TargetDir ".env"),
+        (Join-Path $TargetDir ".pending-launcher-update.json"),
+        (Join-Path $TargetDir "pending-launcher-update.log"),
+        (Join-Path $TargetDir "pending-launcher-update.log.old"),
+        (Join-Path $TargetDir "storage\app\update-lock.json"),
+        (Join-Path $TargetDir "updates\active-update.json"),
+        (Join-Path $TargetDir "updates\GarmentsOS-PRO.exe.pending"),
+        (Join-Path $TargetDir "storage\app\install-id.txt"),
+        (Join-Path $TargetDir "storage\app\license\verify-cache.json"),
+        (Join-Path $TargetDir "storage\app\license\registration-cache.json"),
+        (Join-Path $TargetDir "storage\app\license\request-cache.json"),
+        (Join-Path $TargetDir "storage\app\license\license.json"),
+        (Join-Path $TargetDir "storage\app\license\installation.json"),
+        (Join-Path $TargetDir "storage\app\license\installation.json.recovery"),
+        (Join-Path $TargetDir "database\database.sqlite")
+    )
+
+    foreach ($path in $candidates) {
+        try {
+            if (Test-Path -LiteralPath $path) {
+                Remove-Item -LiteralPath $path -Force -Recurse
+                Write-ResetLog "Deleted reset state: $path"
+            }
+        } catch {
+            Write-Warning "Could not delete reset state: $path. $($_.Exception.Message)"
+        }
+    }
+}
+
+function Remove-GarmentsExternalCaches() {
+    $paths = @()
+
+    foreach ($folderName in @("ApplicationData", "LocalApplicationData", "CommonApplicationData")) {
+        try {
+            $base = [Environment]::GetFolderPath($folderName)
+            if (-not [string]::IsNullOrWhiteSpace($base)) {
+                $paths += (Join-Path $base "GarmentsOS")
+                $paths += (Join-Path $base "GarmentsOS PRO")
+                $paths += (Join-Path $base "SparkPair\GarmentsOS")
+                $paths += (Join-Path $base "SparkPair\GarmentsOS PRO")
+            }
+        } catch {
+            Write-Warning "Could not resolve $folderName cache path. $($_.Exception.Message)"
+        }
+    }
+
+    foreach ($path in ($paths | Select-Object -Unique)) {
+        try {
+            if (Test-Path -LiteralPath $path) {
+                Remove-Item -LiteralPath $path -Recurse -Force
+                Write-ResetLog "Deleted external cache: $path"
+            }
+        } catch {
+            Write-Warning "Could not delete external cache: $path. $($_.Exception.Message)"
+        }
+    }
+}
+
+function Invoke-GarmentsFreshReset($TargetDir) {
+    $logRoot = Join-Path ([System.IO.Path]::GetTempPath()) "GarmentsOS"
+    New-Item -ItemType Directory -Force -Path $logRoot | Out-Null
+    $script:ResetLogPath = Join-Path $logRoot ("fresh-reset-" + (Get-Date -Format "yyyyMMdd_HHmmss") + ".log")
+
+    Write-ResetLog "Reset mode selected."
+    Write-ResetLog "This will delete local database, license state, backups, and setup data."
+    Write-ResetLog "InstallDir: $TargetDir"
+    Remove-GarmentsDockerState $TargetDir
+    Remove-GarmentsShortcuts
+    Unregister-GarmentsProtocol
+    Remove-GarmentsExternalCaches
+
+    if (Test-Path -LiteralPath $TargetDir) {
+        Repair-GarmentsInstallFolderAccess $TargetDir
+        Clear-GarmentsFileAttributes $TargetDir
+        Remove-GarmentsLocalCaches $TargetDir
+        try {
+            Remove-Item -LiteralPath $TargetDir -Recurse -Force
+            Write-ResetLog "Deleted install folder: $TargetDir"
+        } catch {
+            throw "Fresh reset failed. Could not delete install folder: $TargetDir. $($_.Exception.Message)"
+        }
+    } else {
+        Write-ResetLog "Install folder was already absent: $TargetDir"
+    }
+
+    Write-ResetLog "Fresh reset completed. Log: $script:ResetLogPath"
+}
+
 function Require-Command($Name) {
     if (-not (Get-Command $Name -ErrorAction SilentlyContinue)) {
         throw "$Name is required. Install Docker Desktop and try again."
@@ -282,7 +471,7 @@ function Read-EnvContentSafe($EnvPath) {
     }
 }
 
-function Initialize-FreshInstallEnv($InstallDir, $EnvPath) {
+function Initialize-FreshInstallEnv($InstallDir, $EnvPath, [bool]$PreserveExistingEnv) {
     Repair-GarmentsInstallFolderAccess $InstallDir
     Clear-GarmentsFileAttributes $InstallDir
 
@@ -293,20 +482,27 @@ function Initialize-FreshInstallEnv($InstallDir, $EnvPath) {
 
     $envExists = Test-Path -LiteralPath $EnvPath
     if ($envExists) {
-        try {
-            $null = Get-Content -LiteralPath $EnvPath -Raw -ErrorAction Stop
-            Write-Host "Existing .env is readable and will be reused: $EnvPath"
-            return $false
-        } catch {
-            Write-Warning "Existing .env cannot be read: $($_.Exception.Message)"
-            $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
-            $lockedPath = Join-Path (Split-Path -Parent $EnvPath) ".env.locked-$timestamp"
+        if ($PreserveExistingEnv) {
             try {
-                Rename-Item -LiteralPath $EnvPath -NewName (Split-Path -Leaf $lockedPath) -Force -ErrorAction Stop
-                Write-Warning "Unreadable .env renamed to: $lockedPath"
+                $null = Get-Content -LiteralPath $EnvPath -Raw -ErrorAction Stop
+                Write-Host "Existing .env is readable and will be reused: $EnvPath"
+                return $false
             } catch {
-                throw "Install folder is locked. Close apps or run installer as administrator."
+                Write-Warning "Existing .env cannot be read: $($_.Exception.Message)"
+                $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
+                $lockedPath = Join-Path (Split-Path -Parent $EnvPath) ".env.locked-$timestamp"
+                try {
+                    Rename-Item -LiteralPath $EnvPath -NewName (Split-Path -Leaf $lockedPath) -Force -ErrorAction Stop
+                    Write-Warning "Unreadable .env renamed to: $lockedPath"
+                } catch {
+                    throw "Install folder is locked. Close apps or run installer as administrator."
+                }
             }
+        } else {
+            $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
+            $stalePath = Join-Path (Split-Path -Parent $EnvPath) ".env.stale-$timestamp"
+            Rename-Item -LiteralPath $EnvPath -NewName (Split-Path -Leaf $stalePath) -Force -ErrorAction Stop
+            Write-ResetLog "Existing .env was not reused for fresh install/reset. Renamed to: $stalePath"
         }
     }
 
@@ -314,7 +510,8 @@ function Initialize-FreshInstallEnv($InstallDir, $EnvPath) {
         $templateContent = Get-Content -LiteralPath $template -Raw -ErrorAction Stop
         $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
         [System.IO.File]::WriteAllText($EnvPath, $templateContent, $utf8NoBom)
-        Write-Host "Created fresh .env from template: $EnvPath"
+        Write-ResetLog "Created fresh .env from template: $EnvPath"
+        Write-ResetLog "Environment regenerated for fresh install."
         return $true
     } catch {
         throw "Install folder is locked. Close apps or run installer as administrator."
@@ -368,6 +565,11 @@ docker compose version | Out-Host
 docker info | Out-Null
 
 $Source = Split-Path -Parent $PSScriptRoot
+$ExistingInstallBeforeCopy = (Test-Path -LiteralPath (Join-Path $InstallDir "manifest.json")) -and -not $FreshReset
+if ($FreshReset) {
+    Invoke-GarmentsFreshReset $InstallDir
+}
+
 New-Item -ItemType Directory -Force -Path $InstallDir | Out-Null
 New-Item -ItemType Directory -Force -Path (Join-Path $InstallDir "backups") | Out-Null
 Repair-GarmentsInstallFolderAccess $InstallDir
@@ -411,7 +613,10 @@ if (-not (Test-Path $ImageTar)) {
 docker load -i $ImageTar | Out-Host
 
 $EnvPath = Join-Path $InstallDir ".env"
-$EnvCreated = Initialize-FreshInstallEnv $InstallDir $EnvPath
+$EnvCreated = Initialize-FreshInstallEnv $InstallDir $EnvPath $ExistingInstallBeforeCopy
+if ($EnvCreated) {
+    Write-ResetLog "Fresh install will generate a new install_id when the app starts."
+}
 
 Ensure-GarmentsUpdaterEnvKeys $EnvPath
 Ensure-GarmentsLicenseEnvKeys $EnvPath

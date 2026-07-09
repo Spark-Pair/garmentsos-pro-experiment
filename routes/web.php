@@ -67,6 +67,16 @@ Route::get('subscription-expired', function () {
     return view('subscription-expired'); // ya controller agar chahiye
 })->name('subscription-expired');
 
+Route::get('', function (\App\Services\Setup\SetupStatusService $setup) {
+    if ($setup->requiresFirstRunSetup()) {
+        return redirect()->route('setup.index');
+    }
+
+    return auth()->check()
+        ? redirect()->route('home')
+        : redirect()->route('login');
+});
+
 Route::middleware(['setup.complete', 'signed'])->group(function () {
     Route::get('developer/updater/update-request/signed', [UpdateController::class, 'signedUpdateRequest'])->name('developer.updater.update-request.signed');
     Route::get('developer/updater/update-lock-failed/signed', [UpdateController::class, 'signedUpdateFailed'])->name('developer.updater.update-lock-failed.signed');
@@ -112,10 +122,6 @@ Route::group(['middleware' => ['setup.complete', 'auth', 'activeSession', 'ensur
 });
 
 Route::group(['middleware' => ['setup.complete', 'auth', 'activeSession', 'ensureLicense', 'readonly', 'blockWhenUpdating', 'dbTransaction']], function () {
-    Route::get('', function () {
-        return redirect(route('home'));
-    });
-
     Route::get('home', [Controller::class, 'home'])->name('home');
 
     Route::resource('users', UserController::class)->only(['index', 'create', 'store']);

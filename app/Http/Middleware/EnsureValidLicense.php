@@ -25,7 +25,7 @@ class EnsureValidLicense
     {
         $licenseService = app(LicenseService::class);
 
-        if (!$licenseService->enabled()) {
+        if (!$licenseService->enabled() && $licenseService->developmentBypass()) {
             session()->forget(['readonly', 'license_readonly']);
             $request->attributes->set('license_status', $licenseService->currentStatus());
 
@@ -43,6 +43,12 @@ class EnsureValidLicense
             session()->forget('readonly');
             session(['license_readonly' => true]);
             session()->flash('warning', $status->message);
+
+            if ($request->routeIs('home')) {
+                return redirect()
+                    ->route('developer.license.status')
+                    ->with('warning', $status->message);
+            }
         } else {
             session()->forget(['readonly', 'license_readonly']);
         }

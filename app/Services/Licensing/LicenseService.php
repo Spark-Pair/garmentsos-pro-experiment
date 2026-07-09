@@ -29,9 +29,23 @@ class LicenseService
         return (bool) config('licensing.enabled', false);
     }
 
+    public function developmentBypass(): bool
+    {
+        return (bool) config('licensing.development_bypass', false);
+    }
+
     public function currentStatus(): LicenseStatus
     {
         if (!$this->enabled()) {
+            if (!$this->developmentBypass()) {
+                return LicenseStatus::problem(
+                    'activation_required',
+                    'blocked',
+                    'License activation is required. Request a demo/trial or register this device with SparkPair.',
+                    ['source' => 'config'],
+                );
+            }
+
             return LicenseStatus::notEnforced();
         }
 
@@ -371,7 +385,7 @@ class LicenseService
 
     protected function shouldEnforceUsage(): bool
     {
-        return $this->enforcementEnabled() || !(bool) config('licensing.development_bypass', false);
+        return $this->enforcementEnabled() || !$this->developmentBypass();
     }
 
     public function statusForLicense(License $license): LicenseStatus

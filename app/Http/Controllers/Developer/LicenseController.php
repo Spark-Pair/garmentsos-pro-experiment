@@ -30,13 +30,11 @@ class LicenseController extends Controller
         }
 
         $registrationResult = null;
-        if ($licenses->enabled()) {
+        if (!$licenses->developmentBypass()) {
             $registrationResult = $licenses->autoRegisterIfEnabled();
         }
 
-        $status = $licenses->enabled()
-            ? $licenses->currentStatus()
-            : LicenseStatus::notEnforced();
+        $status = $licenses->currentStatus();
 
         return view('developer.license.status', [
             'status' => $status,

@@ -188,6 +188,7 @@ public sealed class MainForm : Form
         menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add("Backup", null, async (_, _) => await RunInstalledScriptAsync("scripts\\windows-docker-backup.ps1"));
         menu.Items.Add("Repair", null, async (_, _) => await RunPowerShellAsync("docker compose up -d", installDirBox.Text));
+        menu.Items.Add("Fresh Reset / Install", null, async (_, _) => await ConfirmAndFreshResetInstallAsync());
         menu.Items.Add("Stop Services", null, async (_, _) => await StopServicesAsync());
         menu.Items.Add("Open Install Folder", null, (_, _) => OpenFolder(installDirBox.Text));
         menu.Items.Add("Save Log", null, (_, _) => SaveLog());
@@ -1688,6 +1689,24 @@ public sealed class MainForm : Form
         }
     }
 
+    private async Task ConfirmAndFreshResetInstallAsync()
+    {
+        var confirm = MessageBox.Show(
+            "This will delete local database, license state, backups, and setup data. Continue with fresh reset/install?",
+            "Fresh Reset GarmentsOS PRO",
+            MessageBoxButtons.YesNo,
+            MessageBoxIcon.Warning,
+            MessageBoxDefaultButton.Button2);
+
+        if (confirm != DialogResult.Yes)
+        {
+            Log("Fresh reset/install cancelled by user.");
+            return;
+        }
+
+        await InstallAppAsync(freshReset: true);
+    }
+
     private async Task StartManualBridgeUpdateAsync(bool autoStart)
     {
         try
@@ -1980,7 +1999,7 @@ public sealed class MainForm : Form
         }
     }
 
-    private async Task InstallAppAsync()
+    private async Task InstallAppAsync(bool freshReset = false)
     {
         try
         {
@@ -1992,7 +2011,7 @@ public sealed class MainForm : Form
 
             var installDir = installDirBox.Text.Trim();
             SetStep("Preparing installation", percent: 10);
-            Log("Starting fresh install flow.");
+            Log(freshReset ? "Starting fresh reset/install flow." : "Starting fresh install flow.");
 
             await EnsureDockerRunningAsync();
 
@@ -2036,7 +2055,7 @@ public sealed class MainForm : Form
             SetStep("Creating environment", percent: 64);
             await RunProcessAsync(
                 "powershell.exe",
-                $"-NoProfile -ExecutionPolicy Bypass -File \"{script}\" -InstallDir \"{installDir}\"",
+                $"-NoProfile -ExecutionPolicy Bypass -File \"{script}\" -InstallDir \"{installDir}\"{(freshReset ? " -FreshReset" : "")}",
                 releaseDir,
                 line =>
                 {
