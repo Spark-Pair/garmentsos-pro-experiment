@@ -1894,7 +1894,16 @@ public sealed class MainForm : Form
             var workDir = Path.Combine(Path.GetTempPath(), "GarmentsOSUpdate", DateTime.Now.ToString("yyyyMMdd_HHmmss"));
             Directory.CreateDirectory(workDir);
 
-            var packagePath = Path.Combine(workDir, Path.GetFileName(new Uri(currentFeed.PackageUrl).LocalPath));
+            var packageFileName = !string.IsNullOrWhiteSpace(currentFeed.PackageFile)
+                ? currentFeed.PackageFile.Trim()
+                : Path.GetFileName(new Uri(currentFeed.PackageUrl).LocalPath);
+
+            if (string.IsNullOrWhiteSpace(Path.GetExtension(packageFileName)))
+            {
+                packageFileName += ".zip";
+            }
+
+            var packagePath = Path.Combine(workDir, packageFileName);
             SetStep("Downloading update package...", percent: 15);
             Log("Downloading update package...");
             var updatePackageSize = await TryGetPackageSizeAsync(currentFeed.PackageUrl);
@@ -2023,7 +2032,16 @@ public sealed class MainForm : Form
             var workDir = Path.Combine(Path.GetTempPath(), "GarmentsOSInstall", DateTime.Now.ToString("yyyyMMdd_HHmmss"));
             Directory.CreateDirectory(workDir);
 
-            var packagePath = Path.Combine(workDir, Path.GetFileName(new Uri(currentFeed.PackageUrl).LocalPath));
+            var packageFileName = !string.IsNullOrWhiteSpace(currentFeed.PackageFile)
+                ? currentFeed.PackageFile.Trim()
+                : Path.GetFileName(new Uri(currentFeed.PackageUrl).LocalPath);
+
+            if (string.IsNullOrWhiteSpace(Path.GetExtension(packageFileName)))
+            {
+                packageFileName += ".zip";
+            }
+
+            var packagePath = Path.Combine(workDir, packageFileName);
             SetStep("Downloading installation package...", percent: 20);
             var installPackageSize = await TryGetPackageSizeAsync(currentFeed.PackageUrl);
             if (installPackageSize.HasValue)
