@@ -69,7 +69,9 @@ jobs:
       - name: Ensure archive tools are available
         run: |
           sudo apt-get update
-          sudo apt-get install -y zip awscli
+          sudo apt-get install -y zip pipx
+          pipx install awscli
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
       - name: Publish Windows GUI launcher
         id: launcher
