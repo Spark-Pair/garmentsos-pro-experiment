@@ -52,6 +52,7 @@ jobs:
       RELEASE_NOTES: ${{ inputs.release_notes }}
       PRERELEASE: ${{ inputs.prerelease }}
       GH_TOKEN: ${{ github.token }}
+      PUBLIC_DOWNLOAD_BASE_URL: https://www.sparkpair.dev/api/downloads/garmentsos-pro
 
     steps:
       - name: Checkout repository
@@ -68,7 +69,7 @@ jobs:
       - name: Ensure archive tools are available
         run: |
           sudo apt-get update
-          sudo apt-get install -y zip
+          sudo apt-get install -y zip awscli
 
       - name: Publish Windows GUI launcher
         id: launcher
@@ -171,22 +172,87 @@ jobs:
             echo "setup_asset=$setup_asset"
           } >> "$GITHUB_OUTPUT"
 
-      - name: Generate published latest.json
+      - name: Upload release package to R2/S3 storage
+        id: storage
         shell: bash
         env:
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          R2_PUBLIC_BASE_URL: ${{ secrets.R2_PUBLIC_BASE_URL }}
           PACKAGE_FILE: ${{ steps.assets.outputs.package_file }}
           CHECKSUM_FILE: ${{ steps.assets.outputs.checksum_file }}
           SETUP_ASSET: ${{ steps.assets.outputs.setup_asset }}
         run: |
           set -euo pipefail
 
+          missing=()
+          [[ -n "${R2_ACCOUNT_ID:-}" ]] || missing+=("R2_ACCOUNT_ID")
+          [[ -n "${R2_ACCESS_KEY_ID:-}" ]] || missing+=("R2_ACCESS_KEY_ID")
+          [[ -n "${R2_SECRET_ACCESS_KEY:-}" ]] || missing+=("R2_SECRET_ACCESS_KEY")
+          [[ -n "${R2_BUCKET:-}" ]] || missing+=("R2_BUCKET")
+
+          if (( ${#missing[@]} > 0 )); then
+            echo "::error::Missing release storage secrets: ${missing[*]}"
+            exit 1
+          fi
+
+          endpoint_url="https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com"
+          object_prefix="garmentsos-pro/${CHANNEL}/${VERSION}"
+          package_key="${object_prefix}/${PACKAGE_FILE}"
+          checksum_key="${object_prefix}/${CHECKSUM_FILE}"
+          setup_key="${object_prefix}/GarmentsOS-PRO.exe"
+
+          export AWS_ACCESS_KEY_ID="${R2_ACCESS_KEY_ID}"
+          export AWS_SECRET_ACCESS_KEY="${R2_SECRET_ACCESS_KEY}"
+          export AWS_DEFAULT_REGION="auto"
+
+          aws s3 cp "docker-releases/${PACKAGE_FILE}" "s3://${R2_BUCKET}/${package_key}" --endpoint-url "${endpoint_url}" --only-show-errors
+          aws s3 cp "docker-releases/${CHECKSUM_FILE}" "s3://${R2_BUCKET}/${checksum_key}" --endpoint-url "${endpoint_url}" --only-show-errors
+          aws s3 cp "${SETUP_ASSET}" "s3://${R2_BUCKET}/${setup_key}" --endpoint-url "${endpoint_url}" --only-show-errors
+
+          public_object_base="${R2_PUBLIC_BASE_URL%/}"
+          storage_package_url=""
+          storage_setup_url=""
+          if [[ -n "${public_object_base}" ]]; then
+            storage_package_url="${public_object_base}/${package_key}"
+            storage_setup_url="${public_object_base}/${setup_key}"
+          fi
+
+          public_package_url="${PUBLIC_DOWNLOAD_BASE_URL}/${VERSION}"
+          public_setup_url="${PUBLIC_DOWNLOAD_BASE_URL}/${VERSION}/setup"
+
+          {
+            echo "bucket=${R2_BUCKET}"
+            echo "package_key=${package_key}"
+            echo "checksum_key=${checksum_key}"
+            echo "setup_key=${setup_key}"
+            echo "storage_package_url=${storage_package_url}"
+            echo "storage_setup_url=${storage_setup_url}"
+            echo "public_package_url=${public_package_url}"
+            echo "public_setup_url=${public_setup_url}"
+          } >> "$GITHUB_OUTPUT"
+
+          echo "Uploaded release package to storage key: ${package_key}"
+          echo "SparkPair public package URL: ${public_package_url}"
+
+      - name: Generate published latest.json
+        shell: bash
+        env:
+          PACKAGE_FILE: ${{ steps.assets.outputs.package_file }}
+          CHECKSUM_FILE: ${{ steps.assets.outputs.checksum_file }}
+          SETUP_ASSET: ${{ steps.assets.outputs.setup_asset }}
+          PACKAGE_URL: ${{ steps.storage.outputs.public_package_url }}
+          SETUP_URL: ${{ steps.storage.outputs.public_setup_url }}
+        run: |
+          set -euo pipefail
+
           export package_sha256
           export released_at
-          export release_base_url
 
           package_sha256="$(sha256sum "docker-releases/${PACKAGE_FILE}" | awk '{print $1}')"
           released_at="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
-          release_base_url="https://github.com/${GITHUB_REPOSITORY}/releases/download/v${VERSION}"
 
           python - <<'PY'
           import json
@@ -201,12 +267,9 @@ jobs:
               "package_file": os.environ["PACKAGE_FILE"],
               "package_sha256_file": os.environ["CHECKSUM_FILE"],
               "package_sha256": os.environ["package_sha256"],
-              "package_url": f"{os.environ['release_base_url']}/{os.environ['PACKAGE_FILE']}",
-              "setup_url": (
-                  f"{os.environ['release_base_url']}/GarmentsOS-PRO.exe"
-                  if os.environ["SETUP_ASSET"]
-                  else "PLACEHOLDER_GITHUB_RELEASE_ASSET_URL/GarmentsOS-PRO.exe"
-              ),
+              "sha256": os.environ["package_sha256"],
+              "package_url": os.environ["PACKAGE_URL"],
+              "setup_url": os.environ["SETUP_URL"],
               "min_launcher_version": os.environ["MIN_LAUNCHER_VERSION"],
               "notes": os.environ["RELEASE_NOTES"],
           }
@@ -277,6 +340,14 @@ jobs:
           SPARKPAIR_RELEASE_WEBHOOK_SECRET: ${{ secrets.SPARKPAIR_RELEASE_WEBHOOK_SECRET }}
           PACKAGE_FILE: ${{ steps.assets.outputs.package_file }}
           SETUP_ASSET: ${{ steps.assets.outputs.setup_asset }}
+          PUBLIC_PACKAGE_URL: ${{ steps.storage.outputs.public_package_url }}
+          PUBLIC_SETUP_URL: ${{ steps.storage.outputs.public_setup_url }}
+          STORAGE_BUCKET: ${{ steps.storage.outputs.bucket }}
+          STORAGE_PACKAGE_KEY: ${{ steps.storage.outputs.package_key }}
+          STORAGE_CHECKSUM_KEY: ${{ steps.storage.outputs.checksum_key }}
+          STORAGE_SETUP_KEY: ${{ steps.storage.outputs.setup_key }}
+          STORAGE_PACKAGE_URL: ${{ steps.storage.outputs.storage_package_url }}
+          STORAGE_SETUP_URL: ${{ steps.storage.outputs.storage_setup_url }}
         run: |
           set -euo pipefail
 
@@ -308,8 +379,7 @@ jobs:
           PY
           )"
 
-          release_base_url="https://github.com/${GITHUB_REPOSITORY}/releases/download/v${VERSION}"
-          export package_sha256 released_at release_base_url
+          export package_sha256 released_at
 
           python - <<'PY'
           import json
@@ -322,9 +392,19 @@ jobs:
               "mandatory": os.environ["MANDATORY"].lower() == "true",
               "released_at": os.environ["released_at"],
               "package_file": os.environ["PACKAGE_FILE"],
-              "package_url": f"{os.environ['release_base_url']}/{os.environ['PACKAGE_FILE']}",
+              "package_url": os.environ["PUBLIC_PACKAGE_URL"],
               "package_sha256": os.environ["package_sha256"],
-              "setup_url": f"{os.environ['release_base_url']}/GarmentsOS-PRO.exe",
+              "setup_url": os.environ["PUBLIC_SETUP_URL"],
+              "storage": {
+                  "provider": "r2",
+                  "bucket": os.environ["STORAGE_BUCKET"],
+                  "package_key": os.environ["STORAGE_PACKAGE_KEY"],
+                  "checksum_key": os.environ["STORAGE_CHECKSUM_KEY"],
+                  "setup_key": os.environ["STORAGE_SETUP_KEY"],
+                  "package_url": os.environ.get("STORAGE_PACKAGE_URL", ""),
+                  "setup_url": os.environ.get("STORAGE_SETUP_URL", ""),
+              },
+              "github_release_url": f"https://github.com/{os.environ['GITHUB_REPOSITORY']}/releases/tag/v{os.environ['VERSION']}",
               "notes": os.environ["RELEASE_NOTES"],
           }
 
@@ -429,6 +509,29 @@ jobs:
             echo "SparkPair stable feed version verified: ${VERSION}"
           fi
 
+          package_download="$(mktemp)"
+          package_status="$(curl --location --show-error --silent \
+            --output "$package_download" \
+            --write-out "%{http_code}" \
+            "${PUBLIC_PACKAGE_URL}" || true)"
+          echo "SparkPair package download verification HTTP status: ${package_status}"
+
+          if [[ "$package_status" != "200" || ! -s "$package_download" ]]; then
+            echo "::error::Final SparkPair package URL is not downloadable."
+            echo "URL: ${PUBLIC_PACKAGE_URL}"
+            exit 1
+          fi
+
+          downloaded_sha256="$(sha256sum "$package_download" | awk '{print $1}')"
+          if [[ "${downloaded_sha256}" != "${package_sha256}" ]]; then
+            echo "::error::Final SparkPair package SHA256 mismatch."
+            echo "Expected: ${package_sha256}"
+            echo "Actual:   ${downloaded_sha256}"
+            exit 1
+          fi
+
+          echo "SparkPair package download verified: ${PUBLIC_PACKAGE_URL}"
+
       - name: Save public feed artifact
         uses: actions/upload-artifact@v4
         with:
@@ -442,6 +545,7 @@ jobs:
           version_latest_url="https://github.com/${GITHUB_REPOSITORY}/releases/download/v${VERSION}/latest.json"
           channel_latest_url="https://github.com/${GITHUB_REPOSITORY}/releases/download/latest-${CHANNEL}/latest.json"
           public_feed_url="https://www.sparkpair.dev/api/updates/garmentsos-pro/${CHANNEL}/latest.json"
+          public_package_url="${PUBLIC_DOWNLOAD_BASE_URL}/${VERSION}"
           {
             echo "## GarmentsOS PRO release published"
             echo
@@ -452,6 +556,7 @@ jobs:
             echo "- Version latest.json: ${version_latest_url}"
             echo "- Channel feed latest.json: ${channel_latest_url}"
             echo "- Public feed target: ${public_feed_url}"
+            echo "- Public package download: ${public_package_url}"
             echo
             echo "Set installed apps to use this feed URL when update checks are enabled:"
             echo

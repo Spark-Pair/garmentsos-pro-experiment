@@ -2602,10 +2602,21 @@ public sealed class MainForm : Form
 
         if (statusCode == 404)
         {
+            if (IsGithubUrl(url) || IsGithubUrl(finalUrl))
+            {
+                return $"Release package is not publicly available. SparkPair release storage may not be configured. HTTP 404. URL: {url}. Final URL: {finalUrl}.";
+            }
+
             return $"Download failed with HTTP 404. The update package URL was not reachable or the release asset is private/missing. URL: {url}. Final URL: {finalUrl}.";
         }
 
         return $"Download failed with HTTP {status}. URL: {url}. Final URL: {finalUrl}. Content-Type: {contentType}.";
+    }
+
+    private static bool IsGithubUrl(string value)
+    {
+        return Uri.TryCreate(value, UriKind.Absolute, out var uri)
+            && uri.Host.Equals("github.com", StringComparison.OrdinalIgnoreCase);
     }
 
     private void UpdateDownloadProgress(string label, string stepKey, long downloadedBytes, long? totalBytes, DateTimeOffset startedAt, int startPercent, int endPercent)
