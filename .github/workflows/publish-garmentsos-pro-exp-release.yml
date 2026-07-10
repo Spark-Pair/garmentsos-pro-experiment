@@ -1,4 +1,4 @@
-name: Publish GarmentsOS PRO Release
+﻿name: Publish GarmentsOS PRO Release
 
 on:
   workflow_dispatch:
@@ -175,82 +175,82 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Upload release package to R2/S3 storage
-          id: storage
-          shell: bash
-          env:
-            R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
-            R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
-            R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
-            R2_BUCKET: ${{ secrets.R2_BUCKET }}
-            R2_PUBLIC_BASE_URL: ${{ secrets.R2_PUBLIC_BASE_URL }}
-            PACKAGE_FILE: ${{ steps.assets.outputs.package_file }}
-            CHECKSUM_FILE: ${{ steps.assets.outputs.checksum_file }}
-            SETUP_ASSET: ${{ steps.assets.outputs.setup_asset }}
-          run: |
-            set -euo pipefail
+        id: storage
+        shell: bash
+        env:
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          R2_PUBLIC_BASE_URL: ${{ secrets.R2_PUBLIC_BASE_URL }}
+          PACKAGE_FILE: ${{ steps.assets.outputs.package_file }}
+          CHECKSUM_FILE: ${{ steps.assets.outputs.checksum_file }}
+          SETUP_ASSET: ${{ steps.assets.outputs.setup_asset }}
+        run: |
+          set -euo pipefail
 
-            public_package_url="${PUBLIC_DOWNLOAD_BASE_URL}/${VERSION}"
-            public_setup_url="${PUBLIC_DOWNLOAD_BASE_URL}/${VERSION}/setup"
+          public_package_url="${PUBLIC_DOWNLOAD_BASE_URL}/${VERSION}"
+          public_setup_url="${PUBLIC_DOWNLOAD_BASE_URL}/${VERSION}/setup"
 
-            missing=()
-            [[ -n "${R2_ACCOUNT_ID:-}" ]] || missing+=("R2_ACCOUNT_ID")
-            [[ -n "${R2_ACCESS_KEY_ID:-}" ]] || missing+=("R2_ACCESS_KEY_ID")
-            [[ -n "${R2_SECRET_ACCESS_KEY:-}" ]] || missing+=("R2_SECRET_ACCESS_KEY")
-            [[ -n "${R2_BUCKET:-}" ]] || missing+=("R2_BUCKET")
+          missing=()
+          [[ -n "${R2_ACCOUNT_ID:-}" ]] || missing+=("R2_ACCOUNT_ID")
+          [[ -n "${R2_ACCESS_KEY_ID:-}" ]] || missing+=("R2_ACCESS_KEY_ID")
+          [[ -n "${R2_SECRET_ACCESS_KEY:-}" ]] || missing+=("R2_SECRET_ACCESS_KEY")
+          [[ -n "${R2_BUCKET:-}" ]] || missing+=("R2_BUCKET")
 
-            if (( ${#missing[@]} > 0 )); then
-              echo "::warning::R2/S3 storage upload skipped. Missing secrets: ${missing[*]}"
-              {
-                echo "bucket="
-                echo "package_key="
-                echo "checksum_key="
-                echo "setup_key="
-                echo "storage_package_url="
-                echo "storage_setup_url="
-                echo "public_package_url=${public_package_url}"
-                echo "public_setup_url=${public_setup_url}"
-              } >> "$GITHUB_OUTPUT"
-
-              echo "SparkPair public package URL: ${public_package_url}"
-              echo "Using GitHub private release fallback through SparkPair server proxy."
-              exit 0
-            fi
-
-            endpoint_url="https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com"
-            object_prefix="garmentsos-pro/${CHANNEL}/${VERSION}"
-            package_key="${object_prefix}/${PACKAGE_FILE}"
-            checksum_key="${object_prefix}/${CHECKSUM_FILE}"
-            setup_key="${object_prefix}/GarmentsOS-PRO.exe"
-
-            export AWS_ACCESS_KEY_ID="${R2_ACCESS_KEY_ID}"
-            export AWS_SECRET_ACCESS_KEY="${R2_SECRET_ACCESS_KEY}"
-            export AWS_DEFAULT_REGION="auto"
-
-            aws s3 cp "docker-releases/${PACKAGE_FILE}" "s3://${R2_BUCKET}/${package_key}" --endpoint-url "${endpoint_url}" --only-show-errors
-            aws s3 cp "docker-releases/${CHECKSUM_FILE}" "s3://${R2_BUCKET}/${checksum_key}" --endpoint-url "${endpoint_url}" --only-show-errors
-            aws s3 cp "${SETUP_ASSET}" "s3://${R2_BUCKET}/${setup_key}" --endpoint-url "${endpoint_url}" --only-show-errors
-
-            public_object_base="${R2_PUBLIC_BASE_URL%/}"
-            storage_package_url=""
-            storage_setup_url=""
-            if [[ -n "${public_object_base}" ]]; then
-              storage_package_url="${public_object_base}/${package_key}"
-              storage_setup_url="${public_object_base}/${setup_key}"
-            fi
-
+          if (( ${#missing[@]} > 0 )); then
+            echo "::warning::R2/S3 storage upload skipped. Missing secrets: ${missing[*]}"
             {
-              echo "bucket=${R2_BUCKET}"
-              echo "package_key=${package_key}"
-              echo "checksum_key=${checksum_key}"
-              echo "setup_key=${setup_key}"
-              echo "storage_package_url=${storage_package_url}"
-              echo "storage_setup_url=${storage_setup_url}"
+              echo "bucket="
+              echo "package_key="
+              echo "checksum_key="
+              echo "setup_key="
+              echo "storage_package_url="
+              echo "storage_setup_url="
               echo "public_package_url=${public_package_url}"
               echo "public_setup_url=${public_setup_url}"
             } >> "$GITHUB_OUTPUT"
 
-            echo "Uploaded release package to storage key: ${package_key}"
             echo "SparkPair public package URL: ${public_package_url}"
+            echo "Using GitHub private release fallback through SparkPair server proxy."
+            exit 0
+          fi
+
+          endpoint_url="https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com"
+          object_prefix="garmentsos-pro/${CHANNEL}/${VERSION}"
+          package_key="${object_prefix}/${PACKAGE_FILE}"
+          checksum_key="${object_prefix}/${CHECKSUM_FILE}"
+          setup_key="${object_prefix}/GarmentsOS-PRO.exe"
+
+          export AWS_ACCESS_KEY_ID="${R2_ACCESS_KEY_ID}"
+          export AWS_SECRET_ACCESS_KEY="${R2_SECRET_ACCESS_KEY}"
+          export AWS_DEFAULT_REGION="auto"
+
+          aws s3 cp "docker-releases/${PACKAGE_FILE}" "s3://${R2_BUCKET}/${package_key}" --endpoint-url "${endpoint_url}" --only-show-errors
+          aws s3 cp "docker-releases/${CHECKSUM_FILE}" "s3://${R2_BUCKET}/${checksum_key}" --endpoint-url "${endpoint_url}" --only-show-errors
+          aws s3 cp "${SETUP_ASSET}" "s3://${R2_BUCKET}/${setup_key}" --endpoint-url "${endpoint_url}" --only-show-errors
+
+          public_object_base="${R2_PUBLIC_BASE_URL%/}"
+          storage_package_url=""
+          storage_setup_url=""
+          if [[ -n "${public_object_base}" ]]; then
+            storage_package_url="${public_object_base}/${package_key}"
+            storage_setup_url="${public_object_base}/${setup_key}"
+          fi
+
+          {
+            echo "bucket=${R2_BUCKET}"
+            echo "package_key=${package_key}"
+            echo "checksum_key=${checksum_key}"
+            echo "setup_key=${setup_key}"
+            echo "storage_package_url=${storage_package_url}"
+            echo "storage_setup_url=${storage_setup_url}"
+            echo "public_package_url=${public_package_url}"
+            echo "public_setup_url=${public_setup_url}"
+          } >> "$GITHUB_OUTPUT"
+
+          echo "Uploaded release package to storage key: ${package_key}"
+          echo "SparkPair public package URL: ${public_package_url}"
 
       - name: Generate published latest.json
         shell: bash
