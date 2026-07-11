@@ -1894,16 +1894,10 @@ public sealed class MainForm : Form
             var workDir = Path.Combine(Path.GetTempPath(), "GarmentsOSUpdate", DateTime.Now.ToString("yyyyMMdd_HHmmss"));
             Directory.CreateDirectory(workDir);
 
-            var packageFileName = !string.IsNullOrWhiteSpace(currentFeed.PackageFile)
-                ? currentFeed.PackageFile.Trim()
-                : Path.GetFileName(new Uri(currentFeed.PackageUrl).LocalPath);
-
-            if (string.IsNullOrWhiteSpace(Path.GetExtension(packageFileName)))
-            {
-                packageFileName += ".zip";
-            }
-
+            var packageFileName = ResolvePackageFileName(currentFeed.PackageFile, currentFeed.PackageUrl);
             var packagePath = Path.Combine(workDir, packageFileName);
+            Log("Selected update package file name: " + packageFileName);
+            Log("Update package path: " + packagePath);
             SetStep("Downloading update package...", percent: 15);
             Log("Downloading update package...");
             var updatePackageSize = await TryGetPackageSizeAsync(currentFeed.PackageUrl);
@@ -2032,16 +2026,10 @@ public sealed class MainForm : Form
             var workDir = Path.Combine(Path.GetTempPath(), "GarmentsOSInstall", DateTime.Now.ToString("yyyyMMdd_HHmmss"));
             Directory.CreateDirectory(workDir);
 
-            var packageFileName = !string.IsNullOrWhiteSpace(currentFeed.PackageFile)
-                ? currentFeed.PackageFile.Trim()
-                : Path.GetFileName(new Uri(currentFeed.PackageUrl).LocalPath);
-
-            if (string.IsNullOrWhiteSpace(Path.GetExtension(packageFileName)))
-            {
-                packageFileName += ".zip";
-            }
-
+            var packageFileName = ResolvePackageFileName(currentFeed.PackageFile, currentFeed.PackageUrl);
             var packagePath = Path.Combine(workDir, packageFileName);
+            Log("Selected install package file name: " + packageFileName);
+            Log("Install package path: " + packagePath);
             SetStep("Downloading installation package...", percent: 20);
             var installPackageSize = await TryGetPackageSizeAsync(currentFeed.PackageUrl);
             if (installPackageSize.HasValue)
@@ -2635,6 +2623,74 @@ public sealed class MainForm : Form
     {
         return Uri.TryCreate(value, UriKind.Absolute, out var uri)
             && uri.Host.Equals("github.com", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string ResolvePackageFileName(string? packageFile, string packageUrl)
+    {
+        var candidate = !string.IsNullOrWhiteSpace(packageFile)
+            ? packageFile.Trim()
+            : UrlFileName(packageUrl);
+
+        candidate = SanitizePackageFileName(candidate);
+        if (string.IsNullOrWhiteSpace(candidate))
+        {
+            candidate = "garmentsos-pro-package.zip";
+        }
+
+        if (!HasSupportedPackageExtension(candidate))
+        {
+            candidate = StripKnownArchiveExtension(candidate) + ".zip";
+        }
+
+        if (!HasSupportedPackageExtension(candidate))
+        {
+            throw new InvalidOperationException("Unsupported update package format. Use .zip or .tar.gz.");
+        }
+
+        return candidate;
+    }
+
+    private static string UrlFileName(string packageUrl)
+    {
+        if (!Uri.TryCreate(packageUrl, UriKind.Absolute, out var uri))
+        {
+            return "";
+        }
+
+        return Path.GetFileName(uri.LocalPath);
+    }
+
+    private static string SanitizePackageFileName(string fileName)
+    {
+        var sanitized = fileName.Trim().Replace('\\', '/');
+        sanitized = sanitized.Split('/', StringSplitOptions.RemoveEmptyEntries).LastOrDefault() ?? "";
+
+        foreach (var invalid in Path.GetInvalidFileNameChars())
+        {
+            sanitized = sanitized.Replace(invalid, '_');
+        }
+
+        return sanitized;
+    }
+
+    private static bool HasSupportedPackageExtension(string fileName)
+    {
+        return fileName.EndsWith(".zip", StringComparison.OrdinalIgnoreCase)
+            || fileName.EndsWith(".tar.gz", StringComparison.OrdinalIgnoreCase)
+            || fileName.EndsWith(".tgz", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string StripKnownArchiveExtension(string fileName)
+    {
+        foreach (var extension in new[] { ".tar.gz", ".tgz", ".zip", ".tar", ".gz" })
+        {
+            if (fileName.EndsWith(extension, StringComparison.OrdinalIgnoreCase))
+            {
+                return fileName[..^extension.Length];
+            }
+        }
+
+        return fileName;
     }
 
     private void UpdateDownloadProgress(string label, string stepKey, long downloadedBytes, long? totalBytes, DateTimeOffset startedAt, int startPercent, int endPercent)

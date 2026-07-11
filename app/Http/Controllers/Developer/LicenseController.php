@@ -15,7 +15,9 @@ use App\Services\Licensing\LicenseStatus;
 use App\Services\Licensing\OfflineActivationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
+use Throwable;
 
 class LicenseController extends Controller
 {
@@ -30,27 +32,107 @@ class LicenseController extends Controller
         }
 
         $registrationResult = null;
-        if (!$licenses->developmentBypass()) {
-            $registrationResult = $licenses->autoRegisterIfEnabled();
+        try {
+            if (!$licenses->developmentBypass()) {
+                $registrationResult = $licenses->autoRegisterIfEnabled();
+            }
+        } catch (Throwable $e) {
+            Log::warning('License auto-registration failed while rendering status page.', [
+                'error' => $e->getMessage(),
+                'type' => $e::class,
+            ]);
+            $registrationResult = [
+                'ok' => false,
+                'message' => 'Device registration is not reachable right now. You can retry from this page.',
+            ];
         }
 
-        $status = $licenses->currentStatus();
+        try {
+            $status = $licenses->currentStatus();
+        } catch (Throwable $e) {
+            Log::error('License status page failed to calculate current status.', [
+                'error' => $e->getMessage(),
+                'type' => $e::class,
+            ]);
+            $status = LicenseStatus::problem(
+                'activation_required',
+                'blocked',
+                'License activation status could not be checked. Please review this device registration.',
+                ['source' => 'local_error'],
+            );
+        }
+
+        $licenseConfig = $this->safeLicenseConfigSummary($licenses);
+        $requestCache = $this->safeArray(fn () => $licenses->requestCache(), []);
+        $verifyCache = $this->safeArray(fn () => $licenses->verifyCache(), []);
 
         return view('developer.license.status', [
             'status' => $status,
-            'fingerprintPreview' => $licenses->machineHashPreview(),
-            'installationPreview' => $licenses->installId(),
+            'fingerprintPreview' => $licenseConfig['machine_hash_preview'],
+            'installationPreview' => $licenseConfig['install_id'],
             'installationMode' => config('licensing.installation_mode', 'local_lan'),
             'licensingEnabled' => $licenses->enabled(),
-            'cacheStatus' => $licenses->verifyCache()
+            'cacheStatus' => $verifyCache
                 ? LicenseStatus::valid('verify_cache', ['message' => 'Verify cache is present.'])
                 : LicenseStatus::problem('cache_missing', 'none', 'No device verify cache is present.', ['source' => 'verify_cache']),
             'foundationReady' => $this->licenseTablesReady(),
             'missingTables' => $this->missingLicenseTables(),
-            'licenseConfig' => $this->licenseConfigSummary(),
+            'licenseConfig' => $licenseConfig,
             'registrationResult' => $registrationResult,
-            'requestCache' => $licenses->requestCache(),
+            'requestCache' => $requestCache,
         ]);
+    }
+
+    protected function safeLicenseConfigSummary(LicenseService $licenses): array
+    {
+        try {
+            return $this->licenseConfigSummary();
+        } catch (Throwable $e) {
+            Log::error('License status page failed to build config summary.', [
+                'error' => $e->getMessage(),
+                'type' => $e::class,
+            ]);
+
+            return [
+                'client_id' => '',
+                'client_name' => '',
+                'expires_at' => '',
+                'grace_days' => (int) config('licensing.offline_grace_days', 7),
+                'check_url_configured' => trim((string) config('licensing.server_url', '')) !== '',
+                'env_status' => (string) config('licensing.status', 'active'),
+                'check_url' => (string) config('licensing.server_url', ''),
+                'register_url' => (string) config('licensing.register_url', ''),
+                'request_demo_url' => (string) config('licensing.request_demo_url', ''),
+                'auto_register' => (bool) config('licensing.auto_register', true),
+                'enforcement_enabled' => (bool) config('licensing.enforcement_enabled', false),
+                'development_bypass' => (bool) config('licensing.development_bypass', false),
+                'install_id' => $this->safeValue(fn () => $licenses->installId(), '-'),
+                'machine_name' => $this->safeValue(fn () => $licenses->machineName(), '-'),
+                'machine_hash' => '',
+                'machine_hash_preview' => $this->safeValue(fn () => $licenses->machineHashPreview(), '-'),
+                'app_version' => $this->safeValue(fn () => app(\App\Services\Updater\InstalledVersionService::class)->currentVersion(), 'local'),
+                'last_check_at' => '',
+                'last_registration_at' => '',
+                'last_request_at' => '',
+                'device_status' => '',
+                'customer_name' => '',
+            ];
+        }
+    }
+
+    protected function safeArray(callable $callback, array $fallback): array
+    {
+        try {
+            $value = $callback();
+            return is_array($value) ? $value : $fallback;
+        } catch (Throwable $e) {
+            Log::warning('License status page optional cache read failed.', [
+                'error' => $e->getMessage(),
+                'type' => $e::class,
+            ]);
+
+            return $fallback;
+        }
     }
 
     protected function licenseConfigSummary(): array
@@ -263,7 +345,18 @@ class LicenseController extends Controller
             'licenses',
             'license_checks',
             'audit_logs',
-        ], fn (string $table) => !Schema::hasTable($table)));
+        ], function (string $table): bool {
+            try {
+                return !Schema::hasTable($table);
+            } catch (Throwable $e) {
+                Log::warning('License status page could not inspect table availability.', [
+                    'table' => $table,
+                    'error' => $e->getMessage(),
+                ]);
+
+                return true;
+            }
+        }));
     }
 
     protected function safeValue(callable $callback, string $fallback): string

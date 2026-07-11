@@ -175,11 +175,13 @@ class RestoreService
             $postRestoreLog = $this->backups->createLog('restore', 'success', [
                 'filename' => $backupLog->filename,
                 'completed_at' => now(),
-                'message' => 'Restore completed successfully.',
+                'message' => 'Business data restored. License/device approval remains tied to this installation.',
                 'context' => [
                     'selected_backup_log_id' => $backupLog->id,
                     'emergency_backup_log_id' => $postEmergencyLog->id,
                     'validation' => $validation['code'],
+                    'restore_policy' => 'sqlite_business_database_only',
+                    'license_identity_preserved' => true,
                 ],
             ]);
 
@@ -201,7 +203,7 @@ class RestoreService
             return [
                 'success' => true,
                 'code' => 'restored',
-                'message' => 'Restore completed successfully.',
+                'message' => 'Business data restored. License/device approval remains tied to this installation.',
                 'restore_log' => $postRestoreLog,
                 'emergency_backup_log' => $postEmergencyLog,
             ];

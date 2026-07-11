@@ -507,6 +507,20 @@ function Ensure-GarmentsLicenseEnvKeys($EnvPath) {
     Ensure-EnvKey $EnvPath "LICENSE_GRACE_DAYS" "7"
 }
 
+function Remove-InstalledEnvTemplate($InstallDir) {
+    $template = Join-Path $InstallDir ".env.example"
+    try {
+        if (Test-Path -LiteralPath $template) {
+            Remove-Item -LiteralPath $template -Force
+            Write-Host "Removed installed .env.example template from runtime root: $template"
+        } else {
+            Write-Host "Installed .env.example template is not present in runtime root."
+        }
+    } catch {
+        Write-Warning "Could not remove installed .env.example template: $($_.Exception.Message)"
+    }
+}
+
 if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
     throw "Docker Desktop is required."
 }
@@ -594,6 +608,7 @@ Save-EnvContent $EnvPath $envContent
 
 Register-GarmentsProtocol $InstallDir
 Install-GarmentsShortcuts $InstallDir
+Remove-InstalledEnvTemplate $InstallDir
 
 if ($HideTechnicalFiles) {
     Hide-GarmentsTechnicalFiles $InstallDir

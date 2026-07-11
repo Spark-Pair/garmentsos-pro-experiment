@@ -462,6 +462,20 @@ function Save-EnvContent($EnvPath, $Content) {
     [System.IO.File]::WriteAllText($EnvPath, $Content, $utf8NoBom)
 }
 
+function Remove-InstalledEnvTemplate($InstallDir) {
+    $template = Join-Path $InstallDir ".env.example"
+    try {
+        if (Test-Path -LiteralPath $template) {
+            Remove-Item -LiteralPath $template -Force
+            Write-Host "Removed installed .env.example template from runtime root: $template"
+        } else {
+            Write-Host "Installed .env.example template is not present in runtime root."
+        }
+    } catch {
+        Write-Warning "Could not remove installed .env.example template: $($_.Exception.Message)"
+    }
+}
+
 function Read-EnvContentSafe($EnvPath) {
     try {
         return Get-Content -LiteralPath $EnvPath -Raw -ErrorAction Stop
@@ -663,6 +677,8 @@ if ($EnvCreated) {
     $envContent = Set-EnvLine $envContent "RUN_MIGRATIONS_ON_START" "false"
     Save-EnvContent $EnvPath $envContent
 }
+
+Remove-InstalledEnvTemplate $InstallDir
 
 Install-GarmentsShortcuts $InstallDir
 Register-GarmentsProtocol $InstallDir

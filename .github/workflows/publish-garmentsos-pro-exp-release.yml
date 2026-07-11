@@ -400,6 +400,7 @@ jobs:
           import json
           import os
 
+          storage_provider = "r2" if os.environ["STORAGE_PACKAGE_KEY"] else "sparkpair_proxy"
           payload = {
               "product": "garmentsos-pro",
               "version": os.environ["VERSION"],
@@ -411,7 +412,7 @@ jobs:
               "package_sha256": os.environ["package_sha256"],
               "setup_url": os.environ["PUBLIC_SETUP_URL"],
               "storage": {
-                  "provider": "r2",
+                  "provider": storage_provider,
                   "bucket": os.environ["STORAGE_BUCKET"],
                   "package_key": os.environ["STORAGE_PACKAGE_KEY"],
                   "checksum_key": os.environ["STORAGE_CHECKSUM_KEY"],
