@@ -31,6 +31,24 @@
     </div>
 
     <div class="max-w-6xl mx-auto space-y-4">
+        @if (session('success'))
+            <div class="rounded-lg border border-[var(--border-success)] bg-[var(--bg-success)] px-4 py-3 text-sm text-[var(--text-success)]">
+                {{ session('success') }}
+            </div>
+        @endif
+
+        @if (session('info'))
+            <div class="rounded-lg border border-[var(--border-warning)] bg-[var(--bg-warning)] px-4 py-3 text-sm text-[var(--text-warning)]">
+                {{ session('info') }}
+            </div>
+        @endif
+
+        @if (session('error'))
+            <div class="rounded-lg border border-[var(--border-error)] bg-[var(--bg-error)] px-4 py-3 text-sm text-[var(--text-error)]">
+                {{ session('error') }}
+            </div>
+        @endif
+
         <section class="{{ $panel }}">
             <x-form-title-bar title="License Activation" />
 
@@ -199,6 +217,25 @@
                     Copy Install ID
                 </button>
                 <a href="{{ route('developer.audit-logs') }}" class="{{ $secondaryButton }}">Audit Logs</a>
+            </div>
+        </section>
+
+        <section class="{{ $panel }}">
+            <x-form-title-bar title="Developer Maintenance" />
+            <div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                <p class="max-w-3xl text-sm text-[var(--secondary-text)]">
+                    Run database migrations only after a verified update or restore. This does not edit license/device identity files.
+                </p>
+                <form method="POST" action="{{ route('developer.license.run-migrations') }}" class="space-y-3">
+                    @csrf
+                    <label class="flex items-start gap-2 text-sm text-[var(--secondary-text)]">
+                        <input type="checkbox" name="confirm_migrations" value="1" class="mt-1">
+                        <span>I understand this will run pending database migrations on this installation.</span>
+                    </label>
+                    <button type="submit" class="{{ $secondaryButton }}" onclick="return confirm('Run database migrations now?')">
+                        Run Database Migrations
+                    </button>
+                </form>
             </div>
         </section>
     </div>

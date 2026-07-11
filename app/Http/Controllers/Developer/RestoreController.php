@@ -39,4 +39,28 @@ class RestoreController extends Controller
             ->route('developer.backups.restore.show', $backupLog)
             ->with($result['success'] ? 'success' : 'error', $result['message']);
     }
+
+    public function upload(Request $request, RestoreService $restore): RedirectResponse
+    {
+        if ($resp = $this->denyIfNoRole(['developer', 'admin'])) {
+            return $resp;
+        }
+
+        $validated = $request->validate([
+            'sqlite_file' => ['required', 'file'],
+            'confirmation_phrase' => ['required', 'string'],
+            'staging_tested' => ['accepted'],
+        ], [
+            'staging_tested.accepted' => 'Confirm that this restore was tested on a staging/copy database first.',
+        ]);
+
+        $result = $restore->restoreUploadedSqlite($request->file('sqlite_file'), [
+            'confirmation_phrase' => (string) $validated['confirmation_phrase'],
+            'staging_tested' => $request->boolean('staging_tested'),
+        ]);
+
+        return redirect()
+            ->route('developer.backups')
+            ->with($result['success'] ? 'success' : 'error', $result['message']);
+    }
 }

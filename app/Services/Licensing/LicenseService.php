@@ -9,6 +9,7 @@ use App\Services\Updater\InstalledVersionService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Log;
 
 class LicenseService
 {
@@ -105,7 +106,7 @@ class LicenseService
         ]);
 
         if (($result['ok'] ?? false) && is_array($result['body'] ?? null)) {
-            $this->writeRegistrationCache($result['body']);
+            $this->safeCacheWrite('registration', fn () => $this->writeRegistrationCache($result['body']));
         }
 
         return $result;
@@ -129,12 +130,12 @@ class LicenseService
         $result = $this->activationClient->requestDemo($payload);
         if (($result['ok'] ?? false) && is_array($result['body'] ?? null)) {
             $body = $result['body'];
-            $this->writeRequestCache(array_merge($payload, $body));
-            $this->writeRegistrationCache([
+            $this->safeCacheWrite('request', fn () => $this->writeRequestCache(array_merge($payload, $body)));
+            $this->safeCacheWrite('registration', fn () => $this->writeRegistrationCache([
                 'status' => $body['status'] ?? 'pending',
                 'message' => $body['message'] ?? 'Waiting for SparkPair approval.',
                 'client_name' => $customer['business_name'] ?? '',
-            ]);
+            ]));
         }
 
         return $result;
@@ -183,7 +184,7 @@ class LicenseService
         $graceUntil = $expiresAt ? $expiresAt->copy()->addDays(max(0, $graceDays)) : null;
 
         if (($body['valid'] ?? false) === true && $status === 'active') {
-            $this->writeVerifyCache($body);
+            $this->safeCacheWrite('verify', fn () => $this->writeVerifyCache($body));
 
             return LicenseStatus::valid($source, [
                 'message' => $message !== '' ? $message : 'License active',
@@ -193,7 +194,7 @@ class LicenseService
         }
 
         if (($body['valid'] ?? false) === true && $status === 'grace') {
-            $this->writeVerifyCache($body);
+            $this->safeCacheWrite('verify', fn () => $this->writeVerifyCache($body));
 
             return LicenseStatus::problem(
                 'grace_period',
@@ -302,6 +303,19 @@ class LicenseService
             'message' => (string) ($body['message'] ?? ''),
             'checked_at' => now()->utc()->toIso8601String(),
         ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+    }
+
+    protected function safeCacheWrite(string $cacheName, callable $callback): void
+    {
+        try {
+            $callback();
+        } catch (\Throwable $e) {
+            Log::warning('License cache write failed after server response.', [
+                'cache' => $cacheName,
+                'error' => $e->getMessage(),
+                'type' => $e::class,
+            ]);
+        }
     }
 
     protected function readVerifyCache(): ?array

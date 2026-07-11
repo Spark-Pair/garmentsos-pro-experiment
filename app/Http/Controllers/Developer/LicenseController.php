@@ -15,6 +15,7 @@ use App\Services\Licensing\LicenseStatus;
 use App\Services\Licensing\OfflineActivationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Throwable;
@@ -185,13 +186,26 @@ class LicenseController extends Controller
             'request_type' => ['required', 'in:demo_trial,paid_activation'],
         ]);
 
-        $result = $licenses->requestDemo($validated);
-        $body = $result['body'] ?? [];
-        $message = $body['message'] ?? $result['message'] ?? 'Activation request sent. Waiting for SparkPair approval.';
+        try {
+            $result = $licenses->requestDemo($validated);
+            $body = $result['body'] ?? [];
+            $message = $body['message'] ?? $result['message'] ?? 'Request sent. Waiting for SparkPair approval.';
 
-        return redirect()
-            ->route('developer.license.status')
-            ->with(($result['ok'] ?? false) ? 'success' : 'error', $message);
+            return redirect()
+                ->route('developer.license.status')
+                ->with(($result['ok'] ?? false) ? 'success' : 'error', $message);
+        } catch (Throwable $e) {
+            Log::error('License demo request failed inside app.', [
+                'error' => $e->getMessage(),
+                'type' => $e::class,
+                'business_name' => $validated['business_name'] ?? '',
+                'request_type' => $validated['request_type'] ?? '',
+            ]);
+
+            return redirect()
+                ->route('developer.license.status')
+                ->with('error', 'Activation request could not be saved locally. Please click Check Status or try again.');
+        }
     }
 
     public function activate()
@@ -222,13 +236,28 @@ class LicenseController extends Controller
             return $resp;
         }
 
-        $result = $licenses->registerInstall();
-        $body = $result['body'] ?? [];
-        $message = $body['message'] ?? $result['message'] ?? 'Device registration request sent.';
+        try {
+            $result = $licenses->registerInstall();
+            $body = $result['body'] ?? [];
+            $message = $body['message'] ?? $result['message'] ?? 'Device registration request sent.';
 
-        return redirect()
-            ->route('developer.license.status')
-            ->with(($result['ok'] ?? false) ? 'success' : 'error', $message);
+            if (($result['ok'] ?? false) && in_array(strtolower((string) ($body['status'] ?? '')), ['active', 'approved'], true)) {
+                session()->forget(['readonly', 'license_readonly']);
+            }
+
+            return redirect()
+                ->route('developer.license.status')
+                ->with(($result['ok'] ?? false) ? 'success' : 'error', $message);
+        } catch (Throwable $e) {
+            Log::error('License device registration failed inside app.', [
+                'error' => $e->getMessage(),
+                'type' => $e::class,
+            ]);
+
+            return redirect()
+                ->route('developer.license.status')
+                ->with('error', 'Device registration could not be completed. Please retry from this page.');
+        }
     }
 
     public function checkDevice(LicenseService $licenses): RedirectResponse
@@ -237,11 +266,64 @@ class LicenseController extends Controller
             return $resp;
         }
 
-        $status = $licenses->verifyNow();
+        try {
+            $status = $licenses->verifyNow();
 
-        return redirect()
-            ->route('developer.license.status')
-            ->with($status->shouldBlock() ? 'error' : 'success', $status->message);
+            if ($status->isAllowed() && !$status->shouldBlock()) {
+                session()->forget(['readonly', 'license_readonly']);
+            }
+
+            return redirect()
+                ->route('developer.license.status')
+                ->with($status->shouldBlock() ? 'error' : 'success', $status->message);
+        } catch (Throwable $e) {
+            Log::error('License status check failed inside app.', [
+                'error' => $e->getMessage(),
+                'type' => $e::class,
+            ]);
+
+            return redirect()
+                ->route('developer.license.status')
+                ->with('error', 'Approval status could not be checked. Please verify internet access and try again.');
+        }
+    }
+
+    public function runMigrations(Request $request): RedirectResponse
+    {
+        if ($resp = $this->denyIfNoRole(['developer', 'admin'])) {
+            return $resp;
+        }
+
+        $request->validate([
+            'confirm_migrations' => ['accepted'],
+        ], [
+            'confirm_migrations.accepted' => 'Please confirm before running database migrations.',
+        ]);
+
+        try {
+            $exitCode = Artisan::call('migrate', ['--force' => true]);
+            $output = trim(Artisan::output());
+
+            Log::info('Developer database migrations executed from license page.', [
+                'exit_code' => $exitCode,
+                'output' => substr($output, 0, 2000),
+            ]);
+
+            return redirect()
+                ->route('developer.license.status')
+                ->with($exitCode === 0 ? 'success' : 'error', $exitCode === 0
+                    ? 'Database migrations completed.'
+                    : 'Database migrations finished with errors. Check logs for details.');
+        } catch (Throwable $e) {
+            Log::error('Developer database migration action failed.', [
+                'error' => $e->getMessage(),
+                'type' => $e::class,
+            ]);
+
+            return redirect()
+                ->route('developer.license.status')
+                ->with('error', 'Database migrations could not be run. Check logs for details.');
+        }
     }
 
     public function offline(OfflineActivationService $offline)

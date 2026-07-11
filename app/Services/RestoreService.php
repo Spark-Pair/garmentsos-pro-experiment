@@ -3,6 +3,8 @@
 namespace App\Services;
 
 use App\Models\BackupLog;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
@@ -229,7 +231,161 @@ class RestoreService
         }
     }
 
+    public function restoreUploadedSqlite(UploadedFile $file, array $input): array
+    {
+        if (!$this->enabled()) {
+            return [
+                'success' => false,
+                'code' => 'blocked_disabled',
+                'message' => 'Restore is disabled by configuration.',
+                'restore_log' => null,
+            ];
+        }
+
+        $restoreLog = $this->backups->createLog('restore', 'pending', [
+            'filename' => $file->getClientOriginalName(),
+            'context' => [
+                'restore_source' => 'uploaded_sqlite',
+                'restore_enabled' => $this->enabled(),
+            ],
+        ]);
+
+        if (($input['confirmation_phrase'] ?? '') !== 'RESTORE BUSINESS DATA') {
+            return $this->fail($restoreLog, 'restore.confirmation_failed', 'Restore confirmation phrase did not match.', [
+                'restore_source' => 'uploaded_sqlite',
+            ]);
+        }
+
+        if ((bool) config('backup.restore.require_staging_tested', true) && empty($input['staging_tested'])) {
+            return $this->fail($restoreLog, 'restore.staging_confirmation_failed', 'Confirm that this restore was tested on a staging/copy database first.', [
+                'restore_source' => 'uploaded_sqlite',
+            ]);
+        }
+
+        $extension = strtolower($file->getClientOriginalExtension());
+        if (!in_array($extension, ['sqlite', 'db'], true)) {
+            return $this->fail($restoreLog, 'restore.invalid_uploaded_file', 'Restore file must be a SQLite .sqlite or .db file.', [
+                'extension' => $extension,
+            ]);
+        }
+
+        $lock = Cache::lock((string) config('backup.lock_key', 'garmentsos:backup-restore'), (int) config('backup.lock_seconds', 300));
+        if (!$lock->get()) {
+            return $this->fail($restoreLog, 'restore.lock_blocked', 'Another backup or restore is already running.', [
+                'restore_source' => 'uploaded_sqlite',
+            ]);
+        }
+
+        $dbPath = null;
+        $rollbackPath = null;
+        $replaced = false;
+        $emergency = null;
+        $uploadedPath = null;
+
+        try {
+            $this->storage->ensureDirectoryExists();
+            $uploadedFilename = 'uploaded_restore_' . now()->format('Ymd_His') . '_' . Str::lower(Str::random(8)) . '.sqlite';
+            $uploadedPath = $this->storage->restoreStagingFilePath($uploadedFilename);
+            $file->move(dirname($uploadedPath), basename($uploadedPath));
+
+            $candidateValidation = $this->validateSqliteCandidate($uploadedPath);
+            if (!$candidateValidation['valid']) {
+                throw new RuntimeException('Uploaded SQLite validation failed: ' . $candidateValidation['message']);
+            }
+
+            $this->auditLogs->record('restore.upload_started', [
+                'restore_log_id' => $restoreLog->id,
+                'uploaded_filename' => $file->getClientOriginalName(),
+                'validation' => $candidateValidation['code'],
+            ], [
+                'module' => 'backup',
+                'record_type' => BackupLog::class,
+                'record_id' => $restoreLog->id,
+            ]);
+
+            $emergency = $this->backups->createManualBackup('emergency_restore_backup', false);
+            if (!$emergency['success']) {
+                throw new RuntimeException('Emergency backup failed. Restore was not started.');
+            }
+
+            $emergencyLog = $emergency['backup_log'];
+            $emergencyVerification = $this->verifier->verify($emergency['path'], $emergencyLog->checksum);
+            if (!$emergencyVerification['valid']) {
+                throw new RuntimeException('Emergency backup verification failed. Restore was not started.');
+            }
+
+            [$dbPath, $rollbackPath] = $this->replaceSqliteDatabaseFile($uploadedPath, $uploadedFilename);
+            $replaced = true;
+
+            $validation = $this->validateCurrentDatabase();
+            if (!$validation['valid']) {
+                throw new RuntimeException('Restored database validation failed: ' . $validation['message']);
+            }
+
+            $migration = $this->runPostRestoreMaintenance();
+
+            $postRestoreLog = $this->backups->createLog('restore', 'success', [
+                'filename' => $file->getClientOriginalName(),
+                'completed_at' => now(),
+                'message' => 'Business data restored. License/device approval remains tied to this installation.',
+                'context' => [
+                    'restore_source' => 'uploaded_sqlite',
+                    'emergency_backup_log_id' => $emergencyLog->id,
+                    'validation' => $validation['code'],
+                    'migration_exit_code' => $migration['migrate_exit_code'],
+                    'cache_clear_exit_code' => $migration['cache_clear_exit_code'],
+                    'restore_policy' => 'sqlite_business_database_only',
+                    'license_identity_preserved' => true,
+                ],
+            ]);
+
+            $this->auditLogs->record('restore.upload_succeeded', [
+                'restore_log_id' => $postRestoreLog->id,
+                'emergency_backup_log_id' => $emergencyLog->id,
+                'validation' => $validation['code'],
+            ], [
+                'module' => 'backup',
+                'record_type' => BackupLog::class,
+                'record_id' => $postRestoreLog->id,
+            ]);
+
+            if ($rollbackPath && File::exists($rollbackPath)) {
+                File::delete($rollbackPath);
+            }
+
+            return [
+                'success' => true,
+                'code' => 'restored',
+                'message' => 'Business data restored. License/device approval remains tied to this installation.',
+                'restore_log' => $postRestoreLog,
+                'emergency_backup_log' => $emergencyLog,
+            ];
+        } catch (Throwable $e) {
+            $rollback = null;
+            if ($replaced && $dbPath && $rollbackPath) {
+                $rollback = $this->rollbackSqliteDatabase($dbPath, $rollbackPath);
+            }
+
+            return $this->fail($restoreLog, 'restore.failed', 'Restore failed safely. ' . ($rollback['message'] ?? 'Original database was preserved where possible.'), [
+                'restore_source' => 'uploaded_sqlite',
+                'reason' => Str::limit($e->getMessage(), 180),
+                'rollback' => $rollback['code'] ?? null,
+            ]);
+        } finally {
+            if ($uploadedPath && File::exists($uploadedPath)) {
+                File::delete($uploadedPath);
+            }
+
+            $lock->release();
+        }
+    }
+
     protected function replaceSqliteDatabase(string $selectedPath, BackupLog $backupLog): array
+    {
+        return $this->replaceSqliteDatabaseFile($selectedPath, $backupLog->filename);
+    }
+
+    protected function replaceSqliteDatabaseFile(string $selectedPath, string $sourceFilename): array
     {
         $dbPath = $this->sqliteDatabasePath();
         $this->storage->ensureDirectoryExists();
@@ -240,7 +396,7 @@ class RestoreService
 
         $this->removeSqliteSidecars($dbPath);
 
-        $stagingPath = $this->storage->restoreStagingFilePath($backupLog->filename);
+        $stagingPath = $this->storage->restoreStagingFilePath($sourceFilename);
         $rollbackPath = $this->storage->restoreRollbackFilePath(basename($dbPath));
 
         File::copy($selectedPath, $stagingPath);
@@ -262,6 +418,62 @@ class RestoreService
         }
 
         return [$dbPath, $rollbackPath];
+    }
+
+    protected function validateSqliteCandidate(string $path): array
+    {
+        if (!File::exists($path) || !File::isFile($path)) {
+            return ['valid' => false, 'code' => 'missing', 'message' => 'Uploaded SQLite file was not found.'];
+        }
+
+        if (File::size($path) < 100) {
+            return ['valid' => false, 'code' => 'too_small', 'message' => 'Uploaded SQLite file is too small.'];
+        }
+
+        $handle = fopen($path, 'rb');
+        $header = $handle ? fread($handle, 16) : false;
+        if ($handle) {
+            fclose($handle);
+        }
+
+        if ($header !== "SQLite format 3\0") {
+            return ['valid' => false, 'code' => 'invalid_header', 'message' => 'Uploaded file is not a SQLite database.'];
+        }
+
+        try {
+            $pdo = new \PDO('sqlite:' . $path);
+            $statement = $pdo->query("SELECT name FROM sqlite_master WHERE type = 'table'");
+            $tables = $statement ? $statement->fetchAll(\PDO::FETCH_COLUMN) : [];
+            $missing = array_values(array_diff(['migrations', 'users'], $tables));
+
+            if ($missing !== []) {
+                return ['valid' => false, 'code' => 'missing_tables', 'message' => 'Uploaded database is missing required GarmentsOS tables.'];
+            }
+
+            return ['valid' => true, 'code' => 'schema_valid', 'message' => 'Uploaded database validated.'];
+        } catch (Throwable) {
+            return ['valid' => false, 'code' => 'schema_unreadable', 'message' => 'Uploaded SQLite schema could not be read.'];
+        }
+    }
+
+    protected function runPostRestoreMaintenance(): array
+    {
+        $migrateExitCode = Artisan::call('migrate', ['--force' => true]);
+        $migrationOutput = trim(Artisan::output());
+        $cacheExitCode = Artisan::call('cache:clear');
+
+        $this->auditLogs->record('restore.post_maintenance_completed', [
+            'migrate_exit_code' => $migrateExitCode,
+            'cache_clear_exit_code' => $cacheExitCode,
+            'migration_output_preview' => Str::limit($migrationOutput, 500),
+        ], [
+            'module' => 'backup',
+        ]);
+
+        return [
+            'migrate_exit_code' => $migrateExitCode,
+            'cache_clear_exit_code' => $cacheExitCode,
+        ];
     }
 
     protected function rollbackSqliteDatabase(string $dbPath, string $rollbackPath): array

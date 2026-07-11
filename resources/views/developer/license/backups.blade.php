@@ -32,6 +32,17 @@
             </div>
         @endif
 
+        @if ($errors->any())
+            <div class="rounded-lg border border-[var(--border-error)] bg-[var(--bg-error)] p-4 text-sm text-[var(--text-error)]">
+                <div class="font-semibold">Please fix the highlighted fields before continuing.</div>
+                <ul class="mt-2 list-disc space-y-1 pl-5">
+                    @foreach ($errors->all() as $error)
+                        <li>{{ $error }}</li>
+                    @endforeach
+                </ul>
+            </div>
+        @endif
+
         <section class="{{ $panel }}">
             <x-form-title-bar title="Backup & Restore" />
 
@@ -107,6 +118,42 @@
                         </div>
                     </dl>
                 </div>
+            </div>
+        </section>
+
+        <section class="{{ $panel }}">
+            <x-form-title-bar title="Restore Old SQLite Database" />
+
+            <div class="grid grid-cols-1 gap-5 lg:grid-cols-2">
+                <div class="{{ $softPanel }}">
+                    <h2 class="font-semibold">Business data only</h2>
+                    <p class="mt-2 text-sm text-[var(--secondary-text)]">
+                        Upload an old GarmentsOS SQLite database to restore business records. This does not restore .env, install ID, license cache, device approval, request cache, or update markers.
+                    </p>
+                    <p class="mt-2 text-sm font-semibold text-[var(--text-warning)]">
+                        License/device approval remains tied to this installation after restore.
+                    </p>
+                </div>
+
+                <form method="POST" action="{{ route('developer.backups.restore-upload') }}" enctype="multipart/form-data" class="space-y-4">
+                    @csrf
+                    <div>
+                        <label class="mb-1 block text-sm font-medium">SQLite database file</label>
+                        <input type="file" name="sqlite_file" accept=".sqlite,.db" class="w-full rounded-lg border border-[var(--h-bg-color)] bg-[var(--h-bg-color)] px-3 py-2 text-sm text-[var(--text-color)]" @disabled(!$restoreEnabled)>
+                        <p class="mt-1 text-xs text-[var(--secondary-text)]">Allowed extensions: .sqlite, .db</p>
+                    </div>
+                    <div>
+                        <label class="mb-1 block text-sm font-medium">Type confirmation phrase</label>
+                        <input name="confirmation_phrase" placeholder="RESTORE BUSINESS DATA" class="w-full rounded-lg border border-[var(--h-bg-color)] bg-[var(--h-bg-color)] px-3 py-2 text-sm text-[var(--text-color)]" @disabled(!$restoreEnabled)>
+                    </div>
+                    <label class="flex items-start gap-2 text-sm text-[var(--secondary-text)]">
+                        <input type="checkbox" name="staging_tested" value="1" class="mt-1" @disabled(!$restoreEnabled)>
+                        <span>I tested this restore on a staging/copy database and confirmed this old database is correct.</span>
+                    </label>
+                    <button type="submit" class="{{ $restoreEnabled ? $primaryButton : $disabledButton }}" @disabled(!$restoreEnabled) onclick="return confirm('Restore uploaded business database now? Current database will be backed up first.')">
+                        Restore Uploaded Database
+                    </button>
+                </form>
             </div>
         </section>
 

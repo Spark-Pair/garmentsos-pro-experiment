@@ -99,6 +99,7 @@ Route::group(['middleware' => ['setup.complete', 'auth', 'activeSession', 'ensur
     Route::get('developer/backups/{backupLog}/download', [BackupController::class, 'download'])->name('developer.backups.download');
     Route::get('developer/backups/{backupLog}/restore', [RestoreController::class, 'show'])->name('developer.backups.restore.show');
     Route::post('developer/backups/{backupLog}/restore', [RestoreController::class, 'store'])->name('developer.backups.restore.store');
+    Route::post('developer/backups/restore-upload', [RestoreController::class, 'upload'])->name('developer.backups.restore-upload');
     Route::get('developer/updater', [UpdateController::class, 'index'])->name('developer.updater');
     Route::get('developer/updater/update-request', [UpdateController::class, 'updateRequest'])->name('developer.updater.update-request');
     Route::get('developer/updater/launcher-handoff', [UpdateController::class, 'launcherHandoff'])->name('developer.updater.launcher-handoff');
@@ -114,6 +115,7 @@ Route::group(['middleware' => ['setup.complete', 'auth', 'activeSession', 'ensur
     Route::post('developer/license/request-demo', [LicenseController::class, 'requestDemo'])->name('developer.license.request-demo');
     Route::post('developer/license/register', [LicenseController::class, 'registerDevice'])->name('developer.license.register');
     Route::post('developer/license/check', [LicenseController::class, 'checkDevice'])->name('developer.license.check');
+    Route::post('developer/license/run-migrations', [LicenseController::class, 'runMigrations'])->name('developer.license.run-migrations');
     Route::get('developer/license/offline', [LicenseController::class, 'offline'])->name('developer.license.offline');
     Route::post('developer/license/offline/import', [LicenseController::class, 'importOffline'])->name('developer.license.offline.import');
     Route::post('developer/license/refresh', [LicenseController::class, 'refresh'])->name('developer.license.refresh');
