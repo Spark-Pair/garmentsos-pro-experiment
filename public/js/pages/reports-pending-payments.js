@@ -7,6 +7,10 @@
         window.getPendingPayments = function getPendingPayments() {
             const date = document.getElementById("date").value;
             const city = document.querySelector('input[name="city"]')?.value || "";
+            const branchSelect = document.getElementById("pending_branch_ids");
+            const branchIds = branchSelect
+                ? Array.from(branchSelect.selectedOptions).map(option => option.value)
+                : (config.selectedBranchIds || []);
 
             $.ajax({
                 url: pendingUrl,
@@ -15,6 +19,7 @@
                     _token: csrfToken,
                     date: date,
                     city: city,
+                    branch_ids: branchIds,
                 },
                 success: function (response) {
                     renderPendingPayments(response);

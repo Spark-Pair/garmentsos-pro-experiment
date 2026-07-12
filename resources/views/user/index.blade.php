@@ -77,6 +77,10 @@
 
 @endsection
 
+@push('left-actions-after')
+    <x-module-branch-selector module-key="users" />
+@endpush
+
 @push('page-scripts')
 <script defer src="{{ asset('js/pages/users-index.js') }}"></script>
 <script>

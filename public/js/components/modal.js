@@ -697,6 +697,8 @@ function createModal(data, animate = 'animate') {
 
     // Helper function - Preview page render karne ke liye
     function renderPreviewPage(data, previewData, cottonCount, invoiceTableHeader, invoiceTableBody, invoiceBottom, pageIndex) {
+        const previewCompany = previewData?.branch_branding || companyData;
+        const previewLogoUrl = previewCompany.logo_url || (previewCompany.logo ? `${companyLogoBase}images/${previewCompany.logo}` : '');
         return `
             <div id="preview" class="preview ${data.preview.size == "A5" ? "w-[145mm] h-[210mm]" : "w-[208mm] h-[302mm]"} overflow-hidden flex flex-col">
                 <div class="flex flex-col h-full">
@@ -705,25 +707,25 @@ function createModal(data, animate = 'animate') {
                             <div class="logo flex flex-col">
                                 <!-- Top Row: Image + Logo Text -->
                                 <div class="flex items-center gap-3">
-                                    ${companyData.logo ? `
+                                    ${previewLogoUrl ? `
                                         <div class="h-[3.50rem] w-[13.5rem] flex items-center justify-center gap-2.5">
                                             <img 
-                                                src="${companyLogoBase}images/${companyData.logo}" 
+                                                src="${previewLogoUrl}"
                                                 alt="garmentsos-pro"
                                                 class="max-h-full max-w-full object-contain"
                                             />
-                                            ${companyData.logo_text ? `
+                                            ${previewCompany.logo_text ? `
                                                 <h1 class="text-lg font-bold tracking-wide">
-                                                    ${companyData.logo_text}
+                                                    ${previewCompany.logo_text}
                                                 </h1>
                                             ` : ''}
                                         </div>
                                     ` : ''}
                                 </div>
                                 <!-- Phone Number (Below Both) -->
-                                ${data.preview.type != 'form' && companyData.phone_number ? `
+                                ${data.preview.type != 'form' && previewCompany.phone_number ? `
                                     <div class="mt-2 text-sm text-gray-600">
-                                        ${companyData.phone_number}
+                                        ${previewCompany.phone_number}
                                     </div>
                                 ` : ''}
                             </div>
@@ -734,7 +736,7 @@ function createModal(data, animate = 'animate') {
                                 <div class="mt-1 text-right ${cottonCount == 0 ? 'hidden' : ''}">Cotton: ${cottonCount}</div>
                                 ${previewData.shipment_no ? '<div class="mt-1 text-right">Shipment No.: ' + previewData.shipment_no + '</div>' : ''}
                                 ${previewData.order_no ? '<div class="mt-1 text-right">Order No.: ' + previewData.order_no + '</div>' : ''}
-                                ${data.preview.type == 'form' ? `<div class='mt-1 text-sm'>${companyData.phone_number}</div>` : ''}
+                                ${data.preview.type == 'form' ? `<div class='mt-1 text-sm'>${previewCompany.phone_number || ''}</div>` : ''}
                             </div>
                         </div>
                     </div>

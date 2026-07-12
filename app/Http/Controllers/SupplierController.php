@@ -6,6 +6,7 @@ use App\Models\Employee;
 use App\Models\Setup;
 use App\Models\Supplier;
 use App\Models\User;
+use App\Services\Branches\ModuleBranchService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
@@ -27,7 +28,7 @@ class SupplierController extends Controller
         $authLayout = $this->getAuthLayout($request->route()->getName());
 
         if ($request->ajax()) {
-            $suppliers = Supplier::with('user')
+            $suppliers = app(ModuleBranchService::class)->applyScope(Supplier::with('user'), 'suppliers')
                 ->orderByDesc('id')
                 ->applyFilters($request);
 
@@ -140,6 +141,7 @@ class SupplierController extends Controller
 
             $user = User::create([
                 'name' => $data['supplier_name'],
+                'branch_id' => app(ModuleBranchService::class)->branchIdForCreate('users'),
                 'username' => $data['username'],
                 'password' => $hashedPassword,
                 'role' =>'supplier',
@@ -171,6 +173,7 @@ class SupplierController extends Controller
         // Create supplier
         $supplier = Supplier::create([
             'user_id' => $user->id,
+            'branch_id' => app(ModuleBranchService::class)->branchIdForCreate('suppliers'),
             'supplier_name' => $data['supplier_name'],
             'urdu_title' => $data['urdu_title'],
             'person_name' => $data['person_name'],
@@ -186,6 +189,7 @@ class SupplierController extends Controller
 
             $worker = Employee::create([
                 'category' => 'worker',
+                'branch_id' => app(ModuleBranchService::class)->branchIdForCreate('employees') ?: $supplier->branch_id,
                 'type_id' => $type->id,
                 'employee_name' => $supplier->supplier_name,
                 'urdu_title' => $supplier->urdu_title,

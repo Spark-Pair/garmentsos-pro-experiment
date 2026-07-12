@@ -43,6 +43,7 @@
                     discount: discount,
                     netAmount: invoice.net_amount ?? null,
                     invoice_articles: invoiceArticles,
+                    branch_branding: invoice.branch_branding || null,
                 };
 
                 previewDom.innerHTML = buildInvoicePreviewLikeModal(previewData, 'Customer');
@@ -82,6 +83,8 @@
     }
 
     function buildInvoicePreviewLikeModal(previewData, copyLabel = 'Customer') {
+        const previewCompany = previewData.branch_branding || companyData || {};
+        const previewLogoUrl = previewCompany.logo_url || (previewCompany.logo ? `${window.__invoicesPrint.companyLogoBase}/${previewCompany.logo}` : '');
         const cotton = previewData.cotton_count || 0;
         const discountVal = Number(previewData.discount || 0);
         const articles = Array.isArray(previewData.invoice_articles)
@@ -163,21 +166,21 @@
                             <div class="left">
                                 <div class="logo flex flex-col">
                                     <div class="flex items-center gap-3">
-                                        ${companyData?.logo ? `
+                                        ${previewLogoUrl ? `
                                             <div class="h-[3.50rem] w-[13.5rem] flex items-center justify-center gap-2.5">
                                                 <img
-                                                    src="${window.__invoicesPrint.companyLogoBase}/${companyData.logo}"
+                                                    src="${previewLogoUrl}"
                                                     alt="garmentsos-pro"
                                                     class="max-h-full max-w-full object-contain"
                                                 />
-                                                ${companyData.logo_text ? `
-                                                    <h1 class="text-lg font-bold tracking-wide">${companyData.logo_text}</h1>
+                                                ${previewCompany.logo_text ? `
+                                                    <h1 class="text-lg font-bold tracking-wide">${previewCompany.logo_text}</h1>
                                                 ` : ''}
                                             </div>
                                         ` : ''}
                                     </div>
-                                    ${companyData?.phone_number ? `
-                                        <div class="mt-2 text-sm text-gray-600">${companyData.phone_number}</div>
+                                    ${(previewCompany.phone_number || previewCompany.phone) ? `
+                                        <div class="mt-2 text-sm text-gray-600">${previewCompany.phone_number || previewCompany.phone}</div>
                                     ` : ''}
                                 </div>
                             </div>

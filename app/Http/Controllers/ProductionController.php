@@ -10,6 +10,9 @@ use App\Models\Rate;
 use App\Models\ReturnFabric;
 use App\Models\Setup;
 use App\Models\Supplier;
+use App\Services\Branches\BranchSerialService;
+use App\Services\Branches\ModuleBranchService;
+use App\Support\Money;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
@@ -29,7 +32,9 @@ class ProductionController extends Controller
         // $productions = Production::with('article', 'work', 'worker')->orderby('id', 'desc')->get();
 
         if ($request->ajax()) {
-            $productionsQuery = Production::orderByDesc('id');
+            $branches = app(ModuleBranchService::class);
+            $productionsQuery = $branches
+                ->applyScope(Production::with(['article', 'work', 'worker', 'creator'])->orderByDesc('id'), 'productions');
 
             if ($this->isSupplierRole()) {
                 $supplier = $this->currentSupplier();
@@ -60,23 +65,30 @@ class ProductionController extends Controller
         }
 
         $ticket_options = [];
+        $branches = app(ModuleBranchService::class);
 
         if (Auth::user()->production_type === 'issue') {
-            $articles = Article::whereHas('production.work', function($query) {
+            $articles = $branches->applyRelatedScope(Article::whereHas('production.work', function($query) {
                 $query->where('title', 'Cutting');
-            })->with('production.work')->get();
+            }), 'articles', 'productions')->with('production.work')->get();
         } else {
             $cmt_work_id = Setup::where('title', 'CMT | E')->value('id') ?? 0;
-            $allTickets = Production::whereNull('receive_date')->where('work_id', '!=', $cmt_work_id)->with('article.production.work')->get();
+            $allTickets = $branches->applyScope(Production::whereNull('receive_date'), 'productions')
+                ->whereNotNull('ticket')
+                ->where('work_id', '!=', $cmt_work_id)
+                ->with(['article.production.work', 'work', 'worker'])
+                ->orderByDesc('id')
+                ->get();
             foreach ($allTickets as $ticket) {
-                if ($ticket->id == 50) {
-                    $ticket_options[$ticket->id] = [
-                        'text' => $ticket->ticket,
-                        'data_option' => $ticket,
-                    ];
-                }
+                $ticket_options[$ticket->id] = [
+                    'text' => $ticket->ticket,
+                    'data_option' => $ticket,
+                ];
             }
-            $articles = Article::whereNotNull('fabric_type')->whereNotNull('category')->with('production.work')->get();
+            $articles = $branches->applyRelatedScope(Article::whereNotNull('fabric_type'), 'articles', 'productions')
+                ->whereNotNull('category')
+                ->with('production.work')
+                ->get();
         }
         $articles->each->setAppends([]);
         $work_options = [];
@@ -87,7 +99,12 @@ class ProductionController extends Controller
             ];
         }
         $worker_options = [];
-        $workers = Employee::with('type')->where('category', 'worker',)->where('status', 'active')->get();
+        $workers = $branches->applyRelatedScope(
+                Employee::with('type')->where('category', 'worker')->where('status', 'active'),
+                'employees',
+                'productions',
+            )
+            ->get();
         foreach($workers as $worker) {
             $worker['taags'] = $worker['tags']
                 ->groupBy('tag')
@@ -122,14 +139,16 @@ class ProductionController extends Controller
                 ->values();
 
             $worker_options[(int)$worker->id] = [
-                'text' => $worker->employee_name,
+                'text' => $worker->employee_name . ' | ' . Money::format((float) $worker->balance),
                 'data_option' => $worker->makeHidden('tags'),
             ];
         }
 
         $rates = Rate::with('type')->get();
 
-        return view('productions.add', compact('articles', 'work_options', 'worker_options', 'rates', 'ticket_options'));
+        $branchBranding = app(ModuleBranchService::class)->documentBranding('productions');
+
+        return view('productions.add', compact('articles', 'work_options', 'worker_options', 'rates', 'ticket_options', 'branchBranding'));
     }
 
     /**
@@ -173,14 +192,24 @@ class ProductionController extends Controller
             'amount' => $request->amount,
             'issue_date' => $request->issue_date,
             'receive_date' => $request->receive_date,
+            'branch_id' => app(ModuleBranchService::class)->branchIdForCreate('productions'),
         ];
         $ticket = null;
+        $production = null;
 
         if ($request->filled('ticket_name') && $request->ticket_name != '-- Select Ticket --') {
             $ticket = $request->ticket_name;
             $production = Production::where('ticket', $request->ticket_name)->first();
             if ($production) {
-                $production->update($data);
+                $production->update([
+                    'receive_date' => $request->receive_date,
+                    'tags' => isset($request->tags) ? json_decode($request->tags) : null,
+                    'parts' => isset($request->parts) ? json_decode($request->parts) : $production->parts,
+                    'title' => $request->title,
+                    'rate' => $request->rate,
+                    'amount' => $request->amount,
+                    'branch_id' => $production->branch_id,
+                ]);
             }
         } else {
             if ($request->article_quantity) {
@@ -192,7 +221,10 @@ class ProductionController extends Controller
             $data['ticket'] = 'TEMP';
             $production = Production::create($data);
 
-            $ticket = explode('|', $work->short_title)[0] . str_pad($production->id, 3, '0', STR_PAD_LEFT);
+            $workPrefix = explode('|', $work->short_title)[0];
+            $ticket = app(ModuleBranchService::class)->shouldFilterRecords('productions')
+                ? app(BranchSerialService::class)->nextProductionTicket($workPrefix)
+                : $workPrefix . str_pad($production->id, 3, '0', STR_PAD_LEFT);
             $production->update(['ticket' => $ticket]);
         }
 
@@ -203,7 +235,35 @@ class ProductionController extends Controller
             $issueOrReceive = 'receive';
         }
 
-        return redirect()->route('productions.create')->with('success', 'Production ' . $issueOrReceive . ' successfully. Ticket: ' . $ticket);
+        $production?->loadMissing(['article', 'work', 'worker', 'creator']);
+
+        return redirect()->route('productions.create')
+            ->with('success', 'Production ' . $issueOrReceive . ' successfully. Ticket: ' . $ticket)
+            ->with('production_ticket_preview', $production ? $this->ticketPreviewPayload($production) : null);
+    }
+
+    protected function ticketPreviewPayload(Production $production): array
+    {
+        return [
+            'id' => $production->id,
+            'ticket' => $production->ticket,
+            'issue_date' => optional($production->issue_date)->format('Y-m-d') ?: (string) $production->issue_date,
+            'receive_date' => optional($production->receive_date)->format('Y-m-d') ?: (string) $production->receive_date,
+            'article_no' => $production->article?->article_no,
+            'article' => $production->article,
+            'work' => $production->work,
+            'worker' => $production->worker,
+            'worker_name' => $production->worker?->employee_name,
+            'quantity' => $production->quantity,
+            'rate' => $production->rate,
+            'amount' => $production->amount,
+            'title' => $production->title,
+            'parts' => $production->parts,
+            'materials' => $production->materials,
+            'tags' => $production->tags,
+            'creator' => $production->creator?->name,
+            'branch_branding' => app(ModuleBranchService::class)->documentBranding('productions', $production),
+        ];
     }
 
     /**

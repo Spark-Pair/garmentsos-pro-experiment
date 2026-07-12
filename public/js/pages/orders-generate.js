@@ -436,9 +436,9 @@
                         <div id="order-banner" class="order-banner w-full flex justify-between items-center px-5">
                             <div class="left">
                                 <div class="order-logo">
-                                    <img src="${window.__ordersGenerate.companyLogoBase}/${companyData.logo}" alt="garmentsos-pro"
+                                    <img src="${companyData.logo_url || `${window.__ordersGenerate.companyLogoBase}/${companyData.logo}`}" alt="garmentsos-pro"
                                         class="w-[12rem]" />
-                                    <div class='mt-1'>${companyData.phone_number}</div>
+                                    <div class='mt-1'>${companyData.phone_number || companyData.phone || ""}</div>
                                 </div>
                             </div>
                             <h1 class="text-2xl font-medium text-[var(--primary-color)]">Sales Order</h1>

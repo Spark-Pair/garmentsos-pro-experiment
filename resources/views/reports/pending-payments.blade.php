@@ -3,6 +3,9 @@
 @section('content')
 @php
     $companyData = $client_company;
+    $reportBranches = collect($reportBranches ?? []);
+    $selectedBranchIds = collect($selectedBranchIds ?? $reportBranches->pluck('id')->all())->map(fn($id) => (int) $id)->all();
+    $selectedBranchLabels = $selectedBranchLabels ?? ['All Branches'];
 @endphp
     <!-- Main Content -->
     <!-- Progress Bar -->
@@ -40,6 +43,10 @@
                         showDefault
                     />
                 </div>
+
+                <div class="md:col-span-2 rounded-lg border border-[var(--h-bg-color)] bg-[var(--h-bg-color)] px-3 py-2 text-xs text-[var(--secondary-text)]">
+                    Branches: {{ implode(', ', $selectedBranchLabels) }}. Use the branch switcher beside Back/Refresh to change report branches.
+                </div>
             </div>
         </div>
 
@@ -50,6 +57,9 @@
                 {{-- First Page (26 rows) --}}
                 <div id="preview-container" class="h-full relative overflow-y-auto my-scrollbar-2">
                     <div id="preview-page" class="w-[210mm] mx-auto overflow-hidden relative bg-white rounded-md pt-6 pb-0">
+                        <div class="mx-auto mb-2 w-[95%] rounded-md border border-gray-700 px-3 py-1 text-xs text-gray-800">
+                            Branches: {{ implode(', ', $selectedBranchLabels) }}
+                        </div>
                         <div id="preview" class="preview flex flex-col h-full">
                             <div id="preview-document" class="preview-document flex flex-col h-full px-2">
                                 {{-- Table --}}
@@ -121,12 +131,17 @@
 
 @endsection
 
+@push('left-actions-after')
+    <x-module-branch-selector module-key="pending_payments" mode="multiple" />
+@endpush
+
 @push('page-scripts')
 <script defer src="{{ asset('js/pages/reports-pending-payments.js') }}"></script>
 <script>
         window.__reportsPendingPayments = {
             pendingUrl: @json(route('reports.pending-payments')),
             csrfToken: @json(csrf_token()),
+            selectedBranchIds: @json($selectedBranchIds),
         };
     </script>
 @endpush

@@ -25,6 +25,7 @@ class Invoice extends Model
         "order_no",
         "shipment_no",
         "customer_id",
+        "branch_id",
         "date",
         "netAmount",
         "cotton_count",
@@ -66,6 +67,10 @@ class Invoice extends Model
 
     public function customer() {
         return $this->belongsTo(Customer::class, 'customer_id', 'id');
+    }
+
+    public function branch() {
+        return $this->belongsTo(Branch::class);
     }
 
     public function bilty() {

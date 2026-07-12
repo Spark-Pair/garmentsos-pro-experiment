@@ -16,6 +16,7 @@ class Production extends Model
 
     protected $fillable = [
         'issue_date',
+        'branch_id',
         'receive_date',
         'article_id',
         'work_id',
@@ -75,5 +76,10 @@ class Production extends Model
     public function worker()
     {
         return $this->belongsTo(Employee::class, 'worker_id', 'id');
+    }
+
+    public function branch()
+    {
+        return $this->belongsTo(Branch::class);
     }
 }

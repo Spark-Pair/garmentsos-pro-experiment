@@ -190,6 +190,13 @@
             'required' => true,
         ])->render(),
     ];
+
+    $productionBranchBranding = $branchBranding ?? [
+        'name' => $client_company->name ?? config('app.name'),
+        'phone' => $client_company->phone_number ?? '',
+        'address' => '',
+        'logo_url' => !empty($client_company->logo) ? asset('images/' . $client_company->logo) : '',
+    ];
 @endphp
 
     <div class="switch-btn-container flex absolute top-3 md:top-17 left-3 md:left-5 z-40">
@@ -292,6 +299,7 @@
                     {{-- ticket --}}
                     <x-select
                         label="Ticket"
+                        name="ticket_name"
                         id="ticket"
                         :options="$ticket_options"
                         showDefault
@@ -343,9 +351,17 @@
 
 @endsection
 
+@push('left-actions-after')
+    <x-module-branch-selector module-key="productions" />
+@endpush
+
 @push('page-scripts')
+<script defer src="{{ asset('js/pages/production-ticket-print.js') }}"></script>
 <script defer src="{{ asset('js/pages/productions-add.js') }}"></script>
 <script>
+        window.__productionTicketPrint = {
+            company: @json($productionBranchBranding),
+        };
         window.__productionsAdd = {
             productionType: @json($productionType),
             csrfToken: @json(csrf_token()),
@@ -359,5 +375,11 @@
             rates: @json($rates),
             tickets: @json($ticket_options ?? []),
         };
+        window.__productionTicketAfterSave = @json(session('production_ticket_preview'));
+        window.addEventListener('DOMContentLoaded', () => {
+            if (window.__productionTicketAfterSave && window.previewProductionTicket) {
+                window.previewProductionTicket(window.__productionTicketAfterSave, false);
+            }
+        });
     </script>
 @endpush

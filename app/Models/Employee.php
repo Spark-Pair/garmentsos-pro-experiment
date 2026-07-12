@@ -21,6 +21,7 @@ class Employee extends Model
 
     protected $fillable = [
         "category",
+        "branch_id",
         "type_id",
         "employee_name",
         "urdu_title",

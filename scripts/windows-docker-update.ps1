@@ -521,6 +521,20 @@ function Remove-InstalledEnvTemplate($InstallDir) {
     }
 }
 
+function Ensure-GarmentsStorageLink($InstallDir) {
+    try {
+        Push-Location $InstallDir
+        try {
+            docker compose exec -T app php artisan storage:link | Out-Host
+            Write-Host "Laravel public storage link ensured for uploaded branch logos."
+        } finally {
+            Pop-Location
+        }
+    } catch {
+        Write-Warning "Could not create Laravel storage link. Branch logo fallback route will be used if needed. $($_.Exception.Message)"
+    }
+}
+
 if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
     throw "Docker Desktop is required."
 }
@@ -601,6 +615,8 @@ try {
 } finally {
     Pop-Location
 }
+
+Ensure-GarmentsStorageLink $InstallDir
 
 $envContent = Get-Content $EnvPath -Raw
 $envContent = Set-EnvLine $envContent "RUN_MIGRATIONS_ON_START" "false"

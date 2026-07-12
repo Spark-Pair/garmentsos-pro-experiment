@@ -60,9 +60,17 @@
 
 @endsection
 
+@push('left-actions-after')
+    <x-module-branch-selector module-key="productions" />
+@endpush
+
 @push('page-scripts')
+<script defer src="{{ asset('js/pages/production-ticket-print.js') }}"></script>
 <script defer src="{{ asset('js/pages/productions-index.js') }}"></script>
 <script>
+        window.__productionTicketPrint = {
+            company: @json(app(\App\Services\Branches\ModuleBranchService::class)->documentBranding('productions')),
+        };
         window.__productionsIndex = {
             authLayout: @json($authLayout),
         };

@@ -57,7 +57,7 @@
             document.body.classList.add('print-only');
         });
         window.__invoicesPrint = {
-            invoices: @json($invoices),
+            invoices: @json($invoicePayloads ?? $invoices),
             companyData: @json($client_company),
             companyLogoBase: '{{ asset("images") }}',
         };

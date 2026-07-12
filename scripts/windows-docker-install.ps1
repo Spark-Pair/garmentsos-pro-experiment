@@ -476,6 +476,20 @@ function Remove-InstalledEnvTemplate($InstallDir) {
     }
 }
 
+function Ensure-GarmentsStorageLink($InstallDir) {
+    try {
+        Push-Location $InstallDir
+        try {
+            docker compose exec -T app php artisan storage:link | Out-Host
+            Write-Host "Laravel public storage link ensured for uploaded branch logos."
+        } finally {
+            Pop-Location
+        }
+    } catch {
+        Write-Warning "Could not create Laravel storage link. Branch logo fallback route will be used if needed. $($_.Exception.Message)"
+    }
+}
+
 function Read-EnvContentSafe($EnvPath) {
     try {
         return Get-Content -LiteralPath $EnvPath -Raw -ErrorAction Stop
@@ -671,6 +685,8 @@ try {
 } finally {
     Pop-Location
 }
+
+Ensure-GarmentsStorageLink $InstallDir
 
 if ($EnvCreated) {
     $envContent = Read-EnvContentSafe $EnvPath

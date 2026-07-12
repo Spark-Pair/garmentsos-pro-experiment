@@ -6,6 +6,7 @@ use App\Models\Article;
 use App\Models\PhysicalQuantity;
 use App\Services\PhysicalQuantityReportService;
 use App\Services\ArticleStockService;
+use App\Services\Branches\ModuleBranchService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 
@@ -111,14 +112,19 @@ class PhysicalQuantityController extends Controller
             return $resp;
         }
 
-        $articles = Article::query()
+        $branches = app(ModuleBranchService::class);
+        $articles = $branches->applyRelatedScope(Article::query(), 'articles', 'physical_quantities')
             // ->whereHas('production.work', function ($q) {
             //     $q->where('title', 'CMT');
             // })
             ->orderByDesc('id')
             ->get();
 
-        $stockMap = app(ArticleStockService::class)->summaries($articles->pluck('id'));
+        $stockMap = app(ArticleStockService::class)->summaries(
+            $articles->pluck('id'),
+            null,
+            $branches->shouldFilterRecords('physical_quantities') ? $branches->selectedBranchIdForModule('physical_quantities') : null
+        );
 
         $articles = $articles->filter(function ($article) use ($stockMap) {
             $stock = $stockMap->get($article->id, []);
@@ -185,6 +191,7 @@ class PhysicalQuantityController extends Controller
         }
 
         $data = $validator->validated();
+        $data['branch_id'] = app(ModuleBranchService::class)->branchIdForCreate('physical_quantities');
 
         Article::where('id', $data['article_id'])->update([
             'pcs_per_packet' => $data['pcs_per_packet'],

@@ -825,10 +825,10 @@
                                     <div class="left">
                                         <div class="logo flex flex-col">
                                             <div class="flex items-center gap-3">
-                                                ${companyData.logo ? `
+                                                ${(companyData.logo_url || companyData.logo) ? `
                                                     <div class="h-[3.50rem] w-[13.5rem] flex items-center justify-center gap-2.5">
                                                         <img
-                                                            src="${companyLogoBase}/${companyData.logo}"
+                                                            src="${companyData.logo_url || `${companyLogoBase}/${companyData.logo}`}"
                                                             alt="garmentsos-pro"
                                                             class="max-h-full max-w-full object-contain"
                                                         />
@@ -838,8 +838,8 @@
                                                     </div>
                                                 ` : ''}
                                             </div>
-                                            ${companyData.phone_number ? `
-                                                <div class="mt-2 text-sm text-gray-600">${companyData.phone_number}</div>
+                                            ${(companyData.phone_number || companyData.phone) ? `
+                                                <div class="mt-2 text-sm text-gray-600">${companyData.phone_number || companyData.phone}</div>
                                             ` : ''}
                                         </div>
                                     </div>
@@ -1314,10 +1314,10 @@
                                     <div class="left">
                                         <div class="logo flex flex-col">
                                             <div class="flex items-center gap-3">
-                                                ${companyData.logo ? `
+                                                ${(companyData.logo_url || companyData.logo) ? `
                                                     <div class="h-[3.50rem] w-[13.5rem] flex items-center justify-center gap-2.5">
                                                         <img
-                                                            src="${companyLogoBase}/${companyData.logo}"
+                                                            src="${companyData.logo_url || `${companyLogoBase}/${companyData.logo}`}"
                                                             alt="garmentsos-pro"
                                                             class="max-h-full max-w-full object-contain"
                                                         />
@@ -1327,8 +1327,8 @@
                                                     </div>
                                                 ` : ''}
                                             </div>
-                                            ${companyData.phone_number ? `
-                                                <div class="mt-2 text-sm text-gray-600">${companyData.phone_number}</div>
+                                            ${(companyData.phone_number || companyData.phone) ? `
+                                                <div class="mt-2 text-sm text-gray-600">${companyData.phone_number || companyData.phone}</div>
                                             ` : ''}
                                         </div>
                                     </div>

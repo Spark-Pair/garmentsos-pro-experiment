@@ -42,7 +42,6 @@
         'readonlySession' => !request()->is('login') && !request()->is('setup') && ((bool) session('license_readonly')),
         'updating' => $activeUpdateLock !== null,
     ];
-    $centerMainContent = request()->is('/') || request()->is('login') || request()->is('setup') || request()->is('subscription-expired');
     $developerUpdateStatus = null;
     $developerLauncherHandoff = null;
     if (Auth::check() && Auth::user()->role === 'developer' && !request()->is('login') && !request()->is('setup')) {
@@ -508,7 +507,7 @@
     </div>
     <div class="wrapper flex-1 min-w-0 min-h-screen md:h-screen flex flex-col relative w-full overflow-hidden">
         {{-- main content --}}
-        <main class="flex-1 min-h-0 px-4 py-6 md:p-8 overflow-y-auto my-scrollbar-2 flex {{ $centerMainContent ? 'items-center' : 'items-start' }} justify-center bg-[var(--bg-color)] rounded-3xl mx-2.5 md:mr-2.5 {{ request()->is('login') ? 'mt-2.5 md:ml-2.5' : 'mt-0 md:ml-0' }} md:mt-2.5 relative">
+        <main class="flex-1 min-h-0 px-4 py-6 md:p-8 overflow-y-hidden my-scrollbar-2 flex items-center justify-center bg-[var(--bg-color)] rounded-3xl mx-2.5 md:mr-2.5 {{ request()->is('login') ? 'mt-2.5 md:ml-2.5' : 'mt-0 md:ml-0' }} md:mt-2.5 relative">
             {{-- alert --}}
             <div id="messageBox" class="absolute top-5 mx-auto flex items-center flex-col space-y-3 z-[100] text-sm w-full select-none pointer-events-none">
                 @if (session('info'))
@@ -568,6 +567,7 @@
                         Refresh
                     </span>
                 </button>
+                @stack('left-actions-after')
             </div>
             <div class="main-child w-full grow pb-10">
                 @if (!empty($developerUpdateStatus['update_available']))
@@ -618,14 +618,131 @@
         </div>
     </div>
 
+    <form id="moduleBranchPreferenceForm" method="POST" action="{{ route('module-branch-preferences.store') }}" class="hidden">
+        @csrf
+        <input type="hidden" name="module_key" value="">
+        <input type="hidden" name="branch_id" value="">
+        <input type="hidden" name="selection_mode" value="single">
+        <input type="hidden" name="redirect_to" value="">
+    </form>
+
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             const overlay = document.getElementById('update-handoff-overlay');
+            const moduleBranchPreferenceForm = document.getElementById('moduleBranchPreferenceForm');
             const updateLockStatusUrl = @json(Auth::check() ? route('developer.updater.update-lock-status') : null);
             const updatingUrl = @json(route('updating'));
             const launchGuardKey = 'garmentsos_update_launching';
             let updateLockPoll = null;
             let closeFallbackStarted = false;
+
+            const notify = (type, title, message) => {
+                if (typeof showNotification === 'function') {
+                    showNotification(title, message, type);
+                    return;
+                }
+
+                if (typeof showMessageBox === 'function') {
+                    showMessageBox(type, message || title);
+                }
+            };
+
+            @php
+                $flashNotifications = collect([
+                    ['type' => 'success', 'title' => 'Success', 'message' => session('success')],
+                    ['type' => 'error', 'title' => 'Error', 'message' => session('error')],
+                    ['type' => 'warning', 'title' => 'Notice', 'message' => session('warning') ?? session('info')],
+                ])->filter(fn ($item) => filled($item['message']))->values();
+
+                if ($errors->any()) {
+                    $flashNotifications->push([
+                        'type' => 'error',
+                        'title' => 'Please fix the highlighted fields',
+                        'message' => $errors->first(),
+                    ]);
+                }
+            @endphp
+            const flashNotifications = @json($flashNotifications);
+            flashNotifications.forEach((item) => {
+                notify(item.type || 'info', item.title || 'Notice', item.message || '');
+            });
+
+            document.addEventListener('click', (event) => {
+                const option = event.target.closest('[data-module-branch-option]');
+                if (!option) {
+                    return;
+                }
+
+                event.preventDefault();
+                event.stopPropagation();
+
+                if (option.disabled || !moduleBranchPreferenceForm) {
+                    return;
+                }
+
+                const moduleKey = option.dataset.moduleKey || '';
+                const branchId = option.dataset.branchId || '';
+                if (!moduleKey || !branchId) {
+                    return;
+                }
+
+                moduleBranchPreferenceForm.elements.module_key.value = moduleKey;
+                moduleBranchPreferenceForm.elements.branch_id.value = branchId;
+                moduleBranchPreferenceForm.elements.selection_mode.value = 'single';
+                moduleBranchPreferenceForm.querySelectorAll('[name="branch_ids[]"]').forEach((input) => input.remove());
+                moduleBranchPreferenceForm.elements.redirect_to.value = window.location.href;
+                moduleBranchPreferenceForm.submit();
+            }, true);
+
+            document.addEventListener('change', (event) => {
+                const allToggle = event.target.closest('[data-module-branch-all]');
+                if (!allToggle) {
+                    return;
+                }
+
+                allToggle.closest('.branch-switcher')?.querySelectorAll('[data-module-branch-checkbox]').forEach((checkbox) => {
+                    checkbox.checked = allToggle.checked;
+                });
+            });
+
+            document.addEventListener('click', (event) => {
+                const apply = event.target.closest('[data-module-branch-apply]');
+                if (!apply) {
+                    return;
+                }
+
+                event.preventDefault();
+                event.stopPropagation();
+
+                if (!moduleBranchPreferenceForm) {
+                    return;
+                }
+
+                const moduleKey = apply.dataset.moduleKey || '';
+                if (!moduleKey) {
+                    return;
+                }
+
+                const wrapper = apply.closest('.branch-switcher');
+                const selectedIds = Array.from(wrapper?.querySelectorAll('[data-module-branch-checkbox]:checked') || [])
+                    .map((checkbox) => checkbox.dataset.branchId)
+                    .filter(Boolean);
+
+                moduleBranchPreferenceForm.querySelectorAll('[name="branch_ids[]"]').forEach((input) => input.remove());
+                selectedIds.forEach((branchId) => {
+                    const input = document.createElement('input');
+                    input.type = 'hidden';
+                    input.name = 'branch_ids[]';
+                    input.value = branchId;
+                    moduleBranchPreferenceForm.appendChild(input);
+                });
+
+                moduleBranchPreferenceForm.elements.module_key.value = moduleKey;
+                moduleBranchPreferenceForm.elements.branch_id.value = selectedIds[0] || '';
+                moduleBranchPreferenceForm.elements.selection_mode.value = 'multiple';
+                moduleBranchPreferenceForm.elements.redirect_to.value = window.location.href;
+                moduleBranchPreferenceForm.submit();
+            }, true);
 
             const launchGuardActive = () => {
                 try {
@@ -773,7 +890,7 @@
                 link.addEventListener('click', async (event) => {
                     event.preventDefault();
                     if (link.dataset.busy === '1' || launchGuardActive()) {
-                        alert('Update launcher is already opening.');
+                        notify('warning', 'Launcher opening', 'Update launcher is already opening.');
                         return;
                     }
 
@@ -823,7 +940,7 @@
                         closeOrReplaceWithUpdating(4500);
                     } catch (error) {
                         clearLaunchGuard();
-                        alert(error.message || 'Update could not be started.');
+                        notify('error', 'Update could not be started', error.message || 'Update could not be started.');
                         link.dataset.busy = '0';
                         link.removeAttribute('aria-disabled');
                         link.textContent = originalText;

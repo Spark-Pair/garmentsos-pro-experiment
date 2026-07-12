@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Article;
 use App\Models\BankAccount;
+use App\Models\Branch;
 use App\Models\Customer;
 use App\Models\CustomerPayment;
 use App\Models\Expense;
@@ -15,11 +16,13 @@ use App\Models\Supplier;
 use App\Models\Setup;
 use App\Models\StatementAdjustment;
 use App\Models\Voucher;
+use App\Services\Branches\ModuleBranchService;
 use App\Services\PhysicalQuantityReportService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 
 class ReportController extends Controller
 {
@@ -28,6 +31,12 @@ class ReportController extends Controller
         if ($resp = $this->denyIfNoRole(['developer', 'owner', 'manager', 'admin', 'accountant', 'guest', 'store_keeper', 'customer', 'supplier'])) {
             return $resp;
         }
+
+        $branchContext = $this->statementBranchContext($request);
+        $statementBranches = $branchContext['branches'];
+        $selectedBranchIds = $branchContext['selected_ids'];
+        $selectedBranchLabels = $branchContext['selected_labels'];
+        $statementBranding = $this->statementBranding($branchContext);
 
         if (!empty($request)) {
             $type = $request->type;
@@ -61,9 +70,11 @@ class ReportController extends Controller
                         return response()->json(['error' => 'Customer not found'], 404);
                     }
 
-                    $data = $customer->getStatement($dateFrom, $dateTo, $type);
+                    $data = $customer->getStatement($dateFrom, $dateTo, $type, $selectedBranchIds);
+                    $data['branch_scope_label'] = implode(', ', $selectedBranchLabels);
+                    $data['branch_scope_mode'] = $branchContext['mode'];
 
-                    return view("reports.statement", compact('data'));
+                    return view("reports.statement", compact('data', 'statementBranches', 'selectedBranchIds', 'selectedBranchLabels', 'statementBranding'));
                 }
 
                 if ($category === 'supplier') {
@@ -74,7 +85,10 @@ class ReportController extends Controller
 
                     $data = $supplier->getStatement($dateFrom, $dateTo, $type);
 
-                    return view("reports.statement", compact('data'));
+                    $data['branch_scope_label'] = implode(', ', $selectedBranchLabels);
+                    $data['branch_scope_mode'] = $branchContext['mode'];
+
+                    return view("reports.statement", compact('data', 'statementBranches', 'selectedBranchIds', 'selectedBranchLabels', 'statementBranding'));
                 }
 
                 if ($category === 'bank account') {
@@ -85,12 +99,92 @@ class ReportController extends Controller
 
                     $data = $bank_account->getStatement($dateFrom, $dateTo, $type);
 
-                    return view("reports.statement", compact('data'));
+                    $data['branch_scope_label'] = implode(', ', $selectedBranchLabels);
+                    $data['branch_scope_mode'] = $branchContext['mode'];
+
+                    return view("reports.statement", compact('data', 'statementBranches', 'selectedBranchIds', 'selectedBranchLabels', 'statementBranding'));
                 }
             }
         }
 
-        return view("reports.statement");
+        return view("reports.statement", compact('statementBranches', 'selectedBranchIds', 'selectedBranchLabels', 'statementBranding'));
+    }
+
+    private function statementBranchContext(Request $request): array
+    {
+        if (!Schema::hasTable('branches')) {
+            return [
+                'branches' => collect(),
+                'selected_ids' => [],
+                'selected_labels' => ['Main Branch'],
+                'selected_branches' => collect(),
+                'mode' => 'all',
+            ];
+        }
+
+        $branches = Branch::query()
+            ->where('status', 'active')
+            ->orderByDesc('is_main')
+            ->orderBy('name')
+            ->get();
+
+        $moduleKey = str_contains((string) $request->path(), 'pending-payments') ? 'pending_payments' : 'statements';
+        $requested = collect($request->input('branch_ids', []));
+        if ($requested->count() === 1 && is_string($requested->first()) && str_contains($requested->first(), ',')) {
+            $requested = collect(explode(',', $requested->first()));
+        }
+
+        $requestedIds = $requested
+            ->reject(fn ($value) => $value === 'all')
+            ->filter(fn ($value) => is_numeric($value))
+            ->map(fn ($value) => (int) $value)
+            ->filter(fn ($value) => $value > 0)
+            ->unique()
+            ->values();
+
+        $allowedIds = $branches->pluck('id')->map(fn ($id) => (int) $id)->values();
+        $preferenceIds = collect(app(ModuleBranchService::class)->selectedBranchIdsForModule($moduleKey))
+            ->map(fn ($id) => (int) $id)
+            ->intersect($allowedIds)
+            ->values();
+
+        $selectedIds = $requestedIds->isNotEmpty()
+            ? $requestedIds->intersect($allowedIds)->values()
+            : ($preferenceIds->isNotEmpty() ? $preferenceIds : $allowedIds);
+
+        if ($selectedIds->isEmpty() && $allowedIds->isNotEmpty()) {
+            $selectedIds = $allowedIds;
+        }
+
+        $selectedBranches = $branches->whereIn('id', $selectedIds->all())->values();
+        $labels = $selectedBranches->pluck('name')->values()->all();
+        if (!$labels) {
+            $labels = ['Main Branch'];
+        }
+
+        $allSelected = $allowedIds->isNotEmpty() && $selectedIds->count() === $allowedIds->count();
+
+        return [
+            'branches' => $branches,
+            'selected_ids' => $selectedIds->all(),
+            'selected_labels' => $allSelected ? ['All Branches'] : $labels,
+            'selected_branches' => $selectedBranches,
+            'mode' => $allSelected ? 'all' : ($selectedIds->count() > 1 ? 'multiple' : 'single'),
+        ];
+    }
+
+    private function statementBranding(array $branchContext): object
+    {
+        $branches = app(ModuleBranchService::class);
+        $selectedBranches = $branchContext['selected_branches'];
+
+        if (($branchContext['mode'] ?? 'all') === 'single' && $selectedBranches->count() === 1) {
+            return (object) $branches->documentBranding('statements', (object) ['branch_id' => $selectedBranches->first()->id]);
+        }
+
+        $mainBranchId = Schema::hasTable('branches') ? Branch::query()->where('is_main', true)->value('id') : null;
+
+        return (object) $branches->documentBranding('statements', $mainBranchId ? (object) ['branch_id' => $mainBranchId] : null);
     }
 
     public function statementRecordDetails(Request $request)
@@ -208,6 +302,10 @@ class ReportController extends Controller
     }
     public function pendingPayments(Request $request)
     {
+        $branchContext = $this->statementBranchContext($request);
+        $reportBranches = $branchContext['branches'];
+        $selectedBranchIds = $branchContext['selected_ids'];
+        $selectedBranchLabels = $branchContext['selected_labels'];
         $cities_options = Setup::where('type', 'city')
             ->orderBy('title')
             ->get()
@@ -229,6 +327,9 @@ class ReportController extends Controller
                 ])
                 ->whereNotNull('customer_id')
                 ->whereIn('method', ['cheque', 'slip'])
+                ->when(Schema::hasColumn('customer_payments', 'branch_id') && !empty($selectedBranchIds), function ($query) use ($selectedBranchIds) {
+                    $query->whereIn('branch_id', $selectedBranchIds);
+                })
                 ->when($selectedCity, function ($query) use ($selectedCity) {
                     $query->whereHas('customer', function ($customerQuery) use ($selectedCity) {
                         $customerQuery->where('city_id', $selectedCity);
@@ -303,11 +404,11 @@ class ReportController extends Controller
             })
             ->values();
 
-            return view("reports.pending-payments", compact('data', 'cities_options', 'selectedCity'));
+            return view("reports.pending-payments", compact('data', 'cities_options', 'selectedCity', 'reportBranches', 'selectedBranchIds', 'selectedBranchLabels'));
         }
 
         $selectedCity = '';
-        return view("reports.pending-payments", compact('cities_options', 'selectedCity'));
+        return view("reports.pending-payments", compact('cities_options', 'selectedCity', 'reportBranches', 'selectedBranchIds', 'selectedBranchLabels'));
     }
 
     public function article(Request $request)

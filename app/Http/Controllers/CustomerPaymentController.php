@@ -9,6 +9,7 @@ use App\Models\PaymentProgram;
 use App\Models\Setup;
 use App\Models\Supplier;
 use App\Models\SupplierPayment;
+use App\Services\Branches\ModuleBranchService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
@@ -28,7 +29,7 @@ class CustomerPaymentController extends Controller
         $authLayout = $this->getAuthLayout($request->route()->getName());
 
         if ($request->ajax()) {
-            $payments = CustomerPayment::whereNotNull('customer_id')
+            $payments = app(ModuleBranchService::class)->applyScope(CustomerPayment::whereNotNull('customer_id'), 'customer_payments')
                 ->where('type', '!=', 'sales_return')
                 ->with([
                     'customer.city',
@@ -295,7 +296,7 @@ class CustomerPaymentController extends Controller
         }
 
         // --- Load all active customers with lightweight aggregated payload ---
-        $customers = Customer::with([
+        $customers = app(ModuleBranchService::class)->applyRelatedScope(Customer::with([
             'city:id,title',
             'paymentPrograms' => fn($q) => $q
                 ->select('id', 'program_no', 'order_no', 'date', 'customer_id', 'category', 'sub_category_id', 'sub_category_type', 'amount', 'remarks', 'status')
@@ -305,7 +306,7 @@ class CustomerPaymentController extends Controller
                     'subCategory',
                     'subCategory.bankAccounts.bank:id,short_title',
                 ]),
-        ])
+        ]), 'customers', 'customer_payments')
             ->withSum('invoices as total_invoice_amount', 'netAmount')
             ->withSum(['payments as total_paid_amount' => fn($q) => $q->where('type', '!=', 'DR')], 'amount')
             ->withSum(['statementAdjustments as adjustment_plus_amount' => fn($q) => $q->where('direction', 'plus')], 'amount')
@@ -1003,6 +1004,7 @@ class CustomerPaymentController extends Controller
 
         return [
             'customer_id' => $request->customer_id,
+            'branch_id' => app(ModuleBranchService::class)->branchIdForCreate('customer_payments'),
             'date' => $request->date,
             'type' => $request->type,
             'method' => $request->method,

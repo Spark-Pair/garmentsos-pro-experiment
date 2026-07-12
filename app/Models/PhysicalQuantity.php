@@ -22,6 +22,7 @@ class PhysicalQuantity extends Model
 
     protected $fillable = [
         "date",
+        "branch_id",
         "article_id",
         "packets",
         "category",

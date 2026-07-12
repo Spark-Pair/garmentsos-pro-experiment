@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Events\NewNotificationEvent;
 use App\Models\User;
 use App\Models\UserSession;
+use App\Services\Branches\ModuleBranchService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -24,7 +25,7 @@ class UserController extends Controller
         $authLayout = $this->getAuthLayout($request->route()->getName());
 
         if ($request->ajax()) {
-            $users = User::whereNotIn('role', ['supplier', 'customer', 'developer'])
+            $users = app(ModuleBranchService::class)->applyScope(User::whereNotIn('role', ['supplier', 'customer', 'developer']), 'users')
                 ->orderByDesc('id')
                 ->applyFilters($request);
 
@@ -86,6 +87,7 @@ class UserController extends Controller
 
         User::create([
             'name' => $data['name'],
+            'branch_id' => app(ModuleBranchService::class)->branchIdForCreate('users'),
             'username' => $data['username'],
             'password' => $hashedPassword,
             'role' => $data['role'],

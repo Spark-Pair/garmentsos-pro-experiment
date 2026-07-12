@@ -4,10 +4,10 @@ function initVouchersCreate() {
     const voucherType = config.voucherType;
     const csrfToken = config.csrfToken;
     const lastVoucher = config.lastVoucher;
-    const companyData = config.companyData;
-    const companyLogoUrl = config.companyLogoUrl || (config.companyLogoBase && config.companyData?.logo
-        ? `${config.companyLogoBase}/${config.companyData.logo}`
-        : '');
+    const companyData = config.branchBranding || config.companyData;
+    const companyLogoUrl = config.branchBranding?.logo_url
+        || config.companyLogoUrl
+        || (config.companyLogoBase && config.companyData?.logo ? `${config.companyLogoBase}/${config.companyData.logo}` : '');
     const templates = config.templates || {};
 
     let btnTypeGlobal = voucherType === 'supplier' ? 'supplier' : 'self_account';

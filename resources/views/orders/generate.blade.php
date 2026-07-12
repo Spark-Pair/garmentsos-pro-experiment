@@ -88,12 +88,16 @@
 
 @endsection
 
+@push('left-actions-after')
+    <x-module-branch-selector module-key="orders" />
+@endpush
+
 @push('page-scripts')
 <script defer src="{{ asset('js/pages/orders-generate.js') }}"></script>
 <script>
         window.__ordersGenerate = {
             lastOrder: @json($last_order),
-            companyData: @json($client_company),
+            companyData: @json($branchBranding ?? $client_company),
             ordersCreateUrl: '{{ route("orders.create") }}',
             companyLogoBase: '{{ asset("images") }}',
             isCustomerRole: @json($isCustomerPortalOrder),

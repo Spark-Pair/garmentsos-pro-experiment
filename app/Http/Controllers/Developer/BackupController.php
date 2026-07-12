@@ -8,10 +8,14 @@ use App\Services\BackupService;
 use App\Services\BackupStorageService;
 use App\Services\BackupVerifier;
 use App\Services\RestoreService;
+use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use RuntimeException;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
+use Throwable;
 
 class BackupController extends Controller
 {
@@ -43,11 +47,61 @@ class BackupController extends Controller
                 ->with('error', 'Backup tables are not available yet. Run migrations on a verified staging/client-copy database before creating backups.');
         }
 
-        $result = $backups->createManualBackup('manual_backup');
+        try {
+            $result = $backups->createManualBackup('manual_backup');
+        } catch (Throwable $e) {
+            Log::error('Developer backup action failed unexpectedly.', [
+                'error' => $e->getMessage(),
+                'type' => $e::class,
+            ]);
+
+            $result = [
+                'success' => false,
+                'message' => 'Backup failed safely. Check logs for details.',
+            ];
+        }
 
         return redirect()
             ->route('developer.backups')
             ->with($result['success'] ? 'success' : 'error', $result['message']);
+    }
+
+    public function runMigrations(Request $request): RedirectResponse
+    {
+        if ($resp = $this->denyIfNoRole(['developer', 'admin'])) {
+            return $resp;
+        }
+
+        $request->validate([
+            'confirm_migrations' => ['accepted'],
+        ], [
+            'confirm_migrations.accepted' => 'Please confirm before running database migrations.',
+        ]);
+
+        try {
+            $exitCode = Artisan::call('migrate', ['--force' => true]);
+            $output = trim(Artisan::output());
+
+            Log::info('Developer database migrations executed from backup page.', [
+                'exit_code' => $exitCode,
+                'output' => substr($output, 0, 2000),
+            ]);
+
+            return redirect()
+                ->route('developer.backups')
+                ->with($exitCode === 0 ? 'success' : 'error', $exitCode === 0
+                    ? 'Database migrations completed.'
+                    : 'Database migrations finished with errors. Check logs for details.');
+        } catch (Throwable $e) {
+            Log::error('Developer database migration action failed from backup page.', [
+                'error' => $e->getMessage(),
+                'type' => $e::class,
+            ]);
+
+            return redirect()
+                ->route('developer.backups')
+                ->with('error', 'Database migrations could not be run. Check logs for details.');
+        }
     }
 
     public function verify(BackupLog $backupLog, BackupStorageService $storage, BackupVerifier $verifier): RedirectResponse

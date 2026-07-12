@@ -2,7 +2,10 @@
 @section('title', 'Statement | ' . $client_company->name)
 @section('content')
 @php
-    $companyData = $client_company;
+    $companyData = $statementBranding ?? (object) app(\App\Services\Branches\ModuleBranchService::class)->documentBranding('reports');
+    $statementBranches = collect($statementBranches ?? []);
+    $selectedBranchIds = collect($selectedBranchIds ?? $statementBranches->pluck('id')->all())->map(fn($id) => (int) $id)->all();
+    $selectedBranchLabels = $selectedBranchLabels ?? ['All Branches'];
     $statementType = Auth::user()->statement_type ?? 'general';
     if (!in_array($statementType, ['summarized', 'detailed', 'general'], true)) {
         $statementType = 'general';
@@ -124,6 +127,10 @@
                         onchange="updateDateConstraints()"
                     />
                 </div>
+
+                <div class="col-span-full rounded-lg border border-[var(--h-bg-color)] bg-[var(--h-bg-color)] px-3 py-2 text-xs text-[var(--secondary-text)]">
+                    Branches: {{ implode(', ', $selectedBranchLabels) }}. Use the branch switcher beside Back/Refresh to change statement branches.
+                </div>
             </div>
         </div>
 
@@ -149,10 +156,10 @@
                                 {{-- Company Logo + Banner --}}
                                 <div id="preview-banner" class="preview-banner w-full flex justify-between items-center pl-5 pr-8">
                                     <div class="flex items-center gap-3">
-                                        @if($companyData->logo)
+                                        @if($companyData->logo_url)
                                             <div class="h-[3.50rem] w-[13.5rem] flex items-center justify-center gap-2.5">
                                                 <img 
-                                                    src="{{ asset('images/' . $companyData->logo) }}" 
+                                                    src="{{ $companyData->logo_url }}"
                                                     alt="garmentsos-pro"
                                                     class="max-h-full max-w-full object-contain"
                                                 />
@@ -178,6 +185,7 @@
                                 <div id="preview-header" class="preview-header w-full flex justify-between px-5">
                                     <div class="left my-auto pr-3 text-sm text-gray-800 space-y-1.5">
                                         <div class="date-range leading-none">Date: {{ $data['date'] }}</div>
+                                        <div class="branch-scope leading-none">Branches: {{ $data['branch_scope_label'] ?? implode(', ', $selectedBranchLabels) }}</div>
                                         <div class="opening-balance leading-none">Opening Balance: Rs.{{ \App\Support\Money::format($data['opening_balance']) }}</div>
                                         <div class="closing-balance leading-none">Closing Balance: Rs.{{ \App\Support\Money::format($data['closing_balance']) }}</div>
                                     </div>
@@ -281,10 +289,10 @@
                                     {{-- Banner --}}
                                     <div id="preview-banner" class="preview-banner w-full flex justify-between items-center pl-5 pr-8">
                                         <div class="flex items-center gap-3">
-                                            @if($companyData->logo)
+                                            @if($companyData->logo_url)
                                                 <div class="h-[3.50rem] w-[13.5rem] flex items-center justify-center gap-2.5">
                                                     <img 
-                                                        src="{{ asset('images/' . $companyData->logo) }}" 
+                                                        src="{{ $companyData->logo_url }}"
                                                         alt="garmentsos-pro"
                                                         class="max-h-full max-w-full object-contain"
                                                     />
@@ -391,6 +399,10 @@
 
 @endsection
 
+@push('left-actions-after')
+    <x-module-branch-selector module-key="statements" mode="multiple" />
+@endpush
+
 @push('page-scripts')
 <script defer src="{{ asset('js/pages/reports-statement.js') }}"></script>
 <script>
@@ -401,8 +413,9 @@
         getNamesUrl: @json(route('reports.statement.get-names')),
         statementUrl: @json(route('reports.statement')),
         recordDetailsUrl: @json(route('reports.statement.record-details')),
-        companyData: @json($client_company),
+        companyData: @json($companyData),
         companyLogoBase: @json(url('/') . '/'),
+        selectedBranchIds: @json($selectedBranchIds),
         portal: {
             role: @json($portalRole),
             category: @json($portalCategory),

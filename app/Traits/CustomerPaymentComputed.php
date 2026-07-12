@@ -221,6 +221,7 @@ trait CustomerPaymentComputed
             'bank_account' => $this->formatBankAccountForResponse($this->bankAccount),
             'cheque' => $this->formatSupplierPaymentForResponse($this->cheque),
             'slip' => $this->formatSupplierPaymentForResponse($this->slip),
+            'branch_branding' => app(\App\Services\Branches\ModuleBranchService::class)->documentBranding('customer_payments', $this),
         ];
     }
 

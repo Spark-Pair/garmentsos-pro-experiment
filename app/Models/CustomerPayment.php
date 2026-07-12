@@ -21,6 +21,7 @@ class CustomerPayment extends Model
 
     protected $fillable = [
         "customer_id",
+        "branch_id",
         "date",
         "type",
         "method",
@@ -71,6 +72,11 @@ class CustomerPayment extends Model
     public function customer()
     {
         return $this->belongsTo(Customer::class, "customer_id");
+    }
+
+    public function branch()
+    {
+        return $this->belongsTo(Branch::class);
     }
 
     public function program()

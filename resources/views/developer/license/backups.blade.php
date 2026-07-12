@@ -15,33 +15,17 @@
         $missingTables = $missingTables ?? [];
     @endphp
 
-    <div class="mb-5 max-w-6xl mx-auto">
+    <div class="max-w-6xl mx-auto w-full">
         <x-search-header heading="Backup & Restore" />
     </div>
 
-    <div class="max-w-6xl mx-auto space-y-4">
-        @if (session('success'))
-            <div class="rounded-lg border border-[var(--border-success)] bg-[var(--bg-success)] px-4 py-3 text-sm text-[var(--text-success)]">
-                {{ session('success') }}
-            </div>
-        @endif
-
-        @if (session('error'))
-            <div class="rounded-lg border border-[var(--border-error)] bg-[var(--bg-error)] px-4 py-3 text-sm text-[var(--text-error)]">
-                {{ session('error') }}
-            </div>
-        @endif
-
-        @if ($errors->any())
-            <div class="rounded-lg border border-[var(--border-error)] bg-[var(--bg-error)] p-4 text-sm text-[var(--text-error)]">
-                <div class="font-semibold">Please fix the highlighted fields before continuing.</div>
-                <ul class="mt-2 list-disc space-y-1 pl-5">
-                    @foreach ($errors->all() as $error)
-                        <li>{{ $error }}</li>
-                    @endforeach
-                </ul>
-            </div>
-        @endif
+    <section class="text-center mx-auto">
+        <div class="show-box mx-auto w-[80%] h-[70vh] bg-[var(--secondary-bg-color)] border border-[var(--glass-border-color)]/20 rounded-xl shadow pt-8.5 relative">
+            <x-form-title-bar title="Backup & Restore" />
+            <div class="details h-full z-40">
+                <div class="container-parent h-full">
+                    <div class="card_container px-4 h-full flex flex-col">
+                        <div class="overflow-y-auto grow my-scrollbar-2 space-y-4 pb-24 pr-1 text-left">
 
         <section class="{{ $panel }}">
             <x-form-title-bar title="Backup & Restore" />
@@ -65,6 +49,14 @@
                     @if ($missingTables)
                         <p class="mt-2 font-mono text-xs">Missing: {{ implode(', ', $missingTables) }}</p>
                     @endif
+                    <form method="POST" action="{{ route('developer.backups.run-migrations') }}" class="mt-4 space-y-3">
+                        @csrf
+                        <label class="flex items-start gap-2">
+                            <input type="checkbox" name="confirm_migrations" value="1" class="mt-1">
+                            <span>Run database migrations on this local install. Use this only after confirming this is the intended client/developer database.</span>
+                        </label>
+                        <button type="submit" class="{{ $secondaryButton }}">Run Database Migrations</button>
+                    </form>
                 </div>
             @endif
 
@@ -122,6 +114,26 @@
         </section>
 
         <section class="{{ $panel }}">
+            <x-form-title-bar title="Database Tools" />
+            <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                <div class="{{ $softPanel }}">
+                    <h2 class="font-semibold">Run Database Migrations</h2>
+                    <p class="mt-2 text-sm text-[var(--secondary-text)]">
+                        Developer/admin recovery action for copied or upgraded installs. This runs Laravel migrations only; it does not restore backups or change license/device identity.
+                    </p>
+                </div>
+                <form method="POST" action="{{ route('developer.backups.run-migrations') }}" class="space-y-3">
+                    @csrf
+                    <label class="flex items-start gap-2 text-sm text-[var(--secondary-text)]">
+                        <input type="checkbox" name="confirm_migrations" value="1" class="mt-1">
+                        <span>I confirm this local database should be migrated now.</span>
+                    </label>
+                    <button type="submit" class="{{ $secondaryButton }}">Run Database Migrations</button>
+                </form>
+            </div>
+        </section>
+
+        <section class="{{ $panel }}">
             <x-form-title-bar title="Restore Old SQLite Database" />
 
             <div class="grid grid-cols-1 gap-5 lg:grid-cols-2">
@@ -150,7 +162,7 @@
                         <input type="checkbox" name="staging_tested" value="1" class="mt-1" @disabled(!$restoreEnabled)>
                         <span>I tested this restore on a staging/copy database and confirmed this old database is correct.</span>
                     </label>
-                    <button type="submit" class="{{ $restoreEnabled ? $primaryButton : $disabledButton }}" @disabled(!$restoreEnabled) onclick="return confirm('Restore uploaded business database now? Current database will be backed up first.')">
+                    <button type="submit" class="{{ $restoreEnabled ? $primaryButton : $disabledButton }}" @disabled(!$restoreEnabled)>
                         Restore Uploaded Database
                     </button>
                 </form>
@@ -220,5 +232,10 @@
                 </table>
             </div>
         </section>
-    </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
 @endsection

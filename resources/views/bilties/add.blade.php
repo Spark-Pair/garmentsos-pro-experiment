@@ -3,7 +3,7 @@
 @section('content')
     <!-- Main Content -->
     <!-- Progress Bar -->
-    <div class="mb-5 max-w-6xl mx-auto">
+    <div class="max-w-6xl mx-auto w-full">
         <x-search-header heading="Add Bilty" link linkText="Show Bilties" linkHref="{{ route('bilties.index') }}"/>
     </div>
 

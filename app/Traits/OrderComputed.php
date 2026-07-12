@@ -57,6 +57,8 @@ trait OrderComputed
             'data' => [
                 'id' => $this->id,
                 'order_no' => $this->order_no,
+                'branch_id' => $this->branch_id,
+                'branch_branding' => app(\App\Services\Branches\ModuleBranchService::class)->documentBranding('orders', $this),
                 'date' => $this->date,
                 'discount' => (float) ($this->discount ?? 0),
                 'netAmount' => (float) ($this->netAmount ?? 0),

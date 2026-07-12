@@ -3,10 +3,12 @@ function initVouchersEdit() {
     const config = window.__vouchersEdit || {};
     const voucherType = config.voucherType;
     const voucher = config.voucher;
-    const companyData = config.companyData;
-    const companyLogoUrl = config.companyLogoUrl || (config.companyLogoBase && config.companyData?.logo
-        ? `${config.companyLogoBase}/${config.companyData.logo}`
-        : '');
+    const companyData = config.branchBranding || config.companyData;
+    const companyLogoUrl = config.branchBranding?.logo_url
+        || config.companyLogoUrl
+        || (config.companyLogoBase && config.companyData?.logo
+            ? `${config.companyLogoBase}/${config.companyData.logo}`
+            : '');
     const templates = config.templates || {};
     const allSelfAccounts = config.selfAccounts || [];
 

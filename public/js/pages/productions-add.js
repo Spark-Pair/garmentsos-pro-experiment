@@ -103,27 +103,23 @@
                 );
                 const filteredArticles = articles.filter((a) => !articlesIssuedOnCMT.includes(a));
 
-                if (articles.length > 0) {
-                    cardData.push(
-                        ...filteredArticles.map((item) => {
-                            return {
-                                id: item.id,
-                                name: item.article_no,
-                                image:
-                                    item.image === "no_image_icon.png"
-                                        ? "/images/no_image_icon.png"
-                                        : `/storage/uploads/images/${item.image}`,
-                                details: {
-                                    Category: item.category,
-                                    Season: item.season,
-                                    Size: item.size,
-                                },
-                                data: item,
-                                onclick: "selectThisArticle(this)",
-                            };
-                        })
-                    );
-                }
+                cardData = filteredArticles.map((item) => {
+                    return {
+                        id: item.id,
+                        name: item.article_no,
+                        image:
+                            item.image === "no_image_icon.png"
+                                ? "/images/no_image_icon.png"
+                                : `/storage/uploads/images/${item.image}`,
+                        details: {
+                            Category: item.category,
+                            Season: item.season,
+                            Size: item.size,
+                        },
+                        data: item,
+                        onclick: "selectThisArticle(this)",
+                    };
+                });
 
                 ArticleModalData = {
                     id: "modalForm",
@@ -571,34 +567,48 @@
             };
 
             window.generateSelectTagModal = function generateSelectTagModal(animate = "animate") {
-                let data = tags;
-
-                let cardData = [];
-
-                if (data.length > 0) {
-                    cardData.push(
-                        ...data.map((item) => {
-                            return {
-                                id: item.tag,
-                                name: item.tag,
-                                details: {
-                                    Supplier: item.supplier_name,
-                                    "Available Quantity": item.available_quantity,
-                                    "Selected Quantity": item.selected_quantity || 0,
-                                },
-                                data: item,
-                                onclick: `generateQuantityModal(${JSON.stringify(item)})`,
-                            };
-                        })
-                    );
-                }
+                const tagCardData = tags.map((item) => {
+                    return {
+                        id: item.tag,
+                        name: item.tag,
+                        details: {
+                            Supplier: item.supplier_name,
+                            "Available Quantity": item.available_quantity,
+                            "Selected Quantity": item.selected_quantity || 0,
+                        },
+                        data: item,
+                        onclick: `generateQuantityModal(${JSON.stringify(item)})`,
+                    };
+                });
 
                 materialModalData = {
                     id: "tagModalForm",
-                    cards: { name: "Tags", count: 3, data: cardData },
+                    basicSearch: true,
+                    onBasicSearch: "basicSearchTags(this.value)",
+                    cards: { name: "Tags", count: 3, data: tagCardData },
                 };
 
                 createModal(materialModalData, animate);
+            };
+
+            window.basicSearchTags = function basicSearchTags(searchValue) {
+                const normalized = searchValue.toLowerCase();
+                materialModalData.cards.data = tags
+                    .map((item) => {
+                        return {
+                            id: item.tag,
+                            name: item.tag,
+                            details: {
+                                Supplier: item.supplier_name,
+                                "Available Quantity": item.available_quantity,
+                                "Selected Quantity": item.selected_quantity || 0,
+                            },
+                            data: item,
+                            onclick: `generateQuantityModal(${JSON.stringify(item)})`,
+                        };
+                    })
+                    .filter((item) => item.name.toLowerCase().includes(normalized));
+                renderCardsInModal(materialModalData);
             };
 
             window.generateSecondStep = function generateSecondStep(work) {
@@ -746,27 +756,23 @@
                     return cuttingParts.length !== allPartsForArticle.length;
                 });
 
-                if (articles.length > 0) {
-                    cardData.push(
-                        ...filteredArticles.map((item) => {
-                            return {
-                                id: item.id,
-                                name: item.article_no,
-                                image:
-                                    item.image === "no_image_icon.png"
-                                        ? "/images/no_image_icon.png"
-                                        : `/storage/uploads/images/${item.image}`,
-                                details: {
-                                    Category: item.category,
-                                    Season: item.season,
-                                    Size: item.size,
-                                },
-                                data: item,
-                                onclick: "selectThisArticle(this)",
-                            };
-                        })
-                    );
-                }
+                cardData = filteredArticles.map((item) => {
+                    return {
+                        id: item.id,
+                        name: item.article_no,
+                        image:
+                            item.image === "no_image_icon.png"
+                                ? "/images/no_image_icon.png"
+                                : `/storage/uploads/images/${item.image}`,
+                        details: {
+                            Category: item.category,
+                            Season: item.season,
+                            Size: item.size,
+                        },
+                        data: item,
+                        onclick: "selectThisArticle(this)",
+                    };
+                });
 
                 ArticleModalData = {
                     id: "modalForm",
@@ -966,34 +972,48 @@
             };
 
             window.generateSelectTagModal = function generateSelectTagModal(animate = "animate") {
-                let data = tags;
-
-                let cardData = [];
-
-                if (data.length > 0) {
-                    cardData.push(
-                        ...data.map((item) => {
-                            return {
-                                id: item.tag,
-                                name: item.tag,
-                                details: {
-                                    Supplier: item.supplier_name,
-                                    "Available Quantity": item.available_quantity,
-                                    "Selected Quantity": item.selected_quantity || 0,
-                                },
-                                data: item,
-                                onclick: `generateQuantityModal(${JSON.stringify(item)})`,
-                            };
-                        })
-                    );
-                }
+                const tagCardData = tags.map((item) => {
+                    return {
+                        id: item.tag,
+                        name: item.tag,
+                        details: {
+                            Supplier: item.supplier_name,
+                            "Available Quantity": item.available_quantity,
+                            "Selected Quantity": item.selected_quantity || 0,
+                        },
+                        data: item,
+                        onclick: `generateQuantityModal(${JSON.stringify(item)})`,
+                    };
+                });
 
                 materialModalData = {
                     id: "tagModalForm",
-                    cards: { name: "Tags", count: 3, data: cardData },
+                    basicSearch: true,
+                    onBasicSearch: "basicSearchTags(this.value)",
+                    cards: { name: "Tags", count: 3, data: tagCardData },
                 };
 
                 createModal(materialModalData, animate);
+            };
+
+            window.basicSearchTags = function basicSearchTags(searchValue) {
+                const normalized = searchValue.toLowerCase();
+                materialModalData.cards.data = tags
+                    .map((item) => {
+                        return {
+                            id: item.tag,
+                            name: item.tag,
+                            details: {
+                                Supplier: item.supplier_name,
+                                "Available Quantity": item.available_quantity,
+                                "Selected Quantity": item.selected_quantity || 0,
+                            },
+                            data: item,
+                            onclick: `generateQuantityModal(${JSON.stringify(item)})`,
+                        };
+                    })
+                    .filter((item) => item.name.toLowerCase().includes(normalized));
+                renderCardsInModal(materialModalData);
             };
 
             window.generateQuantityModal = function generateQuantityModal(item) {
@@ -1228,8 +1248,8 @@
                 if (elem.value != "") {
                     let selectedTicket = JSON.parse(elem.parentElement.querySelector("li.selected").dataset.option);
                     selectThisArticle(selectedTicket.article);
-                    selectThisOption(document.querySelector(`li[data-value="${selectedTicket.work_id}"]`));
-                    selectThisOption(document.querySelector(`li[data-value="${selectedTicket.worker_id}"]`));
+                    selectThisOption(document.querySelector(`ul[data-for="work"] li[data-value="${selectedTicket.work_id}"]`));
+                    selectThisOption(document.querySelector(`ul[data-for="worker"] li[data-value="${selectedTicket.worker_id}"]`));
                 }
             };
 

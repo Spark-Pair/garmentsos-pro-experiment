@@ -6,6 +6,7 @@ use App\Models\BankAccount;
 use App\Models\Customer;
 use App\Models\Setup;
 use App\Models\User;
+use App\Services\Branches\ModuleBranchService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
@@ -28,7 +29,7 @@ class CustomerController extends Controller
         $authLayout = $this->getAuthLayout($request->route()->getName());
 
         if ($request->ajax()) {
-            $customers = Customer::orderByDesc('id')
+            $customers = app(ModuleBranchService::class)->applyScope(Customer::orderByDesc('id'), 'customers')
                 ->applyFilters($request);
 
             return response()->json(['data' => $customers, 'authLayout' => $authLayout]);
@@ -119,6 +120,7 @@ class CustomerController extends Controller
 
             $user = User::create([
                 'name' => $data['customer_name'],
+                'branch_id' => app(ModuleBranchService::class)->branchIdForCreate('users'),
                 'username' => $data['username'],
                 'password' => $hashedPassword,
                 'role' => 'customer',
@@ -131,6 +133,7 @@ class CustomerController extends Controller
         // Create a new customer
         $customer = Customer::create([
             'user_id' => $user->id,
+            'branch_id' => app(ModuleBranchService::class)->branchIdForCreate('customers'),
             'customer_name' => $user->name,
             'person_name' => $data['person_name'],
             'phone_number' => $data['phone_number'],

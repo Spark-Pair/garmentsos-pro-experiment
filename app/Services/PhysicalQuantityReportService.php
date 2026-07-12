@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Article;
 use App\Models\PhysicalQuantity;
 use App\Models\ShipmentArticles;
+use App\Services\Branches\ModuleBranchService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -17,7 +18,8 @@ class PhysicalQuantityReportService
 
     public function getIndexRows(Request|array $filters = [], ?int $limit = null): Collection
     {
-        $query = PhysicalQuantity::with('article')
+        $branches = app(ModuleBranchService::class);
+        $query = $branches->applyScope(PhysicalQuantity::with('article'), 'physical_quantities')
             ->orderByDesc('id');
 
         $this->applyFilters($query, $filters);
@@ -62,7 +64,8 @@ class PhysicalQuantityReportService
 
     public function getArticleOptions(): array
     {
-        return Article::query()
+        return app(ModuleBranchService::class)
+            ->applyRelatedScope(Article::query(), 'articles', 'physical_quantities')
             ->orderByDesc('id')
             ->get(['id', 'article_no', 'processed_by'])
             ->mapWithKeys(function (Article $article) {
@@ -130,7 +133,12 @@ class PhysicalQuantityReportService
             ->groupBy('article_id')
             ->map(fn (Collection $items) => $items->pluck('shipment.city')->filter()->unique()->values());
 
-        $stockMap = $this->stockService->summaries($articleIds);
+        $branches = app(ModuleBranchService::class);
+        $stockMap = $this->stockService->summaries(
+            $articleIds,
+            null,
+            $branches->shouldFilterRecords('physical_quantities') ? $branches->selectedBranchIdForModule('physical_quantities') : null
+        );
 
         return $rows
             ->groupBy('article_id')

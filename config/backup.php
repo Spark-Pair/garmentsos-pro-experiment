@@ -9,7 +9,7 @@ return [
         'sqlite',
     ],
 
-    'filename_prefix' => 'garmentsos_backup',
+    'filename_prefix' => 'garmentsos-backup',
 
     'metadata_enabled' => true,
 

@@ -11,6 +11,8 @@ use App\Models\Notification;
 use App\Models\Order;
 use App\Models\OrderArticles;
 use App\Models\Shipment;
+use App\Services\Branches\BranchSerialService;
+use App\Services\Branches\ModuleBranchService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -33,13 +35,14 @@ class InvoiceController extends Controller
         $authLayout = $this->getAuthLayout($request->route()->getName());
 
         if ($request->ajax()) {
-            $invoices = Invoice::with([
+            $invoices = app(ModuleBranchService::class)->applyScope(Invoice::with([
                 'order',
                 'shipment',
                 'invoiceArticles.article',
                 'salesReturns',
-                'customer.city'
-            ])
+                'customer.city',
+                'branch',
+            ]), 'invoices')
             ->orderByDesc('id')
             ->applyFilters($request);
 
@@ -91,12 +94,20 @@ class InvoiceController extends Controller
             $last_Invoice = new Invoice();
             $last_Invoice->invoice_no = '00-0000';
         }
+        if (app(ModuleBranchService::class)->shouldFilterRecords('invoices')) {
+            $last_Invoice = new Invoice();
+            $last_Invoice->invoice_no = app(BranchSerialService::class)->next('invoices', Invoice::class, 'invoice_no', 'INV');
+        }
 
-        $customers = Customer::with('user')->whereIn('category', ['regular', 'site'])->whereHas('user', function ($query) {
+        $branches = app(ModuleBranchService::class);
+        $customers = $branches->applyRelatedScope(Customer::with('user'), 'customers', 'invoices')
+            ->whereIn('category', ['regular', 'site'])->whereHas('user', function ($query) {
             $query->where('status', 'active');
         })->get();
 
-        return view("invoices.generate", compact("last_Invoice", 'customers', 'orderNumber'));
+        $branchBranding = app(ModuleBranchService::class)->documentBranding('invoices');
+
+        return view("invoices.generate", compact("last_Invoice", 'customers', 'orderNumber', 'branchBranding'));
     }
 
     /**
@@ -282,13 +293,17 @@ class InvoiceController extends Controller
             $this->validateInvoiceStock($shipmentQuantities);
 
             foreach ($customers_array as $customer) {
+                $invoiceNo = app(ModuleBranchService::class)->shouldFilterRecords('invoices')
+                    ? app(BranchSerialService::class)->next('invoices', Invoice::class, 'invoice_no', 'INV')
+                    : $currentYear . '-' . $nextNumber;
                 $invoice = new Invoice();
                 $invoice->customer_id = $customer["id"];
-                $invoice->invoice_no = $currentYear . '-' . $nextNumber;
+                $invoice->invoice_no = $invoiceNo;
                 $invoice->shipment_no = $request->shipment_no;
                 $invoice->netAmount = $shipment->netAmount * $customer['cotton_count'];
                 $invoice->cotton_count = $customer['cotton_count'];
                 $invoice->date = date("Y-m-d");
+                $invoice->branch_id = app(ModuleBranchService::class)->branchIdForCreate('invoices');
                 $invoice->save();
 
                 // Store articles in invoice_articles table
@@ -301,7 +316,7 @@ class InvoiceController extends Controller
                     ]);
                 }
 
-                $invoiceNumbers[] = $currentYear . '-' . $nextNumber;
+                $invoiceNumbers[] = $invoiceNo;
                 $this->notifyCustomerAboutInvoice((int) $customer['id'], $invoice->invoice_no);
                 $nextNumber = str_pad((int)$nextNumber + 1, 4, '0', STR_PAD_LEFT);
             }
@@ -315,7 +330,7 @@ class InvoiceController extends Controller
         // ORDER-BASED INVOICE
         else if ($request->has('order_no')) {
             $validator = Validator::make($request->all(), [
-                "invoice_no" => "required|string|unique:invoices,invoice_no",
+                "invoice_no" => "required|string",
                 "order_no" => "required|string|exists:orders,order_no",
                 "date" => "required|date",
                 "netAmount" => "required|string",
@@ -327,14 +342,23 @@ class InvoiceController extends Controller
             }
 
             $data = [
-                'invoice_no' => $request->invoice_no,
+                'invoice_no' => app(ModuleBranchService::class)->shouldFilterRecords('invoices')
+                    ? app(BranchSerialService::class)->next('invoices', Invoice::class, 'invoice_no', 'INV')
+                    : $request->invoice_no,
                 'order_no' => $request->order_no,
                 'date' => $request->date,
                 'netAmount' => $request->netAmount,
                 'articles_in_invoice' => json_decode($request->articles_in_invoice, true),
             ];
 
-            $orderDb = Order::where("order_no", $data["order_no"])->first();
+            $orderDb = app(ModuleBranchService::class)
+                ->applyRelatedScope(Order::where("order_no", $data["order_no"]), 'orders', 'invoices')
+                ->first();
+            if (!$orderDb) {
+                throw ValidationException::withMessages([
+                    'order_no' => 'Order not found for the selected branch.',
+                ]);
+            }
             $orderArticleIds = collect($data['articles_in_invoice'])->pluck('order_article_id')->filter()->map(fn ($id) => (int) $id);
             $orderArticles = OrderArticles::whereIn('id', $orderArticleIds)->get()->keyBy('id');
             $invoiceQuantities = collect($data['articles_in_invoice'])
@@ -375,6 +399,7 @@ class InvoiceController extends Controller
 
             $data["netAmount"] = (int) str_replace(',', '', $data["netAmount"]);
             $data["customer_id"] = $orderDb["customer_id"];
+            $data["branch_id"] = $orderDb->branch_id ?: app(ModuleBranchService::class)->branchIdForCreate('invoices');
 
             $invoice = Invoice::create($data);
 
@@ -434,9 +459,11 @@ class InvoiceController extends Controller
             return redirect()->route('invoices.create')->with('error', 'No invoices to print.');
         }
 
-        $invoices = Invoice::with(["customer.city", 'invoiceArticles.article', 'shipment', 'order'])->whereIn('invoice_no', $invoiceNumbers)->get();
+        $invoices = Invoice::with(["customer.city", 'invoiceArticles.article', 'shipment', 'order', 'branch'])->whereIn('invoice_no', $invoiceNumbers)->get();
 
-        return view("invoices.print", compact("invoices"));
+        $invoicePayloads = $invoices->map(fn (Invoice $invoice) => $invoice->toFormattedArray()['data'])->values();
+
+        return view("invoices.print", compact("invoices", "invoicePayloads"));
     }
 
     private function validateInvoiceStock($invoiceQuantities, ?int $excludeOrderId = null): void
@@ -451,7 +478,12 @@ class InvoiceController extends Controller
             ]);
         }
 
-        $stockMap = $this->articleStockMap($invoiceQuantities->keys(), $excludeOrderId);
+        $branches = app(ModuleBranchService::class);
+        $stockMap = $this->articleStockMap(
+            $invoiceQuantities->keys(),
+            $excludeOrderId,
+            $branches->shouldFilterRecords('physical_quantities') ? $branches->selectedBranchIdForModule('invoices') : null
+        );
         $articlesById = Article::query()
             ->whereIn('id', $invoiceQuantities->keys())
             ->get(['id', 'article_no'])

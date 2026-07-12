@@ -15,7 +15,7 @@
         ]
     @endphp
     <!-- Progress Bar -->
-    <div class="mb-5 max-w-6xl mx-auto">
+    <div class="max-w-6xl mx-auto w-full">
         <x-search-header heading="Add Customer Payment" link linkText="Show Payments" linkHref="{{ route('customer-payments.index') }}"/>
     </div>
 
@@ -138,6 +138,10 @@
     </div>
 
 @endsection
+
+@push('left-actions-after')
+    <x-module-branch-selector module-key="customer_payments" />
+@endpush
 
 @push('page-scripts')
 <script defer src="{{ asset('js/pages/customer-payments-create.js') }}"></script>

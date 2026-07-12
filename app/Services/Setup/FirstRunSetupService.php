@@ -3,12 +3,15 @@
 namespace App\Services\Setup;
 
 use App\Models\User;
+use App\Services\Branches\ModuleBranchService;
 use App\Services\Settings\AppSettingService;
 use App\Services\Settings\BrandingSettingsService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 class FirstRunSetupService
@@ -16,6 +19,7 @@ class FirstRunSetupService
     public function __construct(
         protected AppSettingService $settings,
         protected BrandingSettingsService $branding,
+        protected ModuleBranchService $branches,
     ) {
     }
 
@@ -68,7 +72,18 @@ class FirstRunSetupService
             $this->settings->set('setup_completed', true, 'boolean');
             $this->settings->set('setup_completed_at', now()->toIso8601String(), 'string');
             $this->settings->set('setup_version', '1', 'integer');
+
+            $this->branches->syncMainBranchDetails([
+                'company_name' => $companyName,
+                'name' => $companyName ?: 'Main Branch',
+                'display_name' => $companyName,
+                'phone' => $phone,
+                'address' => $address,
+                'header_text' => $companyName,
+            ]);
         });
+
+        $this->ensurePublicStorageLink();
     }
 
     protected function upsertUser(string $username, string $name, string $role, string $password): void
@@ -82,6 +97,19 @@ class FirstRunSetupService
                 'status' => 'active',
             ],
         );
+    }
+
+    protected function ensurePublicStorageLink(): void
+    {
+        try {
+            if (!File::exists(public_path('storage'))) {
+                Artisan::call('storage:link');
+            }
+        } catch (\Throwable $e) {
+            Log::warning('Setup could not create public storage link; branch logo fallback route remains available.', [
+                'reason' => Str::limit($e->getMessage(), 180),
+            ]);
+        }
     }
 
     protected function databaseStatus(): array

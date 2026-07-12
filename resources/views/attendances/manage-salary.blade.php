@@ -9,7 +9,7 @@
 @endphp
     <!-- Main Content -->
     <!-- Progress Bar -->
-    <div class="mb-5 max-w-6xl mx-auto">
+    <div class="max-w-6xl mx-auto w-full">
         <x-search-header heading="Manage Salary" link linkText="Generate Slip" linkHref="{{ route('attendances.generate-slip') }}"/>
     </div>
 

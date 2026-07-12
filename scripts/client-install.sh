@@ -33,6 +33,7 @@ if ! grep -q '^APP_KEY=base64:' .env; then
 fi
 
 php artisan migrate --force
+php artisan storage:link || true
 php artisan optimize:clear
 php artisan config:cache
 

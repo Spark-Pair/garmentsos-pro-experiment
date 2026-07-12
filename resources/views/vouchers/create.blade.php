@@ -159,6 +159,10 @@
     ];
 @endphp
 
+@push('left-actions-after')
+    <x-module-branch-selector module-key="vouchers" />
+@endpush
+
 @push('page-scripts')
 <script defer src="{{ asset('js/pages/vouchers-create.js') }}"></script>
 <script>
@@ -167,6 +171,7 @@
             csrfToken: @json(csrf_token()),
             lastVoucher: @json($last_voucher),
             companyData: @json($client_company),
+            branchBranding: @json($branchBranding ?? null),
             companyLogoUrl: @json(asset('images/' . $client_company->logo)),
             companyLogoBase: @json(asset('images')),
             templates: @json($voucherTemplates),

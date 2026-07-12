@@ -460,6 +460,9 @@ class RestoreService
     {
         $migrateExitCode = Artisan::call('migrate', ['--force' => true]);
         $migrationOutput = trim(Artisan::output());
+        $branches = app(\App\Services\Branches\ModuleBranchService::class);
+        $branches->ensureMainBranch();
+        $branches->backfillManagerAccess();
         $cacheExitCode = Artisan::call('cache:clear');
 
         $this->auditLogs->record('restore.post_maintenance_completed', [

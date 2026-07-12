@@ -155,14 +155,19 @@
     ];
 @endphp
 
+@push('left-actions-after')
+    <x-module-branch-selector module-key="vouchers" />
+@endpush
+
 @push('page-scripts')
 <script defer src="{{ asset('js/pages/vouchers-edit.js') }}"></script>
 <script>
         window.__vouchersEdit = {
             voucherType: @json($voucherType),
             voucher: @json($voucherPayload),
-            companyData: @json($client_company),
-            companyLogoUrl: @json(asset('images/' . $client_company->logo)),
+            branchBranding: @json($branchBranding ?? null),
+            companyData: @json($branchBranding ?? $client_company),
+            companyLogoUrl: @json(($branchBranding['logo_url'] ?? null) ?: asset('images/' . $client_company->logo)),
             companyLogoBase: @json(asset('images')),
             selfAccounts: @json($selfAccountsPayload),
             templates: @json($voucherTemplates),

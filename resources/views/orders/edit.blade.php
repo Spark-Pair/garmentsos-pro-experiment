@@ -83,12 +83,16 @@
 
 @endsection
 
+@push('left-actions-after')
+    <x-module-branch-selector module-key="orders" />
+@endpush
+
 @push('page-scripts')
 <script defer src="{{ asset('js/pages/orders-edit.js') }}"></script>
 <script>
         window.__ordersEdit = {
             order: @json($orderPayload),
-            companyData: @json($client_company),
+            companyData: @json($branchBranding ?? $client_company),
             ordersCreateUrl: '{{ route("orders.create") }}',
             companyLogoBase: '{{ asset("images") }}',
             maxArticlesAlertHtml: @json('<div class="bg-[var(--danger-color)]/10 border border-[var(--danger-color)] text-[var(--danger-color)] text-xs px-3 py-2 rounded-lg">You have reached the maximum allowed number of 500 articles.</div>'),

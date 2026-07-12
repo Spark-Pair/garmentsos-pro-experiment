@@ -73,6 +73,10 @@
 
 @endsection
 
+@push('left-actions-after')
+    <x-module-branch-selector module-key="invoices" />
+@endpush
+
 @push('page-scripts')
 <script defer src="{{ asset('js/pages/invoices-index.js') }}"></script>
 <script>

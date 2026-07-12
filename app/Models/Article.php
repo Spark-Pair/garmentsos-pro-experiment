@@ -33,6 +33,7 @@ class Article extends Model
         'pcs_per_packet',
         'processed_by',
         'image',
+        'branch_id',
     ];
 
     protected $casts = [

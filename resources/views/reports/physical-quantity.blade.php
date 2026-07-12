@@ -2,7 +2,7 @@
 @section('title', 'Physical Quantity Report | ' . $client_company->name)
 @section('content')
 @php
-    $companyData = $client_company;
+    $companyData = (object) app(\App\Services\Branches\ModuleBranchService::class)->documentBranding('reports');
     $modeLabels = [
         'all_articles' => 'All Articles',
         'article_wise' => 'Article-wise',
@@ -98,10 +98,10 @@
                                 <div id="preview-document" class="preview-document flex flex-col h-full px-2">
                                     <div id="preview-banner" class="preview-banner w-full flex justify-between items-center px-8 pr-8">
                                         <div class="flex items-center gap-3">
-                                            @if($companyData->logo)
+                                            @if($companyData->logo_url)
                                                 <div class="w-[13.5rem] flex items-center justify-start gap-2.5" style="height: 2.1rem">
                                                     <img
-                                                        src="{{ asset('images/' . $companyData->logo) }}"
+                                                        src="{{ $companyData->logo_url }}"
                                                         alt="garmentsos-pro"
                                                         class="max-h-full max-w-full object-contain"
                                                     />
@@ -189,6 +189,10 @@
         </div>
     </form>
 @endsection
+
+@push('left-actions-after')
+    <x-module-branch-selector module-key="physical_quantities" />
+@endpush
 
 @push('page-scripts')
 <script defer src="{{ asset('js/pages/reports-physical-quantity.js') }}"></script>

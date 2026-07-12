@@ -6,6 +6,7 @@ use App\Events\NewNotificationEvent;
 use App\Models\Article;
 use App\Models\Order;
 use App\Models\Setup;
+use App\Services\Branches\ModuleBranchService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
@@ -22,6 +23,7 @@ class ArticleController extends Controller
             return $resp;
         }
 
+        $branches = app(ModuleBranchService::class);
         // $articles = Article::with('creator')->get();
 
         // foreach ($articles as $article) {
@@ -37,7 +39,7 @@ class ArticleController extends Controller
         $authLayout = $this->getAuthLayout($request->route()->getName());
 
         if ($request->ajax()) {
-            $articles = Article::orderByDesc('id')
+            $articles = $branches->applyScope(Article::orderByDesc('id'), 'articles')
                 ->applyFilters($request);
 
             return response()->json(['data' => $articles, 'authLayout' => $authLayout]);
@@ -55,7 +57,8 @@ class ArticleController extends Controller
             return $resp;
         }
 
-        $lastRecord = Article::orderBy('id', 'desc')->first();
+        $branches = app(ModuleBranchService::class);
+        $lastRecord = $branches->applyScope(Article::orderBy('id', 'desc'), 'articles')->first();
 
         if ($lastRecord) {
             $lastRecord->total_rate = 0;
@@ -63,7 +66,7 @@ class ArticleController extends Controller
             $lastRecord = '';
         }
 
-        $articles = Article::select('id', 'article_no')->get();
+        $articles = $branches->applyScope(Article::select('id', 'article_no'), 'articles')->get();
 
         return view('articles.create', compact('lastRecord', 'articles'));
     }
@@ -105,6 +108,7 @@ class ArticleController extends Controller
             'fabric_type' => $request->fabric_type,
             'rates_array' => json_decode($request->rates_array),
             'sales_rate' => $request->sales_rate,
+            'branch_id' => app(ModuleBranchService::class)->branchIdForCreate('articles'),
         ];
 
         $year = date('y');

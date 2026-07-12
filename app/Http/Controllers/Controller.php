@@ -12,6 +12,7 @@ use App\Models\Order;
 use App\Models\PaymentProgram;
 use App\Models\Shipment;
 use App\Services\ArticleStockService;
+use App\Services\Branches\ModuleBranchService;
 use App\Models\Supplier;
 use App\Models\UtilityAccount;
 use App\Models\UtilityBill;
@@ -59,9 +60,9 @@ class Controller extends BaseController
         return Supplier::where('user_id', $userId)->first();
     }
 
-    protected function articleStockMap($articleIds, ?int $excludeOrderId = null)
+    protected function articleStockMap($articleIds, ?int $excludeOrderId = null, ?int $branchId = null)
     {
-        return app(ArticleStockService::class)->summaries($articleIds, $excludeOrderId);
+        return app(ArticleStockService::class)->summaries($articleIds, $excludeOrderId, $branchId);
     }
 
     public function home() {
@@ -204,10 +205,11 @@ class Controller extends BaseController
         }
 
         // Load order with customer, city, and articles
-        $order = Order::with([
+        $branchService = app(ModuleBranchService::class);
+        $order = $branchService->applyRelatedScope(Order::with([
             'customer.city',
             'articles.article' => fn ($q) => $q->withSum('invoiceArticles as sold_pcs', 'invoice_pcs'),
-        ])
+        ]), 'orders', 'invoices')
             ->where("order_no", $request->order_no)
             ->first();
 
@@ -221,7 +223,11 @@ class Controller extends BaseController
 
         if (!$request->boolean('only_order')) {
             $stockErrors = [];
-            $stockMap = $this->articleStockMap($order->articles->pluck('article_id'), $order->id);
+            $stockMap = $this->articleStockMap(
+                $order->articles->pluck('article_id'),
+                $order->id,
+                $branchService->shouldFilterRecords('physical_quantities') ? $branchService->selectedBranchIdForModule('invoices') : null
+            );
 
             // Filter out articles with 0 stock or missing
             $filteredArticles = $order->articles->filter(function ($orderedArticle) use (&$stockErrors, $stockMap) {

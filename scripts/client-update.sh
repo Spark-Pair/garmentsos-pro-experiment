@@ -47,6 +47,7 @@ rsync -a --delete \
 
 composer install --no-dev --optimize-autoloader
 php artisan migrate --force
+php artisan storage:link || true
 php artisan optimize:clear
 php artisan config:cache
 

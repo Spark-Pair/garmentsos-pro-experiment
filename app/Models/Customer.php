@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Schema;
 
 class Customer extends Model
 {
@@ -19,6 +20,7 @@ class Customer extends Model
 
     protected $fillable = [
         'user_id',
+        'branch_id',
         'customer_name',
         'person_name',
         'urdu_title',
@@ -101,11 +103,35 @@ class Customer extends Model
     {
         return $this->calculateBalance();
     }
-    public function calculateBalance($fromDate = null, $toDate = null, $formatted = false, $includeGivenDate = true)
+    public function calculateBalance($fromDate = null, $toDate = null, $formatted = false, $includeGivenDate = true, ?array $branchIds = null)
     {
         $invoicesQuery = $this->invoices();
         $paymentsQuery = $this->payments()->where('type', '!=', 'DR');
         $adjustmentsQuery = $this->statementAdjustments();
+        $branchIds = collect($branchIds ?? [])
+            ->filter(fn ($id) => is_numeric($id))
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn ($id) => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
+        $hasBranchScope = count($branchIds) > 0;
+
+        if ($hasBranchScope && Schema::hasColumn('invoices', 'branch_id')) {
+            $invoicesQuery->whereIn('branch_id', $branchIds);
+        }
+
+        if ($hasBranchScope && Schema::hasColumn('customer_payments', 'branch_id')) {
+            $paymentsQuery->whereIn('branch_id', $branchIds);
+        }
+
+        if ($hasBranchScope) {
+            if (Schema::hasColumn('statement_adjustments', 'branch_id')) {
+                $adjustmentsQuery->whereIn('branch_id', $branchIds);
+            } else {
+                $adjustmentsQuery->whereRaw('1 = 0');
+            }
+        }
 
         DateRange::apply($invoicesQuery, 'date', $fromDate, $toDate, $includeGivenDate);
         DateRange::apply($paymentsQuery, 'date', $fromDate, $toDate, $includeGivenDate);
@@ -120,12 +146,20 @@ class Customer extends Model
 
         return $formatted ? \App\Support\Money::format($balance) : $balance;
     }
-    public function getStatement($fromDate, $toDate, $type = 'general')
+    public function getStatement($fromDate, $toDate, $type = 'general', ?array $branchIds = null)
     {
         $type = $type ?: 'general';
+        $branchIds = collect($branchIds ?? [])
+            ->filter(fn ($id) => is_numeric($id))
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn ($id) => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
+        $hasBranchScope = count($branchIds) > 0;
         // 🧮 Opening & Closing Balances
-        $openingBalance = $this->calculateBalance(null, $fromDate, false, false);
-        $periodBalance  = $this->calculateBalance($fromDate, $toDate);
+        $openingBalance = $this->calculateBalance(null, $fromDate, false, false, $branchIds);
+        $periodBalance  = $this->calculateBalance($fromDate, $toDate, false, true, $branchIds);
         $closingBalance = $openingBalance + $periodBalance;
 
         // --- Normalize dates ---
@@ -135,14 +169,23 @@ class Customer extends Model
         // --- Fetch invoices & payments ---
         $invoices = $this->invoices()
             ->whereBetween(\Illuminate\Support\Facades\DB::raw('DATE(date)'), [$from->toDateString(), $to->toDateString()])
+            ->when($hasBranchScope && Schema::hasColumn('invoices', 'branch_id'), fn ($query) => $query->whereIn('branch_id', $branchIds))
             ->get();
 
         $payments = $this->payments()
             ->where('type', '!=', 'DR')
             ->whereBetween(\Illuminate\Support\Facades\DB::raw('DATE(date)'), [$from->toDateString(), $to->toDateString()])
+            ->when($hasBranchScope && Schema::hasColumn('customer_payments', 'branch_id'), fn ($query) => $query->whereIn('branch_id', $branchIds))
             ->get();
         $adjustments = $this->statementAdjustments()
             ->whereBetween(\Illuminate\Support\Facades\DB::raw('DATE(date)'), [$from->toDateString(), $to->toDateString()])
+            ->when($hasBranchScope, function ($query) use ($branchIds) {
+                if (Schema::hasColumn('statement_adjustments', 'branch_id')) {
+                    $query->whereIn('branch_id', $branchIds);
+                } else {
+                    $query->whereRaw('1 = 0');
+                }
+            })
             ->get();
 
         $statement = collect();

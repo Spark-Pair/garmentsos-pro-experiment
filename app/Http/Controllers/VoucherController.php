@@ -8,6 +8,8 @@ use App\Models\Expense;
 use App\Models\Supplier;
 use App\Models\SupplierPayment;
 use App\Models\Voucher;
+use App\Services\Branches\BranchSerialService;
+use App\Services\Branches\ModuleBranchService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -30,14 +32,16 @@ class VoucherController extends Controller
         $authLayout = $this->getAuthLayout($request->route()->getName());
 
         if ($request->ajax()) {
-            $vouchers = Voucher::with([
+            $branches = app(ModuleBranchService::class);
+            $vouchers = $branches->applyScope(Voucher::with([
+                    'branch',
                     'supplier:id,supplier_name',
                     'payments.cheque.customer',
                     'payments.slip.customer',
                     'payments.program.customer',
                     'payments.bankAccount.bank',
                     'payments.selfAccount.bank'
-                ])->orderByDesc('id')
+                ])->orderByDesc('id'), 'vouchers')
                 ->applyFilters($request);
 
             return response()->json(['data' => $vouchers, 'authLayout' => $authLayout]);
@@ -72,7 +76,7 @@ class VoucherController extends Controller
         //     $voucher->total_payment = $voucher->payments->sum('amount');
         // }
 
-        return view("vouchers.index", compact( "authLayout"));
+            return view("vouchers.index", compact( "authLayout"));
     }
 
     /**
@@ -99,7 +103,8 @@ class VoucherController extends Controller
             }
 
             if ($paymentMethod == 'cheque') {
-                $cheques = CustomerPayment::whereNotNull('cheque_no')
+                $cheques = app(ModuleBranchService::class)
+                    ->applyRelatedScope(CustomerPayment::whereNotNull('cheque_no'), 'customer_payments', 'vouchers')
                     ->with('customer.city')
                     ->whereDoesntHave('cheque')
                     ->whereNull('bank_account_id')
@@ -113,7 +118,8 @@ class VoucherController extends Controller
                     ];
                 })->values()->toArray();
             } else if ($paymentMethod == 'slip') {
-                $slips = CustomerPayment::whereNotNull('slip_no')
+                $slips = app(ModuleBranchService::class)
+                    ->applyRelatedScope(CustomerPayment::whereNotNull('slip_no'), 'customer_payments', 'vouchers')
                     ->with('customer.city')
                     ->whereDoesntHave('slip')
                     ->whereNull('bank_account_id')
@@ -193,9 +199,14 @@ class VoucherController extends Controller
         $voucherType = auth()->user()->voucher_type;
 
         // --- Last voucher ---
-        $last_voucher = Voucher::orderByDesc('id')->first();
+        $last_voucher = app(ModuleBranchService::class)
+            ->applyScope(Voucher::orderByDesc('id'), 'vouchers')
+            ->first();
         if (!$last_voucher) {
             $last_voucher = (object)['voucher_no' => '00/149'];
+        }
+        if (app(ModuleBranchService::class)->shouldFilterRecords('vouchers')) {
+            $last_voucher = (object) ['voucher_no' => app(BranchSerialService::class)->next('vouchers', Voucher::class, 'voucher_no', 'V')];
         }
 
         // --- Self Accounts (needed for Self Cheque / ATM even in supplier vouchers) ---
@@ -215,7 +226,10 @@ class VoucherController extends Controller
 
         if ($voucherType == 'supplier') {
             // --- Suppliers ---
-            $suppliers = Supplier::whereHas('user', fn($q) => $q->where('status', 'active'))->select('id', 'supplier_name', 'date')->get();
+            $suppliers = app(ModuleBranchService::class)
+                ->applyRelatedScope(Supplier::whereHas('user', fn($q) => $q->where('status', 'active')), 'suppliers', 'vouchers')
+                ->select('id', 'supplier_name', 'date')
+                ->get();
 
             $suppliers_options = $suppliers->mapWithKeys(function ($supplier) {
                 return [
@@ -232,9 +246,11 @@ class VoucherController extends Controller
                 ];
             })->toArray();
 
-            return view("vouchers.create", compact("suppliers_options", 'self_accounts_options', 'last_voucher'));
+            $branchBranding = app(ModuleBranchService::class)->documentBranding('vouchers');
+            return view("vouchers.create", compact("suppliers_options", 'self_accounts_options', 'last_voucher', 'branchBranding'));
         } else {
-            return view("vouchers.create", compact("self_accounts_options", 'last_voucher'));
+            $branchBranding = app(ModuleBranchService::class)->documentBranding('vouchers');
+            return view("vouchers.create", compact("self_accounts_options", 'last_voucher', 'branchBranding'));
         }
     }
 
@@ -248,7 +264,7 @@ class VoucherController extends Controller
         }
 
         $validator = Validator::make($request->all(), [
-            "voucher_no" => "required|string|unique:vouchers,voucher_no",
+            "voucher_no" => "required|string",
             "supplier_id" => "nullable|integer|exists:suppliers,id",
             "date" => "required|date",
             "program_id" => "nullable|exists:payment_programs,id",
@@ -263,10 +279,16 @@ class VoucherController extends Controller
         $this->assertVoucherPaymentsAreUnique($paymentDetailsArray);
 
         DB::transaction(function () use ($request, $paymentDetailsArray) {
+            $branches = app(ModuleBranchService::class);
+            $voucherNo = $branches->shouldFilterRecords('vouchers')
+                ? app(BranchSerialService::class)->next('vouchers', Voucher::class, 'voucher_no', 'V')
+                : $request->voucher_no;
+
             $voucher = Voucher::create([
-                'voucher_no' => $request->voucher_no,
+                'voucher_no' => $voucherNo,
                 'supplier_id' => $request->supplier_id,
                 'date' => $request->date,
+                'branch_id' => $branches->branchIdForCreate('vouchers'),
             ]);
 
             foreach ($paymentDetailsArray as $paymentDetails) {
@@ -453,7 +475,12 @@ class VoucherController extends Controller
             $voucher->supplier->balance_at_date = $voucher->supplier->calculateBalance(null, $voucher->date, false, true);
         }
 
-        $cheques = CustomerPayment::whereNotNull('cheque_no')->with('customer.city')->whereDoesntHave('cheque')->whereNull('bank_account_id')->get();
+        $branches = app(ModuleBranchService::class);
+        $cheques = $branches->applyRelatedScope(CustomerPayment::whereNotNull('cheque_no'), 'customer_payments', 'vouchers')
+            ->with('customer.city')
+            ->whereDoesntHave('cheque')
+            ->whereNull('bank_account_id')
+            ->get();
         $cheques_options = [];
 
         foreach ($cheques as $cheque) {
@@ -464,7 +491,11 @@ class VoucherController extends Controller
             ];
         }
 
-        $slips = CustomerPayment::whereNotNull('slip_no')->with('customer.city')->whereDoesntHave('slip')->whereNull('bank_account_id')->get();
+        $slips = $branches->applyRelatedScope(CustomerPayment::whereNotNull('slip_no'), 'customer_payments', 'vouchers')
+            ->with('customer.city')
+            ->whereDoesntHave('slip')
+            ->whereNull('bank_account_id')
+            ->get();
         $slips_options = [];
 
         foreach ($slips as $slip) {
@@ -501,9 +532,10 @@ class VoucherController extends Controller
             $user->save();
         }
 
+        $branchBranding = app(ModuleBranchService::class)->documentBranding('vouchers', $voucher);
         $voucherPayload = $this->formatVoucherEditPayload($voucher);
 
-        return view("vouchers.edit", compact('voucher', 'voucherPayload', 'cheques_options', 'slips_options', 'selfAccountsPayload', 'self_accounts_options'));
+        return view("vouchers.edit", compact('voucher', 'voucherPayload', 'cheques_options', 'slips_options', 'selfAccountsPayload', 'self_accounts_options', 'branchBranding'));
     }
 
     private function formatVoucherEditPayload(Voucher $voucher): array
@@ -511,6 +543,8 @@ class VoucherController extends Controller
         return [
             'id' => $voucher->id,
             'voucher_no' => $voucher->voucher_no,
+            'branch_id' => $voucher->branch_id,
+            'branch_branding' => app(ModuleBranchService::class)->documentBranding('vouchers', $voucher),
             'supplier_id' => $voucher->supplier_id,
             'date' => optional($voucher->date)->toJSON(),
             'supplier' => $voucher->supplier ? $this->formatVoucherSupplierPayload($voucher->supplier) : null,

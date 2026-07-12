@@ -46,6 +46,8 @@ trait InvoiceComputed
             'data' => [
                 'id' => $this->id,
                 'invoice_no' => $this->invoice_no,
+                'branch_id' => $this->branch_id,
+                'branch_branding' => app(\App\Services\Branches\ModuleBranchService::class)->documentBranding('invoices', $this),
                 'order_no' => $this->order_no,
                 'shipment_no' => $this->shipment_no,
                 'date' => $this->date,

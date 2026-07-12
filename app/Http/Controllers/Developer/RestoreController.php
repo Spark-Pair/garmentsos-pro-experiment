@@ -7,6 +7,8 @@ use App\Models\BackupLog;
 use App\Services\RestoreService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use Throwable;
 
 class RestoreController extends Controller
 {
@@ -54,10 +56,22 @@ class RestoreController extends Controller
             'staging_tested.accepted' => 'Confirm that this restore was tested on a staging/copy database first.',
         ]);
 
-        $result = $restore->restoreUploadedSqlite($request->file('sqlite_file'), [
-            'confirmation_phrase' => (string) $validated['confirmation_phrase'],
-            'staging_tested' => $request->boolean('staging_tested'),
-        ]);
+        try {
+            $result = $restore->restoreUploadedSqlite($request->file('sqlite_file'), [
+                'confirmation_phrase' => (string) $validated['confirmation_phrase'],
+                'staging_tested' => $request->boolean('staging_tested'),
+            ]);
+        } catch (Throwable $e) {
+            Log::error('Uploaded SQLite restore failed unexpectedly.', [
+                'error' => $e->getMessage(),
+                'type' => $e::class,
+            ]);
+
+            $result = [
+                'success' => false,
+                'message' => 'Restore failed safely. License/device approval remains tied to this installation.',
+            ];
+        }
 
         return redirect()
             ->route('developer.backups')

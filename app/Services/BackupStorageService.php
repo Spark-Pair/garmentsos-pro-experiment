@@ -27,10 +27,10 @@ class BackupStorageService
 
     public function generateFilename(): string
     {
-        $prefix = preg_replace('/[^A-Za-z0-9_-]/', '_', (string) config('backup.filename_prefix', 'garmentsos_backup'));
-        $timestamp = now()->format('Ymd_His');
+        $prefix = preg_replace('/[^A-Za-z0-9_-]/', '-', (string) config('backup.filename_prefix', 'garmentsos-backup'));
+        $timestamp = now()->format('Y-m-d-H-i-s');
 
-        return sprintf('%s_%s_%s.sqlite', $prefix, $timestamp, Str::lower(Str::random(8)));
+        return sprintf('%s-%s-%s.sqlite', trim($prefix, '-'), $timestamp, Str::lower(Str::random(6)));
     }
 
     public function temporaryFilePath(string $filename): string

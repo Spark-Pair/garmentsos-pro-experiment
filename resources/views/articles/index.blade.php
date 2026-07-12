@@ -82,6 +82,10 @@
 
 @endsection
 
+@push('left-actions-after')
+    <x-module-branch-selector module-key="articles" />
+@endpush
+
 @push('page-scripts')
 <script defer src="{{ asset('js/pages/articles-index.js') }}"></script>
 <script>

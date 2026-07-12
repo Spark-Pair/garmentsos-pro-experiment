@@ -45,22 +45,17 @@
             : 'Advanced signed-manifest apply is not configured';
     @endphp
 
-    <div class="mb-5 max-w-6xl mx-auto">
+    <div class="max-w-6xl mx-auto w-full">
         <x-search-header heading="Updater" />
     </div>
 
-    <div class="max-w-6xl mx-auto space-y-4">
-        @if (session('success'))
-            <div class="rounded-lg border border-[var(--border-success)] bg-[var(--bg-success)] px-4 py-3 text-sm text-[var(--text-success)]">
-                {{ session('success') }}
-            </div>
-        @endif
-
-        @if (session('error'))
-            <div class="rounded-lg border border-[var(--border-error)] bg-[var(--bg-error)] px-4 py-3 text-sm text-[var(--text-error)]">
-                {{ session('error') }}
-            </div>
-        @endif
+    <section class="text-center mx-auto">
+        <div class="show-box mx-auto w-[80%] h-[70vh] bg-[var(--secondary-bg-color)] border border-[var(--glass-border-color)]/20 rounded-xl shadow pt-8.5 relative">
+            <x-form-title-bar title="Updater" />
+            <div class="details h-full z-40">
+                <div class="container-parent h-full">
+                    <div class="card_container px-4 h-full flex flex-col">
+                        <div class="overflow-y-auto grow my-scrollbar-2 space-y-4 pb-24 pr-1 text-left">
 
         <section class="{{ $panel }}">
             <x-form-title-bar title="Release Feed Update" />
@@ -372,5 +367,10 @@
         <section class="rounded-lg border border-[var(--border-warning)] bg-[var(--bg-warning)] p-4 text-sm text-[var(--text-warning)]">
             Laravel never loads Docker images, restarts containers, or replaces the running app. Windows launcher/update tools apply packages outside the app process and preserve client data.
         </section>
-    </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
 @endsection

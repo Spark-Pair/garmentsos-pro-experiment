@@ -5,6 +5,7 @@ use App\Http\Controllers\AttendanceController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BankAccountController;
 use App\Http\Controllers\BiltyController;
+use App\Http\Controllers\BranchLogoController;
 use App\Http\Controllers\CargoController;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\CRController;
@@ -12,6 +13,7 @@ use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\CustomerPaymentController;
 use App\Http\Controllers\DailyLedgerController;
 use App\Http\Controllers\Developer\BackupController;
+use App\Http\Controllers\Developer\BranchController;
 use App\Http\Controllers\Developer\LicenseController;
 use App\Http\Controllers\Developer\RestoreController;
 use App\Http\Controllers\Developer\SettingsController;
@@ -23,6 +25,7 @@ use App\Http\Controllers\ExpenseController;
 use App\Http\Controllers\FabricController;
 use App\Http\Controllers\FirstRunSetupController;
 use App\Http\Controllers\InvoiceController;
+use App\Http\Controllers\ModuleBranchPreferenceController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\PhysicalQuantityController;
@@ -67,6 +70,8 @@ Route::get('subscription-expired', function () {
     return view('subscription-expired'); // ya controller agar chahiye
 })->name('subscription-expired');
 
+Route::get('branch-logos/{branch}', [BranchLogoController::class, 'show'])->name('branch-logos.show');
+
 Route::get('', function (\App\Services\Setup\SetupStatusService $setup) {
     if ($setup->requiresFirstRunSetup()) {
         return redirect()->route('setup.index');
@@ -95,11 +100,22 @@ Route::group(['middleware' => ['setup.complete', 'auth', 'activeSession', 'ensur
     Route::get('/backup-db', [BackupController::class, 'legacyDownload'])->name('backup-db');
     Route::get('developer/backups', [BackupController::class, 'index'])->name('developer.backups');
     Route::post('developer/backups', [BackupController::class, 'store'])->name('developer.backups.store');
+    Route::post('developer/backups/run-migrations', [BackupController::class, 'runMigrations'])->name('developer.backups.run-migrations');
     Route::post('developer/backups/{backupLog}/verify', [BackupController::class, 'verify'])->name('developer.backups.verify');
     Route::get('developer/backups/{backupLog}/download', [BackupController::class, 'download'])->name('developer.backups.download');
     Route::get('developer/backups/{backupLog}/restore', [RestoreController::class, 'show'])->name('developer.backups.restore.show');
     Route::post('developer/backups/{backupLog}/restore', [RestoreController::class, 'store'])->name('developer.backups.restore.store');
     Route::post('developer/backups/restore-upload', [RestoreController::class, 'upload'])->name('developer.backups.restore-upload');
+    Route::post('module-branch-preferences', [ModuleBranchPreferenceController::class, 'store'])->name('module-branch-preferences.store');
+    Route::get('developer/branches', [BranchController::class, 'index'])->name('developer.branches.index');
+    Route::get('developer/branches/create', [BranchController::class, 'create'])->name('developer.branches.create');
+    Route::post('developer/branches', [BranchController::class, 'store'])->name('developer.branches.store');
+    Route::get('developer/branches/{branch}', [BranchController::class, 'show'])->name('developer.branches.show');
+    Route::get('developer/branches/{branch}/edit', [BranchController::class, 'edit'])->name('developer.branches.edit');
+    Route::put('developer/branches/{branch}', [BranchController::class, 'update'])->name('developer.branches.update');
+    Route::patch('developer/branches/{branch}/status', [BranchController::class, 'updateStatus'])->name('developer.branches.status');
+    Route::post('developer/branches/modules', [BranchController::class, 'updateModules'])->name('developer.branches.modules');
+    Route::post('developer/branches/access', [BranchController::class, 'updateAccess'])->name('developer.branches.access');
     Route::get('developer/updater', [UpdateController::class, 'index'])->name('developer.updater');
     Route::get('developer/updater/update-request', [UpdateController::class, 'updateRequest'])->name('developer.updater.update-request');
     Route::get('developer/updater/launcher-handoff', [UpdateController::class, 'launcherHandoff'])->name('developer.updater.launcher-handoff');

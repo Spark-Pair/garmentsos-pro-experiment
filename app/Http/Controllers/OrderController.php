@@ -9,6 +9,8 @@ use App\Models\Notification;
 use App\Models\Order;
 use App\Models\OrderArticles;
 use App\Models\PaymentProgram;
+use App\Services\Branches\BranchSerialService;
+use App\Services\Branches\ModuleBranchService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
@@ -30,7 +32,8 @@ class OrderController extends Controller
         $authLayout = $this->getAuthLayout($request->route()->getName());
 
         if ($request->ajax()) {
-            $ordersQuery = Order::with('customer.city', 'articles.article')->orderByDesc('id');
+            $ordersQuery = app(ModuleBranchService::class)
+                ->applyScope(Order::with('customer.city', 'articles.article', 'branch')->orderByDesc('id'), 'orders');
 
             if ($this->isCustomerRole()) {
                 $customer = $this->currentCustomer();
@@ -108,6 +111,7 @@ class OrderController extends Controller
         $articles = [];
 
         if ($request->date) {
+            $branches = app(ModuleBranchService::class);
             if ($this->isCustomerRole()) {
                 $customer = $this->currentCustomer();
                 if ($customer && $customer->date && $customer->date->toDateString() <= $request->date) {
@@ -117,7 +121,7 @@ class OrderController extends Controller
                     $customers = collect();
                 }
             } else {
-                $customers = Customer::with('city')
+                $customers = $branches->applyRelatedScope(Customer::with('city'), 'customers', 'orders')
                     ->whereHas('user', function ($query) {
                         $query->where('status', 'active');
                     })
@@ -146,7 +150,7 @@ class OrderController extends Controller
                 ];
             }
 
-            $articles = Article::where('date', '<=', $request->date)
+            $articles = $branches->applyRelatedScope(Article::where('date', '<=', $request->date), 'articles', 'orders')
                 ->where('sales_rate', '>', 0)
                 ->whereNotNull(['category', 'fabric_type'])
                 ->orderByDesc('id')
@@ -154,7 +158,8 @@ class OrderController extends Controller
 
             $stockMap = $this->articleStockMap(
                 $articles->pluck('id'),
-                $request->filled('exclude_order_id') ? (int) $request->exclude_order_id : null
+                $request->filled('exclude_order_id') ? (int) $request->exclude_order_id : null,
+                $branches->shouldFilterRecords('physical_quantities') ? $branches->selectedBranchIdForModule('orders') : null
             );
 
             foreach ($articles as $article) {
@@ -176,11 +181,16 @@ class OrderController extends Controller
                 ->values();
         }
 
+        $branches = app(ModuleBranchService::class);
         $last_order = Order::orderby('id', 'desc')->first();
 
         if (!$last_order) {
             $last_order = new Order();
             $last_order->order_no = '00-0000';
+        }
+        if ($branches->shouldFilterRecords('orders')) {
+            $last_order = new Order();
+            $last_order->order_no = app(BranchSerialService::class)->next('orders', Order::class, 'order_no');
         }
 
         if ($request->ajax()) {
@@ -191,7 +201,8 @@ class OrderController extends Controller
             ]);
         }
 
-        return view('orders.generate', compact('last_order'));
+        $branchBranding = app(ModuleBranchService::class)->documentBranding('orders');
+        return view('orders.generate', compact('last_order', 'branchBranding'));
         // return $articles;
     }
 
@@ -231,13 +242,20 @@ class OrderController extends Controller
             $discount = $this->isCustomerRole() ? 10 : (int) $request->discount;
             $this->validateOrderArticleStock($articles);
 
+            $branches = app(ModuleBranchService::class);
+            $branchId = $branches->branchIdForCreate('orders');
+            $orderNo = $branches->shouldFilterRecords('orders')
+                ? app(BranchSerialService::class)->next('orders', Order::class, 'order_no')
+                : $request->order_no;
+
             $order = Order::create([
                 'date' => $request->date,
                 'customer_id' => $request->customer_id,
                 'discount' => $discount,
                 'netAmount' => str_replace(',', '', $request->netAmount),
                 'articles' => $request->articles,
-                'order_no' => $request->order_no,
+                'order_no' => $orderNo,
+                'branch_id' => $branchId,
             ]);
 
             foreach ($articles as $articleData) {
@@ -345,6 +363,8 @@ class OrderController extends Controller
         $orderPayload = [
             'order_no' => $order->order_no,
             'id' => $order->id,
+            'branch_id' => $order->branch_id,
+            'branch_branding' => app(ModuleBranchService::class)->documentBranding('orders', $order),
             'date' => $order->date?->format('Y-m-d'),
             'netAmount' => $order->netAmount,
             'customer' => [
@@ -376,7 +396,9 @@ class OrderController extends Controller
             })->toArray(),
         ];
 
-        return view('orders.edit', compact('order', 'orderPayload'));
+        $branchBranding = app(ModuleBranchService::class)->documentBranding('orders', $order);
+
+        return view('orders.edit', compact('order', 'orderPayload', 'branchBranding'));
     }
 
     public function update(Request $request, Order $order)
@@ -488,7 +510,11 @@ class OrderController extends Controller
             }
         }
 
-        $stockMap = $this->articleStockMap($lines->keys(), $excludeOrderId);
+        $branches = app(ModuleBranchService::class);
+        $branchId = $branches->shouldFilterRecords('physical_quantities')
+            ? $branches->selectedBranchIdForModule('orders')
+            : null;
+        $stockMap = $this->articleStockMap($lines->keys(), $excludeOrderId, $branchId);
         $articlesById = Article::query()
             ->whereIn('id', $lines->keys())
             ->get(['id', 'article_no'])

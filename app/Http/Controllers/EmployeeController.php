@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Employee;
 use App\Models\Setup;
+use App\Services\Branches\ModuleBranchService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 
@@ -23,9 +24,9 @@ class EmployeeController extends Controller
         $authLayout = $this->getAuthLayout($request->route()->getName());
 
         if ($request->ajax()) {
-            $employees = Employee::whereHas('type', function ($query) {
+            $employees = app(ModuleBranchService::class)->applyScope(Employee::whereHas('type', function ($query) {
                     $query->where('title', 'not like', '% | E%');
-                })->orderByDesc('id')
+                }), 'employees')->orderByDesc('id')
                 ->applyFilters($request);
 
             return response()->json(['data' => $employees, 'authLayout' => $authLayout]);
@@ -99,6 +100,7 @@ class EmployeeController extends Controller
 
         $data = [
             'category' => $request->category,
+            'branch_id' => app(ModuleBranchService::class)->branchIdForCreate('employees'),
             'type_id' => $request->type_id,
             'employee_name' => $request->employee_name,
             'urdu_title' => $request->urdu_title,

@@ -7,11 +7,12 @@ use App\Models\InvoiceArticles;
 use App\Models\OrderArticles;
 use App\Models\PhysicalQuantity;
 use App\Models\SalesReturn;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Collection;
 
 class ArticleStockService
 {
-    public function summaries($articleIds, ?int $excludeOrderId = null): Collection
+    public function summaries($articleIds, ?int $excludeOrderId = null, ?int $branchId = null): Collection
     {
         $articleIds = collect($articleIds)
             ->filter()
@@ -30,18 +31,21 @@ class ArticleStockService
 
         $physicalRows = PhysicalQuantity::query()
             ->whereIn('article_id', $articleIds)
+            ->when($branchId && Schema::hasColumn('physical_quantities', 'branch_id'), fn ($query) => $query->where('branch_id', $branchId))
             ->get(['article_id', 'packets', 'category', 'sales_return_id'])
             ->groupBy('article_id');
 
         $orderedPcs = OrderArticles::query()
             ->whereIn('article_id', $articleIds)
             ->when($excludeOrderId, fn ($query) => $query->where('order_id', '!=', $excludeOrderId))
+            ->when($branchId, fn ($query) => $query->whereHas('order', fn ($orderQuery) => $orderQuery->where('branch_id', $branchId)))
             ->selectRaw('article_id, SUM(ordered_pcs) as quantity')
             ->groupBy('article_id')
             ->pluck('quantity', 'article_id');
 
         $invoicedPcs = InvoiceArticles::query()
             ->whereIn('article_id', $articleIds)
+            ->when($branchId, fn ($query) => $query->whereHas('invoice', fn ($invoiceQuery) => $invoiceQuery->where('branch_id', $branchId)))
             ->selectRaw('article_id, SUM(invoice_pcs) as quantity')
             ->groupBy('article_id')
             ->pluck('quantity', 'article_id');

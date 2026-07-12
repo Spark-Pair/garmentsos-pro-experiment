@@ -85,6 +85,8 @@ trait VoucherComputed
             'data' => [
                 'id' => $this->id,
                 'supplier_id' => $this->supplier_id,
+                'branch_id' => $this->branch_id,
+                'branch_branding' => app(\App\Services\Branches\ModuleBranchService::class)->documentBranding('vouchers', $this),
                 'date' => $this->date,
                 'voucher_no' => $this->voucher_no,
                 'supplier' => $this->supplier ? [

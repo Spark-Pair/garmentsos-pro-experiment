@@ -22,6 +22,7 @@ class Voucher extends Model
         "supplier_id",
         "date",
         "voucher_no",
+        "branch_id",
     ];
 
     protected $casts = [
@@ -30,6 +31,10 @@ class Voucher extends Model
 
     public function supplier() {
         return $this->belongsTo(Supplier::class, "supplier_id");
+    }
+
+    public function branch() {
+        return $this->belongsTo(Branch::class);
     }
 
     public function payments() {

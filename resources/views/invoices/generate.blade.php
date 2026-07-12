@@ -219,6 +219,10 @@
 
 @endsection
 
+@push('left-actions-after')
+    <x-module-branch-selector module-key="invoices" />
+@endpush
+
 @push('page-scripts')
 <script defer src="{{ asset('js/pages/invoices-generate.js') }}?v={{ @filemtime(public_path('js/pages/invoices-generate.js')) }}"></script>
 <script>
@@ -226,7 +230,7 @@
             invoiceType: @json($invoiceType),
             csrfToken: @json(csrf_token()),
             lastInvoice: @json($last_Invoice),
-            companyData: @json($client_company),
+            companyData: @json($branchBranding ?? $client_company),
             orderNumber: @json($orderNumber),
             companyLogoBase: @json(asset('images')),
             searchFieldsHtml: @json($searchFieldsHtml),

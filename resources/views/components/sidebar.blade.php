@@ -147,6 +147,14 @@
                             </a>
                         </li>
                         <li>
+                            <a href="{{ route('developer.branches.index') }}"
+                                role="menuitem"
+                                class="block px-4 py-2 hover:bg-[var(--h-bg-color)] rounded-lg transition-all duration-200 ease-in-out cursor-pointer">
+                                <i class="fas fa-code-branch text-[var(--secondary-color)] mr-3"></i>
+                                Branches
+                            </a>
+                        </li>
+                        <li>
                             <a href="{{ route('developer.license.status') }}"
                                 role="menuitem"
                                 class="block px-4 py-2 hover:bg-[var(--h-bg-color)] rounded-lg transition-all duration-200 ease-in-out cursor-pointer">
@@ -159,7 +167,7 @@
                                 role="menuitem"
                                 class="block px-4 py-2 hover:bg-[var(--h-bg-color)] rounded-lg transition-all duration-200 ease-in-out cursor-pointer">
                                 <i class="fas fa-database text-[var(--secondary-color)] mr-3"></i>
-                                Backups
+                                Backup & Restore
                             </a>
                         </li>
                         <li>
@@ -282,6 +290,7 @@
                 @if (in_array(Auth::user()->role, ['developer', 'admin']))
                     <x-mobile-menu-item title="System" includesDropdown :dropdown="[
                         ['href' => route('developer.settings'), 'title' => 'Developer Settings'],
+                        ['href' => route('developer.branches.index'), 'title' => 'Branches'],
                         ['href' => route('developer.license.status'), 'title' => 'License Status'],
                         ['href' => route('developer.backups'), 'title' => 'Backups'],
                         ['href' => route('developer.updater'), 'title' => 'Updater'],
