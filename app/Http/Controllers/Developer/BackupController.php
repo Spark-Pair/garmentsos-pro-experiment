@@ -11,6 +11,7 @@ use App\Services\RestoreService;
 use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use RuntimeException;
@@ -32,6 +33,7 @@ class BackupController extends Controller
             'restoreRequirements' => $restore->requirements(),
             'foundationReady' => $foundationReady,
             'missingTables' => $this->missingBackupTables(),
+            'diagnostics' => $this->diagnostics($storage),
         ]);
     }
 
@@ -210,5 +212,29 @@ class BackupController extends Controller
             'backup_logs',
             'audit_logs',
         ], fn (string $table) => !Schema::hasTable($table)));
+    }
+
+    protected function diagnostics(BackupStorageService $storage): array
+    {
+        $dbPath = (string) config('database.connections.sqlite.database');
+        if ($dbPath !== '' && $dbPath !== ':memory:' && !preg_match('/^[A-Za-z]:[\\\\\\/]/', $dbPath) && !str_starts_with($dbPath, '/')) {
+            $dbPath = base_path($dbPath);
+        }
+
+        return [
+            'database_path' => $dbPath,
+            'database_exists' => $dbPath !== '' && File::exists($dbPath),
+            'database_readable' => $dbPath !== '' && is_readable($dbPath),
+            'database_writable' => $dbPath !== '' && is_writable($dbPath),
+            'storage_writable' => is_writable(storage_path()),
+            'backup_path' => $storage->basePath(),
+            'backup_path_writable' => is_writable($storage->basePath()) || is_writable(dirname($storage->basePath())),
+            'restore_temp_path' => $storage->tempPath(),
+            'restore_temp_writable' => is_writable($storage->tempPath()) || is_writable(dirname($storage->tempPath())),
+            'upload_max_filesize' => ini_get('upload_max_filesize'),
+            'post_max_size' => ini_get('post_max_size'),
+            'max_execution_time' => ini_get('max_execution_time'),
+            'app_user' => get_current_user(),
+        ];
     }
 }

@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use RuntimeException;
 use Throwable;
@@ -159,6 +160,7 @@ class RestoreService
             if (!$validation['valid']) {
                 throw new RuntimeException('Restored database validation failed: ' . $validation['message']);
             }
+            $maintenance = $this->runPostRestoreMaintenance();
 
             $postEmergencyLog = $this->backups->createLog('emergency_restore_backup', 'success', [
                 'disk' => config('backup.disk', 'local'),
@@ -182,6 +184,7 @@ class RestoreService
                     'selected_backup_log_id' => $backupLog->id,
                     'emergency_backup_log_id' => $postEmergencyLog->id,
                     'validation' => $validation['code'],
+                    'maintenance' => $maintenance,
                     'restore_policy' => 'sqlite_business_database_only',
                     'license_identity_preserved' => true,
                 ],
@@ -334,6 +337,7 @@ class RestoreService
                     'validation' => $validation['code'],
                     'migration_exit_code' => $migration['migrate_exit_code'],
                     'cache_clear_exit_code' => $migration['cache_clear_exit_code'],
+                    'maintenance' => $migration,
                     'restore_policy' => 'sqlite_business_database_only',
                     'license_identity_preserved' => true,
                 ],
@@ -461,14 +465,18 @@ class RestoreService
         $migrateExitCode = Artisan::call('migrate', ['--force' => true]);
         $migrationOutput = trim(Artisan::output());
         $branches = app(\App\Services\Branches\ModuleBranchService::class);
-        $branches->ensureMainBranch();
+        $mainBranch = $branches->ensureMainBranch();
         $branches->backfillManagerAccess();
+        $branchBackfill = $this->backfillNullBranchIds($mainBranch?->id);
+        $summaryCounts = $this->restoredBusinessCounts();
         $cacheExitCode = Artisan::call('cache:clear');
 
         $this->auditLogs->record('restore.post_maintenance_completed', [
             'migrate_exit_code' => $migrateExitCode,
             'cache_clear_exit_code' => $cacheExitCode,
             'migration_output_preview' => Str::limit($migrationOutput, 500),
+            'branch_backfill' => $branchBackfill,
+            'business_counts' => $summaryCounts,
         ], [
             'module' => 'backup',
         ]);
@@ -476,7 +484,96 @@ class RestoreService
         return [
             'migrate_exit_code' => $migrateExitCode,
             'cache_clear_exit_code' => $cacheExitCode,
+            'branch_backfill' => $branchBackfill,
+            'business_counts' => $summaryCounts,
         ];
+    }
+
+    protected function backfillNullBranchIds(?int $mainBranchId): array
+    {
+        if (!$mainBranchId || !Schema::hasTable('branches')) {
+            return [];
+        }
+
+        $results = [];
+        foreach ($this->branchBackfillTables() as $tableName) {
+            if (!Schema::hasTable($tableName) || !Schema::hasColumn($tableName, 'branch_id')) {
+                continue;
+            }
+
+            $updated = DB::table($tableName)
+                ->whereNull('branch_id')
+                ->update(['branch_id' => $mainBranchId]);
+
+            if ($updated > 0) {
+                $results[$tableName] = $updated;
+            }
+        }
+
+        return $results;
+    }
+
+    protected function restoredBusinessCounts(): array
+    {
+        $tables = [
+            'customers',
+            'suppliers',
+            'articles',
+            'orders',
+            'invoices',
+            'customer_payments',
+            'supplier_payments',
+            'payment_programs',
+            'vouchers',
+            'productions',
+            'physical_quantities',
+        ];
+
+        $counts = [];
+        foreach ($tables as $tableName) {
+            if (Schema::hasTable($tableName)) {
+                $counts[$tableName] = DB::table($tableName)->count();
+            }
+        }
+
+        return $counts;
+    }
+
+    protected function branchBackfillTables(): array
+    {
+        return array_values(array_unique([
+            'articles',
+            'customers',
+            'suppliers',
+            'employees',
+            'users',
+            'physical_quantities',
+            'orders',
+            'invoices',
+            'customer_payments',
+            'supplier_payments',
+            'purchases',
+            'vouchers',
+            'productions',
+            'payment_programs',
+            'bank_accounts',
+            'daily_ledger_deposits',
+            'daily_ledger_uses',
+            'utility_accounts',
+            'utility_bills',
+            'statement_adjustments',
+            'bilties',
+            'c_r_s',
+            'd_r_s',
+            'fabrics',
+            'issued_fabrics',
+            'return_fabrics',
+            'rates',
+            'setups',
+            'attendances',
+            'salaries',
+            'employee_payments',
+        ]));
     }
 
     protected function rollbackSqliteDatabase(string $dbPath, string $rollbackPath): array

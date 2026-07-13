@@ -13,6 +13,7 @@
         $restoreEnabled = (bool) ($restoreRequirements['restore_enabled'] ?? false);
         $foundationReady = $foundationReady ?? true;
         $missingTables = $missingTables ?? [];
+        $restoreJobId = session('restore_job_id');
     @endphp
 
     <div class="max-w-6xl mx-auto w-full">
@@ -111,6 +112,44 @@
                     </dl>
                 </div>
             </div>
+
+            @if ($restoreJobId)
+                <div id="restoreJobStatus"
+                    class="mt-5 rounded-lg border border-[var(--border-warning)] bg-[var(--bg-warning)] p-4 text-sm text-[var(--text-warning)]"
+                    data-status-url="{{ route('developer.backups.restore-upload.status', $restoreJobId) }}">
+                    <div class="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                        <div>
+                            <div class="font-semibold">Restore started</div>
+                            <p class="mt-1" data-restore-status-message>Uploading finished. Restore job is queued.</p>
+                        </div>
+                        <span class="{{ $badge }} border-[var(--border-warning)] bg-[var(--bg-warning)] text-[var(--text-warning)]" data-restore-status-badge>
+                            Pending
+                        </span>
+                    </div>
+                    <div class="mt-3 h-2 overflow-hidden rounded-full bg-[var(--h-bg-color)]">
+                        <div class="h-full bg-[var(--primary-color)] transition-all duration-300" style="width: 10%" data-restore-status-progress></div>
+                    </div>
+                    <p class="mt-2 text-xs text-[var(--secondary-text)]">You can keep this page open. The restore runs outside the browser request to avoid gateway timeout.</p>
+                </div>
+            @endif
+
+            <details class="mt-5 {{ $softPanel }}">
+                <summary class="cursor-pointer font-semibold">Developer diagnostics</summary>
+                <dl class="mt-4 grid grid-cols-1 gap-2 text-xs md:grid-cols-2">
+                    @foreach (($diagnostics ?? []) as $key => $value)
+                        <div class="flex justify-between gap-3 rounded-md bg-[var(--secondary-bg-color)] p-2">
+                            <dt class="text-[var(--secondary-text)]">{{ str_replace('_', ' ', $key) }}</dt>
+                            <dd class="max-w-[60%] truncate font-mono">
+                                @if (is_bool($value))
+                                    {{ $value ? 'yes' : 'no' }}
+                                @else
+                                    {{ $value ?: '-' }}
+                                @endif
+                            </dd>
+                        </div>
+                    @endforeach
+                </dl>
+            </details>
         </section>
 
         <section class="{{ $panel }}">
@@ -238,4 +277,67 @@
             </div>
         </div>
     </section>
+
+    @if ($restoreJobId)
+        <script>
+            (() => {
+                const panel = document.getElementById('restoreJobStatus');
+                if (!panel) return;
+
+                const message = panel.querySelector('[data-restore-status-message]');
+                const badge = panel.querySelector('[data-restore-status-badge]');
+                const progress = panel.querySelector('[data-restore-status-progress]');
+                const url = panel.dataset.statusUrl;
+                let finished = false;
+
+                const notify = (type, title, body) => {
+                    if (typeof showNotification === 'function') {
+                        showNotification(title, body, type);
+                    }
+                };
+
+                const render = (payload) => {
+                    const status = payload.status || 'pending';
+                    const text = payload.message || 'Restore is running.';
+                    const percent = Math.max(0, Math.min(100, Number(payload.progress || 0)));
+
+                    if (message) message.textContent = text;
+                    if (badge) badge.textContent = status.charAt(0).toUpperCase() + status.slice(1);
+                    if (progress) progress.style.width = `${percent}%`;
+
+                    panel.classList.remove('border-[var(--border-warning)]', 'bg-[var(--bg-warning)]', 'text-[var(--text-warning)]', 'border-[var(--border-success)]', 'bg-[var(--bg-success)]', 'text-[var(--text-success)]', 'border-[var(--border-error)]', 'bg-[var(--bg-error)]', 'text-[var(--text-error)]');
+
+                    if (status === 'completed') {
+                        panel.classList.add('border-[var(--border-success)]', 'bg-[var(--bg-success)]', 'text-[var(--text-success)]');
+                    } else if (status === 'failed' || status === 'missing') {
+                        panel.classList.add('border-[var(--border-error)]', 'bg-[var(--bg-error)]', 'text-[var(--text-error)]');
+                    } else {
+                        panel.classList.add('border-[var(--border-warning)]', 'bg-[var(--bg-warning)]', 'text-[var(--text-warning)]');
+                    }
+
+                    if (!finished && (status === 'completed' || status === 'failed')) {
+                        finished = true;
+                        notify(status === 'completed' ? 'success' : 'error', 'Restore ' + status, text);
+                    }
+
+                    return status === 'completed' || status === 'failed' || status === 'missing';
+                };
+
+                const poll = async () => {
+                    try {
+                        const response = await fetch(url, {headers: {'Accept': 'application/json'}});
+                        const payload = await response.json();
+                        if (render(payload)) return;
+                    } catch (error) {
+                        render({status: 'failed', message: 'Restore status could not be loaded.', progress: 0});
+                        return;
+                    }
+
+                    window.setTimeout(poll, 3000);
+                };
+
+                poll();
+            })();
+        </script>
+    @endif
 @endsection

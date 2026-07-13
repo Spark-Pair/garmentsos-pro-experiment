@@ -25,8 +25,9 @@ RUN chmod +x /usr/local/bin/garmentsos-entrypoint \
     && composer config --global process-timeout 2000 \
     && (composer install --no-dev --optimize-autoloader --no-interaction --no-progress --prefer-dist \
         || composer install --no-dev --optimize-autoloader --no-interaction --no-progress --prefer-source) \
-    && mkdir -p storage/app/private storage/app/backups storage/framework/cache storage/framework/sessions storage/framework/views storage/logs bootstrap/cache \
-    && chown -R www-data:www-data storage bootstrap/cache
+    && mkdir -p storage/app/license storage/app/private/backups storage/app/backups storage/framework/cache/data storage/framework/sessions storage/framework/views storage/logs bootstrap/cache \
+    && chown -R www-data:www-data storage bootstrap/cache \
+    && chmod -R ug+rwX storage bootstrap/cache
 
 EXPOSE 8000
 ENTRYPOINT ["garmentsos-entrypoint"]

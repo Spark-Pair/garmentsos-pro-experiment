@@ -147,7 +147,7 @@ class BackupService
 
             return [
                 'success' => false,
-                'message' => 'Backup failed safely. No database files were overwritten.',
+                'message' => $this->safeFailureMessage($e),
             ];
         } finally {
             if ($useLock && $lockAcquired) {
@@ -190,6 +190,21 @@ class BackupService
         }
 
         return $path;
+    }
+
+    protected function safeFailureMessage(Throwable $e): string
+    {
+        $message = $e->getMessage();
+
+        if (str_contains($message, 'Permission denied') || str_contains($message, 'not writable')) {
+            return 'Backup failed safely: storage or backup path is not writable. Restart Docker so startup permission repair can run, then try again.';
+        }
+
+        if (str_contains($message, 'database') || str_contains($message, 'SQLite')) {
+            return 'Backup failed safely: SQLite database copy failed. No database files were overwritten.';
+        }
+
+        return 'Backup failed safely. No database files were overwritten.';
     }
 
     protected function createSqliteBackup(string $targetPath): void

@@ -13,7 +13,20 @@ if [[ ! -f .env ]]; then
   exit 1
 fi
 
-mkdir -p database storage/app/private storage/app/backups storage/framework/cache storage/framework/sessions storage/framework/views storage/logs bootstrap/cache
+mkdir -p \
+  database \
+  storage/app/license \
+  storage/app/private/backups \
+  storage/app/backups \
+  storage/framework/cache/data \
+  storage/framework/sessions \
+  storage/framework/views \
+  storage/logs \
+  bootstrap/cache
+
+echo "Repairing Laravel writable storage permissions."
+chown -R www-data:www-data storage bootstrap/cache || true
+chmod -R ug+rwX storage bootstrap/cache || true
 
 DB_PATH="$(php -r '$env=parse_ini_file(".env", false, INI_SCANNER_RAW); echo $env["DB_DATABASE"] ?? "database/database.sqlite";')"
 if [[ "$DB_PATH" != /* ]]; then
@@ -23,10 +36,12 @@ mkdir -p "$(dirname "$DB_PATH")"
 if [[ ! -f "$DB_PATH" ]]; then
   touch "$DB_PATH"
   chown www-data:www-data "$DB_PATH"
+  chmod ug+rw "$DB_PATH"
   echo "Created missing SQLite database file at $DB_PATH"
 fi
 
 chown -R www-data:www-data storage bootstrap/cache database || true
+chmod -R ug+rwX storage bootstrap/cache database || true
 
 php artisan optimize:clear || true
 

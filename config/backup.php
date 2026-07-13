@@ -23,7 +23,7 @@ return [
 
     'max_list_items' => 100,
 
-    'lock_seconds' => 300,
+    'lock_seconds' => env('BACKUP_LOCK_SECONDS', 1800),
 
     'lock_key' => 'garmentsos:backup-restore',
 

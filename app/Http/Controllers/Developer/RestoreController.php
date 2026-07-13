@@ -5,7 +5,9 @@ namespace App\Http\Controllers\Developer;
 use App\Http\Controllers\Controller;
 use App\Models\BackupLog;
 use App\Services\RestoreService;
+use App\Services\RestoreUploadJobService;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Throwable;
@@ -42,7 +44,7 @@ class RestoreController extends Controller
             ->with($result['success'] ? 'success' : 'error', $result['message']);
     }
 
-    public function upload(Request $request, RestoreService $restore): RedirectResponse
+    public function upload(Request $request, RestoreUploadJobService $jobs): RedirectResponse
     {
         if ($resp = $this->denyIfNoRole(['developer', 'admin'])) {
             return $resp;
@@ -57,24 +59,47 @@ class RestoreController extends Controller
         ]);
 
         try {
-            $result = $restore->restoreUploadedSqlite($request->file('sqlite_file'), [
+            $job = $jobs->create($request->file('sqlite_file'), [
                 'confirmation_phrase' => (string) $validated['confirmation_phrase'],
                 'staging_tested' => $request->boolean('staging_tested'),
-            ]);
+            ], $request->user()?->id);
+
+            $jobs->start((string) $job['id']);
         } catch (Throwable $e) {
-            Log::error('Uploaded SQLite restore failed unexpectedly.', [
+            Log::error('Uploaded SQLite restore job could not be started.', [
                 'error' => $e->getMessage(),
                 'type' => $e::class,
             ]);
 
-            $result = [
-                'success' => false,
-                'message' => 'Restore failed safely. License/device approval remains tied to this installation.',
-            ];
+            return redirect()
+                ->route('developer.backups')
+                ->with('error', 'Restore could not be started. Check logs for details.');
         }
 
         return redirect()
             ->route('developer.backups')
-            ->with($result['success'] ? 'success' : 'error', $result['message']);
+            ->with('success', 'Restore started. Please wait.')
+            ->with('restore_job_id', $job['id']);
+    }
+
+    public function uploadStatus(string $jobId, RestoreUploadJobService $jobs): JsonResponse
+    {
+        if ($resp = $this->denyIfNoRole(['developer', 'admin'])) {
+            return response()->json(['status' => 'forbidden'], 403);
+        }
+
+        try {
+            return response()->json($jobs->readPublicStatus($jobId));
+        } catch (Throwable $e) {
+            Log::warning('Restore upload job status could not be read.', [
+                'job_id' => $jobId,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'status' => 'missing',
+                'message' => 'Restore job status was not found.',
+            ], 404);
+        }
     }
 }
