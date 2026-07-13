@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Release version, for example 1.8.62"
+        description: "Release version, for example 1.8.63"
         required: true
-        default: "1.8.62"
+        default: "1.8.63"
         type: string
       channel:
         description: "Update channel"

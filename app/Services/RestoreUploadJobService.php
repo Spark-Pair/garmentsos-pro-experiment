@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
@@ -10,6 +11,7 @@ use RuntimeException;
 class RestoreUploadJobService
 {
     private const BASE_PATH = 'app/private/restore-jobs';
+    private const STALE_QUEUE_SECONDS = 60;
 
     public function create(UploadedFile $file, array $input, ?int $userId): array
     {
@@ -31,7 +33,7 @@ class RestoreUploadJobService
             'id' => $jobId,
             'status' => 'pending',
             'progress' => 5,
-            'message' => 'Restore started. Please wait.',
+            'message' => 'The database file has been uploaded. Restore has not started yet.',
             'original_filename' => $originalName,
             'upload_path' => $uploadPath,
             'log_path' => $this->logPath($jobId),
@@ -40,6 +42,12 @@ class RestoreUploadJobService
             'staging_tested' => (bool) ($input['staging_tested'] ?? false),
             'created_at' => now()->toIso8601String(),
             'updated_at' => now()->toIso8601String(),
+            'started_at' => null,
+            'completed_at' => null,
+            'failed_at' => null,
+            'last_heartbeat' => null,
+            'process_start_error' => null,
+            'can_run_now' => false,
         ];
 
         $this->writeStatus($jobId, $status);
@@ -47,26 +55,56 @@ class RestoreUploadJobService
         return $this->publicStatus($status);
     }
 
-    public function start(string $jobId): void
+    public function start(string $jobId, bool $manual = false): void
     {
-        $status = $this->readStatus($jobId);
-        $status['status'] = 'queued';
-        $status['progress'] = 10;
-        $status['message'] = 'Restore job queued.';
-        $status['updated_at'] = now()->toIso8601String();
-        $this->writeStatus($jobId, $status);
+        $this->assertRunnableQueuedJob($jobId);
 
-        $php = escapeshellarg(PHP_BINARY);
-        $artisan = escapeshellarg(base_path('artisan'));
-        $job = escapeshellarg($jobId);
-        $log = escapeshellarg($this->logPath($jobId));
-
-        if (PHP_OS_FAMILY === 'Windows') {
-            pclose(popen("start /B \"\" {$php} {$artisan} garmentsos:restore-upload-job {$job} >> {$log} 2>&1", 'r'));
-            return;
+        $lock = Cache::lock("restore-upload-job-start:{$jobId}", 30);
+        if (! $lock->get()) {
+            throw new RuntimeException('Restore job is already being started.');
         }
 
-        exec("{$php} {$artisan} garmentsos:restore-upload-job {$job} >> {$log} 2>&1 &");
+        try {
+            $status = $this->readStatus($jobId);
+            $status['status'] = 'queued';
+            $status['progress'] = 10;
+            $status['message'] = 'The database file has been uploaded. Restore has not started yet.';
+            $status['process_start_error'] = null;
+            $status['can_run_now'] = false;
+            $status['updated_at'] = now()->toIso8601String();
+            $this->writeStatus($jobId, $status);
+
+            $php = $this->resolvePhpCliBinary();
+            $workingDirectory = base_path();
+            $logPath = $this->logPath($jobId);
+            $this->appendLog($jobId, 'Selected PHP CLI: ' . $php);
+            $this->appendLog($jobId, 'Working directory: ' . $workingDirectory);
+            $this->appendLog($jobId, 'Command: php artisan garmentsos:restore-upload-job ' . $jobId);
+            $this->appendLog($jobId, 'Start mode: ' . ($manual ? 'manual run-now' : 'automatic'));
+
+            $processStart = $this->startBackgroundProcess($php, $workingDirectory, $jobId, $logPath);
+            $this->appendLog($jobId, 'Process start exit code: ' . ($processStart['exit_code'] ?? 'unknown'));
+            if (($processStart['output'] ?? []) !== []) {
+                $this->appendLog($jobId, 'Process start output: ' . implode(' | ', $processStart['output']));
+            }
+
+            if (! ($processStart['ok'] ?? false)) {
+                $message = 'The database file was uploaded, but restore could not start automatically.';
+                $status = $this->readStatus($jobId);
+                $status['status'] = 'queued';
+                $status['message'] = $message;
+                $status['process_start_error'] = 'Process start failed with exit code ' . ($processStart['exit_code'] ?? 'unknown') . '.';
+                $status['can_run_now'] = true;
+                $status['updated_at'] = now()->toIso8601String();
+                $this->writeStatus($jobId, $status);
+                $this->appendLog($jobId, 'Process start failed.');
+                return;
+            }
+
+            $this->appendLog($jobId, 'Process start requested successfully.');
+        } finally {
+            optional($lock)->release();
+        }
     }
 
     public function markRunning(string $jobId, string $message = 'Restore is running.'): void
@@ -76,6 +114,7 @@ class RestoreUploadJobService
         $status['progress'] = 30;
         $status['message'] = $message;
         $status['started_at'] = $status['started_at'] ?? now()->toIso8601String();
+        $status['last_heartbeat'] = now()->toIso8601String();
         $status['updated_at'] = now()->toIso8601String();
         $this->writeStatus($jobId, $status);
     }
@@ -90,6 +129,8 @@ class RestoreUploadJobService
         $status['restore_log_id'] = $result['restore_log']->id ?? null;
         $status['emergency_backup_log_id'] = $result['emergency_backup_log']->id ?? null;
         $status['completed_at'] = now()->toIso8601String();
+        $status['failed_at'] = ($result['success'] ?? false) ? null : now()->toIso8601String();
+        $status['last_heartbeat'] = now()->toIso8601String();
         $status['updated_at'] = now()->toIso8601String();
         $this->writeStatus($jobId, $status);
     }
@@ -102,8 +143,18 @@ class RestoreUploadJobService
         $status['message'] = $message;
         $status['context'] = $context;
         $status['completed_at'] = now()->toIso8601String();
+        $status['failed_at'] = now()->toIso8601String();
+        $status['last_heartbeat'] = now()->toIso8601String();
         $status['updated_at'] = now()->toIso8601String();
         $this->writeStatus($jobId, $status);
+    }
+
+    public function canRunNow(string $jobId): bool
+    {
+        $status = $this->readPublicStatus($jobId);
+
+        return ($status['status'] ?? null) === 'queued'
+            && (($status['is_stale'] ?? false) || ! empty($status['process_start_error']));
     }
 
     public function readPublicStatus(string $jobId): array
@@ -170,8 +221,83 @@ class RestoreUploadJobService
     private function publicStatus(array $status): array
     {
         unset($status['upload_path'], $status['confirmation_phrase']);
+        $status['is_stale'] = $this->isStaleQueued($status);
+        $status['can_run_now'] = (($status['status'] ?? null) === 'queued')
+            && ($status['is_stale'] || ! empty($status['process_start_error']));
+        $status['safe_error'] = $status['process_start_error'] ? 'Restore could not start automatically.' : null;
 
         return $status;
+    }
+
+    private function assertRunnableQueuedJob(string $jobId): void
+    {
+        $status = $this->readStatus($jobId);
+        $state = (string) ($status['status'] ?? '');
+
+        if (! in_array($state, ['pending', 'queued'], true)) {
+            throw new RuntimeException('Only waiting restore jobs can be started.');
+        }
+    }
+
+    private function resolvePhpCliBinary(): string
+    {
+        foreach (['/usr/local/bin/php', '/usr/bin/php'] as $candidate) {
+            if (is_file($candidate) && is_executable($candidate) && ! str_contains(basename($candidate), 'php-fpm')) {
+                return $candidate;
+            }
+        }
+
+        $detected = trim((string) shell_exec('command -v php 2>/dev/null'));
+        if ($detected !== '' && ! str_contains(basename($detected), 'php-fpm')) {
+            return $detected;
+        }
+
+        return 'php';
+    }
+
+    private function startBackgroundProcess(string $php, string $workingDirectory, string $jobId, string $logPath): array
+    {
+        $phpArg = escapeshellarg($php);
+        $workingDirectoryArg = escapeshellarg($workingDirectory);
+        $jobArg = escapeshellarg($jobId);
+        $logArg = escapeshellarg($logPath);
+
+        if (PHP_OS_FAMILY === 'Windows') {
+            $command = "start /B \"\" {$phpArg} artisan garmentsos:restore-upload-job {$jobArg} >> {$logArg} 2>&1";
+            $handle = @popen("cd /D {$workingDirectoryArg} && {$command}", 'r');
+            if (! is_resource($handle)) {
+                return ['ok' => false, 'exit_code' => null, 'output' => []];
+            }
+
+            $exitCode = pclose($handle);
+            return ['ok' => $exitCode === 0, 'exit_code' => $exitCode, 'output' => []];
+        }
+
+        $command = "cd {$workingDirectoryArg} && nohup {$phpArg} artisan garmentsos:restore-upload-job {$jobArg} >> {$logArg} 2>&1 & echo $!";
+        $output = [];
+        $exitCode = 1;
+        @exec($command, $output, $exitCode);
+
+        return ['ok' => $exitCode === 0, 'exit_code' => $exitCode, 'output' => $output];
+    }
+
+    private function appendLog(string $jobId, string $message): void
+    {
+        File::append($this->logPath($jobId), '[' . now()->toIso8601String() . '] ' . $message . PHP_EOL);
+    }
+
+    private function isStaleQueued(array $status): bool
+    {
+        if (($status['status'] ?? null) !== 'queued') {
+            return false;
+        }
+
+        $updatedAt = strtotime((string) ($status['updated_at'] ?? $status['created_at'] ?? ''));
+        if (! $updatedAt) {
+            return false;
+        }
+
+        return (time() - $updatedAt) > self::STALE_QUEUE_SECONDS;
     }
 
     private function writeStatus(string $jobId, array $status): void

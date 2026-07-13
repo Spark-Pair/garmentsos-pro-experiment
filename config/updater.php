@@ -12,7 +12,7 @@ return [
     'public_key' => env('UPDATER_PUBLIC_KEY', ''),
     'channel' => env('UPDATE_CHANNEL', env('UPDATER_CHANNEL', 'stable')),
     'require_signature' => env('UPDATER_REQUIRE_SIGNATURE', true),
-    'current_version' => env('APP_VERSION', '1.8.62'),
+    'current_version' => env('APP_VERSION', '1.8.63'),
     'installed_manifest_paths' => [
         env('GARMENTSOS_INSTALLED_MANIFEST', ''),
         'bootstrap/cache/installed-release.json',

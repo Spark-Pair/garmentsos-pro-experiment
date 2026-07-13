@@ -106,6 +106,7 @@ Route::group(['middleware' => ['setup.complete', 'auth', 'activeSession', 'ensur
     Route::get('developer/backups/{backupLog}/restore', [RestoreController::class, 'show'])->name('developer.backups.restore.show');
     Route::post('developer/backups/{backupLog}/restore', [RestoreController::class, 'store'])->name('developer.backups.restore.store');
     Route::post('developer/backups/restore-upload', [RestoreController::class, 'upload'])->name('developer.backups.restore-upload');
+    Route::post('developer/backups/restore-upload/{jobId}/run-now', [RestoreController::class, 'runUploadNow'])->name('developer.backups.restore-upload.run-now');
     Route::get('developer/backups/restore-upload/{jobId}', [RestoreController::class, 'uploadStatus'])->name('developer.backups.restore-upload.status');
     Route::post('module-branch-preferences', [ModuleBranchPreferenceController::class, 'store'])->name('module-branch-preferences.store');
     Route::get('developer/branches', [BranchController::class, 'index'])->name('developer.branches.index');

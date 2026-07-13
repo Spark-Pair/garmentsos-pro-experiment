@@ -78,8 +78,39 @@ class RestoreController extends Controller
 
         return redirect()
             ->route('developer.backups')
-            ->with('success', 'Restore started. Please wait.')
+            ->with('success', 'Restore uploaded. Waiting for the restore job to start.')
             ->with('restore_job_id', $job['id']);
+    }
+
+    public function runUploadNow(string $jobId, RestoreUploadJobService $jobs): JsonResponse
+    {
+        if ($resp = $this->denyIfNoRole(['developer', 'admin'])) {
+            return response()->json(['status' => 'forbidden'], 403);
+        }
+
+        try {
+            if (! $jobs->canRunNow($jobId)) {
+                return response()->json([
+                    'status' => 'not_runnable',
+                    'message' => 'This restore job cannot be started manually right now.',
+                ], 409);
+            }
+
+            $jobs->start($jobId, manual: true);
+
+            return response()->json($jobs->readPublicStatus($jobId));
+        } catch (Throwable $e) {
+            Log::error('Uploaded SQLite restore job run-now failed.', [
+                'job_id' => $jobId,
+                'error' => $e->getMessage(),
+                'type' => $e::class,
+            ]);
+
+            return response()->json([
+                'status' => 'failed',
+                'message' => 'Restore could not be started. Check logs for details.',
+            ], 500);
+        }
     }
 
     public function uploadStatus(string $jobId, RestoreUploadJobService $jobs): JsonResponse

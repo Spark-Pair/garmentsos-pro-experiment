@@ -116,15 +116,29 @@
             @if ($restoreJobId)
                 <div id="restoreJobStatus"
                     class="mt-5 rounded-lg border border-[var(--border-warning)] bg-[var(--bg-warning)] p-4 text-sm text-[var(--text-warning)]"
-                    data-status-url="{{ route('developer.backups.restore-upload.status', $restoreJobId) }}">
+                    data-status-url="{{ route('developer.backups.restore-upload.status', $restoreJobId) }}"
+                    data-run-now-url="{{ route('developer.backups.restore-upload.run-now', $restoreJobId) }}">
                     <div class="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                         <div>
-                            <div class="font-semibold">Restore started</div>
-                            <p class="mt-1" data-restore-status-message>Uploading finished. Restore job is queued.</p>
+                            <div class="font-semibold" data-restore-status-title>Restore waiting to start</div>
+                            <p class="mt-1" data-restore-status-message>The database file has been uploaded. Restore has not started yet.</p>
                         </div>
                         <span class="{{ $badge }} border-[var(--border-warning)] bg-[var(--bg-warning)] text-[var(--text-warning)]" data-restore-status-badge>
-                            Pending
+                            Waiting
                         </span>
+                    </div>
+                    <div class="mt-3 flex flex-wrap items-center gap-2">
+                        <span class="text-xs font-semibold" data-restore-progress-label>Waiting to start</span>
+                        <button type="button"
+                            class="{{ $secondaryButton }} hidden"
+                            data-restore-run-now>
+                            Run Restore Now
+                        </button>
+                        <a href="{{ route('home') }}"
+                            class="{{ $secondaryButton }} hidden"
+                            data-restore-refresh>
+                            Go to Dashboard
+                        </a>
                     </div>
                     <div class="mt-3 h-2 overflow-hidden rounded-full bg-[var(--h-bg-color)]">
                         <div class="h-full bg-[var(--primary-color)] transition-all duration-300" style="width: 10%" data-restore-status-progress></div>
@@ -284,11 +298,17 @@
                 const panel = document.getElementById('restoreJobStatus');
                 if (!panel) return;
 
+                const title = panel.querySelector('[data-restore-status-title]');
                 const message = panel.querySelector('[data-restore-status-message]');
                 const badge = panel.querySelector('[data-restore-status-badge]');
                 const progress = panel.querySelector('[data-restore-status-progress]');
+                const progressLabel = panel.querySelector('[data-restore-progress-label]');
+                const runNowButton = panel.querySelector('[data-restore-run-now]');
+                const refreshButton = panel.querySelector('[data-restore-refresh]');
                 const url = panel.dataset.statusUrl;
+                const runNowUrl = panel.dataset.runNowUrl;
                 let finished = false;
+                let runningManualStart = false;
 
                 const notify = (type, title, body) => {
                     if (typeof showNotification === 'function') {
@@ -296,20 +316,81 @@
                     }
                 };
 
+                const statusText = (payload) => {
+                    const status = payload.status || 'pending';
+                    if (status === 'completed') {
+                        return {
+                            title: 'Restore completed',
+                            message: payload.message || 'Business data restored. License/device approval remains tied to this installation.',
+                            badge: 'Completed',
+                            label: 'Completed',
+                            percent: 100,
+                            tone: 'success',
+                        };
+                    }
+
+                    if (status === 'failed' || status === 'missing') {
+                        return {
+                            title: 'Restore failed',
+                            message: payload.message || 'Restore failed safely.',
+                            badge: 'Failed',
+                            label: 'Failed',
+                            percent: 0,
+                            tone: 'error',
+                        };
+                    }
+
+                    if (status === 'running') {
+                        return {
+                            title: 'Restore in progress',
+                            message: payload.message || 'Restoring business data. Please do not close or restart the app.',
+                            badge: 'Running',
+                            label: 'Restoring...',
+                            percent: Math.max(0, Math.min(100, Number(payload.progress || 30))),
+                            tone: 'warning',
+                        };
+                    }
+
+                    if (payload.is_stale || payload.can_run_now) {
+                        return {
+                            title: 'Restore could not start automatically',
+                            message: payload.message || 'The file was uploaded, but the restore job did not start. Click Run Restore Now or restart the app.',
+                            badge: 'Needs action',
+                            label: 'Needs action',
+                            percent: 10,
+                            tone: 'warning',
+                        };
+                    }
+
+                    return {
+                        title: 'Restore waiting to start',
+                        message: payload.message || 'The database file has been uploaded. Restore has not started yet.',
+                        badge: 'Waiting',
+                        label: 'Waiting to start',
+                        percent: 10,
+                        tone: 'warning',
+                    };
+                };
+
                 const render = (payload) => {
                     const status = payload.status || 'pending';
-                    const text = payload.message || 'Restore is running.';
+                    const display = statusText(payload);
+                    const text = display.message;
                     const percent = Math.max(0, Math.min(100, Number(payload.progress || 0)));
 
+                    if (title) title.textContent = display.title;
                     if (message) message.textContent = text;
-                    if (badge) badge.textContent = status.charAt(0).toUpperCase() + status.slice(1);
-                    if (progress) progress.style.width = `${percent}%`;
+                    if (badge) badge.textContent = display.badge;
+                    if (progressLabel) progressLabel.textContent = display.label;
+                    if (progress) progress.style.width = `${display.percent ?? percent}%`;
+                    if (runNowButton) runNowButton.classList.toggle('hidden', !payload.can_run_now || status !== 'queued');
+                    if (refreshButton) refreshButton.classList.toggle('hidden', status !== 'completed');
 
                     panel.classList.remove('border-[var(--border-warning)]', 'bg-[var(--bg-warning)]', 'text-[var(--text-warning)]', 'border-[var(--border-success)]', 'bg-[var(--bg-success)]', 'text-[var(--text-success)]', 'border-[var(--border-error)]', 'bg-[var(--bg-error)]', 'text-[var(--text-error)]');
 
-                    if (status === 'completed') {
+                    if (display.tone === 'success') {
                         panel.classList.add('border-[var(--border-success)]', 'bg-[var(--bg-success)]', 'text-[var(--text-success)]');
-                    } else if (status === 'failed' || status === 'missing') {
+                    } else if (display.tone === 'error') {
                         panel.classList.add('border-[var(--border-error)]', 'bg-[var(--bg-error)]', 'text-[var(--text-error)]');
                     } else {
                         panel.classList.add('border-[var(--border-warning)]', 'bg-[var(--bg-warning)]', 'text-[var(--text-warning)]');
@@ -335,6 +416,33 @@
 
                     window.setTimeout(poll, 3000);
                 };
+
+                if (runNowButton) {
+                    runNowButton.addEventListener('click', async () => {
+                        if (runningManualStart) return;
+                        runningManualStart = true;
+                        runNowButton.disabled = true;
+                        runNowButton.textContent = 'Starting...';
+
+                        try {
+                            const response = await fetch(runNowUrl, {
+                                method: 'POST',
+                                headers: {
+                                    'Accept': 'application/json',
+                                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                                },
+                            });
+                            const payload = await response.json();
+                            render(payload);
+                        } catch (error) {
+                            render({status: 'failed', message: 'Restore could not be started. Check logs for details.', progress: 0});
+                        } finally {
+                            runningManualStart = false;
+                            runNowButton.disabled = false;
+                            runNowButton.textContent = 'Run Restore Now';
+                        }
+                    });
+                }
 
                 poll();
             })();
