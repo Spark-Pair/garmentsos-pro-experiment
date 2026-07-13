@@ -18,6 +18,7 @@ class DailyLedgerDeposit extends Model
         'method',
         'amount',
         'reff_no',
+        'branch_id',
     ];
 
     protected $casts = [

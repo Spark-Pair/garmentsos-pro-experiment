@@ -20,6 +20,7 @@ class SalesReturn extends Model
         'date',
         'quantity',
         'amount',
+        'branch_id',
     ];
 
     protected $casts = [

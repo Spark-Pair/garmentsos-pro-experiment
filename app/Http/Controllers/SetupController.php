@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Setup;
+use App\Services\Branches\ModuleBranchService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
@@ -16,7 +17,8 @@ class SetupController extends Controller
         $authLayout = $this->getAuthLayout($request->route()->getName(), 'table');
 
         if ($request->ajax()) {
-            $setups = Setup::orderByDesc('id')
+            $setups = app(ModuleBranchService::class)
+                ->applyScope(Setup::orderByDesc('id'), 'setups')
                 ->applyFilters($request);
 
             return response()->json(['data' => $setups, 'authLayout' => $authLayout]);
@@ -30,14 +32,15 @@ class SetupController extends Controller
             return $resp;
         }
 
-        $existingShortTitles = Setup::query()
+        $branches = app(ModuleBranchService::class);
+        $existingShortTitles = $branches->applyScope(Setup::query(), 'setups')
             ->whereNotNull('short_title')
             ->pluck('short_title')
             ->map(fn ($value) => strtoupper(trim((string) $value)))
             ->filter()
             ->values();
 
-        $titlesByType = Setup::query()
+        $titlesByType = $branches->applyScope(Setup::query(), 'setups')
             ->select('type', 'title')
             ->get()
             ->groupBy('type')
@@ -84,11 +87,11 @@ class SetupController extends Controller
             return redirect()->back()->withErrors($validator)->withInput();
         }
         
-        Setup::create([
+        Setup::create(app(ModuleBranchService::class)->assignBranchOnCreate([
             'title' => $request->title,
             'short_title' => $request->short_title,
             'type' => $request->type,
-        ]);
+        ], 'setups'));
 
         return redirect()->back()->with('success', 'Setup added successfully');
     }

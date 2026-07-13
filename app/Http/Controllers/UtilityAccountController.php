@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Setup;
 use App\Models\UtilityAccount;
+use App\Services\Branches\ModuleBranchService;
 use Illuminate\Http\Request;
 
 class UtilityAccountController extends Controller
@@ -21,7 +22,8 @@ class UtilityAccountController extends Controller
         // $utilityAccounts = UtilityAccount::with('billType', 'location')->get();
 
         if ($request->ajax()) {
-            $utilityAccounts = UtilityAccount::orderByDesc('id')
+            $utilityAccounts = app(ModuleBranchService::class)
+                ->applyScope(UtilityAccount::orderByDesc('id'), 'utility_accounts')
                 ->applyFilters($request);
 
             return response()->json(['data' => $utilityAccounts, 'authLayout' => $authLayout]);
@@ -42,8 +44,9 @@ class UtilityAccountController extends Controller
         $bill_type_options = [];
         $location_options = [];
 
-        $bill_types = Setup::where('type', 'utility_bill_type')->get();
-        $locations = Setup::where('type', 'utility_bill_location')->get();
+        $branches = app(ModuleBranchService::class);
+        $bill_types = $branches->applyRelatedScope(Setup::where('type', 'utility_bill_type'), 'setups', 'utility_accounts')->get();
+        $locations = $branches->applyRelatedScope(Setup::where('type', 'utility_bill_location'), 'setups', 'utility_accounts')->get();
 
         foreach($bill_types as $type) {
             $bill_type_options[(int)$type->id] = [
@@ -76,12 +79,19 @@ class UtilityAccountController extends Controller
             'account_no' => 'required|string|max:200'
         ]);
 
-        UtilityAccount::create([
+        $branches = app(ModuleBranchService::class);
+        $billType = $branches->applyRelatedScope(Setup::where('type', 'utility_bill_type'), 'setups', 'utility_accounts')->find($request->bill_type_id);
+        $location = $branches->applyRelatedScope(Setup::where('type', 'utility_bill_location'), 'setups', 'utility_accounts')->find($request->location_id);
+        if (!$billType || !$location) {
+            return redirect()->back()->withErrors(['bill_type_id' => 'Selected bill type/location is not available for this branch.'])->withInput();
+        }
+
+        UtilityAccount::create($branches->assignBranchOnCreate([
             'bill_type_id' => $request->bill_type_id,
             'location_id' => $request->location_id,
             'account_title' => $request->account_title,
             'account_no' => $request->account_no,
-        ]);
+        ], 'utility_accounts'));
 
         return redirect()->back()->with('success', 'Utility account added successfully.');
     }
@@ -91,7 +101,7 @@ class UtilityAccountController extends Controller
      */
     public function show(UtilityAccount $utilityAccount)
     {
-        //
+        app(ModuleBranchService::class)->assertRecordInAllowedBranch($utilityAccount, 'utility_accounts');
     }
 
     /**
@@ -99,7 +109,7 @@ class UtilityAccountController extends Controller
      */
     public function edit(UtilityAccount $utilityAccount)
     {
-        //
+        app(ModuleBranchService::class)->assertRecordInAllowedBranch($utilityAccount, 'utility_accounts');
     }
 
     /**
@@ -107,7 +117,7 @@ class UtilityAccountController extends Controller
      */
     public function update(Request $request, UtilityAccount $utilityAccount)
     {
-        //
+        app(ModuleBranchService::class)->assertRecordInAllowedBranch($utilityAccount, 'utility_accounts');
     }
 
     /**
@@ -115,6 +125,6 @@ class UtilityAccountController extends Controller
      */
     public function destroy(UtilityAccount $utilityAccount)
     {
-        //
+        app(ModuleBranchService::class)->assertRecordInAllowedBranch($utilityAccount, 'utility_accounts');
     }
 }

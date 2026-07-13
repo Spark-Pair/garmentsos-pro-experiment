@@ -514,10 +514,6 @@
             const id = document.querySelector('input[data-for="nameSelect"]').value;
             const dateFromVal = document.getElementById("date_from").value;
             const dateToVal = document.getElementById("date_to").value;
-            const branchSelect = document.getElementById("statement_branch_ids");
-            const branchIds = branchSelect
-                ? Array.from(branchSelect.selectedOptions).map(option => option.value)
-                : (config.selectedBranchIds || []);
 
             $.ajax({
                 url: config.statementUrl,
@@ -530,7 +526,6 @@
                     id: id,
                     date_from: dateFromVal !== "" ? dateFromVal : regDate,
                     date_to: dateToVal !== "" ? dateToVal : localDateString(today),
-                    branch_ids: branchIds,
                 },
                 success: function (response) {
                     renderStatement(response);

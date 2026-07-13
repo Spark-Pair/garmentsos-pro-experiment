@@ -272,7 +272,13 @@ class InvoiceController extends Controller
             }
 
             $customers_array = json_decode($request->customers_array, true);
-            $shipment = Shipment::where("shipment_no", $request->shipment_no)->with('articles.article')->first();
+            $branches = app(ModuleBranchService::class);
+            $shipment = $branches->applyRelatedScope(Shipment::where("shipment_no", $request->shipment_no)->with('articles.article'), 'shipments', 'invoices')->first();
+            if (!$shipment) {
+                throw ValidationException::withMessages([
+                    'shipment_no' => 'Shipment not found for the selected branch.',
+                ]);
+            }
 
             $last_Invoice = Invoice::orderBy('id', 'desc')->first();
 
@@ -293,7 +299,7 @@ class InvoiceController extends Controller
             $this->validateInvoiceStock($shipmentQuantities);
 
             foreach ($customers_array as $customer) {
-                $invoiceNo = app(ModuleBranchService::class)->shouldFilterRecords('invoices')
+                $invoiceNo = $branches->shouldFilterRecords('invoices')
                     ? app(BranchSerialService::class)->next('invoices', Invoice::class, 'invoice_no', 'INV')
                     : $currentYear . '-' . $nextNumber;
                 $invoice = new Invoice();
@@ -303,7 +309,7 @@ class InvoiceController extends Controller
                 $invoice->netAmount = $shipment->netAmount * $customer['cotton_count'];
                 $invoice->cotton_count = $customer['cotton_count'];
                 $invoice->date = date("Y-m-d");
-                $invoice->branch_id = app(ModuleBranchService::class)->branchIdForCreate('invoices');
+                $invoice->branch_id = $shipment->branch_id ?: $branches->branchIdForCreate('invoices');
                 $invoice->save();
 
                 // Store articles in invoice_articles table
@@ -424,7 +430,7 @@ class InvoiceController extends Controller
      */
     public function show(invoice $invoice)
     {
-        //
+        app(ModuleBranchService::class)->assertRecordInAllowedBranch($invoice, 'invoices');
     }
 
     /**
@@ -432,7 +438,7 @@ class InvoiceController extends Controller
      */
     public function edit(invoice $invoice)
     {
-        //
+        app(ModuleBranchService::class)->assertRecordInAllowedBranch($invoice, 'invoices');
     }
 
     /**
@@ -440,7 +446,7 @@ class InvoiceController extends Controller
      */
     public function update(Request $request, invoice $invoice)
     {
-        //
+        app(ModuleBranchService::class)->assertRecordInAllowedBranch($invoice, 'invoices');
     }
 
     /**
@@ -448,7 +454,7 @@ class InvoiceController extends Controller
      */
     public function destroy(invoice $invoice)
     {
-        //
+        app(ModuleBranchService::class)->assertRecordInAllowedBranch($invoice, 'invoices');
     }
 
     public function print()

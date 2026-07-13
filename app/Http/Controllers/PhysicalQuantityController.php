@@ -216,7 +216,7 @@ class PhysicalQuantityController extends Controller
      */
     public function edit(PhysicalQuantity $physicalQuantity)
     {
-        //
+        app(ModuleBranchService::class)->assertRecordInAllowedBranch($physicalQuantity, 'physical_quantities');
     }
 
     /**
@@ -224,7 +224,7 @@ class PhysicalQuantityController extends Controller
      */
     public function update(Request $request, PhysicalQuantity $physicalQuantity)
     {
-        //
+        app(ModuleBranchService::class)->assertRecordInAllowedBranch($physicalQuantity, 'physical_quantities');
     }
 
     /**
@@ -232,6 +232,6 @@ class PhysicalQuantityController extends Controller
      */
     public function destroy(PhysicalQuantity $physicalQuantity)
     {
-        //
+        app(ModuleBranchService::class)->assertRecordInAllowedBranch($physicalQuantity, 'physical_quantities');
     }
 }

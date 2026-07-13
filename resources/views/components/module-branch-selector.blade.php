@@ -1,8 +1,8 @@
-@props(['moduleKey', 'mode' => 'single'])
+@props(['moduleKey', 'mode' => 'auto'])
 
 @php
     $branchService = app(\App\Services\Branches\ModuleBranchService::class);
-    $isMulti = $mode === 'multiple' && $branchService->supportsMultiBranchSelector($moduleKey);
+    $isMulti = in_array($mode, ['auto', 'multiple'], true) && $branchService->supportsMultiBranchSelector($moduleKey);
     $canRender = $branchService->canShowSelector($moduleKey);
     $branches = $canRender ? $branchService->availableBranchesForModule($moduleKey) : collect();
     $selected = $canRender ? $branchService->selectedBranchForModule($moduleKey) : null;

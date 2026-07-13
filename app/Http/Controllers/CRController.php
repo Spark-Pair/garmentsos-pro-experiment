@@ -7,6 +7,8 @@ use App\Models\CR;
 use App\Models\CustomerPayment;
 use App\Models\SupplierPayment;
 use App\Models\Voucher;
+use App\Services\Branches\BranchSerialService;
+use App\Services\Branches\ModuleBranchService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
@@ -22,7 +24,8 @@ class CRController extends Controller
         $authLayout = $this->getAuthLayout($request->route()->getName(), 'table');
 
         if ($request->ajax()) {
-            $crs = CR::orderByDesc('id')
+            $crs = app(ModuleBranchService::class)
+                ->applyScope(CR::orderByDesc('id'), 'cr')
                 ->applyFilters($request);
 
             return response()->json(['data' => $crs, 'authLayout' => $authLayout]);
@@ -47,9 +50,10 @@ class CRController extends Controller
         $method = $request->method;
         $maxDate = $request->max_date;
         $payment_options = [];
+        $branches = app(ModuleBranchService::class);
 
         if (Auth::user()->c_r_type == 'voucher') {
-            $vouchers = Voucher::all();
+            $vouchers = $branches->applyRelatedScope(Voucher::query(), 'vouchers', 'cr')->get();
 
             if ($vouchers) {
                 foreach($vouchers as $voucher) {
@@ -59,7 +63,7 @@ class CRController extends Controller
                 }
             }
         } else {
-            $CRs = CR::all();
+            $CRs = $branches->applyScope(CR::query(), 'cr')->get();
 
             if ($CRs) {
                 foreach($CRs as $CR) {
@@ -71,7 +75,7 @@ class CRController extends Controller
         }
 
         if ($method === 'cheque') {
-            $cheques = CustomerPayment::whereNotNull('cheque_no')->with('customer.city')->whereDoesntHave('cheque')->whereNull('bank_account_id')->whereDate('date', '<=', $maxDate)->get()->makeHidden('creator');
+            $cheques = $branches->applyRelatedScope(CustomerPayment::whereNotNull('cheque_no')->with('customer.city'), 'customer_payments', 'cr')->whereDoesntHave('cheque')->whereNull('bank_account_id')->whereDate('date', '<=', $maxDate)->get()->makeHidden('creator');
 
             foreach ($cheques as $cheque) {
                 $payment_options[(int)$cheque->id] = [
@@ -80,7 +84,7 @@ class CRController extends Controller
                 ];
             }
         } else if ($method === 'slip') {
-            $slips = CustomerPayment::whereNotNull('slip_no')->with('customer.city')->whereDoesntHave('slip')->whereNull('bank_account_id')->whereDate('date', '<=', $maxDate)->get()->makeHidden('creator');
+            $slips = $branches->applyRelatedScope(CustomerPayment::whereNotNull('slip_no')->with('customer.city'), 'customer_payments', 'cr')->whereDoesntHave('slip')->whereNull('bank_account_id')->whereDate('date', '<=', $maxDate)->get()->makeHidden('creator');
 
             foreach ($slips as $slip) {
                 $payment_options[(int)$slip->id] = [
@@ -89,7 +93,7 @@ class CRController extends Controller
                 ];
             }
         } else if ($method === 'self_cheque') {
-            $self_accounts = BankAccount::where('category', 'self')->with('bank:id,title,short_title')->get();
+            $self_accounts = $branches->applyRelatedScope(BankAccount::where('category', 'self')->with('bank:id,title,short_title'), 'bank_accounts', 'cr')->get();
 
             foreach ($self_accounts as $self_account) {
                 foreach ($self_account->available_cheques as $available_cheque) {
@@ -100,7 +104,7 @@ class CRController extends Controller
                 }
             }
         } else if ($method === 'program') {
-            $payments = SupplierPayment::where('supplier_id', $supplier_id)
+            $payments = $branches->applyRelatedScope(SupplierPayment::where('supplier_id', $supplier_id), 'supplier_payments', 'cr')
                 ->with('program.customer.city:id,title,short_title')
                 ->where('method', 'program')
                 ->whereNull('voucher_id')
@@ -205,6 +209,11 @@ class CRController extends Controller
         if (!str_starts_with($data['c_r_no'], 'CR-')) {
             $data['c_r_no'] = 'CR-' . $data['c_r_no'];
         }
+        $data['c_r_no'] = app(BranchSerialService::class)->formatBranchDocumentNumber(
+            $data['c_r_no'],
+            'cr',
+            app(ModuleBranchService::class)->selectedBranchForModule('cr')
+        );
 
         $returnEmpty = empty($data['return_payments']);
         $newEmpty = empty($data['new_payments']);
@@ -222,16 +231,28 @@ class CRController extends Controller
         }
 
         foreach($data['return_payments'] as $payment) {
-            SupplierPayment::find($payment->id)->update(['is_return' => true]);
-            CustomerPayment::find($payment->payment_id)->update(['is_return' => true]);
+            $branches = app(ModuleBranchService::class);
+            $branches->applyRelatedScope(SupplierPayment::query(), 'supplier_payments', 'cr')
+                ->findOrFail($payment->id)
+                ->update(['is_return' => true]);
+            $branches->applyRelatedScope(CustomerPayment::query(), 'customer_payments', 'cr')
+                ->findOrFail($payment->payment_id)
+                ->update(['is_return' => true]);
         }
 
-        $cr = new CR($data);
+        $branches = app(ModuleBranchService::class);
+        $voucher = $branches->applyRelatedScope(Voucher::query(), 'vouchers', 'cr')->find($data['voucher_id']);
+        if (!$voucher) {
+            return redirect()->back()->withErrors(['voucher_id' => 'Selected voucher is not available for this branch.'])->withInput();
+        }
+
+        $cr = new CR($branches->assignBranchOnCreate($data, 'cr'));
         $cr->save(); // 👈 pehle save karenge taake $cr->id mil jaye
 
         foreach ($data['new_payments'] as $payment) {
             if ($payment->method == 'Payment Program') {
-                SupplierPayment::find($payment->data_value)
+                $branches->applyRelatedScope(SupplierPayment::query(), 'supplier_payments', 'cr')
+                    ->find($payment->data_value)
                     ?->update(['method' => $payment->method . ' | CR']);
                 $payment->payment_id = (int) $payment->data_value;
             } else {
@@ -246,8 +267,8 @@ class CRController extends Controller
                     continue;
                 }
 
-                $newSupplierPayment = SupplierPayment::create([
-                    'supplier_id'      => Voucher::find($data['voucher_id'])->supplier_id,
+                $newSupplierPayment = SupplierPayment::create($branches->assignBranchOnCreate([
+                    'supplier_id'      => $voucher->supplier_id,
                     'date'             => $data['date'],
                     'method'           => $payment->method . ' | CR',
                     'amount'           => $payment->amount,
@@ -255,7 +276,7 @@ class CRController extends Controller
                     'voucher_id'       => null,
                     'c_r_id'           => $cr->id, // 👈 ab yahan id set ho jaegi
                     $columnMap[$payment->method] => $payment->data_value,
-                ]);
+                ], 'supplier_payments'));
 
                 $payment->payment_id = $newSupplierPayment->id;
             }
@@ -272,7 +293,7 @@ class CRController extends Controller
      */
     public function show(string $id)
     {
-        //
+        app(ModuleBranchService::class)->assertRecordInAllowedBranch(CR::findOrFail($id), 'cr');
     }
 
     /**
@@ -280,7 +301,7 @@ class CRController extends Controller
      */
     public function edit(string $id)
     {
-        //
+        app(ModuleBranchService::class)->assertRecordInAllowedBranch(CR::findOrFail($id), 'cr');
     }
 
     /**
@@ -288,7 +309,7 @@ class CRController extends Controller
      */
     public function update(Request $request, string $id)
     {
-        //
+        app(ModuleBranchService::class)->assertRecordInAllowedBranch(CR::findOrFail($id), 'cr');
     }
 
     /**
@@ -296,6 +317,6 @@ class CRController extends Controller
      */
     public function destroy(string $id)
     {
-        //
+        app(ModuleBranchService::class)->assertRecordInAllowedBranch(CR::findOrFail($id), 'cr');
     }
 }

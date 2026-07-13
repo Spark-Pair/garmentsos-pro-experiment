@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Rate;
 use App\Models\Setup;
+use App\Services\Branches\ModuleBranchService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 
@@ -27,7 +28,7 @@ class RateController extends Controller
         }
 
         $type_options = [];
-        $workerTypes = Setup::where('type', 'worker_type')->get();
+        $workerTypes = app(ModuleBranchService::class)->applyRelatedScope(Setup::where('type', 'worker_type'), 'setups', 'rates')->get();
         foreach($workerTypes as $workerType) {
             $type_options[(int)$workerType->id] = [
                 'text' => $workerType->title
@@ -60,7 +61,12 @@ class RateController extends Controller
             return redirect()->back()->withErrors($validator);
         }
 
-        $rate = Rate::create([
+        $type = app(ModuleBranchService::class)->applyRelatedScope(Setup::where('type', 'worker_type'), 'setups', 'rates')->find($request->type_id);
+        if (!$type) {
+            return redirect()->back()->withErrors(['type_id' => 'Selected worker type is not available for this branch.'])->withInput();
+        }
+
+        $rate = Rate::create(app(ModuleBranchService::class)->assignBranchOnCreate([
             'type_id' => $request['type_id'],
             'effective_date' => $request['effective_date'],
             'categories' => json_decode($request['categories'], true),
@@ -68,7 +74,7 @@ class RateController extends Controller
             'sizes' => json_decode($request['sizes'], true),
             'title' => $request['title'],
             'rate' => $request['rate'],
-        ]);
+        ], 'rates'));
 
         return redirect()->route('rates.create')->with('success', 'Rates Added successfully.');
     }
@@ -78,7 +84,7 @@ class RateController extends Controller
      */
     public function show(Rate $rate)
     {
-        //
+        app(ModuleBranchService::class)->assertRecordInAllowedBranch($rate, 'rates');
     }
 
     /**
@@ -86,7 +92,7 @@ class RateController extends Controller
      */
     public function edit(Rate $rate)
     {
-        //
+        app(ModuleBranchService::class)->assertRecordInAllowedBranch($rate, 'rates');
     }
 
     /**
@@ -94,7 +100,7 @@ class RateController extends Controller
      */
     public function update(Request $request, Rate $rate)
     {
-        //
+        app(ModuleBranchService::class)->assertRecordInAllowedBranch($rate, 'rates');
     }
 
     /**
@@ -102,6 +108,6 @@ class RateController extends Controller
      */
     public function destroy(Rate $rate)
     {
-        //
+        app(ModuleBranchService::class)->assertRecordInAllowedBranch($rate, 'rates');
     }
 }

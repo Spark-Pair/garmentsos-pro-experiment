@@ -2,7 +2,8 @@
 @section('title', 'Physical Quantity Report | ' . $client_company->name)
 @section('content')
 @php
-    $companyData = (object) app(\App\Services\Branches\ModuleBranchService::class)->documentBranding('reports');
+    $companyData = $physicalBranding ?? (object) app(\App\Services\Branches\ModuleBranchService::class)->documentBranding('reports_physical_quantity');
+    $selectedBranchLabels = $selectedBranchLabels ?? ['All Branches'];
     $modeLabels = [
         'all_articles' => 'All Articles',
         'article_wise' => 'Article-wise',
@@ -116,7 +117,7 @@
                                         <div class="right">
                                             <div>
                                                 <h1 class="text-lg font-medium text-[var(--primary-color)] pr-2 capitalize">{{ $reportHeading }}</h1>
-                                                <div class="total-bill leading-none mt-0.5 text-xs">Total Records: {{ $data['rows']->count() }} | Print Date: {{ $today = now()->format('d-M-Y') }}</div>
+                                                <div class="total-bill leading-none mt-0.5 text-xs">Total Records: {{ $data['rows']->count() }} | Branches: {{ implode(', ', $selectedBranchLabels) }} | Print Date: {{ $today = now()->format('d-M-Y') }}</div>
                                             </div>
                                         </div>
                                     </div>
@@ -190,9 +191,6 @@
     </form>
 @endsection
 
-@push('left-actions-after')
-    <x-module-branch-selector module-key="physical_quantities" />
-@endpush
 
 @push('page-scripts')
 <script defer src="{{ asset('js/pages/reports-physical-quantity.js') }}"></script>

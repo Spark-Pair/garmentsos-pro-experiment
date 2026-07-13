@@ -6,6 +6,7 @@ use App\Models\BankAccount;
 use App\Models\PaymentProgram;
 use App\Models\Customer;
 use App\Models\Supplier;
+use App\Services\Branches\ModuleBranchService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
@@ -28,7 +29,8 @@ class PaymentProgramController extends Controller
                 $request->merge(['status' => '']);
             }
 
-            $payment_programs = PaymentProgram::with('customer.city', 'subCategory')->withPaymentDetails()->orderByDesc('id')
+            $branches = app(ModuleBranchService::class);
+            $payment_programs = $branches->applyScope(PaymentProgram::with('customer.city', 'subCategory')->withPaymentDetails()->orderByDesc('id'), 'payment_programs')
                 ->applyFilters($request);
 
             $totalAmount = (float) $payment_programs->sum(fn($p) => (float) ($p['amount'] ?? 0));
@@ -95,7 +97,8 @@ class PaymentProgramController extends Controller
             return $resp;
         }
 
-        $customers = Customer::with('city:id,title')
+        $branches = app(ModuleBranchService::class);
+        $customers = $branches->applyRelatedScope(Customer::with('city:id,title'), 'customers', 'payment_programs')
             ->withSum('invoices as total_invoice_amount', 'netAmount')
             ->withSum(['payments as total_paid_amount' => fn($q) => $q->where('type', '!=', 'DR')], 'amount')
             ->withSum(['statementAdjustments as adjustment_plus_amount' => fn($q) => $q->where('direction', 'plus')], 'amount')
@@ -161,18 +164,19 @@ class PaymentProgramController extends Controller
         }
 
         DB::transaction(function () use ($request) {
+            $branches = app(ModuleBranchService::class);
             $subCategoryModel = $this->resolveSubCategoryModel($request->category, $request->sub_category);
 
-            $nextProgramNo = ((int) PaymentProgram::query()->lockForUpdate()->max('program_no')) + 1;
+            $nextProgramNo = ((int) $branches->applyScope(PaymentProgram::query()->lockForUpdate(), 'payment_programs')->max('program_no')) + 1;
 
-            $program = new PaymentProgram([
+            $program = new PaymentProgram($branches->assignBranchOnCreate([
                 'program_no' => $nextProgramNo,
                 'date' => $request->date,
                 'customer_id' => $request->customer_id,
                 'category' => $request->category,
                 'amount' => $request->amount,
                 'remarks' => $request->remarks,
-            ]);
+            ], 'payment_programs'));
 
             if ($subCategoryModel) {
                 $subCategoryModel->paymentPrograms()->save($program);
@@ -189,7 +193,7 @@ class PaymentProgramController extends Controller
      */
     public function show(PaymentProgram $paymentProgram)
     {
-        //
+        app(ModuleBranchService::class)->assertRecordInAllowedBranch($paymentProgram, 'payment_programs');
     }
 
     /**
@@ -197,7 +201,7 @@ class PaymentProgramController extends Controller
      */
     public function edit(PaymentProgram $paymentProgram)
     {
-        //
+        app(ModuleBranchService::class)->assertRecordInAllowedBranch($paymentProgram, 'payment_programs');
     }
 
     /**
@@ -205,7 +209,9 @@ class PaymentProgramController extends Controller
      */
     public function update(Request $request)
     {
-        //
+        if ($request->filled('program_id')) {
+            app(ModuleBranchService::class)->assertRecordInAllowedBranch(PaymentProgram::findOrFail($request->program_id), 'payment_programs');
+        }
     }
 
     /**
@@ -213,7 +219,7 @@ class PaymentProgramController extends Controller
      */
     public function destroy(PaymentProgram $paymentProgram)
     {
-        //
+        app(ModuleBranchService::class)->assertRecordInAllowedBranch($paymentProgram, 'payment_programs');
     }
     public function updateProgram(Request $request)
     {
@@ -233,7 +239,8 @@ class PaymentProgramController extends Controller
             return redirect()->back()->withErrors($validator)->with('error', $validator->errors()->first());
         }
 
-        $program = PaymentProgram::find($request->program_id);
+        $program = PaymentProgram::findOrFail($request->program_id);
+        app(ModuleBranchService::class)->assertRecordInAllowedBranch($program, 'payment_programs');
         $subCategoryModel = $this->resolveSubCategoryModel($request->category, $request->sub_category);
 
         $program->category = $request->category;
@@ -258,6 +265,7 @@ class PaymentProgramController extends Controller
         }
 
         $program = PaymentProgram::findOrFail($id);
+        app(ModuleBranchService::class)->assertRecordInAllowedBranch($program, 'payment_programs');
         $paidAmount = (float) $program->customerPayments()->sum('amount');
         $balance = (float) $program->amount - $paidAmount;
 
@@ -275,15 +283,17 @@ class PaymentProgramController extends Controller
         $authLayout = $this->getAuthLayout($request->route()->getName(), 'table');
 
         if ($request->ajax()) {
-            $customersQuery = Customer::whereHas('paymentPrograms', function ($q) {
-                    $q->where('status', 'Unpaid');
-                })
+            $branches = app(ModuleBranchService::class);
+            $customersQuery = $branches->applyRelatedScope(Customer::whereHas('paymentPrograms', function ($q) {
+                    app(ModuleBranchService::class)->applyScope($q, 'payment_programs')
+                        ->where('status', 'Unpaid');
+                }), 'customers', 'payment_programs')
                 ->with([
                     'city:id,title,short_title',
 
-                    'paymentPrograms' => fn($q) => $q
+                    'paymentPrograms' => fn($q) => $branches->applyScope($q, 'payment_programs')
                         ->where('status', 'Unpaid')
-                        ->select('id', 'customer_id', 'amount', 'status')
+                        ->select('id', 'customer_id', 'amount', 'status', 'branch_id')
 
                         // customer paid amount
                         ->withSum('customerPayments as paid_amount', 'amount')
@@ -351,14 +361,15 @@ class PaymentProgramController extends Controller
 
         if ($request->ajax()) {
 
-    $openProgramQuery = fn($q) => $q->where(function ($qq) {
+    $branches = app(ModuleBranchService::class);
+    $openProgramQuery = fn($q) => $branches->applyScope($q, 'payment_programs')->where(function ($qq) {
         $qq->where('status', 'Unpaid')
             ->orWhereHas('supplierPayments', fn($sq) => $sq
                 ->whereIn('method', ['program', 'Program'])
                 ->whereNull('voucher_id'));
     });
 
-    $suppliersQuery = Supplier::whereHas('paymentPrograms', $openProgramQuery)
+    $suppliersQuery = $branches->applyRelatedScope(Supplier::whereHas('paymentPrograms', $openProgramQuery), 'suppliers', 'payment_programs')
         ->with([
             'paymentPrograms' => fn($q) => $openProgramQuery($q)
                 ->select(
@@ -366,7 +377,8 @@ class PaymentProgramController extends Controller
                     'sub_category_id',
                     'sub_category_type',
                     'amount',
-                    'status'
+                    'status',
+                    'branch_id'
                 )
 
                 // customer paid amount
@@ -438,9 +450,9 @@ class PaymentProgramController extends Controller
         }
 
         return match ($category) {
-            'supplier' => Supplier::find($subCategoryId),
-            'self_account' => BankAccount::find($subCategoryId),
-            'customer' => Customer::find($subCategoryId),
+            'supplier' => app(ModuleBranchService::class)->applyRelatedScope(Supplier::query(), 'suppliers', 'payment_programs')->find($subCategoryId),
+            'self_account' => app(ModuleBranchService::class)->applyRelatedScope(BankAccount::query(), 'bank_accounts', 'payment_programs')->find($subCategoryId),
+            'customer' => app(ModuleBranchService::class)->applyRelatedScope(Customer::query(), 'customers', 'payment_programs')->find($subCategoryId),
             default => null,
         };
     }

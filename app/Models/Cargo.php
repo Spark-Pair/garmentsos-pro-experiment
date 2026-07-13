@@ -25,6 +25,7 @@ class Cargo extends Model
         "date",
         "cargo_name",
         "invoices_array",
+        "branch_id",
     ];
 
     protected $casts = [

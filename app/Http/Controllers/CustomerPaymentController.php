@@ -233,7 +233,9 @@ class CustomerPaymentController extends Controller
         }
 
         // --- Banks options ---
-        $banks_options = Setup::where('type', 'bank_name')
+        $branches = app(ModuleBranchService::class);
+
+        $banks_options = $branches->applyRelatedScope(Setup::where('type', 'bank_name'), 'setups', 'customer_payments')
             ->select('id', 'title')
             ->get()
             ->mapWithKeys(function ($bank) {
@@ -246,7 +248,7 @@ class CustomerPaymentController extends Controller
         $programId = $request->query('program_id');
 
         // --- Last record ---
-        $lastRecord = CustomerPayment::latest('id')
+        $lastRecord = $branches->applyScope(CustomerPayment::latest('id'), 'customer_payments')
             ->with('customer:id,customer_name')
             ->whereNotNull('customer_id')
             ->where('type', '!=', 'sales_return')
@@ -258,12 +260,12 @@ class CustomerPaymentController extends Controller
 
         // --- If program_id provided, load specific program and customer ---
         if (!empty($programId)) {
-            $program = PaymentProgram::with([
+            $program = $branches->applyRelatedScope(PaymentProgram::with([
                 'customer:id,customer_name,city_id,date',
                 'customer.city:id,title',
                 'subCategory',
                 'subCategory.bankAccounts.bank:id,short_title',
-            ])
+            ]), 'payment_programs', 'customer_payments')
                 ->withSum('customerPayments as paid_amount', 'amount')
                 ->find($programId);
 
@@ -296,10 +298,10 @@ class CustomerPaymentController extends Controller
         }
 
         // --- Load all active customers with lightweight aggregated payload ---
-        $customers = app(ModuleBranchService::class)->applyRelatedScope(Customer::with([
+        $customers = $branches->applyRelatedScope(Customer::with([
             'city:id,title',
             'paymentPrograms' => fn($q) => $q
-                ->select('id', 'program_no', 'order_no', 'date', 'customer_id', 'category', 'sub_category_id', 'sub_category_type', 'amount', 'remarks', 'status')
+                ->select('id', 'program_no', 'order_no', 'date', 'customer_id', 'category', 'sub_category_id', 'sub_category_type', 'amount', 'remarks', 'status', 'branch_id')
                 ->where('status', 'Unpaid')
                 ->withSum('customerPayments as paid_amount', 'amount')
                 ->with([
@@ -451,6 +453,7 @@ class CustomerPaymentController extends Controller
             if ($program && $payload['method'] === 'program' && $program->category === 'supplier') {
                 SupplierPayment::create(array_merge($payload, [
                     'supplier_id' => $program->sub_category_id,
+                    'branch_id' => $payload['branch_id'],
                 ]));
             }
 
@@ -649,6 +652,7 @@ class CustomerPaymentController extends Controller
                 if ($program && $payload['method'] === 'program' && $program['category'] == 'supplier') {
                     SupplierPayment::create(array_merge($payload, [
                         'supplier_id' => $program->sub_category_id,
+                        'branch_id' => $payload['branch_id'],
                     ]));
                 }
 

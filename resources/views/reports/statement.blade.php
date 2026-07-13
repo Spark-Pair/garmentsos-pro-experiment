@@ -399,9 +399,6 @@
 
 @endsection
 
-@push('left-actions-after')
-    <x-module-branch-selector module-key="statements" mode="multiple" />
-@endpush
 
 @push('page-scripts')
 <script defer src="{{ asset('js/pages/reports-statement.js') }}"></script>
@@ -415,7 +412,6 @@
         recordDetailsUrl: @json(route('reports.statement.record-details')),
         companyData: @json($companyData),
         companyLogoBase: @json(url('/') . '/'),
-        selectedBranchIds: @json($selectedBranchIds),
         portal: {
             role: @json($portalRole),
             category: @json($portalCategory),

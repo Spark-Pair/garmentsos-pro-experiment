@@ -9,6 +9,7 @@ use App\Models\Setup;
 use App\Services\Branches\ModuleBranchService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 
@@ -83,7 +84,7 @@ class ArticleController extends Controller
         // return $request;
 
         $validator = Validator::make($request->all(), [
-            'article_no' => 'required|integer|unique:articles,article_no',
+            'article_no' => 'required|integer',
             'date' => 'required|date',
             'category' => 'nullable|string',
             'size' => 'required|string',
@@ -95,6 +96,9 @@ class ArticleController extends Controller
             "sales_rate" => 'required|numeric|min:0',
             'image_upload' => 'nullable|image|mimes:jpg,jpeg,png,gif|max:2048',
         ]);
+
+        $branches = app(ModuleBranchService::class);
+        $branchId = $branches->branchIdForCreate('articles');
 
         // Prepare data for saving
         $data = [
@@ -108,7 +112,7 @@ class ArticleController extends Controller
             'fabric_type' => $request->fabric_type,
             'rates_array' => json_decode($request->rates_array),
             'sales_rate' => $request->sales_rate,
-            'branch_id' => app(ModuleBranchService::class)->branchIdForCreate('articles'),
+            'branch_id' => $branchId,
         ];
 
         $year = date('y');
@@ -124,7 +128,24 @@ class ArticleController extends Controller
         // Combine as F2-5-001
         $formattedArticleNo = $seasonLetter . $yearFirstDigit . '-' . $yearLastDigit . '|' . $articleNoPadded;
 
+        if ($branches->shouldFilterRecords('articles') && $branchId) {
+            $branch = $branches->selectedBranchForModule('articles');
+            $prefix = strtoupper(preg_replace('/[^A-Z0-9]+/', '', $branch?->prefix ?: $branch?->code ?: 'BR')) ?: 'BR';
+            $formattedArticleNo = "{$prefix}-{$formattedArticleNo}";
+        }
+
         $data['article_no'] = $formattedArticleNo;
+
+        $duplicateQuery = Article::query()->where('article_no', $formattedArticleNo);
+        if ($branches->shouldFilterRecords('articles') && $branchId && Schema::hasColumn('articles', 'branch_id')) {
+            $duplicateQuery->where('branch_id', $branchId);
+        }
+
+        if ($duplicateQuery->exists()) {
+            $validator->after(function ($validator) {
+                $validator->errors()->add('article_no', 'Article No already exists for the selected branch.');
+            });
+        }
 
         // Handle the image upload if present
         if ($request->hasFile('image_upload')) {
@@ -161,7 +182,7 @@ class ArticleController extends Controller
      */
     public function show(Article $article)
     {
-        //
+        app(ModuleBranchService::class)->assertRecordInAllowedBranch($article, 'articles');
     }
 
     /**
@@ -172,6 +193,7 @@ class ArticleController extends Controller
         if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin'])) {
             return $resp;
         }
+        app(ModuleBranchService::class)->assertRecordInAllowedBranch($article, 'articles');
 
         if ($article->ordered_quantity != 0) {
             return redirect(route('articles.index'))->with("error", "This article can't be edited.");
@@ -188,6 +210,7 @@ class ArticleController extends Controller
         if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin'])) {
             return $resp;
         }
+        app(ModuleBranchService::class)->assertRecordInAllowedBranch($article, 'articles');
 
         $validator = Validator::make($request->all(), [
             'article_no' => 'required|string|unique:articles,article_no,' . $article->id,
@@ -251,7 +274,7 @@ class ArticleController extends Controller
      */
     public function destroy(Article $article)
     {
-        //
+        app(ModuleBranchService::class)->assertRecordInAllowedBranch($article, 'articles');
     }
 
     public function updateImage(Request $request)

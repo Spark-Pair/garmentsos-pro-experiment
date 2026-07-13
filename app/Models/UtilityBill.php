@@ -20,6 +20,7 @@ class UtilityBill extends Model
         'amount',
         'due_date',
         'is_paid',
+        'branch_id',
     ];
 
     protected $casts = [

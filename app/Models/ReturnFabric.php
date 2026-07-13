@@ -19,6 +19,7 @@ class ReturnFabric extends Model
         'tag',
         'quantity',
         'remarks',
+        'branch_id',
     ];
 
     protected $hidden = [

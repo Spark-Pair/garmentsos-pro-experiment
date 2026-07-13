@@ -19,6 +19,7 @@ class DR extends Model
         'date',
         'return_payments',
         'new_payments',
+        'branch_id',
     ];
 
     protected $casts = [

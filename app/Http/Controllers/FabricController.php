@@ -9,6 +9,7 @@ use App\Models\Production;
 use App\Models\ReturnFabric;
 use App\Models\Setup;
 use App\Models\Supplier;
+use App\Services\Branches\ModuleBranchService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 
@@ -26,17 +27,18 @@ class FabricController extends Controller
 
         if ($request->ajax()) {
             // Added fabric entries
-            $addedFabrics = Fabric::orderByDesc('id')
+            $branches = app(ModuleBranchService::class);
+            $addedFabrics = $branches->applyScope(Fabric::orderByDesc('id'), 'fabrics')
                 ->applyFilters($request, false) // 👈 important
                 ->get()->map->toFormattedArray();
 
             // Issued fabric entries
-            $issuedFabrics = IssuedFabric::orderByDesc('id')
+            $issuedFabrics = $branches->applyScope(IssuedFabric::orderByDesc('id'), 'fabrics')
                 ->applyFilters($request, false) // 👈 important
                 ->get()->map->toFormattedArray();
 
             // Return fabric entries
-            $ReturnFabrics = ReturnFabric::orderByDesc('id')
+            $ReturnFabrics = $branches->applyScope(ReturnFabric::orderByDesc('id'), 'fabrics')
                 ->applyFilters($request, false) // 👈 important
                 ->get()->map->toFormattedArray();
 
@@ -58,7 +60,7 @@ class FabricController extends Controller
 
         $fabrics_options = [];
 
-        $fabrics = Setup::where('type', 'fabric')->get();
+        $fabrics = app(ModuleBranchService::class)->applyRelatedScope(Setup::where('type', 'fabric'), 'setups', 'fabrics')->get();
         foreach ($fabrics as $fabric) {
             $fabrics_options[$fabric->id] = ["text" => $fabric->title,];
         }
@@ -76,13 +78,14 @@ class FabricController extends Controller
             return $resp;
         }
 
-        $lastRecord = Fabric::latest()->with('supplier', 'fabric')->first();
+        $branches = app(ModuleBranchService::class);
+        $lastRecord = $branches->applyScope(Fabric::latest()->with('supplier', 'fabric'), 'fabrics')->first();
 
-        $fabricCategory = Setup::where('title', 'Fabric')->first();
+        $fabricCategory = $branches->applyRelatedScope(Setup::where('title', 'Fabric'), 'setups', 'fabrics')->first();
 
-        $suppliers = Supplier::whereHas('user', function ($query) {
+        $suppliers = $branches->applyRelatedScope(Supplier::whereHas('user', function ($query) {
             $query->where('status', 'active');
-        })->get();
+        }), 'suppliers', 'fabrics')->get();
 
         if ($fabricCategory) {
             $suppliers = $suppliers->filter(function ($supplier) use ($fabricCategory) {
@@ -98,7 +101,7 @@ class FabricController extends Controller
 
         $fabrics_options = [];
 
-        $fabrics = Setup::where('type', 'fabric')->get();
+        $fabrics = $branches->applyRelatedScope(Setup::where('type', 'fabric'), 'setups', 'fabrics')->get();
         foreach ($fabrics as $fabric) {
             $fabrics_options[$fabric->id] = ["text" => $fabric->title, "data_option" => $fabric];
         }
@@ -127,7 +130,14 @@ class FabricController extends Controller
             'tag' => 'required|string|max:255',
         ]);
 
-        Fabric::create([
+        $branches = app(ModuleBranchService::class);
+        $supplier = $branches->applyRelatedScope(Supplier::query(), 'suppliers', 'fabrics')->find($request->supplier_id);
+        $fabricSetup = $branches->applyRelatedScope(Setup::where('type', 'fabric'), 'setups', 'fabrics')->find($request->fabric_id);
+        if (!$supplier || !$fabricSetup) {
+            return redirect()->back()->withErrors(['supplier_id' => 'Selected supplier/fabric is not available for this branch.'])->withInput();
+        }
+
+        Fabric::create(app(ModuleBranchService::class)->assignBranchOnCreate([
             'date' => $request->date,
             'supplier_id' => $request->supplier_id,
             'fabric_id' => $request->fabric_id,
@@ -137,7 +147,7 @@ class FabricController extends Controller
             'reff_no' => $request->reff_no,
             'remarks' => $request->remarks,
             'tag' => $request->tag,
-        ]);
+        ], 'fabrics'));
 
         return redirect()->route('fabrics.create')->with('success', 'Fabric added successfully.');
     }
@@ -147,7 +157,7 @@ class FabricController extends Controller
      */
     public function show(Fabric $fabric)
     {
-        //
+        app(ModuleBranchService::class)->assertRecordInAllowedBranch($fabric, 'fabrics');
     }
 
     /**
@@ -155,7 +165,7 @@ class FabricController extends Controller
      */
     public function edit(Fabric $fabric)
     {
-        //
+        app(ModuleBranchService::class)->assertRecordInAllowedBranch($fabric, 'fabrics');
     }
 
     /**
@@ -163,7 +173,7 @@ class FabricController extends Controller
      */
     public function update(Request $request, Fabric $fabric)
     {
-        //
+        app(ModuleBranchService::class)->assertRecordInAllowedBranch($fabric, 'fabrics');
     }
 
     /**
@@ -171,7 +181,7 @@ class FabricController extends Controller
      */
     public function destroy(Fabric $fabric)
     {
-        //
+        app(ModuleBranchService::class)->assertRecordInAllowedBranch($fabric, 'fabrics');
     }
 
     public function issue()
@@ -182,7 +192,8 @@ class FabricController extends Controller
 
         $tags_options = [];
 
-        $all_fabrics = Fabric::all()
+        $branches = app(ModuleBranchService::class);
+        $all_fabrics = $branches->applyScope(Fabric::query(), 'fabrics')->get()
             ->groupBy('tag')
             ->map(function ($items) {
                 return [
@@ -194,7 +205,7 @@ class FabricController extends Controller
             ->values();
 
         foreach($all_fabrics as $fabric) {
-            $total_issued = IssuedFabric::where('tag', $fabric['tag'])->sum('quantity') ?? 0;
+            $total_issued = $branches->applyScope(IssuedFabric::where('tag', $fabric['tag']), 'fabrics')->sum('quantity') ?? 0;
             $fabric['avalaible_sock'] = $fabric['quantity'] - $total_issued;
             if ($fabric['avalaible_sock'] > 0) {
                 $tags_options[$fabric['tag']] = ['text' => $fabric['tag'], "data_option" => json_encode($fabric)];
@@ -203,9 +214,9 @@ class FabricController extends Controller
 
         $workers_options = [];
 
-        $all_workers = Employee::whereHas('type', function ($query) {
+        $all_workers = $branches->applyRelatedScope(Employee::whereHas('type', function ($query) {
                 $query->whereIn('title', ['Cutting', 'Cut to Pack']);
-            })
+            }), 'employees', 'fabrics')
             ->get();
 
         foreach ($all_workers as $worker) {
@@ -228,13 +239,18 @@ class FabricController extends Controller
             'remarks' => 'nullable|string|max:255',
         ]);
 
-        IssuedFabric::create([
+        $worker = app(ModuleBranchService::class)->applyRelatedScope(Employee::query(), 'employees', 'fabrics')->find($request->worker_id);
+        if (!$worker) {
+            return redirect()->back()->withErrors(['worker_id' => 'Selected worker is not available for this branch.'])->withInput();
+        }
+
+        IssuedFabric::create(app(ModuleBranchService::class)->assignBranchOnCreate([
             'date' => $request->date,
             'tag' => $request->tag,
             'worker_id' => $request->worker_id,
             'quantity' => $request->quantity,
             'remarks' => $request->remarks,
-        ]);
+        ], 'fabrics'));
 
         return redirect()->route('fabrics.issue')->with('success', 'Fabric added successfully.');
     }
@@ -251,7 +267,8 @@ class FabricController extends Controller
 
         if ($worker_id && $date) {
             // 1️⃣ Get all fabrics issued to the worker until the given date
-            $all_fabrics = IssuedFabric::where('worker_id', $worker_id)
+            $branches = app(ModuleBranchService::class);
+            $all_fabrics = $branches->applyScope(IssuedFabric::where('worker_id', $worker_id), 'fabrics')
                 ->whereDate('date', '<=', $date)
                 ->get()
                 ->groupBy('tag')
@@ -265,12 +282,12 @@ class FabricController extends Controller
                 ->toArray();
 
             // 2️⃣ Get cutting work id
-            $cutting_id = Setup::where('type', 'worker_type')
+            $cutting_id = $branches->applyRelatedScope(Setup::where('type', 'worker_type'), 'setups', 'fabrics')
                 ->where('title', 'Cutting')
                 ->value('id');
 
             // 3️⃣ Get all production tags for the worker & cutting work
-            $allTags = Production::where('worker_id', $worker_id)
+            $allTags = $branches->applyRelatedScope(Production::where('worker_id', $worker_id), 'productions', 'fabrics')
                 ->where('work_id', $cutting_id)
                 ->where(function ($q) use ($date) {
                     $q->whereDate('issue_date', '<=', $date)
@@ -300,7 +317,7 @@ class FabricController extends Controller
             }
 
             // 5️⃣ Get returned fabrics for the worker until date
-            $returnedFabrics = ReturnFabric::where('worker_id', $worker_id)
+            $returnedFabrics = $branches->applyScope(ReturnFabric::where('worker_id', $worker_id), 'fabrics')
                 ->whereDate('date', '<=', $date)
                 ->get()
                 ->groupBy('tag')
@@ -377,9 +394,9 @@ class FabricController extends Controller
 
         $workers_options = [];
 
-        $all_workers = Employee::whereHas('type', function ($query) {
+        $all_workers = app(ModuleBranchService::class)->applyRelatedScope(Employee::whereHas('type', function ($query) {
                 $query->whereIn('title', ['Cutting', 'Cut to Pack']);
-            })
+            }), 'employees', 'fabrics')
             ->get();
 
         foreach ($all_workers as $worker) {
@@ -402,13 +419,18 @@ class FabricController extends Controller
             'remarks' => 'nullable|string|max:255',
         ]);
 
-        ReturnFabric::create([
+        $worker = app(ModuleBranchService::class)->applyRelatedScope(Employee::query(), 'employees', 'fabrics')->find($request->worker_id);
+        if (!$worker) {
+            return redirect()->back()->withErrors(['worker_id' => 'Selected worker is not available for this branch.'])->withInput();
+        }
+
+        ReturnFabric::create(app(ModuleBranchService::class)->assignBranchOnCreate([
             'worker_id' => $request->worker_id,
             'date' => $request->date,
             'tag' => $request->tag,
             'quantity' => $request->quantity,
             'remarks' => $request->remarks,
-        ]);
+        ], 'fabrics'));
 
         return redirect()->route('fabrics.return')->with('success', 'Fabric added successfully.');
     }

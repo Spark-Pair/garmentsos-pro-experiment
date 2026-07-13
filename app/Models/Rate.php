@@ -16,6 +16,7 @@ class Rate extends Model
         'title',
         'rate',
         'creator_id',
+        'branch_id',
     ];
 
     protected $casts = [

@@ -6,6 +6,7 @@ use App\Models\BankAccount;
 use App\Models\Customer;
 use App\Models\Setup;
 use App\Models\Supplier;
+use App\Services\Branches\ModuleBranchService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Validator;
@@ -27,13 +28,14 @@ class BankAccountController extends Controller
         $authLayout = $this->getAuthLayout($request->route()->getName());
 
         if ($request->ajax()) {
-            $bankAccounts = BankAccount::orderByDesc('id')
+            $bankAccounts = app(ModuleBranchService::class)
+                ->applyScope(BankAccount::orderByDesc('id'), 'bank_accounts')
                 ->applyFilters($request);
 
             return response()->json(['data' => $bankAccounts, 'authLayout' => $authLayout]);
         }
 
-        $bank_options = Setup::where('type', 'bank_name')
+        $bank_options = app(ModuleBranchService::class)->applyRelatedScope(Setup::where('type', 'bank_name'), 'setups', 'bank_accounts')
             ->get()
             ->mapWithKeys(fn ($item) => [
                 $item->id => ['text' => $item->title]
@@ -53,7 +55,7 @@ class BankAccountController extends Controller
         }
 
         $bank_options = [];
-        $banks = Setup::where('type', 'bank_name')->get();
+        $banks = app(ModuleBranchService::class)->applyRelatedScope(Setup::where('type', 'bank_name'), 'setups', 'bank_accounts')->get();
 
         if ($banks->count() > 0) {
             foreach ($banks as $bank) {
@@ -106,13 +108,19 @@ class BankAccountController extends Controller
             return redirect()->back()->withErrors($validator)->withInput();
         }
 
+        $branches = app(ModuleBranchService::class);
+        $bank = $branches->applyRelatedScope(Setup::where('type', 'bank_name'), 'setups', 'bank_accounts')->find($request->bank_id);
+        if (!$bank) {
+            return redirect()->back()->withErrors(['bank_id' => 'Selected bank is not available for this branch.'])->withInput();
+        }
+
         $subCategoryModel = null;
 
         // Dynamically associate sub_category based on category
         if ($request->category === 'supplier') {
-            $subCategoryModel = Supplier::find($request->sub_category);
+            $subCategoryModel = $branches->applyRelatedScope(Supplier::query(), 'suppliers', 'bank_accounts')->find($request->sub_category);
         } elseif ($request->category === 'customer') {
-            $subCategoryModel = Customer::find($request->sub_category);
+            $subCategoryModel = $branches->applyRelatedScope(Customer::query(), 'customers', 'bank_accounts')->find($request->sub_category);
         }
 
         // Ensure subCategoryModel is not null
@@ -123,7 +131,7 @@ class BankAccountController extends Controller
         $chqbk_serial_start = $request->input('cheque_book_serial.start');
         $chqbk_serial_end = $request->input('cheque_book_serial.end');
 
-        $bankAccount = new BankAccount([
+        $bankAccount = new BankAccount($branches->assignBranchOnCreate([
             'category' => $request->category,
             'bank_id' => $request->bank_id,
             'account_title' => $request->account_title,
@@ -131,7 +139,7 @@ class BankAccountController extends Controller
             'account_no' => $request->account_no,
             'chqbk_serial_start' => $chqbk_serial_start,
             'chqbk_serial_end' => $chqbk_serial_end,
-        ]);
+        ], 'bank_accounts'));
 
         if ($subCategoryModel) {
             $subCategoryModel->bankAccounts()->save($bankAccount);
@@ -148,7 +156,7 @@ class BankAccountController extends Controller
      */
     public function show(BankAccount $bankAccount)
     {
-        //
+        app(ModuleBranchService::class)->assertRecordInAllowedBranch($bankAccount, 'bank_accounts');
     }
 
     /**
@@ -156,7 +164,7 @@ class BankAccountController extends Controller
      */
     public function edit(BankAccount $bankAccount)
     {
-        //
+        app(ModuleBranchService::class)->assertRecordInAllowedBranch($bankAccount, 'bank_accounts');
     }
 
     /**
@@ -164,7 +172,7 @@ class BankAccountController extends Controller
      */
     public function update(Request $request, BankAccount $bankAccount)
     {
-        //
+        app(ModuleBranchService::class)->assertRecordInAllowedBranch($bankAccount, 'bank_accounts');
     }
 
     /**
@@ -172,7 +180,7 @@ class BankAccountController extends Controller
      */
     public function destroy(BankAccount $bankAccount)
     {
-        //
+        app(ModuleBranchService::class)->assertRecordInAllowedBranch($bankAccount, 'bank_accounts');
     }
 
     public function updateStatus(Request $request)
@@ -181,7 +189,8 @@ class BankAccountController extends Controller
             return $resp;
         }
 
-        $bankAccount = BankAccount::find($request->user_id);
+        $bankAccount = BankAccount::findOrFail($request->user_id);
+        app(ModuleBranchService::class)->assertRecordInAllowedBranch($bankAccount, 'bank_accounts');
 
         if ($request->status == 'active') {
             $bankAccount->status = 'in_active';
@@ -199,6 +208,8 @@ class BankAccountController extends Controller
         if ($resp = $this->denyIfNoRole(['developer', 'owner', 'manager', 'admin'])) {
             return $resp;
         }
+
+        app(ModuleBranchService::class)->assertRecordInAllowedBranch($account, 'bank_accounts');
 
         $validator = Validator::make($request->all(), [
             'cheque_book_serial' => 'required|array',

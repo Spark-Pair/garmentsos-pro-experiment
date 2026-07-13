@@ -26,6 +26,7 @@ class Shipment extends Model
         'netAmount',
         'city',
         'shipment_no',
+        'branch_id',
     ];
 
     protected $casts = [

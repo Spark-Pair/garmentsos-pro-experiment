@@ -103,7 +103,7 @@ class Customer extends Model
     {
         return $this->calculateBalance();
     }
-    public function calculateBalance($fromDate = null, $toDate = null, $formatted = false, $includeGivenDate = true, ?array $branchIds = null)
+    public function calculateBalance($fromDate = null, $toDate = null, $formatted = false, $includeGivenDate = true, ?array $branchIds = null, bool $includeNullBranchRecords = false)
     {
         $invoicesQuery = $this->invoices();
         $paymentsQuery = $this->payments()->where('type', '!=', 'DR');
@@ -118,16 +118,31 @@ class Customer extends Model
         $hasBranchScope = count($branchIds) > 0;
 
         if ($hasBranchScope && Schema::hasColumn('invoices', 'branch_id')) {
-            $invoicesQuery->whereIn('branch_id', $branchIds);
+            $invoicesQuery->where(function ($query) use ($branchIds, $includeNullBranchRecords) {
+                $query->whereIn('branch_id', $branchIds);
+                if ($includeNullBranchRecords) {
+                    $query->orWhereNull('branch_id');
+                }
+            });
         }
 
         if ($hasBranchScope && Schema::hasColumn('customer_payments', 'branch_id')) {
-            $paymentsQuery->whereIn('branch_id', $branchIds);
+            $paymentsQuery->where(function ($query) use ($branchIds, $includeNullBranchRecords) {
+                $query->whereIn('branch_id', $branchIds);
+                if ($includeNullBranchRecords) {
+                    $query->orWhereNull('branch_id');
+                }
+            });
         }
 
         if ($hasBranchScope) {
             if (Schema::hasColumn('statement_adjustments', 'branch_id')) {
-                $adjustmentsQuery->whereIn('branch_id', $branchIds);
+                $adjustmentsQuery->where(function ($nested) use ($branchIds, $includeNullBranchRecords) {
+                    $nested->whereIn('branch_id', $branchIds);
+                    if ($includeNullBranchRecords) {
+                        $nested->orWhereNull('branch_id');
+                    }
+                });
             } else {
                 $adjustmentsQuery->whereRaw('1 = 0');
             }
@@ -146,7 +161,7 @@ class Customer extends Model
 
         return $formatted ? \App\Support\Money::format($balance) : $balance;
     }
-    public function getStatement($fromDate, $toDate, $type = 'general', ?array $branchIds = null)
+    public function getStatement($fromDate, $toDate, $type = 'general', ?array $branchIds = null, bool $includeNullBranchRecords = false)
     {
         $type = $type ?: 'general';
         $branchIds = collect($branchIds ?? [])
@@ -158,8 +173,8 @@ class Customer extends Model
             ->all();
         $hasBranchScope = count($branchIds) > 0;
         // 🧮 Opening & Closing Balances
-        $openingBalance = $this->calculateBalance(null, $fromDate, false, false, $branchIds);
-        $periodBalance  = $this->calculateBalance($fromDate, $toDate, false, true, $branchIds);
+        $openingBalance = $this->calculateBalance(null, $fromDate, false, false, $branchIds, $includeNullBranchRecords);
+        $periodBalance  = $this->calculateBalance($fromDate, $toDate, false, true, $branchIds, $includeNullBranchRecords);
         $closingBalance = $openingBalance + $periodBalance;
 
         // --- Normalize dates ---
@@ -169,19 +184,34 @@ class Customer extends Model
         // --- Fetch invoices & payments ---
         $invoices = $this->invoices()
             ->whereBetween(\Illuminate\Support\Facades\DB::raw('DATE(date)'), [$from->toDateString(), $to->toDateString()])
-            ->when($hasBranchScope && Schema::hasColumn('invoices', 'branch_id'), fn ($query) => $query->whereIn('branch_id', $branchIds))
+            ->when($hasBranchScope && Schema::hasColumn('invoices', 'branch_id'), fn ($query) => $query->where(function ($nested) use ($branchIds, $includeNullBranchRecords) {
+                $nested->whereIn('branch_id', $branchIds);
+                if ($includeNullBranchRecords) {
+                    $nested->orWhereNull('branch_id');
+                }
+            }))
             ->get();
 
         $payments = $this->payments()
             ->where('type', '!=', 'DR')
             ->whereBetween(\Illuminate\Support\Facades\DB::raw('DATE(date)'), [$from->toDateString(), $to->toDateString()])
-            ->when($hasBranchScope && Schema::hasColumn('customer_payments', 'branch_id'), fn ($query) => $query->whereIn('branch_id', $branchIds))
+            ->when($hasBranchScope && Schema::hasColumn('customer_payments', 'branch_id'), fn ($query) => $query->where(function ($nested) use ($branchIds, $includeNullBranchRecords) {
+                $nested->whereIn('branch_id', $branchIds);
+                if ($includeNullBranchRecords) {
+                    $nested->orWhereNull('branch_id');
+                }
+            }))
             ->get();
         $adjustments = $this->statementAdjustments()
             ->whereBetween(\Illuminate\Support\Facades\DB::raw('DATE(date)'), [$from->toDateString(), $to->toDateString()])
-            ->when($hasBranchScope, function ($query) use ($branchIds) {
+            ->when($hasBranchScope, function ($query) use ($branchIds, $includeNullBranchRecords) {
                 if (Schema::hasColumn('statement_adjustments', 'branch_id')) {
-                    $query->whereIn('branch_id', $branchIds);
+                    $query->where(function ($nested) use ($branchIds, $includeNullBranchRecords) {
+                        $nested->whereIn('branch_id', $branchIds);
+                        if ($includeNullBranchRecords) {
+                            $nested->orWhereNull('branch_id');
+                        }
+                    });
                 } else {
                     $query->whereRaw('1 = 0');
                 }

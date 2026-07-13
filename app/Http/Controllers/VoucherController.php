@@ -33,7 +33,7 @@ class VoucherController extends Controller
 
         if ($request->ajax()) {
             $branches = app(ModuleBranchService::class);
-            $vouchers = $branches->applyScope(Voucher::with([
+            $vouchers = Voucher::with([
                     'branch',
                     'supplier:id,supplier_name',
                     'payments.cheque.customer',
@@ -41,8 +41,13 @@ class VoucherController extends Controller
                     'payments.program.customer',
                     'payments.bankAccount.bank',
                     'payments.selfAccount.bank'
-                ])->orderByDesc('id'), 'vouchers')
-                ->applyFilters($request);
+                ])->orderByDesc('id');
+
+            if ($branches->shouldFilterRecords('vouchers')) {
+                $vouchers = $branches->applyScope($vouchers, 'vouchers');
+            }
+
+            $vouchers = $vouchers->applyFilters($request);
 
             return response()->json(['data' => $vouchers, 'authLayout' => $authLayout]);
         }
@@ -176,7 +181,7 @@ class VoucherController extends Controller
                     ];
                 })->values()->toArray();
             } else if ($paymentMethod == 'self_cheque' || $paymentMethod == 'atm') {
-                $self_accounts = BankAccount::where('category', 'self')
+                $self_accounts = app(ModuleBranchService::class)->applyRelatedScope(BankAccount::where('category', 'self'), 'bank_accounts', 'vouchers')
                     ->with('bank')
                     ->get()
                     ->makeHidden('creator');
@@ -199,9 +204,12 @@ class VoucherController extends Controller
         $voucherType = auth()->user()->voucher_type;
 
         // --- Last voucher ---
-        $last_voucher = app(ModuleBranchService::class)
-            ->applyScope(Voucher::orderByDesc('id'), 'vouchers')
-            ->first();
+        $branches = app(ModuleBranchService::class);
+        $lastVoucherQuery = Voucher::orderByDesc('id');
+        if ($branches->shouldFilterRecords('vouchers')) {
+            $lastVoucherQuery = $branches->applyScope($lastVoucherQuery, 'vouchers');
+        }
+        $last_voucher = $lastVoucherQuery->first();
         if (!$last_voucher) {
             $last_voucher = (object)['voucher_no' => '00/149'];
         }
@@ -210,7 +218,7 @@ class VoucherController extends Controller
         }
 
         // --- Self Accounts (needed for Self Cheque / ATM even in supplier vouchers) ---
-        $self_accounts = BankAccount::where('category', 'self')
+        $self_accounts = app(ModuleBranchService::class)->applyRelatedScope(BankAccount::where('category', 'self'), 'bank_accounts', 'vouchers')
             ->with('bank')
             ->get()
             ->makeHidden('creator');
@@ -290,6 +298,7 @@ class VoucherController extends Controller
                 'date' => $request->date,
                 'branch_id' => $branches->branchIdForCreate('vouchers'),
             ]);
+            $voucherBranchId = $voucher->branch_id ?: $branches->branchIdForCreate('vouchers');
 
             foreach ($paymentDetailsArray as $paymentDetails) {
                 if (isset($paymentDetails['self_account_id'])) {
@@ -301,6 +310,7 @@ class VoucherController extends Controller
                             'amount' => $paymentDetails['amount'],
                             'remarks' => $paymentDetails['remarks'],
                             'bank_account_id' => $paymentDetails['self_account_id'],
+                            'branch_id' => $voucherBranchId,
                         ]);
 
                         SupplierPayment::create([
@@ -310,6 +320,7 @@ class VoucherController extends Controller
                             'remarks' => $paymentDetails['remarks'],
                             'self_account_id' => $paymentDetails['self_account_id'],
                             'voucher_id' => $voucher->id,
+                            'branch_id' => $voucherBranchId,
                         ]);
                     } else if ($paymentDetails['method'] == 'Cheque') {
                         $customerPayment = CustomerPayment::find($paymentDetails['cheque_id']);
@@ -327,6 +338,7 @@ class VoucherController extends Controller
                                 'remarks' => $paymentDetails['remarks'],
                                 'self_account_id' => $paymentDetails['self_account_id'],
                                 'voucher_id' => $voucher->id,
+                                'branch_id' => $voucherBranchId,
                             ]);
                         }
                     } else if ($paymentDetails['method'] == 'Slip') {
@@ -345,6 +357,7 @@ class VoucherController extends Controller
                                 'remarks' => $paymentDetails['remarks'],
                                 'self_account_id' => $paymentDetails['self_account_id'],
                                 'voucher_id' => $voucher->id,
+                                'branch_id' => $voucherBranchId,
                             ]);
                         }
                     } else if ($paymentDetails['method'] == 'Self Cheque') {
@@ -357,6 +370,7 @@ class VoucherController extends Controller
                             'cheque_date'    => $paymentDetails['cheque_date'],
                             'remarks'        => $paymentDetails['remarks'],
                             'bank_account_id'=> $paymentDetails['self_account_id'],
+                            'branch_id'      => $voucherBranchId,
                         ]);
 
                         SupplierPayment::create([
@@ -368,6 +382,7 @@ class VoucherController extends Controller
                             'bank_account_id'=> $paymentDetails['bank_account_id'],
                             'self_account_id'=> $paymentDetails['self_account_id'],
                             'voucher_id'     => $voucher->id,
+                            'branch_id'      => $voucherBranchId,
                         ]);
                     } else if ($paymentDetails['method'] == 'ATM') {
                         $customerPayment = CustomerPayment::create([
@@ -378,6 +393,7 @@ class VoucherController extends Controller
                             'reff_no'        => $paymentDetails['reff_no'],
                             'remarks'        => $paymentDetails['remarks'],
                             'bank_account_id'=> $paymentDetails['self_account_id'],
+                            'branch_id'      => $voucherBranchId,
                         ]);
 
                         SupplierPayment::create([
@@ -389,12 +405,14 @@ class VoucherController extends Controller
                             'bank_account_id'=> $paymentDetails['bank_account_id'],
                             'self_account_id'=> $paymentDetails['self_account_id'],
                             'voucher_id'     => $voucher->id,
+                            'branch_id'      => $voucherBranchId,
                         ]);
                     }
                 } else {
                     $paymentDetails['supplier_id'] = $request->supplier_id;
                     $paymentDetails['date'] = $request->date;
                     $paymentDetails['voucher_id'] = $voucher->id;
+                    $paymentDetails['branch_id'] = $voucherBranchId;
 
                     if ($paymentDetails['method'] == 'Cheque' || $paymentDetails['method'] == 'Slip') {
                         $customerPayment = CustomerPayment::find($paymentDetails[$paymentDetails['method'] == 'Cheque' ? 'cheque_id' : 'slip_id']);
@@ -427,7 +445,7 @@ class VoucherController extends Controller
      */
     public function show(Voucher $voucher)
     {
-        //
+        app(ModuleBranchService::class)->assertRecordInAllowedBranch($voucher, 'vouchers');
     }
 
     /**
@@ -438,6 +456,7 @@ class VoucherController extends Controller
         if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin', 'accountant'])) {
             return $resp;
         }
+        app(ModuleBranchService::class)->assertRecordInAllowedBranch($voucher, 'vouchers');
 
         // $voucher->load([
         //     'supplier' => fn ($q) => $q->with([
@@ -506,7 +525,7 @@ class VoucherController extends Controller
             ];
         }
 
-        $self_accounts = BankAccount::where('category', 'self')->with('bank')->get();
+        $self_accounts = app(ModuleBranchService::class)->applyRelatedScope(BankAccount::where('category', 'self')->with('bank'), 'bank_accounts', 'vouchers')->get();
         $selfAccountsPayload = $self_accounts
             ->map(fn ($account) => $this->formatVoucherBankAccountPayload($account))
             ->values()
@@ -688,6 +707,7 @@ class VoucherController extends Controller
         if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin', 'accountant'])) {
             return $resp;
         }
+        app(ModuleBranchService::class)->assertRecordInAllowedBranch($voucher, 'vouchers');
 
         // -----------------------------
         // Step 2: Validation
@@ -767,6 +787,7 @@ class VoucherController extends Controller
                 $pd['supplier_id'] = $voucher->supplier_id;
                 $pd['voucher_id']  = $voucher->id;
                 $pd['date']        = $voucher->date;
+                $pd['branch_id']   = $voucher->branch_id ?: app(ModuleBranchService::class)->branchIdForCreate('vouchers');
 
                 if (in_array($pd['method'], ['program', 'Program'])) {
                     $supplierPayment = SupplierPayment::find($pd['payment_id'] ?? $pd['id'] ?? null);
@@ -786,6 +807,7 @@ class VoucherController extends Controller
                         'amount'         => $pd['amount'],
                         'remarks'        => $pd['remarks'] ?? null,
                         'bank_account_id'=> $pd['self_account_id'],
+                        'branch_id'      => $pd['branch_id'],
                     ];
 
                     if (in_array($pd['method'], ['Cash', 'Adjustment'])) {
@@ -873,7 +895,7 @@ class VoucherController extends Controller
      */
     public function destroy(Voucher $voucher)
     {
-        //
+        app(ModuleBranchService::class)->assertRecordInAllowedBranch($voucher, 'vouchers');
     }
 
     private function assertVoucherPaymentsAreUnique(array $paymentDetailsArray, ?Voucher $currentVoucher = null): void

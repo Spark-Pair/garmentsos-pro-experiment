@@ -23,7 +23,8 @@ class Bilty extends Model
     protected $fillable = [
         'invoice_id',
         'bilty_no',
-        'date'
+        'date',
+        'branch_id',
     ];
 
     protected $casts = [

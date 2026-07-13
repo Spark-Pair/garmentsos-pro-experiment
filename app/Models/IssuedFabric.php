@@ -19,6 +19,7 @@ class IssuedFabric extends Model
         'worker_id',
         'quantity',
         'remarks',
+        'branch_id',
     ];
 
     protected $hidden = [

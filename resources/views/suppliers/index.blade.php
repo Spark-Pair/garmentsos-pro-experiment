@@ -82,9 +82,6 @@
 
 @endsection
 
-@push('left-actions-after')
-    <x-module-branch-selector module-key="suppliers" />
-@endpush
 
 @push('page-scripts')
 <script defer src="{{ asset('js/pages/suppliers-index.js') }}"></script>

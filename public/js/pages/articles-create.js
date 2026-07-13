@@ -107,9 +107,10 @@ function initArticlesCreate() {
 
     function validateArticleNo() {
         let articleNoValue = parseFloat(articleNoDom.value);
-        let existingArticle = articles.some(a =>
-            a.article_no.slice(4).split('|')[1] == articleNoValue
-        );
+        let existingArticle = articles.some(a => {
+            const numericPart = String(a.article_no || '').split('|').pop();
+            return parseInt(numericPart, 10) === articleNoValue;
+        });
 
         if (!articleNoValue) {
             articleNoDom.classList.add('border-[var(--border-error)]');

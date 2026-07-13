@@ -1,0 +1,45 @@
+# Current Status
+
+## Completed
+
+- Dynamic Branch Module Registry with 50 modules.
+- Route-aware global branch switcher in `app.blade.php`.
+- Hidden branch preference form outside page forms.
+- No manual selector includes on individual pages.
+- Main Branch defaults all modules enabled but Developer can disable.
+- No locked modules.
+- Record Filtering checkbox exists and is saved in metadata.
+- `shouldFilterRecords()` requires usable selected branch, `record_filtering_enabled`, branch ID support, and readiness.
+- `applyScope()` returns unchanged when filtering is off.
+- `applyRelatedScope()` filters only when current module and related module are both record-filtered.
+- Voucher global + `customer_payments` branch-wise shows all eligible payments.
+- Statement 500 fixed by passing `$includeNullBranchRecords` in `Customer.php` closure.
+- Reports use global branch context.
+- Single branch report uses selected branch branding.
+- Multi/all reports use Main Branch branding and selected branch labels.
+- Legacy `NULL branch_id` records included only when Main Branch is selected.
+- `BranchSerialService` preserves old base number format.
+- Existing old records are not renamed.
+- Normal CRUD uses toast only, not top-right notification.
+- Update available uses app modal.
+- `2026_07_13_000002` migration was run.
+- Migration status currently says all migrations `Ran`.
+
+## Pending Manual Verification
+
+- Full browser smoke tests.
+- Developer UI spacing/scroll behavior.
+- Branch selector behavior across target pages.
+- Isolation across Main and Play Zone.
+- Serial display consistency across toast/index/show/print.
+
+## Known Risks
+
+- `public/images` and `public/favicon.ico` changes look unrelated and must be reviewed before commit.
+- `2026_07_11_000006` migration appears untracked while migration status says `Ran`.
+- Some older JS still uses browser `alert()`.
+- Manual browser tests are still required.
+
+## Release Status
+
+Do not commit/release yet until smoke tests pass.

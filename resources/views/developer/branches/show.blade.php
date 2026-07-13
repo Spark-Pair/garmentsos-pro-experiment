@@ -65,61 +65,137 @@
                 @csrf
                 <input type="hidden" name="branch_id" value="{{ $branch->id }}">
                 <div class="overflow-x-auto">
-                    <table class="w-full min-w-[78rem] text-sm">
+                    <table class="w-full min-w-[108rem] text-sm">
                         <thead class="bg-[var(--h-bg-color)]">
                             <tr>
                                 <th class="p-3 text-left">Module / Page</th>
+                                <th class="p-3 text-left">Registry</th>
                                 <th class="p-3 text-left">Group</th>
-                                <th class="p-3 text-left">Enabled for this branch</th>
-                                <th class="p-3 text-left">Allow user switching</th>
-                                <th class="p-3 text-left">Use branch branding</th>
-                                <th class="p-3 text-left">Filter records by branch</th>
+                                <th class="p-3 text-left">Route / Page</th>
+                                <th class="p-3 text-left">Branch Enabled</th>
+                                <th class="p-3 text-left">Branch Switching</th>
+                                <th class="p-3 text-left">Multi Branch</th>
+                                <th class="p-3 text-left">Record Filtering</th>
+                                <th class="p-3 text-left">Branch Branding</th>
+                                <th class="p-3 text-left">Serial Prefix</th>
+                                <th class="p-3 text-left">Doc Identity Prefix</th>
                                 <th class="p-3 text-left">Status</th>
-                                <th class="p-3 text-left">Warning / dependency notes</th>
+                                <th class="p-3 text-left">Notes</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-gray-600/40">
                             @foreach ($moduleRegistry as $moduleKey => $module)
                                 @php
                                     $setting = $moduleSettings->get($moduleKey);
-                                    $canEnable = (bool) ($module['branchable'] ?? false);
-                                    $canFilter = (bool) ($module['can_filter_records'] ?? false);
-                                    $canBrand = (bool) ($module['can_use_branch_branding'] ?? false);
-                                    $requiresConfirmation = $canEnable && ! (bool) ($module['safe_default_enabled'] ?? false);
-                                    $confirmText = "Enable branch support for {$module['label']}? Related transaction/report modules should be enabled consistently.";
+                                    $configurable = (bool) ($module['configurable_by_developer'] ?? true);
+                                    $supportsSwitching = (bool) ($module['supports_branch_selector'] ?? false);
+                                    $supportsFiltering = (bool) ($module['supports_record_filtering'] ?? $module['can_filter_records'] ?? false);
+                                    $hasBranchIdSupport = (bool) ($module['has_branch_id_support'] ?? false);
+                                    $canBrand = (bool) ($module['supports_branch_branding'] ?? $module['can_use_branch_branding'] ?? false);
+                                    $canMulti = (bool) ($module['supports_multi_branch_selector'] ?? false);
+                                    $canSerialPrefix = (bool) ($module['supports_serial_prefix'] ?? $module['supports_branch_serial_prefix'] ?? false);
+                                    $canDocPrefix = (bool) ($module['supports_doc_identity_prefix'] ?? false);
+                                    $docIdentityPrefix = $module['doc_identity_prefix'] ?? '';
+                                    $isSystemModule = (bool) ($module['is_system_module'] ?? false);
+                                    $isMainDefault = (bool) $branch->is_main;
+                                    $enabled = $setting ? (bool) $setting->branch_enabled : $isMainDefault;
+                                    $switching = $setting ? (bool) $setting->allow_user_switching : $isMainDefault;
+                                    $metadata = is_array($setting?->metadata) ? $setting->metadata : [];
+                                    $filtering = array_key_exists('record_filtering_enabled', $metadata)
+                                        ? (bool) $metadata['record_filtering_enabled']
+                                        : ($supportsFiltering && $hasBranchIdSupport);
+                                    $filterWarning = $supportsSwitching && ! $hasBranchIdSupport && ! $isSystemModule;
                                 @endphp
                                 <tr>
                                     <td class="p-3">
                                         <div class="font-semibold">{{ $module['label'] ?? $moduleKey }}</div>
                                         <div class="text-xs text-[var(--secondary-text)]">{{ $moduleKey }}</div>
+                                        @if ($isMainDefault)
+                                            <div class="mt-1"><span class="{{ $badge }} border-[var(--border-success)] bg-[var(--bg-success)] text-[var(--text-success)]">Main Branch default</span></div>
+                                        @elseif ($isSystemModule)
+                                            <div class="mt-1"><span class="{{ $badge }} border-gray-600 bg-[var(--h-bg-color)] text-[var(--secondary-text)]">System Page</span></div>
+                                        @endif
+                                    </td>
+                                    <td class="p-3">
+                                        <div class="flex flex-col gap-1">
+                                            <span class="{{ $badge }} {{ ($module['configured'] ?? false) ? 'border-[var(--border-success)] bg-[var(--bg-success)] text-[var(--text-success)]' : 'border-[var(--border-warning)] bg-[var(--h-bg-color)] text-[var(--border-warning)]' }}">
+                                                {{ ($module['configured'] ?? false) ? 'Configured' : 'Needs Configuration' }}
+                                            </span>
+                                            @if ($module['discovered'] ?? false)
+                                                <span class="{{ $badge }} border-gray-600 bg-[var(--h-bg-color)] text-[var(--secondary-text)]">Detected</span>
+                                            @endif
+                                        </div>
                                     </td>
                                     <td class="p-3 text-[var(--secondary-text)]">{{ $module['group'] ?? '-' }}</td>
+                                    <td class="p-3 text-xs text-[var(--secondary-text)]">
+                                        <div>{{ $module['page_reference'] ?? '-' }}</div>
+                                        <div class="mt-1">{{ collect($module['route_prefixes'] ?? [])->join(', ') ?: '-' }}</div>
+                                    </td>
                                     <td class="p-3">
-                                        <input type="hidden" name="modules[{{ $moduleKey }}][branch_enabled]" value="{{ $canEnable ? '0' : (int) (bool) $setting?->branch_enabled }}">
+                                        <input type="hidden" name="modules[{{ $moduleKey }}][branch_enabled]" value="0">
                                         <label class="inline-flex items-center gap-2">
                                             <input
                                                 type="checkbox"
                                                 name="modules[{{ $moduleKey }}][branch_enabled]"
                                                 value="1"
-                                                @checked($setting?->branch_enabled)
-                                                @disabled(!$canEnable)
+                                                @checked($enabled)
                                             >
-                                            <span class="text-xs {{ $canEnable ? 'text-[var(--secondary-text)]' : 'text-[var(--border-warning)]' }}">{{ $canEnable ? 'Developer controlled' : 'Global only' }}</span>
+                                            <span class="text-xs {{ $configurable ? 'text-[var(--secondary-text)]' : 'text-[var(--border-warning)]' }}">{{ $configurable ? 'Developer controlled' : 'System page' }}</span>
                                         </label>
                                     </td>
                                     <td class="p-3">
-                                        <input type="hidden" name="modules[{{ $moduleKey }}][allow_user_switching]" value="{{ $canEnable ? '0' : (int) (bool) $setting?->allow_user_switching }}">
-                                        <input type="checkbox" name="modules[{{ $moduleKey }}][allow_user_switching]" value="1" @checked($setting?->allow_user_switching) @disabled(!$canEnable)>
+                                        <input type="hidden" name="modules[{{ $moduleKey }}][allow_user_switching]" value="0">
+                                        <label class="inline-flex items-center gap-2">
+                                            <input type="checkbox" name="modules[{{ $moduleKey }}][allow_user_switching]" value="1" @checked($switching && $supportsSwitching)>
+                                            <span class="text-xs {{ $supportsSwitching ? 'text-[var(--secondary-text)]' : 'text-[var(--border-warning)]' }}">{{ $supportsSwitching ? 'Switcher allowed' : 'No branch context' }}</span>
+                                        </label>
                                     </td>
                                     <td class="p-3">
-                                        <span class="{{ $badge }} {{ $canBrand ? 'border-[var(--border-success)] bg-[var(--bg-success)] text-[var(--text-success)]' : 'border-gray-600 bg-[var(--h-bg-color)] text-[var(--secondary-text)]' }}">
-                                            {{ $canBrand ? 'Available' : 'Main Branch' }}
-                                        </span>
+                                        <label class="inline-flex items-center gap-2 text-xs text-[var(--secondary-text)]">
+                                            <input type="checkbox" disabled @checked($canMulti)>
+                                            <span>{{ $canMulti ? 'Multi selector configured' : 'Single branch selector' }}</span>
+                                        </label>
                                     </td>
                                     <td class="p-3">
-                                        <span class="{{ $badge }} {{ $canFilter ? 'border-[var(--border-success)] bg-[var(--bg-success)] text-[var(--text-success)]' : 'border-gray-600 bg-[var(--h-bg-color)] text-[var(--secondary-text)]' }}">
-                                            {{ $canFilter ? 'Available' : 'Not applicable' }}
-                                        </span>
+                                        <input type="hidden" name="modules[{{ $moduleKey }}][record_filtering_enabled]" value="0">
+                                        <label class="inline-flex items-center gap-2 text-xs {{ $supportsFiltering && $hasBranchIdSupport ? 'text-[var(--secondary-text)]' : 'text-[var(--border-warning)]' }}">
+                                            <input
+                                                type="checkbox"
+                                                name="modules[{{ $moduleKey }}][record_filtering_enabled]"
+                                                value="1"
+                                                @disabled(!($supportsFiltering && $hasBranchIdSupport))
+                                                @checked($filtering && $supportsFiltering && $hasBranchIdSupport)
+                                            >
+                                            <span>
+                                                @if ($supportsFiltering && $hasBranchIdSupport)
+                                                    {{ $filtering ? 'Filtering enabled' : 'Global records' }}
+                                                @elseif ($supportsSwitching)
+                                                    Needs branch_id review
+                                                @else
+                                                    System/global page
+                                                @endif
+                                            </span>
+                                        </label>
+                                    </td>
+                                    <td class="p-3">
+                                        <label class="inline-flex items-center gap-2 text-xs text-[var(--secondary-text)]">
+                                            <input type="checkbox" disabled @checked($canBrand)>
+                                            <span>{{ $canBrand ? 'Branch branding configured' : 'Uses default branding' }}</span>
+                                        </label>
+                                    </td>
+                                    <td class="p-3">
+                                        <label class="inline-flex items-center gap-2 text-xs text-[var(--secondary-text)]">
+                                            <input type="checkbox" disabled @checked($canSerialPrefix)>
+                                            <span>{{ $canSerialPrefix ? 'Serial prefix configured' : 'No serial prefix' }}</span>
+                                        </label>
+                                    </td>
+                                    <td class="p-3">
+                                        <input
+                                            type="text"
+                                            readonly
+                                            value="{{ $canDocPrefix ? ($docIdentityPrefix ?: 'Configured') : 'Default document identity' }}"
+                                            class="{{ $input }} min-w-[12rem] text-xs"
+                                        >
                                     </td>
                                     <td class="p-3">
                                         <select name="modules[{{ $moduleKey }}][status]" class="{{ $input }}">
@@ -129,6 +205,9 @@
                                     </td>
                                     <td class="p-3 text-xs text-[var(--secondary-text)]">
                                         <div>{{ $module['notes'] ?? '-' }}</div>
+                                        @if ($filterWarning)
+                                            <div class="mt-1 text-[var(--border-warning)]">Branch switching available, but record filtering requires branch_id support/review.</div>
+                                        @endif
                                         @if (!empty($module['dependencies']))
                                             <div class="mt-1 text-[var(--border-warning)]">{{ $module['dependencies'] }}</div>
                                         @endif

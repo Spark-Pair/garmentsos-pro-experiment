@@ -4,7 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\DailyLedgerDeposit;
 use App\Models\DailyLedgerUse;
-use App\Models\Setup;
+use App\Services\Branches\ModuleBranchService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -52,9 +52,11 @@ class DailyLedgerController extends Controller
     public function index(Request $request)
     {
         $authLayout = $this->getAuthLayout($request->route()->getName(), 'table');
+        $branches = app(ModuleBranchService::class);
+
         if ($request->ajax()) {
             // Get filtered deposits
-            $filteredDeposits = DailyLedgerDeposit::orderByDesc('date')
+            $filteredDeposits = $branches->applyScope(DailyLedgerDeposit::orderByDesc('date'), 'daily_ledger')
                 ->orderByDesc('created_at')
                 ->applyFilters($request, false)
                 ->get()
@@ -63,7 +65,7 @@ class DailyLedgerController extends Controller
                 });
 
             // Get filtered uses
-            $filteredUses = DailyLedgerUse::orderByDesc('date')
+            $filteredUses = $branches->applyScope(DailyLedgerUse::orderByDesc('date'), 'daily_ledger')
                 ->orderByDesc('created_at')
                 ->applyFilters($request, false)
                 ->get()
@@ -87,12 +89,12 @@ class DailyLedgerController extends Controller
                 $filteredUseIds = $filteredLedgers->where('use', '>', 0)->pluck('id')->toArray();
                 
                 $beforeDeposits = empty($filteredDepositIds) 
-                    ? DailyLedgerDeposit::sum('amount')
-                    : DailyLedgerDeposit::whereNotIn('id', $filteredDepositIds)->sum('amount');
+                    ? $branches->applyScope(DailyLedgerDeposit::query(), 'daily_ledger')->sum('amount')
+                    : $branches->applyScope(DailyLedgerDeposit::query(), 'daily_ledger')->whereNotIn('id', $filteredDepositIds)->sum('amount');
                 
                 $beforeUses = empty($filteredUseIds)
-                    ? DailyLedgerUse::sum('amount')
-                    : DailyLedgerUse::whereNotIn('id', $filteredUseIds)->sum('amount');
+                    ? $branches->applyScope(DailyLedgerUse::query(), 'daily_ledger')->sum('amount')
+                    : $branches->applyScope(DailyLedgerUse::query(), 'daily_ledger')->whereNotIn('id', $filteredUseIds)->sum('amount');
                 
                 $openingBalance = $beforeDeposits - $beforeUses;
             }
@@ -123,7 +125,8 @@ class DailyLedgerController extends Controller
             $totalUse = $finalData->sum('use');
             $netChange = $totalDeposit - $totalUse;
             $closingBalance = $openingBalance + $netChange;
-            $totalRecordsCount = DailyLedgerDeposit::count() + DailyLedgerUse::count();
+            $totalRecordsCount = $branches->applyScope(DailyLedgerDeposit::query(), 'daily_ledger')->count()
+                + $branches->applyScope(DailyLedgerUse::query(), 'daily_ledger')->count();
 
             return response()->json([
                 'data' => $finalData,
@@ -148,8 +151,9 @@ class DailyLedgerController extends Controller
      */
     public function create()
     {
-        $totalDeposit = DailyLedgerDeposit::sum('amount');
-        $totalUse = DailyLedgerUse::sum('amount');
+        $branches = app(ModuleBranchService::class);
+        $totalDeposit = $branches->applyScope(DailyLedgerDeposit::query(), 'daily_ledger')->sum('amount');
+        $totalUse = $branches->applyScope(DailyLedgerUse::query(), 'daily_ledger')->sum('amount');
         $balance = $totalDeposit - $totalUse;
         return view('daily-ledger.create', compact('balance'));
     }
@@ -174,7 +178,9 @@ class DailyLedgerController extends Controller
 
             $validated = $request->validate($rules);
 
-            DailyLedgerDeposit::create($request->only(['date', 'method', 'amount', 'reff_no']));
+            DailyLedgerDeposit::create(
+                app(ModuleBranchService::class)->assignBranchOnCreate($request->only(['date', 'method', 'amount', 'reff_no']), 'daily_ledger')
+            );
 
             $message = 'Amount Deposit successfully.';
         } else {
@@ -185,7 +191,9 @@ class DailyLedgerController extends Controller
 
             $validated = $request->validate($rules);
 
-            DailyLedgerUse::create($request->only(['date', 'case', 'amount', 'remarks']));
+            DailyLedgerUse::create(
+                app(ModuleBranchService::class)->assignBranchOnCreate($request->only(['date', 'case', 'amount', 'remarks']), 'daily_ledger')
+            );
 
             $message = 'Amount Use successfully.';
         }

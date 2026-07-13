@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Attendance;
 use App\Models\Employee;
 use App\Models\Salary;
+use App\Services\Branches\ModuleBranchService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -41,14 +42,16 @@ class AttendanceController extends Controller
             ->groupBy(fn($item) => \Carbon\Carbon::createFromFormat('d-M-y g:i A', $item['datetime'])->toDateString() . '_' . $item['employee_name'])
             ->each(function ($group) use ($validAttendances, $invalidEmployeeNames) {
                 $item = $group->first(); // first record per employee per date
-                $employee = Employee::where('employee_name', $item['employee_name'])->first();
+                $employee = app(ModuleBranchService::class)
+                    ->applyRelatedScope(Employee::where('employee_name', $item['employee_name']), 'employees', 'attendances')
+                    ->first();
 
                 if ($employee) {
-                    $validAttendances->push([
+                    $validAttendances->push(app(ModuleBranchService::class)->assignBranchOnCreate([
                         'employee_id' => $employee->id,
                         'datetime'    => Carbon::createFromFormat('d-M-y g:i A', $item['datetime'])->format('Y-m-d H:i:s'),
                         'state'       => $item['state'],
-                    ]);
+                    ], 'attendances'));
                 } else {
                     $invalidEmployeeNames->push($item['employee_name']);
                 }
@@ -75,7 +78,9 @@ class AttendanceController extends Controller
         }
 
         $employee_options = [];
-        $employees = Employee::where('status', 'active')->whereNotNull('salary')->with('type')->get();
+        $employees = app(ModuleBranchService::class)
+            ->applyRelatedScope(Employee::where('status', 'active')->whereNotNull('salary')->with('type'), 'employees', 'attendances')
+            ->get();
 
         foreach($employees as $employee) {
             $employee_options[(int)$employee->id] = [
@@ -102,12 +107,17 @@ class AttendanceController extends Controller
             'amount' => 'required|numeric',
         ]);
 
-        Salary::create([
+        $employee = app(ModuleBranchService::class)->applyRelatedScope(Employee::query(), 'employees', 'attendances')->find($request->employee_id);
+        if (!$employee) {
+            return redirect()->back()->withErrors(['employee_id' => 'Selected employee is not available for this branch.'])->withInput();
+        }
+
+        Salary::create(app(ModuleBranchService::class)->assignBranchOnCreate([
             'month' => $request->month,
             'employee_id' => $request->employee_id,
             'types_array' => json_decode($request->types_array ?? '[]'),
             'amount' => $request->amount,
-        ]);
+        ], 'attendances'));
 
         return redirect()->back()->with('success', 'Salary added successfuly.');
     }
@@ -123,12 +133,15 @@ class AttendanceController extends Controller
         $currentMonth = $month->month;
         $currentYear = $month->year;
 
-        $attendances = Attendance::whereMonth('datetime', $currentMonth)
+        $attendances = app(ModuleBranchService::class)->applyScope(Attendance::whereMonth('datetime', $currentMonth), 'attendances')
             ->whereYear('datetime', $currentYear)
             ->get()
             ->groupBy('employee_id');
 
-        $employees = Employee::whereIn('id', $attendances->keys())->get()->keyBy('id');
+        $employees = app(ModuleBranchService::class)
+            ->applyRelatedScope(Employee::whereIn('id', $attendances->keys()), 'employees', 'attendances')
+            ->get()
+            ->keyBy('id');
 
         // Generate full month dates
         $start = Carbon::create($currentYear, $currentMonth, 1);

@@ -22,7 +22,8 @@ class Fabric extends Model
         'quantity',
         'reff_no',
         'remarks',
-        'tag'
+        'tag',
+        'branch_id',
     ];
 
     protected $hidden = [

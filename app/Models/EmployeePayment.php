@@ -18,6 +18,7 @@ class EmployeePayment extends Model
         'date',
         'method',
         'amount',
+        'branch_id',
     ];
 
     protected $casts = [

@@ -151,9 +151,6 @@
 
 @endsection
 
-@push('left-actions-after')
-    <x-module-branch-selector module-key="customers" />
-@endpush
 
 @push('page-scripts')
 <script defer src="{{ asset('js/pages/customers-create.js') }}"></script>

@@ -159,9 +159,6 @@
     ];
 @endphp
 
-@push('left-actions-after')
-    <x-module-branch-selector module-key="vouchers" />
-@endpush
 
 @push('page-scripts')
 <script defer src="{{ asset('js/pages/vouchers-create.js') }}"></script>

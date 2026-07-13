@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class BankAccount extends Model
 {
@@ -19,7 +20,7 @@ class BankAccount extends Model
     protected $fillable = [
         'category', 'sub_category', 'bank_id', 'account_title',
         'date', 'remarks', 'account_no', 'chqbk_serial_start',
-        'chqbk_serial_end', 'status'
+        'chqbk_serial_end', 'status', 'branch_id'
     ];
 
     protected $hidden = [
@@ -112,15 +113,35 @@ class BankAccount extends Model
     // calculateBalance
     // ─────────────────────────────────────────
 
-    public function calculateBalance($fromDate = null, $toDate = null, $formatted = false, $includeGivenDate = true)
+    public function calculateBalance($fromDate = null, $toDate = null, $formatted = false, $includeGivenDate = true, ?array $branchIds = null, bool $includeNullBranchRecords = false)
     {
         $balance = 0;
+        $branchIds = collect($branchIds ?? [])
+            ->filter(fn ($id) => is_numeric($id))
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn ($id) => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
+        $applyBranchScope = function ($query, string $table) use ($branchIds, $includeNullBranchRecords) {
+            if (!count($branchIds) || !Schema::hasColumn($table, 'branch_id')) {
+                return;
+            }
+
+            $query->where(function ($nested) use ($branchIds, $includeNullBranchRecords) {
+                $nested->whereIn('branch_id', $branchIds);
+                if ($includeNullBranchRecords) {
+                    $nested->orWhereNull('branch_id');
+                }
+            });
+        };
 
         if ($this->category === 'self') {
             // Normal CustomerPayments (no cheque, no slip) — filter by own date
             $normalPayments = CustomerPayment::where('bank_account_id', $this->id)
                 ->whereNull('cheque_no')
                 ->whereNull('slip_no');
+            $applyBranchScope($normalPayments, 'customer_payments');
             $this->applyDateFilter($normalPayments, 'date', $fromDate, $toDate, $includeGivenDate);
 
             // Cheque CustomerPayments — filter by voucher date
@@ -129,6 +150,7 @@ class BankAccount extends Model
                 ->whereHas('cheque.voucher', function ($q) use ($fromDate, $toDate, $includeGivenDate) {
                     $this->applyDateFilter($q, 'date', $fromDate, $toDate, $includeGivenDate);
                 });
+            $applyBranchScope($chequePayments, 'customer_payments');
 
             // Slip CustomerPayments — filter by voucher date
             $slipPayments = CustomerPayment::where('bank_account_id', $this->id)
@@ -136,13 +158,16 @@ class BankAccount extends Model
                 ->whereHas('slip.voucher', function ($q) use ($fromDate, $toDate, $includeGivenDate) {
                     $this->applyDateFilter($q, 'date', $fromDate, $toDate, $includeGivenDate);
                 });
+            $applyBranchScope($slipPayments, 'customer_payments');
 
             // SupplierPayments — filter by own date
             $supplierPayments = SupplierPayment::where('bank_account_id', $this->id);
+            $applyBranchScope($supplierPayments, 'supplier_payments');
             $this->applyDateFilter($supplierPayments, 'date', $fromDate, $toDate, $includeGivenDate);
 
             // Adjustments
             $adjustmentsQuery = $this->statementAdjustments();
+            $applyBranchScope($adjustmentsQuery, 'statement_adjustments');
             $this->applyDateFilter($adjustmentsQuery, 'date', $fromDate, $toDate, $includeGivenDate);
 
             $totalInflow  = $normalPayments->sum('amount')
@@ -160,9 +185,11 @@ class BankAccount extends Model
 
             $clearBalance = PaymentClear::where('bank_account_id', $this->id)
                 ->where('method', '!=', 'cash');
+            $applyBranchScope($clearBalance, 'payment_clears');
             $this->applyDateFilter($clearBalance, 'clear_date', $fromDate, $toDate, $includeGivenDate);
 
             $adjustmentsQuery = $this->statementAdjustments();
+            $applyBranchScope($adjustmentsQuery, 'statement_adjustments');
             $this->applyDateFilter($adjustmentsQuery, 'date', $fromDate, $toDate, $includeGivenDate);
 
             $adjustmentsNet = (float) $adjustmentsQuery->get()
@@ -178,20 +205,35 @@ class BankAccount extends Model
     // getStatement
     // ─────────────────────────────────────────
 
-    public function getStatement($fromDate, $toDate, $type = 'general')
+    public function getStatement($fromDate, $toDate, $type = 'general', ?array $branchIds = null, bool $includeNullBranchRecords = false)
     {
         $type = $type ?: 'general';
+        $branchIds = collect($branchIds ?? [])
+            ->filter(fn ($id) => is_numeric($id))
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn ($id) => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
+        $hasBranchScope = count($branchIds) > 0;
 
         $from = Carbon::parse($fromDate)->toDateString();
         $to   = Carbon::parse($toDate)->toDateString();
 
         // Opening & Closing Balances
-        $openingBalance = $this->calculateBalance(null, $fromDate, false, false);
-        $periodBalance  = $this->calculateBalance($fromDate, $toDate);
+        $openingBalance = $this->calculateBalance(null, $fromDate, false, false, $branchIds, $includeNullBranchRecords);
+        $periodBalance  = $this->calculateBalance($fromDate, $toDate, false, true, $branchIds, $includeNullBranchRecords);
         $closingBalance = $openingBalance + $periodBalance;
+        $branchScope = fn ($query) => $query->where(function ($nested) use ($branchIds, $includeNullBranchRecords) {
+            $nested->whereIn('branch_id', $branchIds);
+            if ($includeNullBranchRecords) {
+                $nested->orWhereNull('branch_id');
+            }
+        });
 
         // ── CustomerPayments query ── (aligned with calculateBalance logic)
         $customerQuery = CustomerPayment::where('bank_account_id', $this->id)
+            ->when($hasBranchScope && Schema::hasColumn('customer_payments', 'branch_id'), $branchScope)
             ->where(function ($q) use ($from, $to) {
                 // Normal (no cheque, no slip) — filter by own date
                 $q->where(function ($q) use ($from, $to) {
@@ -223,11 +265,13 @@ class BankAccount extends Model
         // ── SupplierPayments query ──
         $supplierQuery = SupplierPayment::where('bank_account_id', $this->id)
             ->whereBetween(DB::raw('DATE(date)'), [$from, $to])
+            ->when($hasBranchScope && Schema::hasColumn('supplier_payments', 'branch_id'), $branchScope)
             ->with('bankAccount.bank', 'cheque', 'slip');
 
         // ── Adjustments ──
         $adjustments = $this->statementAdjustments()
             ->whereBetween(DB::raw('DATE(date)'), [$from, $to])
+            ->when($hasBranchScope && Schema::hasColumn('statement_adjustments', 'branch_id'), $branchScope)
             ->get();
 
         $formatAdjustment = function ($adjustment, $forSummary = false) {

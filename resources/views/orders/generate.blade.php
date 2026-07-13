@@ -88,9 +88,6 @@
 
 @endsection
 
-@push('left-actions-after')
-    <x-module-branch-selector module-key="orders" />
-@endpush
 
 @push('page-scripts')
 <script defer src="{{ asset('js/pages/orders-generate.js') }}"></script>

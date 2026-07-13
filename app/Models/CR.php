@@ -19,6 +19,7 @@ class CR extends Model
         'voucher_id',
         'return_payments',
         'new_payments',
+        'branch_id',
     ];
 
     protected $casts = [

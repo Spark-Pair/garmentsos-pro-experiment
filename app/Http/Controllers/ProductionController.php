@@ -271,7 +271,7 @@ class ProductionController extends Controller
      */
     public function show(Production $production)
     {
-        //
+        app(ModuleBranchService::class)->assertRecordInAllowedBranch($production, 'productions');
     }
 
     /**
@@ -279,7 +279,7 @@ class ProductionController extends Controller
      */
     public function edit(Production $production)
     {
-        //
+        app(ModuleBranchService::class)->assertRecordInAllowedBranch($production, 'productions');
     }
 
     /**
@@ -287,7 +287,7 @@ class ProductionController extends Controller
      */
     public function update(Request $request, Production $production)
     {
-        //
+        app(ModuleBranchService::class)->assertRecordInAllowedBranch($production, 'productions');
     }
 
     /**
@@ -295,6 +295,6 @@ class ProductionController extends Controller
      */
     public function destroy(Production $production)
     {
-        //
+        app(ModuleBranchService::class)->assertRecordInAllowedBranch($production, 'productions');
     }
 }

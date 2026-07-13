@@ -3,7 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\EmployeePayment;
+use App\Models\Employee;
 use App\Models\Setup;
+use App\Services\Branches\ModuleBranchService;
 use Illuminate\Http\Request;
 
 class EmployeePaymentController extends Controller
@@ -22,13 +24,15 @@ class EmployeePaymentController extends Controller
         $authLayout = $this->getAuthLayout($request->route()->getName());
 
         if ($request->ajax()) {
-            $payments = EmployeePayment::orderByDesc('id')
+            $payments = app(ModuleBranchService::class)
+                ->applyScope(EmployeePayment::orderByDesc('id'), 'employee_payments')
                 ->applyFilters($request);
 
             return response()->json(['data' => $payments, 'authLayout' => $authLayout]);
         }
 
-        $staff = Setup::where('type', 'staff_type')->get()
+        $branches = app(ModuleBranchService::class);
+        $staff = $branches->applyRelatedScope(Setup::where('type', 'staff_type'), 'setups', 'employee_payments')->get()
             ->mapWithKeys(fn ($type) => [
                 $type->id => [
                     'text' => $type->title,
@@ -37,7 +41,7 @@ class EmployeePaymentController extends Controller
             ])
             ->all();
 
-        $worker = Setup::where('type', 'worker_type')->get()
+        $worker = $branches->applyRelatedScope(Setup::where('type', 'worker_type'), 'setups', 'employee_payments')->get()
             ->mapWithKeys(fn ($type) => [
                 $type->id => [
                     'text' => $type->title,
@@ -79,12 +83,17 @@ class EmployeePaymentController extends Controller
             'amount' => 'required|integer|min:1',
         ]);
 
-        EmployeePayment::create([
+        $employee = app(ModuleBranchService::class)->applyRelatedScope(Employee::query(), 'employees', 'employee_payments')->find($request->employee_id);
+        if (!$employee) {
+            return redirect()->back()->withErrors(['employee_id' => 'Selected employee is not available for this branch.'])->withInput();
+        }
+
+        EmployeePayment::create(app(ModuleBranchService::class)->assignBranchOnCreate([
             'employee_id' => $request->employee_id,
             'date' => $request->date,
             'method' => $request->method,
             'amount' => $request->amount,
-        ]);
+        ], 'employee_payments'));
 
         return redirect()->back()->with('success', 'Payment added successfully.');
     }
@@ -94,7 +103,7 @@ class EmployeePaymentController extends Controller
      */
     public function show(EmployeePayment $employeePayment)
     {
-        //
+        app(ModuleBranchService::class)->assertRecordInAllowedBranch($employeePayment, 'employee_payments');
     }
 
     /**
@@ -102,7 +111,7 @@ class EmployeePaymentController extends Controller
      */
     public function edit(EmployeePayment $employeePayment)
     {
-        //
+        app(ModuleBranchService::class)->assertRecordInAllowedBranch($employeePayment, 'employee_payments');
     }
 
     /**
@@ -110,7 +119,7 @@ class EmployeePaymentController extends Controller
      */
     public function update(Request $request, EmployeePayment $employeePayment)
     {
-        //
+        app(ModuleBranchService::class)->assertRecordInAllowedBranch($employeePayment, 'employee_payments');
     }
 
     /**
@@ -118,6 +127,6 @@ class EmployeePaymentController extends Controller
      */
     public function destroy(EmployeePayment $employeePayment)
     {
-        //
+        app(ModuleBranchService::class)->assertRecordInAllowedBranch($employeePayment, 'employee_payments');
     }
 }

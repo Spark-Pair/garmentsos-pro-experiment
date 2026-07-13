@@ -8,46 +8,112 @@ use Illuminate\Support\Facades\Schema;
 
 class BranchSerialService
 {
+    private const DOCUMENT_IDENTITIES = [
+        'orders' => 'O',
+        'invoices' => 'I',
+        'vouchers' => 'V',
+        'productions' => 'P',
+        'customer_payments' => 'CP',
+        'supplier_payments' => 'SP',
+        'payment_programs' => 'PP',
+        'bilties' => 'B',
+        'cargos' => 'C',
+        'cargo' => 'C',
+        'shipments' => 'S',
+        'cr' => 'CR',
+        'dr' => 'DR',
+        'bank_accounts' => 'BA',
+        'daily_ledger' => 'DL',
+        'utility_bills' => 'UB',
+    ];
+
     public function __construct(private readonly ModuleBranchService $branches)
     {
     }
 
     public function next(string $moduleKey, string $modelClass, string $column, ?string $middle = null, int $pad = 6): string
     {
+        $moduleKey = $this->branches->canonicalModuleKey($moduleKey);
         $branchId = $this->branches->shouldFilterRecords($moduleKey)
             ? $this->branches->selectedBranchIdForModule($moduleKey)
             : null;
 
-        if (!$branchId) {
-            return $this->nextGlobal($modelClass, $column, $pad);
-        }
+        $baseNumber = $this->nextBaseNumber($moduleKey, $modelClass, $column, $pad, $branchId);
 
-        $branch = Branch::query()->find($branchId);
-        $prefix = $this->cleanPrefix($branch?->prefix ?: $branch?->code ?: 'BR');
-        $base = $middle ? "{$prefix}-{$middle}-" : "{$prefix}-";
-        $query = $modelClass::query()->where($column, 'like', $base . '%');
-
-        /** @var Model $model */
-        $model = new $modelClass();
-        if (Schema::hasColumn($model->getTable(), 'branch_id')) {
-            $query->where($model->getTable() . '.branch_id', $branchId);
-        }
-
-        $last = $query->orderByDesc('id')->value($column);
-        $serial = $this->numericTail($last) + 1;
-
-        return $base . str_pad((string) $serial, $pad, '0', STR_PAD_LEFT);
+        return $this->formatBranchDocumentNumber($baseNumber, $moduleKey, $branchId ? Branch::query()->find($branchId) : null);
     }
 
     public function nextProductionTicket(string $workPrefix): string
     {
-        return $this->next('productions', \App\Models\Production::class, 'ticket', $this->cleanPrefix($workPrefix), 3);
+        $moduleKey = 'productions';
+        $branchId = $this->branches->shouldFilterRecords($moduleKey)
+            ? $this->branches->selectedBranchIdForModule($moduleKey)
+            : null;
+        $cleanWorkPrefix = $this->cleanPrefix($workPrefix);
+        $query = \App\Models\Production::query()
+            ->where('ticket', 'like', '%' . $cleanWorkPrefix . '%');
+
+        $model = new \App\Models\Production();
+        if ($branchId && Schema::hasColumn($model->getTable(), 'branch_id')) {
+            $query->where($model->getTable() . '.branch_id', $branchId);
+        }
+
+        $last = $query->orderByDesc('id')->value('ticket');
+        $baseNumber = $cleanWorkPrefix . str_pad((string) ($this->numericTail($last) + 1), 3, '0', STR_PAD_LEFT);
+
+        return $this->formatBranchDocumentNumber($baseNumber, $moduleKey, $branchId ? Branch::query()->find($branchId) : null);
     }
 
-    private function nextGlobal(string $modelClass, string $column, int $pad): string
+    public function formatBranchDocumentNumber(string $baseNumber, string $moduleKey, ?Branch $branch = null): string
     {
-        $last = $modelClass::query()->orderByDesc('id')->value($column);
-        $serial = $this->numericTail($last) + 1;
+        $moduleKey = $this->branches->canonicalModuleKey($moduleKey);
+        $config = $this->branches->moduleConfig($moduleKey) ?? [];
+
+        if (
+            !$branch
+            || !$this->branches->shouldFilterRecords($moduleKey)
+            || !($config['supports_branch_serial_prefix'] ?? $config['supports_serial_prefix'] ?? false)
+        ) {
+            return $baseNumber;
+        }
+
+        $branchPrefix = $this->cleanPrefix($branch->prefix ?: $branch->code ?: '');
+        $docIdentity = $this->cleanPrefix((string) ($config['doc_identity_prefix'] ?? self::DOCUMENT_IDENTITIES[$moduleKey] ?? ''));
+
+        if (!$branchPrefix || !$docIdentity) {
+            return $baseNumber;
+        }
+
+        $baseNumber = $this->stripKnownDocumentPrefix($baseNumber, $branchPrefix, $docIdentity);
+
+        return "{$branchPrefix}-{$docIdentity}-{$baseNumber}";
+    }
+
+    private function nextBaseNumber(string $moduleKey, string $modelClass, string $column, int $pad, ?int $branchId): string
+    {
+        $query = $modelClass::query();
+
+        /** @var Model $model */
+        $model = new $modelClass();
+        if ($branchId && Schema::hasColumn($model->getTable(), 'branch_id')) {
+            $query->where($model->getTable() . '.branch_id', $branchId);
+        }
+
+        $last = $query->orderByDesc('id')->value($column);
+        $lastBase = $this->stripKnownDocumentPrefix((string) $last, null, null);
+        $serial = $this->numericTail($lastBase) + 1;
+
+        if (in_array($moduleKey, ['orders', 'invoices'], true)) {
+            return date('y') . '-' . str_pad((string) $serial, 4, '0', STR_PAD_LEFT);
+        }
+
+        if ($moduleKey === 'vouchers' && $lastBase === '') {
+            return '00/150';
+        }
+
+        if ($lastBase && preg_match('/^(.*?)(\d+)$/', $lastBase, $matches) && $matches[1] !== '') {
+            return $matches[1] . str_pad((string) $serial, strlen($matches[2]), '0', STR_PAD_LEFT);
+        }
 
         return str_pad((string) $serial, $pad, '0', STR_PAD_LEFT);
     }
@@ -63,6 +129,25 @@ class BranchSerialService
 
     private function cleanPrefix(string $prefix): string
     {
-        return strtoupper(preg_replace('/[^A-Z0-9]+/', '', $prefix)) ?: 'BR';
+        return strtoupper(preg_replace('/[^A-Z0-9]+/', '', $prefix)) ?: '';
+    }
+
+    private function stripKnownDocumentPrefix(?string $value, ?string $branchPrefix, ?string $docIdentity): string
+    {
+        $value = trim((string) $value);
+        if ($value === '') {
+            return '';
+        }
+
+        if ($branchPrefix && $docIdentity) {
+            $prefix = preg_quote($branchPrefix . '-' . $docIdentity . '-', '/');
+            return preg_replace('/^' . $prefix . '/i', '', $value) ?? $value;
+        }
+
+        if (preg_match('/^[A-Z0-9]+-[A-Z0-9]+-(.+)$/i', $value, $matches)) {
+            return $matches[1];
+        }
+
+        return $value;
     }
 }

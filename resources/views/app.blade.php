@@ -56,6 +56,16 @@
             $developerLauncherHandoff = null;
         }
     }
+
+    $currentBranchModuleKey = null;
+    if (Auth::check() && !request()->is('login') && !request()->is('setup')) {
+        try {
+            $currentBranchModuleKey = app(\App\Services\Branches\BranchModuleRegistryService::class)
+                ->moduleKeyForRoute(request()->route());
+        } catch (\Throwable) {
+            $currentBranchModuleKey = null;
+        }
+    }
 @endphp
 <!DOCTYPE html>
 <html lang="en" data-theme="{{ $preferredTheme }}">
@@ -567,31 +577,12 @@
                         Refresh
                     </span>
                 </button>
+                @if ($currentBranchModuleKey)
+                    <x-module-branch-selector :module-key="$currentBranchModuleKey" />
+                @endif
                 @stack('left-actions-after')
             </div>
             <div class="main-child w-full grow pb-10">
-                @if (!empty($developerUpdateStatus['update_available']))
-                    <div class="mb-4 rounded-lg border border-[var(--border-warning)] bg-[var(--bg-warning)] px-4 py-3 text-sm text-[var(--text-warning)]">
-                        <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                            <div>
-                                <strong>Update available: {{ $developerUpdateStatus['latest_version'] ?? ($developerUpdateStatus['feed']['version'] ?? 'latest') }}</strong>
-                                <div class="mt-1 text-xs">
-                                    Laravel will prepare the update handoff only. The Windows launcher applies the update outside the running app.
-                                </div>
-                            </div>
-                            <div class="flex flex-wrap gap-2">
-                                @if (!empty($developerLauncherHandoff['protocol_url']))
-                                    <a href="#" data-update-start-url="{{ route('developer.updater.launcher-handoff.start') }}" class="js-update-handoff rounded-lg border border-[var(--border-warning)] bg-[var(--h-bg-warning)] px-3 py-2 text-xs font-semibold text-[var(--text-warning)]">
-                                        Update Now
-                                    </a>
-                                @endif
-                                <a href="{{ route('developer.updater') }}" class="rounded-lg border border-[var(--border-warning)] bg-[var(--h-bg-warning)] px-3 py-2 text-xs font-semibold text-[var(--text-warning)]">
-                                    Details
-                                </a>
-                            </div>
-                        </div>
-                    </div>
-                @endif
                 @yield('content')
             </div>
         </main>
@@ -600,6 +591,54 @@
         @component('components.footer')
         @endcomponent
     </div>
+
+    @if (!empty($developerUpdateStatus['update_available']))
+        @php
+            $latestVersion = $developerUpdateStatus['latest_version'] ?? ($developerUpdateStatus['feed']['version'] ?? 'latest');
+            $currentVersion = $developerUpdateStatus['current_version'] ?? config('app.version', 'Installed');
+            $releaseNotes = $developerUpdateStatus['notes'] ?? data_get($developerUpdateStatus, 'feed.notes') ?? data_get($developerUpdateStatus, 'feed.body') ?? 'Laravel prepares the update handoff. The Windows launcher applies the update outside the running app.';
+            $mandatoryUpdate = (bool) ($developerUpdateStatus['mandatory'] ?? data_get($developerUpdateStatus, 'feed.mandatory', false));
+        @endphp
+        <div id="developer-update-modal" class="fixed inset-0 z-[9998] flex items-center justify-center bg-[var(--overlay-color)] px-4">
+            <div class="w-full max-w-xl rounded-xl border border-[var(--glass-border-color)]/20 bg-[var(--secondary-bg-color)] text-[var(--text-color)] shadow-2xl">
+                <div class="flex items-start justify-between gap-4 border-b border-[var(--glass-border-color)]/10 px-5 py-4">
+                    <div>
+                        <h2 class="text-lg font-semibold">Update available</h2>
+                        <p class="mt-1 text-xs text-[var(--secondary-text)]">Current {{ $currentVersion }} · New {{ $latestVersion }}</p>
+                    </div>
+                    @unless ($mandatoryUpdate)
+                        <button type="button" class="rounded-lg px-2 py-1 text-[var(--secondary-text)] hover:bg-[var(--h-bg-color)]" data-update-modal-close aria-label="Close update dialog">
+                            <i class="fas fa-xmark"></i>
+                        </button>
+                    @endunless
+                </div>
+                <div class="space-y-4 px-5 py-4">
+                    <p class="text-sm text-[var(--secondary-text)]">
+                        {{ $mandatoryUpdate ? 'This update is marked mandatory. Update before continuing if your deployment policy requires it.' : 'You can update now or continue working and update later.' }}
+                    </p>
+                    <details class="rounded-lg border border-[var(--glass-border-color)]/10 bg-[var(--h-bg-color)] p-3 text-sm" open>
+                        <summary class="cursor-pointer font-semibold">Details</summary>
+                        <div class="mt-2 whitespace-pre-line text-[var(--secondary-text)]">{{ $releaseNotes }}</div>
+                    </details>
+                </div>
+                <div class="flex flex-wrap justify-end gap-2 border-t border-[var(--glass-border-color)]/10 px-5 py-4">
+                    @unless ($mandatoryUpdate)
+                        <button type="button" class="rounded-lg border border-gray-600 bg-[var(--h-bg-color)] px-4 py-2 text-sm font-semibold text-[var(--secondary-text)]" data-update-modal-close>
+                            Later
+                        </button>
+                    @endunless
+                    <a href="{{ route('developer.updater') }}" class="rounded-lg border border-gray-600 bg-[var(--h-bg-color)] px-4 py-2 text-sm font-semibold text-[var(--secondary-text)]">
+                        Details
+                    </a>
+                    @if (!empty($developerLauncherHandoff['protocol_url']))
+                        <a href="#" data-update-start-url="{{ route('developer.updater.launcher-handoff.start') }}" class="js-update-handoff rounded-lg bg-[var(--primary-color)] px-4 py-2 text-sm font-semibold text-white">
+                            Update Now
+                        </a>
+                    @endif
+                </div>
+            </div>
+        </div>
+    @endif
 
     <div id="update-handoff-overlay" class="fixed inset-0 z-[10000] {{ $activeUpdateLock ? 'flex' : 'hidden' }} items-center justify-center bg-[var(--overlay-color)] px-4">
         <div class="w-full max-w-lg rounded-xl border border-[var(--border-warning)] bg-[var(--secondary-bg-color)] p-6 text-center shadow-xl">
@@ -646,26 +685,6 @@
                     showMessageBox(type, message || title);
                 }
             };
-
-            @php
-                $flashNotifications = collect([
-                    ['type' => 'success', 'title' => 'Success', 'message' => session('success')],
-                    ['type' => 'error', 'title' => 'Error', 'message' => session('error')],
-                    ['type' => 'warning', 'title' => 'Notice', 'message' => session('warning') ?? session('info')],
-                ])->filter(fn ($item) => filled($item['message']))->values();
-
-                if ($errors->any()) {
-                    $flashNotifications->push([
-                        'type' => 'error',
-                        'title' => 'Please fix the highlighted fields',
-                        'message' => $errors->first(),
-                    ]);
-                }
-            @endphp
-            const flashNotifications = @json($flashNotifications);
-            flashNotifications.forEach((item) => {
-                notify(item.type || 'info', item.title || 'Notice', item.message || '');
-            });
 
             document.addEventListener('click', (event) => {
                 const option = event.target.closest('[data-module-branch-option]');
@@ -779,6 +798,12 @@
                 } catch (error) {
                 }
             };
+
+            document.querySelectorAll('[data-update-modal-close]').forEach((button) => {
+                button.addEventListener('click', () => {
+                    document.getElementById('developer-update-modal')?.remove();
+                });
+            });
 
             const closeOrReplaceWithUpdating = (delay = 4000) => {
                 if (closeFallbackStarted) {

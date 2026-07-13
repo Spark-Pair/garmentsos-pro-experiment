@@ -6,6 +6,8 @@ use App\Models\Article;
 use App\Models\Customer;
 use App\Models\Shipment;
 use App\Models\ShipmentArticles;
+use App\Services\Branches\BranchSerialService;
+use App\Services\Branches\ModuleBranchService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
@@ -23,9 +25,10 @@ class ShipmentController extends Controller
         }
 
         $authLayout = $this->getAuthLayout($request->route()->getName());
+        $branches = app(ModuleBranchService::class);
 
         if ($request->ajax()) {
-            $shipments = Shipment::with( 'articles.article')->orderByDesc('id')
+            $shipments = $branches->applyScope(Shipment::with('articles.article')->orderByDesc('id'), 'shipments')
                 ->applyFilters($request);
 
             return response()->json(['data' => $shipments, 'authLayout' => $authLayout]);
@@ -54,9 +57,10 @@ class ShipmentController extends Controller
 
         $customers_options = [];
         $articles = [];
+        $branches = app(ModuleBranchService::class);
 
         if ($request->date) {
-            $customers = Customer::with('city')
+            $customers = $branches->applyRelatedScope(Customer::with('city'), 'customers', 'shipments')
                 ->whereHas('user', fn($query) => $query->where('status', 'active'))
                 ->where('date', '<=', $request->date)
                 ->select('id', 'customer_name', 'person_name', 'urdu_title', 'phone_number', 'date', 'city_id', 'address')
@@ -82,13 +86,17 @@ class ShipmentController extends Controller
                 ];
             }
 
-            $articles = Article::where('date', '<=', $request->date)
+            $articles = $branches->applyRelatedScope(Article::where('date', '<=', $request->date), 'articles', 'shipments')
                 ->where('sales_rate', '>', 0)
                 ->whereNotNull(['category', 'fabric_type'])
                 ->orderByDesc('id')
                 ->get();
 
-            $stockMap = $this->articleStockMap($articles->pluck('id'));
+            $stockMap = $this->articleStockMap(
+                $articles->pluck('id'),
+                null,
+                $branches->shouldFilterRecords('physical_quantities') ? $branches->selectedBranchIdForModule('shipments') : null
+            );
 
             foreach ($articles as $article) {
                 $stock = $stockMap->get($article->id, []);
@@ -105,12 +113,8 @@ class ShipmentController extends Controller
                 ->values();
         }
 
-        $last_shipment = Shipment::orderby('id', 'desc')->first();
-
-        if (!$last_shipment) {
-            $last_shipment = new Shipment();
-            $last_shipment->shipment_no = '0000';
-        }
+        $last_shipment = new Shipment();
+        $last_shipment->shipment_no = app(BranchSerialService::class)->next('shipments', Shipment::class, 'shipment_no', null, 4);
 
         if ($request->ajax()) {
             return response()->json([
@@ -148,6 +152,7 @@ class ShipmentController extends Controller
         }
 
         DB::transaction(function () use ($request) {
+            $branches = app(ModuleBranchService::class);
             $articles = json_decode($request->articles, true) ?? [];
             $this->validateShipmentArticleStock($articles);
 
@@ -157,7 +162,10 @@ class ShipmentController extends Controller
                 'netAmount' => str_replace(',', '', $request->netAmount),
                 'articles' => $request->articles,
                 'city' => $request->city,
-                'shipment_no' => $request->shipment_no,
+                'shipment_no' => $branches->shouldFilterRecords('shipments')
+                    ? app(BranchSerialService::class)->next('shipments', Shipment::class, 'shipment_no', null, 4)
+                    : $request->shipment_no,
+                'branch_id' => $branches->branchIdForCreate('shipments'),
             ]);
 
             foreach ($articles as $article) {
@@ -304,7 +312,11 @@ class ShipmentController extends Controller
         }
 
         $existingShipmentPcs = collect($existingShipmentPcs ?? []);
-        $stockMap = $this->articleStockMap($lines->keys());
+        $branches = app(ModuleBranchService::class);
+        $branchId = $branches->shouldFilterRecords('physical_quantities')
+            ? $branches->selectedBranchIdForModule('shipments')
+            : null;
+        $stockMap = $this->articleStockMap($lines->keys(), null, $branchId);
         $articlesById = Article::query()
             ->whereIn('id', $lines->keys())
             ->get(['id', 'article_no'])

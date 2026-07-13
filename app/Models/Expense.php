@@ -25,7 +25,8 @@ class Expense extends Model
         'reff_no',
         'amount',
         'lot_no',
-        'remarks'
+        'remarks',
+        'branch_id',
     ];
 
     protected $casts = [

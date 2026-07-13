@@ -6,6 +6,8 @@ use App\Models\Customer;
 use App\Models\CustomerPayment;
 use App\Models\DR;
 use App\Models\Setup;
+use App\Services\Branches\BranchSerialService;
+use App\Services\Branches\ModuleBranchService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 
@@ -23,7 +25,8 @@ class DRController extends Controller
         $authLayout = $this->getAuthLayout($request->route()->getName(), 'table');
 
         if ($request->ajax()) {
-            $drs = DR::orderByDesc('id')
+            $drs = app(ModuleBranchService::class)
+                ->applyScope(DR::orderByDesc('id'), 'dr')
                 ->applyFilters($request);
 
             return response()->json(['data' => $drs, 'authLayout' => $authLayout]);
@@ -41,7 +44,8 @@ class DRController extends Controller
             return $resp;
         }
 
-        $customer_options = Customer::select('id', 'customer_name', 'city_id')
+        $branches = app(ModuleBranchService::class);
+        $customer_options = $branches->applyRelatedScope(Customer::select('id', 'customer_name', 'city_id'), 'customers', 'dr')
             ->distinct()
             ->whereHas('user', function ($query) {
                 $query->where('status', 'active');
@@ -56,7 +60,7 @@ class DRController extends Controller
                 ];
             });
 
-        $bank_options = Setup::where('type', 'bank_name')
+        $bank_options = $branches->applyRelatedScope(Setup::where('type', 'bank_name'), 'setups', 'dr')
             ->distinct()
             ->orderBy('title')
             ->get()
@@ -116,17 +120,29 @@ class DRController extends Controller
 
         $data['new_payments'] = [];
 
-        $dr = new DR($data);
+        $branches = app(ModuleBranchService::class);
+        $customer = $branches->applyRelatedScope(Customer::query(), 'customers', 'dr')->find($data['customer_id']);
+        if (!$customer) {
+            return redirect()->back()->withErrors(['customer_id' => 'Selected customer is not available for this branch.'])->withInput();
+        }
+
+        $dr = new DR($branches->assignBranchOnCreate($data, 'dr'));
         $dr->save(); // 👈 pehle save karenge taake $dr->id mil jaye
-        $dr->d_r_no = 'DR-' . $dr->id;
+        $dr->d_r_no = app(BranchSerialService::class)->formatBranchDocumentNumber(
+            'DR-' . $dr->id,
+            'dr',
+            $branches->selectedBranchForModule('dr')
+        );
         $dr->save(); // 👈 pehle save karenge taake $dr->id mil jaye
 
         foreach($data['return_payments'] as $paymentId) {
-            CustomerPayment::find($paymentId)->update(['clear_date' => $data['date'], 'd_r_id' => $dr->id]);
+            $branches->applyRelatedScope(CustomerPayment::query(), 'customer_payments', 'dr')
+                ->findOrFail($paymentId)
+                ->update(['clear_date' => $data['date'], 'd_r_id' => $dr->id]);
         }
 
         foreach ($data['new_payments_data'] as $payment) {
-            $newPayment = CustomerPayment::create([
+            $newPayment = CustomerPayment::create($branches->assignBranchOnCreate([
                 'customer_id'     => $data['customer_id'],
                 'date'            => $payment->date ?? $data['date'],
                 'type'            => 'DR',
@@ -139,7 +155,7 @@ class DRController extends Controller
                 'slip_date'          => $payment->slip_date ?? null,
                 'bank_id'          => $payment->bank_id ?? null,
                 'remarks'          => $payment->remarks ?? null,
-            ]);
+            ], 'customer_payments'));
 
             $data['new_payments'][] = $newPayment->id;
         }
@@ -155,7 +171,7 @@ class DRController extends Controller
      */
     public function show(DR $dR)
     {
-        //
+        app(ModuleBranchService::class)->assertRecordInAllowedBranch($dR, 'dr');
     }
 
     /**
@@ -163,7 +179,7 @@ class DRController extends Controller
      */
     public function edit(DR $dR)
     {
-        //
+        app(ModuleBranchService::class)->assertRecordInAllowedBranch($dR, 'dr');
     }
 
     /**
@@ -171,7 +187,7 @@ class DRController extends Controller
      */
     public function update(Request $request, DR $dR)
     {
-        //
+        app(ModuleBranchService::class)->assertRecordInAllowedBranch($dR, 'dr');
     }
 
     /**
@@ -179,12 +195,17 @@ class DRController extends Controller
      */
     public function destroy(DR $dR)
     {
-        //
+        app(ModuleBranchService::class)->assertRecordInAllowedBranch($dR, 'dr');
     }
 
     public function getPayments(Request $request)
     {
-        $payments = CustomerPayment::where('customer_id', $request->customer_id)->whereIn('method', ['cheque', 'slip'])->whereNull('d_r_id')->where('is_return', true)->get();
+        $payments = app(ModuleBranchService::class)
+            ->applyRelatedScope(CustomerPayment::where('customer_id', $request->customer_id), 'customer_payments', 'dr')
+            ->whereIn('method', ['cheque', 'slip'])
+            ->whereNull('d_r_id')
+            ->where('is_return', true)
+            ->get();
 
         return response()->json(['status' => 'success', 'data' => $payments]);
     }

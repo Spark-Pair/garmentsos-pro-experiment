@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Schema;
 use App\Models\Voucher;
 
 class Supplier extends Model
@@ -106,7 +107,7 @@ class Supplier extends Model
         return $this->calculateBalance();
     }
 
-    public function calculateBalance($fromDate = null, $toDate = null, $formatted = false, $includeGivenDate = true)
+    public function calculateBalance($fromDate = null, $toDate = null, $formatted = false, $includeGivenDate = true, ?array $branchIds = null, bool $includeNullBranchRecords = false)
     {
         $expenseQuery = $this->expenses();
         $paymentsQuery = $this->payments()
@@ -131,6 +132,32 @@ class Supplier extends Model
                 'amount',
             ]);
         }
+        $branchIds = collect($branchIds ?? [])
+            ->filter(fn ($id) => is_numeric($id))
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn ($id) => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
+        $applyBranchScope = function ($query, string $table) use ($branchIds, $includeNullBranchRecords) {
+            if (!count($branchIds) || !Schema::hasColumn($table, 'branch_id')) {
+                return;
+            }
+
+            $query->where(function ($nested) use ($branchIds, $includeNullBranchRecords) {
+                $nested->whereIn('branch_id', $branchIds);
+                if ($includeNullBranchRecords) {
+                    $nested->orWhereNull('branch_id');
+                }
+            });
+        };
+
+        $applyBranchScope($expenseQuery, 'expenses');
+        $applyBranchScope($paymentsQuery, 'supplier_payments');
+        $applyBranchScope($adjustmentsQuery, 'statement_adjustments');
+        if ($productionQuery) {
+            $applyBranchScope($productionQuery, 'productions');
+        }
 
         DateRange::apply($expenseQuery, 'date', $fromDate, $toDate, $includeGivenDate);
         DateRange::apply($paymentsQuery, 'date', $fromDate, $toDate, $includeGivenDate);
@@ -150,28 +177,49 @@ class Supplier extends Model
     }
 
 
-    public function getStatement($fromDate, $toDate, $type = 'general')
+    public function getStatement($fromDate, $toDate, $type = 'general', ?array $branchIds = null, bool $includeNullBranchRecords = false)
     {
         $type = $type ?: 'general';
+        $branchIds = collect($branchIds ?? [])
+            ->filter(fn ($id) => is_numeric($id))
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn ($id) => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
+        $hasBranchScope = count($branchIds) > 0;
         $start = Carbon::parse($fromDate)->toDateString();
         $end   = Carbon::parse($toDate)->toDateString();
 
-        $openingBalance = $this->calculateBalance(null, $fromDate, false, false);
-        $periodBalance  = $this->calculateBalance($fromDate, $toDate, false, true);
+        $openingBalance = $this->calculateBalance(null, $fromDate, false, false, $branchIds, $includeNullBranchRecords);
+        $periodBalance  = $this->calculateBalance($fromDate, $toDate, false, true, $branchIds, $includeNullBranchRecords);
         $closingBalance = $openingBalance + $periodBalance;
+        $branchScope = fn ($query) => $query->where(function ($nested) use ($branchIds, $includeNullBranchRecords) {
+            $nested->whereIn('branch_id', $branchIds);
+            if ($includeNullBranchRecords) {
+                $nested->orWhereNull('branch_id');
+            }
+        });
 
-        $expenseQuery = $this->expenses()->whereBetween(\Illuminate\Support\Facades\DB::raw('DATE(date)'), [$start, $end]);
+        $expenseQuery = $this->expenses()
+            ->whereBetween(\Illuminate\Support\Facades\DB::raw('DATE(date)'), [$start, $end])
+            ->when($hasBranchScope && Schema::hasColumn('expenses', 'branch_id'), $branchScope);
         $paymentQuery = $this->payments()
             ->whereBetween(\Illuminate\Support\Facades\DB::raw('DATE(date)'), [$start, $end])
+            ->when($hasBranchScope && Schema::hasColumn('supplier_payments', 'branch_id'), $branchScope)
             ->whereIn('method', [
                 'Cheque', 'Cash', 'Slip', 'ATM', 'Self Cheque', 'program', 'p. return', 'Adjustment'
             ]);
         $voucherQuery = Voucher::with('payments')
             ->where('supplier_id', $this->id)
-            ->whereBetween(\Illuminate\Support\Facades\DB::raw('DATE(date)'), [$start, $end]);
-        $adjustmentsQuery = $this->statementAdjustments()->whereBetween(\Illuminate\Support\Facades\DB::raw('DATE(date)'), [$start, $end]);
+            ->whereBetween(\Illuminate\Support\Facades\DB::raw('DATE(date)'), [$start, $end])
+            ->when($hasBranchScope && Schema::hasColumn('vouchers', 'branch_id'), $branchScope);
+        $adjustmentsQuery = $this->statementAdjustments()
+            ->whereBetween(\Illuminate\Support\Facades\DB::raw('DATE(date)'), [$start, $end])
+            ->when($hasBranchScope && Schema::hasColumn('statement_adjustments', 'branch_id'), $branchScope);
         $productionQuery = $this->worker
             ? $this->worker->productions()->whereBetween(\Illuminate\Support\Facades\DB::raw('DATE(receive_date)'), [$start, $end])
+                ->when($hasBranchScope && Schema::hasColumn('productions', 'branch_id'), $branchScope)
             : null;
 
         $normalizeDateValue = function ($value) {

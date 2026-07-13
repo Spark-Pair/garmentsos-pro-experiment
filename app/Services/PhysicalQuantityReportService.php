@@ -16,15 +16,24 @@ class PhysicalQuantityReportService
     {
     }
 
-    public function getIndexRows(Request|array $filters = [], ?int $limit = null): Collection
+    public function getIndexRows(Request|array $filters = [], ?int $limit = null, ?array $branchIds = null, bool $includeNullBranchRecords = false): Collection
     {
         $branches = app(ModuleBranchService::class);
-        $query = $branches->applyScope(PhysicalQuantity::with('article'), 'physical_quantities')
-            ->orderByDesc('id');
+        $query = PhysicalQuantity::with('article')->orderByDesc('id');
+        if ($branchIds !== null && !empty($branchIds) && \Illuminate\Support\Facades\Schema::hasColumn('physical_quantities', 'branch_id')) {
+            $query->where(function ($scope) use ($branchIds, $includeNullBranchRecords) {
+                $scope->whereIn('branch_id', $branchIds);
+                if ($includeNullBranchRecords) {
+                    $scope->orWhereNull('branch_id');
+                }
+            });
+        } else {
+            $query = $branches->applyScope($query, 'physical_quantities');
+        }
 
         $this->applyFilters($query, $filters);
         $rows = $query->get()->filter(fn (PhysicalQuantity $row) => $row->article);
-        $groupedRows = $this->mapArticleRows($rows);
+        $groupedRows = $this->mapArticleRows($rows, $branchIds, $includeNullBranchRecords);
 
         if ($limit) {
             return $groupedRows->take($limit)->values();
@@ -33,9 +42,9 @@ class PhysicalQuantityReportService
         return $groupedRows;
     }
 
-    public function getArticleReportRows(array $filters = [], string $reportType = 'altration'): Collection
+    public function getArticleReportRows(array $filters = [], string $reportType = 'altration', ?array $branchIds = null, bool $includeNullBranchRecords = false): Collection
     {
-        return $this->getIndexRows($filters)
+        return $this->getIndexRows($filters, null, $branchIds, $includeNullBranchRecords)
             ->map(function (array $row) use ($reportType) {
                 $processedBy = trim((string) ($row['processed_by'] ?? ''));
                 $orderedQty = $row['ordered_quantity'] ?? $this->formatPacketQuantity((float) ($row['ordered_packets_numeric'] ?? 0));
@@ -62,11 +71,21 @@ class PhysicalQuantityReportService
             ->values();
     }
 
-    public function getArticleOptions(): array
+    public function getArticleOptions(?array $branchIds = null, bool $includeNullBranchRecords = false): array
     {
-        return app(ModuleBranchService::class)
-            ->applyRelatedScope(Article::query(), 'articles', 'physical_quantities')
-            ->orderByDesc('id')
+        $query = Article::query()->orderByDesc('id');
+        if ($branchIds !== null && !empty($branchIds) && \Illuminate\Support\Facades\Schema::hasColumn('articles', 'branch_id')) {
+            $query->where(function ($scope) use ($branchIds, $includeNullBranchRecords) {
+                $scope->whereIn('branch_id', $branchIds);
+                if ($includeNullBranchRecords) {
+                    $scope->orWhereNull('branch_id');
+                }
+            });
+        } else {
+            $query = app(ModuleBranchService::class)->applyRelatedScope($query, 'articles', 'reports_physical_quantity');
+        }
+
+        return $query
             ->get(['id', 'article_no', 'processed_by'])
             ->mapWithKeys(function (Article $article) {
                 $processedBy = trim((string) $article->processed_by);
@@ -117,7 +136,7 @@ class PhysicalQuantityReportService
         }
     }
 
-    protected function mapArticleRows(Collection $rows): Collection
+    protected function mapArticleRows(Collection $rows, ?array $branchIds = null, bool $includeNullBranchRecords = false): Collection
     {
         $articleIds = $rows->pluck('article_id')->unique()->values();
 
@@ -137,7 +156,8 @@ class PhysicalQuantityReportService
         $stockMap = $this->stockService->summaries(
             $articleIds,
             null,
-            $branches->shouldFilterRecords('physical_quantities') ? $branches->selectedBranchIdForModule('physical_quantities') : null
+            $branchIds ?? ($branches->shouldFilterRecords('physical_quantities') ? $branches->selectedBranchIdForModule('physical_quantities') : null),
+            $includeNullBranchRecords
         );
 
         return $rows

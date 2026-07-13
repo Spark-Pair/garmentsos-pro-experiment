@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\Bilty;
 use App\Models\Invoice;
+use App\Services\Branches\BranchSerialService;
+use App\Services\Branches\ModuleBranchService;
 use Illuminate\Http\Request;
 
 class BiltyController extends Controller
@@ -17,7 +19,8 @@ class BiltyController extends Controller
         $authLayout = $this->getAuthLayout($request->route()->getName(), 'table');
 
         if ($request->ajax()) {
-            $orders = Bilty::with('invoice.customer.city')->orderByDesc('id')
+            $orders = app(ModuleBranchService::class)
+                ->applyScope(Bilty::with('invoice.customer.city')->orderByDesc('id'), 'bilties')
                 ->applyFilters($request);
 
             return response()->json(['data' => $orders, 'authLayout' => $authLayout]);
@@ -31,7 +34,8 @@ class BiltyController extends Controller
      */
     public function create()
     {
-        $invoices = Invoice::with('customer.city')
+        $invoices = app(ModuleBranchService::class)
+            ->applyRelatedScope(Invoice::with('customer.city'), 'invoices', 'bilties')
             ->doesntHave('bilty')
             ->get()
             ->map(fn ($invoice) => $this->formatInvoiceOptionPayload($invoice))
@@ -81,12 +85,25 @@ class BiltyController extends Controller
         }
 
         // Create bilties for each invoice
+        $branches = app(ModuleBranchService::class);
         foreach ($invoicesArray as $invoice) {
-            Bilty::create([
+            $sourceInvoice = $branches->applyRelatedScope(Invoice::query(), 'invoices', 'bilties')
+                ->doesntHave('bilty')
+                ->find($invoice['id']);
+
+            if (!$sourceInvoice) {
+                return redirect()->back()->with('error', 'Selected invoice is not available for this branch.');
+            }
+
+            Bilty::create($branches->assignBranchOnCreate([
                 'date' => $request->date,
                 'invoice_id' => $invoice['id'],
-                'bilty_no' => $invoice['biltyNo'],
-            ]);
+                'bilty_no' => app(BranchSerialService::class)->formatBranchDocumentNumber(
+                    (string) $invoice['biltyNo'],
+                    'bilties',
+                    $branches->selectedBranchForModule('bilties')
+                ),
+            ], 'bilties'));
 
             $updateData = array_filter([
                 'cargo_name' => $invoice['cargoName'] ?? null,
@@ -94,7 +111,7 @@ class BiltyController extends Controller
             ], fn($value) => !is_null($value));
 
             if (!empty($updateData)) {
-                Invoice::where('id', $invoice['id'])->update($updateData);
+                $sourceInvoice->update($updateData);
             }
         }
 
@@ -106,7 +123,7 @@ class BiltyController extends Controller
      */
     public function show(Bilty $bilty)
     {
-        //
+        app(ModuleBranchService::class)->assertRecordInAllowedBranch($bilty, 'bilties');
     }
 
     /**
@@ -114,7 +131,7 @@ class BiltyController extends Controller
      */
     public function edit(Bilty $bilty)
     {
-        //
+        app(ModuleBranchService::class)->assertRecordInAllowedBranch($bilty, 'bilties');
     }
 
     /**
@@ -122,7 +139,7 @@ class BiltyController extends Controller
      */
     public function update(Request $request, Bilty $bilty)
     {
-        //
+        app(ModuleBranchService::class)->assertRecordInAllowedBranch($bilty, 'bilties');
     }
 
     /**
@@ -130,6 +147,6 @@ class BiltyController extends Controller
      */
     public function destroy(Bilty $bilty)
     {
-        //
+        app(ModuleBranchService::class)->assertRecordInAllowedBranch($bilty, 'bilties');
     }
 }

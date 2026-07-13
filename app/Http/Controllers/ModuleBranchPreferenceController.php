@@ -11,6 +11,10 @@ class ModuleBranchPreferenceController extends Controller
 {
     public function store(Request $request, ModuleBranchService $branches): RedirectResponse
     {
+        if ($request->filled('module_key')) {
+            $request->merge(['module_key' => $branches->canonicalModuleKey((string) $request->input('module_key'))]);
+        }
+
         $validated = $request->validate([
             'module_key' => ['required', 'string', 'max:80', Rule::in(array_keys($branches->moduleRegistry()))],
             'branch_id' => ['nullable', 'integer', 'exists:branches,id'],

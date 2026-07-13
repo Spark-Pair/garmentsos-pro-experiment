@@ -21,6 +21,7 @@ class StatementAdjustment extends Model
         'direction',
         'amount',
         'remarks',
+        'branch_id',
     ];
 
     protected $casts = [

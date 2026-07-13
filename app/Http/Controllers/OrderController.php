@@ -270,7 +270,7 @@ class OrderController extends Controller
             $customer = Customer::find($order['customer_id']);
 
             if ($customer && $customer['category'] == 'cash') {
-                $lastProgram = PaymentProgram::orderBy('id', 'desc')->first();
+                $lastProgram = $branches->applyScope(PaymentProgram::orderBy('id', 'desc'), 'payment_programs')->first();
                 $nextProgramNo = $lastProgram ? $lastProgram->program_no + 1 : 1;
 
                 PaymentProgram::create([
@@ -280,6 +280,7 @@ class OrderController extends Controller
                     'customer_id' => $order['customer_id'],
                     'category' => 'waiting',
                     'amount' => $order['netAmount'],
+                    'branch_id' => $order->branch_id ?: $branches->branchIdForCreate('payment_programs'),
                 ]);
             }
 
@@ -334,7 +335,7 @@ class OrderController extends Controller
         // if ($request->generateInvoiceAfterSave) {
         //     return redirect()->route('invoices.create')->with('orderNumber', $order->order_no);
         // } else {
-            return redirect()->route('orders.create')->with('success', 'Order generated successfully. Order No. : ' . $request->order_no);
+            return redirect()->route('orders.create')->with('success', 'Order generated successfully. Order No. : ' . $createdOrder->order_no);
         // }
     }
 
@@ -343,7 +344,7 @@ class OrderController extends Controller
      */
     public function show(Order $order)
     {
-        //
+        app(ModuleBranchService::class)->assertRecordInAllowedBranch($order, 'orders');
     }
 
     /**
@@ -354,6 +355,7 @@ class OrderController extends Controller
         if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin', 'accountant'])) {
             return $resp;
         }
+        app(ModuleBranchService::class)->assertRecordInAllowedBranch($order, 'orders');
 
         $order->load([
             'customer.city',
@@ -407,6 +409,7 @@ class OrderController extends Controller
             return redirect(route('home'))
                 ->with('error', 'You do not have permission to access this page.');
         }
+        app(ModuleBranchService::class)->assertRecordInAllowedBranch($order, 'orders');
 
         $validator = Validator::make($request->all(), [
             'discount'   => 'required|integer|min:0',
@@ -477,7 +480,7 @@ class OrderController extends Controller
      */
     public function destroy(Order $order)
     {
-        //
+        app(ModuleBranchService::class)->assertRecordInAllowedBranch($order, 'orders');
     }
 
     private function validateOrderArticleStock(array $articles, ?int $excludeOrderId = null, $existingDispatched = null): void

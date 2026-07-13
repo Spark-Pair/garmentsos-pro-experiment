@@ -18,6 +18,7 @@ class DailyLedgerUse extends Model
         'case',
         'amount',
         'remarks',
+        'branch_id',
     ];
 
     protected $casts = [

@@ -12,8 +12,16 @@ use Illuminate\Support\Collection;
 
 class ArticleStockService
 {
-    public function summaries($articleIds, ?int $excludeOrderId = null, ?int $branchId = null): Collection
+    public function summaries($articleIds, ?int $excludeOrderId = null, int|array|null $branchId = null, bool $includeNullBranchRecords = false): Collection
     {
+        $branchIds = collect(is_array($branchId) ? $branchId : (filled($branchId) ? [$branchId] : []))
+            ->filter(fn ($id) => is_numeric($id))
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn ($id) => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
+
         $articleIds = collect($articleIds)
             ->filter()
             ->map(fn ($id) => (int) $id)
@@ -31,27 +39,48 @@ class ArticleStockService
 
         $physicalRows = PhysicalQuantity::query()
             ->whereIn('article_id', $articleIds)
-            ->when($branchId && Schema::hasColumn('physical_quantities', 'branch_id'), fn ($query) => $query->where('branch_id', $branchId))
+            ->when(!empty($branchIds) && Schema::hasColumn('physical_quantities', 'branch_id'), fn ($query) => $query->where(function ($scope) use ($branchIds, $includeNullBranchRecords) {
+                $scope->whereIn('branch_id', $branchIds);
+                if ($includeNullBranchRecords) {
+                    $scope->orWhereNull('branch_id');
+                }
+            }))
             ->get(['article_id', 'packets', 'category', 'sales_return_id'])
             ->groupBy('article_id');
 
         $orderedPcs = OrderArticles::query()
             ->whereIn('article_id', $articleIds)
             ->when($excludeOrderId, fn ($query) => $query->where('order_id', '!=', $excludeOrderId))
-            ->when($branchId, fn ($query) => $query->whereHas('order', fn ($orderQuery) => $orderQuery->where('branch_id', $branchId)))
+            ->when(!empty($branchIds) && Schema::hasColumn('orders', 'branch_id'), fn ($query) => $query->whereHas('order', fn ($orderQuery) => $orderQuery->where(function ($scope) use ($branchIds, $includeNullBranchRecords) {
+                $scope->whereIn('branch_id', $branchIds);
+                if ($includeNullBranchRecords) {
+                    $scope->orWhereNull('branch_id');
+                }
+            })))
             ->selectRaw('article_id, SUM(ordered_pcs) as quantity')
             ->groupBy('article_id')
             ->pluck('quantity', 'article_id');
 
         $invoicedPcs = InvoiceArticles::query()
             ->whereIn('article_id', $articleIds)
-            ->when($branchId, fn ($query) => $query->whereHas('invoice', fn ($invoiceQuery) => $invoiceQuery->where('branch_id', $branchId)))
+            ->when(!empty($branchIds) && Schema::hasColumn('invoices', 'branch_id'), fn ($query) => $query->whereHas('invoice', fn ($invoiceQuery) => $invoiceQuery->where(function ($scope) use ($branchIds, $includeNullBranchRecords) {
+                $scope->whereIn('branch_id', $branchIds);
+                if ($includeNullBranchRecords) {
+                    $scope->orWhereNull('branch_id');
+                }
+            })))
             ->selectRaw('article_id, SUM(invoice_pcs) as quantity')
             ->groupBy('article_id')
             ->pluck('quantity', 'article_id');
 
         $returnRows = SalesReturn::query()
             ->whereIn('article_id', $articleIds)
+            ->when(!empty($branchIds) && Schema::hasColumn('sales_returns', 'branch_id'), fn ($query) => $query->where(function ($scope) use ($branchIds, $includeNullBranchRecords) {
+                $scope->whereIn('branch_id', $branchIds);
+                if ($includeNullBranchRecords) {
+                    $scope->orWhereNull('branch_id');
+                }
+            }))
             ->selectRaw("article_id, type, SUM(quantity) as quantity")
             ->groupBy('article_id', 'type')
             ->get()

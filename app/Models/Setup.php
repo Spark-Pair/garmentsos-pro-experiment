@@ -23,7 +23,8 @@ class Setup extends Model
     protected $fillable = [
         'type',
         'title',
-        'short_title'
+        'short_title',
+        'branch_id',
     ];
 
     public function scopeWorkerTypesNotE($query)

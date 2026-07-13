@@ -95,9 +95,6 @@
 
 @endsection
 
-@push('left-actions-after')
-    <x-module-branch-selector module-key="physical_quantities" />
-@endpush
 
 @push('page-scripts')
 <script defer src="{{ asset('js/pages/physical-quantities-create.js') }}"></script>

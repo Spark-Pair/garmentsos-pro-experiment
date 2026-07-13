@@ -2,7 +2,7 @@
 @section('title', 'Pending Payments | ' . $client_company->name)
 @section('content')
 @php
-    $companyData = $client_company;
+    $companyData = $pendingBranding ?? $client_company;
     $reportBranches = collect($reportBranches ?? []);
     $selectedBranchIds = collect($selectedBranchIds ?? $reportBranches->pluck('id')->all())->map(fn($id) => (int) $id)->all();
     $selectedBranchLabels = $selectedBranchLabels ?? ['All Branches'];
@@ -131,9 +131,6 @@
 
 @endsection
 
-@push('left-actions-after')
-    <x-module-branch-selector module-key="pending_payments" mode="multiple" />
-@endpush
 
 @push('page-scripts')
 <script defer src="{{ asset('js/pages/reports-pending-payments.js') }}"></script>
@@ -141,7 +138,6 @@
         window.__reportsPendingPayments = {
             pendingUrl: @json(route('reports.pending-payments')),
             csrfToken: @json(csrf_token()),
-            selectedBranchIds: @json($selectedBranchIds),
         };
     </script>
 @endpush

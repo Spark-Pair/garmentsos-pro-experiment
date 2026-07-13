@@ -26,7 +26,7 @@ class BranchController extends Controller
 
         return view('developer.branches.index', [
             'branches' => Branch::query()->orderByDesc('is_main')->orderBy('name')->get(),
-            'moduleLabels' => ModuleBranchService::MODULES,
+            'moduleLabels' => $branches->moduleLabels(),
         ]);
     }
 
@@ -61,7 +61,9 @@ class BranchController extends Controller
             return $resp;
         }
 
-        $branches->ensureBranchModuleRows($branch);
+        $branch->is_main
+            ? $branches->ensureRegistryModuleSettings($branch)
+            : $branches->ensureBranchModuleRows($branch);
 
         return view('developer.branches.show', $this->branchViewData($branch));
     }
@@ -72,7 +74,9 @@ class BranchController extends Controller
             return $resp;
         }
 
-        $branches->ensureBranchModuleRows($branch);
+        $branch->is_main
+            ? $branches->ensureRegistryModuleSettings($branch)
+            : $branches->ensureBranchModuleRows($branch);
 
         return view('developer.branches.edit', $this->branchViewData($branch));
     }
@@ -151,7 +155,7 @@ class BranchController extends Controller
         return $validated;
     }
 
-    public function updateModules(Request $request): RedirectResponse
+    public function updateModules(Request $request, ModuleBranchService $branches): RedirectResponse
     {
         if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin'])) {
             return $resp;
@@ -162,12 +166,29 @@ class BranchController extends Controller
             'modules' => ['array'],
             'modules.*.branch_enabled' => ['nullable', 'boolean'],
             'modules.*.allow_user_switching' => ['nullable', 'boolean'],
+            'modules.*.record_filtering_enabled' => ['nullable', 'boolean'],
             'modules.*.default_branch_id' => ['nullable', 'integer', 'exists:branches,id'],
             'modules.*.status' => ['nullable', 'in:active,inactive'],
         ]);
 
         $branchId = $validated['branch_id'] ?? null;
         foreach (($validated['modules'] ?? []) as $moduleKey => $data) {
+            $moduleKey = $branches->canonicalModuleKey((string) $moduleKey);
+            if (!array_key_exists($moduleKey, $branches->moduleRegistry())) {
+                continue;
+            }
+            $module = $branches->moduleRegistry()[$moduleKey];
+            $setting = BranchModuleSetting::query()
+                ->where('branch_id', $branchId)
+                ->where('module_key', $moduleKey)
+                ->first();
+            $metadata = is_array($setting?->metadata) ? $setting->metadata : [];
+            $metadata['record_filtering_enabled'] = (bool) (
+                ($data['record_filtering_enabled'] ?? false)
+                && ($module['supports_record_filtering'] ?? false)
+                && ($module['has_branch_id_support'] ?? false)
+            );
+
             BranchModuleSetting::query()->updateOrCreate(
                 ['branch_id' => $branchId, 'module_key' => $moduleKey],
                 [
@@ -175,6 +196,7 @@ class BranchController extends Controller
                     'allow_user_switching' => (bool) ($data['allow_user_switching'] ?? false),
                     'default_branch_id' => $data['default_branch_id'] ?? null,
                     'status' => $data['status'] ?? 'active',
+                    'metadata' => $metadata,
                 ],
             );
         }
@@ -182,17 +204,21 @@ class BranchController extends Controller
         return redirect()->back()->with('success', 'Module branch settings saved.');
     }
 
-    public function updateAccess(Request $request): RedirectResponse
+    public function updateAccess(Request $request, ModuleBranchService $branches): RedirectResponse
     {
         if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin'])) {
             return $resp;
+        }
+
+        if (filled($request->input('module_key'))) {
+            $request->merge(['module_key' => $branches->canonicalModuleKey((string) $request->input('module_key'))]);
         }
 
         $validated = $request->validate([
             'branch_id' => ['required', 'integer', 'exists:branches,id'],
             'role' => ['required', 'string', Rule::in(['developer', 'owner', 'admin', 'manager', 'accountant', 'store_keeper', 'guest', 'supplier'])],
             'user_id' => ['nullable', 'integer', 'exists:users,id'],
-            'module_key' => ['nullable', 'string', Rule::in(array_keys(ModuleBranchService::MODULES))],
+            'module_key' => ['nullable', 'string', Rule::in(array_keys($branches->moduleRegistry()))],
             'can_view' => ['nullable', 'boolean'],
             'can_create' => ['nullable', 'boolean'],
             'can_update' => ['nullable', 'boolean'],
@@ -200,6 +226,9 @@ class BranchController extends Controller
             'can_switch' => ['nullable', 'boolean'],
             'can_manage' => ['nullable', 'boolean'],
         ]);
+        $validated['module_key'] = filled($validated['module_key'] ?? null)
+            ? $branches->canonicalModuleKey((string) $validated['module_key'])
+            : null;
 
         BranchUserAccess::query()->updateOrCreate(
             [
@@ -224,16 +253,20 @@ class BranchController extends Controller
 
     protected function branchViewData(Branch $branch): array
     {
+        $branches = app(ModuleBranchService::class);
+        $registry = $branches->moduleRegistry();
+
         return [
             'branch' => $branch->load(['moduleSettings', 'accessRows']),
             'branches' => Branch::query()->orderByDesc('is_main')->orderBy('name')->get(),
-            'moduleLabels' => ModuleBranchService::MODULES,
-            'moduleRegistry' => ModuleBranchService::MODULE_REGISTRY,
+            'moduleLabels' => $branches->moduleLabels(),
+            'moduleRegistry' => $registry,
             'moduleSettings' => BranchModuleSetting::query()
                 ->where('branch_id', $branch->id)
-                ->orderBy('module_key')
                 ->get()
-                ->keyBy('module_key'),
+                ->sortBy(fn (BranchModuleSetting $setting) => ($registry[$branches->canonicalModuleKey($setting->module_key)]['group'] ?? 'ZZZ') . '|' . ($registry[$branches->canonicalModuleKey($setting->module_key)]['label'] ?? $setting->module_key))
+                ->values()
+                ->keyBy(fn (BranchModuleSetting $setting) => $branches->canonicalModuleKey($setting->module_key)),
             'accessRows' => BranchUserAccess::query()
                 ->with(['branch', 'user'])
                 ->where('branch_id', $branch->id)

@@ -14,6 +14,7 @@ class Salary extends Model
         'employee_id',
         'types_array',
         'amount',
+        'branch_id',
     ];
 
     protected $casts = [

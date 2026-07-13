@@ -20,6 +20,8 @@ class ModuleBranchService
         'dashboard' => [
             'label' => 'Dashboard',
             'group' => 'General',
+            'route_prefixes' => ['home'],
+            'page_reference' => 'home',
             'branchable' => false,
             'can_filter_records' => false,
             'can_use_branch_branding' => false,
@@ -32,6 +34,8 @@ class ModuleBranchService
         'articles' => [
             'label' => 'Articles',
             'group' => 'Inventory',
+            'route_prefixes' => ['articles', 'add-rate', 'update-image'],
+            'page_reference' => 'articles',
             'branchable' => true,
             'can_filter_records' => true,
             'can_use_branch_branding' => false,
@@ -44,6 +48,8 @@ class ModuleBranchService
         'article_parts' => [
             'label' => 'Article Parts',
             'group' => 'Inventory',
+            'route_prefixes' => ['articles'],
+            'page_reference' => 'article parts inside articles',
             'branchable' => false,
             'can_filter_records' => false,
             'can_use_branch_branding' => false,
@@ -56,6 +62,8 @@ class ModuleBranchService
         'customers' => [
             'label' => 'Customers',
             'group' => 'Parties',
+            'route_prefixes' => ['customers'],
+            'page_reference' => 'customers',
             'branchable' => true,
             'can_filter_records' => true,
             'can_use_branch_branding' => false,
@@ -69,6 +77,8 @@ class ModuleBranchService
         'suppliers' => [
             'label' => 'Suppliers',
             'group' => 'Parties',
+            'route_prefixes' => ['suppliers', 'update-supplier-category'],
+            'page_reference' => 'suppliers',
             'branchable' => true,
             'can_filter_records' => true,
             'can_use_branch_branding' => false,
@@ -82,6 +92,8 @@ class ModuleBranchService
         'employees' => [
             'label' => 'Employees / Workers',
             'group' => 'People',
+            'route_prefixes' => ['employees', 'update-employee-status'],
+            'page_reference' => 'employees',
             'branchable' => true,
             'can_filter_records' => true,
             'can_use_branch_branding' => false,
@@ -94,6 +106,8 @@ class ModuleBranchService
         'users' => [
             'label' => 'Users',
             'group' => 'People',
+            'route_prefixes' => ['users', 'update-user-status', 'users.reset-password'],
+            'page_reference' => 'user',
             'branchable' => true,
             'can_filter_records' => true,
             'can_use_branch_branding' => false,
@@ -106,6 +120,8 @@ class ModuleBranchService
         'orders' => [
             'label' => 'Orders',
             'group' => 'Sales',
+            'route_prefixes' => ['orders', 'get-order-details'],
+            'page_reference' => 'orders',
             'branchable' => true,
             'can_filter_records' => true,
             'can_use_branch_branding' => true,
@@ -119,6 +135,8 @@ class ModuleBranchService
         'invoices' => [
             'label' => 'Invoices',
             'group' => 'Sales',
+            'route_prefixes' => ['invoices', 'print-invoices', 'set-invoice-type'],
+            'page_reference' => 'invoices',
             'branchable' => true,
             'can_filter_records' => true,
             'can_use_branch_branding' => true,
@@ -132,6 +150,8 @@ class ModuleBranchService
         'vouchers' => [
             'label' => 'Vouchers',
             'group' => 'Finance',
+            'route_prefixes' => ['vouchers', 'set-voucher-type', 'get-voucher-details'],
+            'page_reference' => 'vouchers',
             'branchable' => true,
             'can_filter_records' => true,
             'can_use_branch_branding' => true,
@@ -144,6 +164,8 @@ class ModuleBranchService
         'customer_payments' => [
             'label' => 'Customer Payments',
             'group' => 'Finance',
+            'route_prefixes' => ['customer-payments', 'get-payments-by-method'],
+            'page_reference' => 'customer-payments',
             'branchable' => true,
             'can_filter_records' => true,
             'can_use_branch_branding' => true,
@@ -157,6 +179,8 @@ class ModuleBranchService
         'supplier_payments' => [
             'label' => 'Supplier Payments',
             'group' => 'Finance',
+            'route_prefixes' => ['supplier-payments'],
+            'page_reference' => 'supplier-payments',
             'branchable' => true,
             'can_filter_records' => true,
             'can_use_branch_branding' => true,
@@ -170,6 +194,8 @@ class ModuleBranchService
         'purchases' => [
             'label' => 'Purchases',
             'group' => 'Purchases',
+            'route_prefixes' => ['expenses', 'fabrics'],
+            'page_reference' => 'purchase flows',
             'branchable' => true,
             'can_filter_records' => true,
             'can_use_branch_branding' => true,
@@ -183,6 +209,8 @@ class ModuleBranchService
         'productions' => [
             'label' => 'Productions',
             'group' => 'Production',
+            'route_prefixes' => ['productions', 'set-production-type'],
+            'page_reference' => 'productions',
             'branchable' => true,
             'can_filter_records' => true,
             'can_use_branch_branding' => true,
@@ -195,6 +223,8 @@ class ModuleBranchService
         'physical_quantities' => [
             'label' => 'Physical Quantities / Stock',
             'group' => 'Inventory',
+            'route_prefixes' => ['physical-quantities', 'set-physical-quantity-report-type'],
+            'page_reference' => 'physical-quantities',
             'branchable' => true,
             'can_filter_records' => true,
             'can_use_branch_branding' => true,
@@ -208,6 +238,8 @@ class ModuleBranchService
         'reports' => [
             'label' => 'Reports',
             'group' => 'Reports',
+            'route_prefixes' => ['reports'],
+            'page_reference' => 'reports',
             'branchable' => true,
             'can_filter_records' => true,
             'can_use_branch_branding' => true,
@@ -221,6 +253,8 @@ class ModuleBranchService
         'statements' => [
             'label' => 'Statements',
             'group' => 'Reports',
+            'route_prefixes' => ['reports.statement', 'set-statement-type'],
+            'page_reference' => 'reports/statement',
             'branchable' => true,
             'can_filter_records' => true,
             'can_use_branch_branding' => true,
@@ -234,6 +268,8 @@ class ModuleBranchService
         'pending_payments' => [
             'label' => 'Pending Payments',
             'group' => 'Reports',
+            'route_prefixes' => ['reports.pending-payments'],
+            'page_reference' => 'reports/pending-payments',
             'branchable' => true,
             'can_filter_records' => true,
             'can_use_branch_branding' => true,
@@ -247,6 +283,8 @@ class ModuleBranchService
         'settings' => [
             'label' => 'Settings',
             'group' => 'Administration',
+            'route_prefixes' => ['setups', 'update-theme', 'change-data-layout'],
+            'page_reference' => 'setups/settings helpers',
             'branchable' => false,
             'can_filter_records' => false,
             'can_use_branch_branding' => false,
@@ -259,6 +297,8 @@ class ModuleBranchService
         'stock' => [
             'label' => 'Stock',
             'group' => 'Inventory',
+            'route_prefixes' => ['physical-quantities', 'reports.physical-quantity'],
+            'page_reference' => 'computed stock',
             'branchable' => false,
             'can_filter_records' => false,
             'can_use_branch_branding' => false,
@@ -268,9 +308,53 @@ class ModuleBranchService
             'safe_default_enabled' => false,
             'notes' => 'Computed stock view. Branch scope is controlled by Physical Quantities and sales/purchase modules.',
         ],
+        'setups' => [
+            'label' => 'Setup Lists / Categories / Cities',
+            'group' => 'Administration',
+            'route_prefixes' => ['setups', 'get-category-data'],
+            'page_reference' => 'setups',
+            'branchable' => false,
+            'can_filter_records' => false,
+            'can_use_branch_branding' => false,
+            'supports_branch_selector' => false,
+            'supports_multi_branch_selector' => false,
+            'supports_branch_serial_prefix' => false,
+            'safe_default_enabled' => false,
+            'notes' => 'Shared setup values used by multiple modules.',
+        ],
+        'categories' => [
+            'label' => 'Categories / Setup Values',
+            'group' => 'Administration',
+            'route_prefixes' => ['setups', 'get-category-data'],
+            'page_reference' => 'setups categories',
+            'branchable' => false,
+            'can_filter_records' => false,
+            'can_use_branch_branding' => false,
+            'supports_branch_selector' => false,
+            'supports_multi_branch_selector' => false,
+            'supports_branch_serial_prefix' => false,
+            'safe_default_enabled' => false,
+            'notes' => 'Shared setup categories used by articles, suppliers, cities, utility types, and similar dropdowns.',
+        ],
+        'rates' => [
+            'label' => 'Rates',
+            'group' => 'Inventory',
+            'route_prefixes' => ['rates'],
+            'page_reference' => 'rates',
+            'branchable' => false,
+            'can_filter_records' => false,
+            'can_use_branch_branding' => false,
+            'supports_branch_selector' => false,
+            'supports_multi_branch_selector' => false,
+            'supports_branch_serial_prefix' => false,
+            'safe_default_enabled' => false,
+            'notes' => 'Rate definitions remain global until pricing ownership is reviewed.',
+        ],
         'bank_accounts' => [
             'label' => 'Bank Accounts',
             'group' => 'Finance',
+            'route_prefixes' => ['bank-accounts', 'update-bank-account-status'],
+            'page_reference' => 'bank-accounts',
             'branchable' => false,
             'can_filter_records' => false,
             'can_use_branch_branding' => false,
@@ -283,6 +367,8 @@ class ModuleBranchService
         'bank_transactions' => [
             'label' => 'Bank Transactions / Daily Ledger',
             'group' => 'Finance',
+            'route_prefixes' => ['daily-ledger', 'get-utility-accounts'],
+            'page_reference' => 'daily-ledger',
             'branchable' => false,
             'can_filter_records' => false,
             'can_use_branch_branding' => false,
@@ -292,9 +378,81 @@ class ModuleBranchService
             'safe_default_enabled' => false,
             'notes' => 'Ledger references remain global until branch ownership is reviewed.',
         ],
+        'payment_programs' => [
+            'label' => 'Payment Programs',
+            'group' => 'Finance',
+            'route_prefixes' => ['payment-programs', 'get-program-details'],
+            'page_reference' => 'payment-programs',
+            'branchable' => false,
+            'can_filter_records' => false,
+            'can_use_branch_branding' => false,
+            'supports_branch_selector' => false,
+            'supports_multi_branch_selector' => false,
+            'supports_branch_serial_prefix' => false,
+            'safe_default_enabled' => false,
+            'notes' => 'Program schedules remain global until payment flow ownership is reviewed.',
+        ],
+        'employee_payments' => [
+            'label' => 'Employee Payments / Salaries',
+            'group' => 'People',
+            'route_prefixes' => ['employee-payments', 'attendances'],
+            'page_reference' => 'employee-payments',
+            'branchable' => false,
+            'can_filter_records' => false,
+            'can_use_branch_branding' => false,
+            'supports_branch_selector' => false,
+            'supports_multi_branch_selector' => false,
+            'supports_branch_serial_prefix' => false,
+            'safe_default_enabled' => false,
+            'notes' => 'Salary/payment flows stay global until payroll branch rules are reviewed.',
+        ],
+        'cr' => [
+            'label' => 'Customer Return / CR',
+            'group' => 'Finance',
+            'route_prefixes' => ['cr', 'set-cr-type'],
+            'page_reference' => 'cr',
+            'branchable' => false,
+            'can_filter_records' => false,
+            'can_use_branch_branding' => false,
+            'supports_branch_selector' => false,
+            'supports_multi_branch_selector' => false,
+            'supports_branch_serial_prefix' => false,
+            'safe_default_enabled' => false,
+            'notes' => 'CR flow remains global until return/payment branch ownership is reviewed.',
+        ],
+        'dr' => [
+            'label' => 'Debit Return / DR',
+            'group' => 'Finance',
+            'route_prefixes' => ['dr'],
+            'page_reference' => 'dr',
+            'branchable' => false,
+            'can_filter_records' => false,
+            'can_use_branch_branding' => false,
+            'supports_branch_selector' => false,
+            'supports_multi_branch_selector' => false,
+            'supports_branch_serial_prefix' => false,
+            'safe_default_enabled' => false,
+            'notes' => 'DR flow remains global until return/payment branch ownership is reviewed.',
+        ],
+        'daily_ledger' => [
+            'label' => 'Daily Ledger',
+            'group' => 'Finance',
+            'route_prefixes' => ['daily-ledger', 'set-daily-ledger-type'],
+            'page_reference' => 'daily-ledger',
+            'branchable' => false,
+            'can_filter_records' => false,
+            'can_use_branch_branding' => false,
+            'supports_branch_selector' => false,
+            'supports_multi_branch_selector' => false,
+            'supports_branch_serial_prefix' => false,
+            'safe_default_enabled' => false,
+            'notes' => 'Daily ledger remains global until bank transaction branch ownership is reviewed.',
+        ],
         'cargo' => [
             'label' => 'Cargo',
             'group' => 'Dispatch',
+            'route_prefixes' => ['cargos'],
+            'page_reference' => 'cargos',
             'branchable' => true,
             'can_filter_records' => true,
             'can_use_branch_branding' => true,
@@ -307,6 +465,8 @@ class ModuleBranchService
         'shipments' => [
             'label' => 'Shipments',
             'group' => 'Dispatch',
+            'route_prefixes' => ['shipments', 'get-shipment-details'],
+            'page_reference' => 'shipments',
             'branchable' => true,
             'can_filter_records' => true,
             'can_use_branch_branding' => true,
@@ -316,33 +476,151 @@ class ModuleBranchService
             'safe_default_enabled' => false,
             'notes' => 'Shipment documents can be branch-wise after dispatch flow review.',
         ],
+        'bilties' => [
+            'label' => 'Bilties',
+            'group' => 'Dispatch',
+            'route_prefixes' => ['bilties'],
+            'page_reference' => 'bilties',
+            'branchable' => false,
+            'can_filter_records' => false,
+            'can_use_branch_branding' => false,
+            'supports_branch_selector' => false,
+            'supports_multi_branch_selector' => false,
+            'supports_branch_serial_prefix' => false,
+            'safe_default_enabled' => false,
+            'notes' => 'Bilty numbers are entered against invoices and remain global until dispatch ownership is reviewed.',
+        ],
         'sales_returns' => [
             'label' => 'Sales Returns',
             'group' => 'Sales',
+            'route_prefixes' => ['sales-returns'],
+            'page_reference' => 'sales-return',
             'branchable' => true,
             'can_filter_records' => true,
             'can_use_branch_branding' => true,
             'supports_branch_selector' => true,
             'supports_multi_branch_selector' => false,
-            'supports_branch_serial_prefix' => true,
+            'supports_branch_serial_prefix' => false,
             'safe_default_enabled' => false,
             'notes' => 'Sales return rows should follow invoice branch when enabled.',
         ],
         'expenses' => [
             'label' => 'Expenses / Fabrics',
             'group' => 'Purchases',
+            'route_prefixes' => ['expenses'],
+            'page_reference' => 'expenses',
             'branchable' => true,
             'can_filter_records' => true,
             'can_use_branch_branding' => false,
             'supports_branch_selector' => true,
             'supports_multi_branch_selector' => false,
-            'supports_branch_serial_prefix' => true,
+            'supports_branch_serial_prefix' => false,
             'safe_default_enabled' => false,
-            'notes' => 'Expense/fabric reference numbers can be branch-wise after purchase flow review.',
+            'notes' => 'Expense rows can be branch-wise; manually entered reference numbers remain screen-local.',
+        ],
+        'fabrics' => [
+            'label' => 'Fabrics',
+            'group' => 'Purchases',
+            'route_prefixes' => ['fabrics'],
+            'page_reference' => 'fabrics',
+            'branchable' => false,
+            'can_filter_records' => false,
+            'can_use_branch_branding' => false,
+            'supports_branch_selector' => false,
+            'supports_multi_branch_selector' => false,
+            'supports_branch_serial_prefix' => false,
+            'safe_default_enabled' => false,
+            'notes' => 'Fabric stock and issue/return flows remain global until fabric calculations are reviewed.',
+        ],
+        'statement_adjustments' => [
+            'label' => 'Statement Adjustments',
+            'group' => 'Reports',
+            'route_prefixes' => ['statement-adjustments'],
+            'page_reference' => 'statement-adjustments',
+            'branchable' => false,
+            'can_filter_records' => false,
+            'can_use_branch_branding' => false,
+            'supports_branch_selector' => false,
+            'supports_multi_branch_selector' => false,
+            'supports_branch_serial_prefix' => false,
+            'safe_default_enabled' => false,
+            'notes' => 'Manual balance adjustments stay global until statement adjustment branch rules are reviewed.',
+        ],
+        'attendances' => [
+            'label' => 'Attendances',
+            'group' => 'People',
+            'route_prefixes' => ['attendances'],
+            'page_reference' => 'attendances',
+            'branchable' => false,
+            'can_filter_records' => false,
+            'can_use_branch_branding' => false,
+            'supports_branch_selector' => false,
+            'supports_multi_branch_selector' => false,
+            'supports_branch_serial_prefix' => false,
+            'safe_default_enabled' => false,
+            'notes' => 'Attendance and salary slip screens remain global until payroll branch rules are reviewed.',
+        ],
+        'utility_bills' => [
+            'label' => 'Utility Bills',
+            'group' => 'Finance',
+            'route_prefixes' => ['utility-bills'],
+            'page_reference' => 'utility-bills',
+            'branchable' => false,
+            'can_filter_records' => false,
+            'can_use_branch_branding' => false,
+            'supports_branch_selector' => false,
+            'supports_multi_branch_selector' => false,
+            'supports_branch_serial_prefix' => false,
+            'safe_default_enabled' => false,
+            'notes' => 'Utility bill payments remain global until account ownership is reviewed.',
+        ],
+        'utility_accounts' => [
+            'label' => 'Utility Accounts',
+            'group' => 'Finance',
+            'route_prefixes' => ['utility-accounts'],
+            'page_reference' => 'utility-accounts',
+            'branchable' => false,
+            'can_filter_records' => false,
+            'can_use_branch_branding' => false,
+            'supports_branch_selector' => false,
+            'supports_multi_branch_selector' => false,
+            'supports_branch_serial_prefix' => false,
+            'safe_default_enabled' => false,
+            'notes' => 'Utility account setup remains global.',
+        ],
+        'notifications' => [
+            'label' => 'Notifications',
+            'group' => 'General',
+            'route_prefixes' => ['notifications'],
+            'page_reference' => 'notifications',
+            'branchable' => false,
+            'can_filter_records' => false,
+            'can_use_branch_branding' => false,
+            'supports_branch_selector' => false,
+            'supports_multi_branch_selector' => false,
+            'supports_branch_serial_prefix' => false,
+            'safe_default_enabled' => false,
+            'notes' => 'Notification feed is user/system level.',
+        ],
+        'permission_report' => [
+            'label' => 'Permission Report',
+            'group' => 'Developer',
+            'route_prefixes' => ['permissions-report'],
+            'page_reference' => 'permissions-report',
+            'branchable' => false,
+            'can_filter_records' => false,
+            'can_use_branch_branding' => false,
+            'supports_branch_selector' => false,
+            'supports_multi_branch_selector' => false,
+            'supports_branch_serial_prefix' => false,
+            'safe_default_enabled' => false,
+            'notes' => 'Permission report is installation-wide.',
         ],
         'developer_settings' => [
             'label' => 'Developer Settings',
             'group' => 'Developer',
+            'route_prefixes' => ['developer.settings'],
+            'page_reference' => 'developer/settings',
             'branchable' => false,
             'can_filter_records' => false,
             'can_use_branch_branding' => false,
@@ -355,6 +633,8 @@ class ModuleBranchService
         'branches' => [
             'label' => 'Branches',
             'group' => 'Developer',
+            'route_prefixes' => ['developer.branches', 'module-branch-preferences'],
+            'page_reference' => 'developer/branches',
             'branchable' => false,
             'can_filter_records' => false,
             'can_use_branch_branding' => false,
@@ -367,6 +647,8 @@ class ModuleBranchService
         'backups' => [
             'label' => 'Backups / Restore',
             'group' => 'Developer',
+            'route_prefixes' => ['developer.backups', 'backup-db'],
+            'page_reference' => 'developer/license backups restore',
             'branchable' => false,
             'can_filter_records' => false,
             'can_use_branch_branding' => false,
@@ -376,9 +658,25 @@ class ModuleBranchService
             'safe_default_enabled' => false,
             'notes' => 'Backup and restore are installation-level tools.',
         ],
+        'updater' => [
+            'label' => 'Updater',
+            'group' => 'Developer',
+            'route_prefixes' => ['developer.updater', 'updating'],
+            'page_reference' => 'developer/updater',
+            'branchable' => false,
+            'can_filter_records' => false,
+            'can_use_branch_branding' => false,
+            'supports_branch_selector' => false,
+            'supports_multi_branch_selector' => false,
+            'supports_branch_serial_prefix' => false,
+            'safe_default_enabled' => false,
+            'notes' => 'Application update controls are installation-wide.',
+        ],
         'license' => [
             'label' => 'License',
             'group' => 'Developer',
+            'route_prefixes' => ['developer.license', 'developer.audit-logs'],
+            'page_reference' => 'developer/license',
             'branchable' => false,
             'can_filter_records' => false,
             'can_use_branch_branding' => false,
@@ -387,6 +685,62 @@ class ModuleBranchService
             'supports_branch_serial_prefix' => false,
             'safe_default_enabled' => false,
             'notes' => 'License/device state is installation-wide, not branch-scoped.',
+        ],
+        'setup_wizard' => [
+            'label' => 'First Run Setup',
+            'group' => 'System',
+            'route_prefixes' => ['setup'],
+            'page_reference' => 'setup',
+            'branchable' => false,
+            'can_filter_records' => false,
+            'can_use_branch_branding' => false,
+            'supports_branch_selector' => false,
+            'supports_multi_branch_selector' => false,
+            'supports_branch_serial_prefix' => false,
+            'safe_default_enabled' => false,
+            'notes' => 'Installation setup page. Always global/system-level.',
+        ],
+        'auth' => [
+            'label' => 'Login / Session',
+            'group' => 'System',
+            'route_prefixes' => ['login', 'logout', 'update-last-activity', 'update-menu-shortcuts', 'update-theme'],
+            'page_reference' => 'auth',
+            'branchable' => false,
+            'can_filter_records' => false,
+            'can_use_branch_branding' => false,
+            'supports_branch_selector' => false,
+            'supports_multi_branch_selector' => false,
+            'supports_branch_serial_prefix' => false,
+            'safe_default_enabled' => false,
+            'notes' => 'Authentication/session pages are global.',
+        ],
+        'subscription' => [
+            'label' => 'Subscription / Expired Page',
+            'group' => 'System',
+            'route_prefixes' => ['subscription-expired'],
+            'page_reference' => 'subscription-expired',
+            'branchable' => false,
+            'can_filter_records' => false,
+            'can_use_branch_branding' => false,
+            'supports_branch_selector' => false,
+            'supports_multi_branch_selector' => false,
+            'supports_branch_serial_prefix' => false,
+            'safe_default_enabled' => false,
+            'notes' => 'Subscription lockout page is installation-wide.',
+        ],
+        'branch_assets' => [
+            'label' => 'Branch Logos / Assets',
+            'group' => 'System',
+            'route_prefixes' => ['branch-logos'],
+            'page_reference' => 'branch logo delivery',
+            'branchable' => false,
+            'can_filter_records' => false,
+            'can_use_branch_branding' => false,
+            'supports_branch_selector' => false,
+            'supports_multi_branch_selector' => false,
+            'supports_branch_serial_prefix' => false,
+            'safe_default_enabled' => false,
+            'notes' => 'Asset delivery route for branch logos.',
         ],
     ];
 
@@ -411,38 +765,74 @@ class ModuleBranchService
         'pending_payments' => 'Pending Payments',
         'settings' => 'Settings',
         'stock' => 'Stock',
+        'setups' => 'Setup Lists / Categories / Cities',
+        'categories' => 'Categories / Setup Values',
+        'rates' => 'Rates',
         'bank_accounts' => 'Bank Accounts',
         'bank_transactions' => 'Bank Transactions / Daily Ledger',
+        'payment_programs' => 'Payment Programs',
+        'employee_payments' => 'Employee Payments / Salaries',
+        'cr' => 'Customer Return / CR',
+        'dr' => 'Debit Return / DR',
+        'daily_ledger' => 'Daily Ledger',
         'cargo' => 'Cargo',
         'shipments' => 'Shipments',
+        'bilties' => 'Bilties',
         'sales_returns' => 'Sales Returns',
         'expenses' => 'Expenses / Fabrics',
+        'fabrics' => 'Fabrics',
+        'statement_adjustments' => 'Statement Adjustments',
+        'attendances' => 'Attendances',
+        'utility_bills' => 'Utility Bills',
+        'utility_accounts' => 'Utility Accounts',
+        'notifications' => 'Notifications',
+        'permission_report' => 'Permission Report',
         'developer_settings' => 'Developer Settings',
         'branches' => 'Branches',
         'backups' => 'Backups / Restore',
+        'updater' => 'Updater',
         'license' => 'License',
+        'setup_wizard' => 'First Run Setup',
+        'auth' => 'Login / Session',
+        'subscription' => 'Subscription / Expired Page',
+        'branch_assets' => 'Branch Logos / Assets',
     ];
 
     public function moduleRegistry(): array
     {
-        return self::MODULE_REGISTRY;
+        return app(BranchModuleRegistryService::class)->registry();
     }
 
     public function moduleConfig(string $moduleKey): ?array
     {
-        return self::MODULE_REGISTRY[$moduleKey] ?? null;
+        return app(BranchModuleRegistryService::class)->configFor($moduleKey);
     }
 
     public function isRegisteredModule(string $moduleKey): bool
     {
-        return array_key_exists($moduleKey, self::MODULE_REGISTRY);
+        return $this->moduleConfig($moduleKey) !== null;
+    }
+
+    public function canonicalModuleKey(string $moduleKey): string
+    {
+        return app(BranchModuleRegistryService::class)->canonicalKey($moduleKey);
+    }
+
+    public function moduleLabels(): array
+    {
+        return app(BranchModuleRegistryService::class)->labels();
+    }
+
+    private function moduleKeyCandidates(string $moduleKey): array
+    {
+        return app(BranchModuleRegistryService::class)->aliasesFor($moduleKey);
     }
 
     public function ensureMainBranch(array $details = []): Branch
     {
         $branch = Branch::query()->where('is_main', true)->first();
         if ($branch) {
-            $this->ensureGlobalModuleRows($branch);
+            $this->ensureRegistryModuleSettings($branch);
             return $branch;
         }
 
@@ -470,32 +860,7 @@ class ModuleBranchService
                 'metadata' => ['created_by' => 'setup'],
             ]);
 
-            foreach (self::MODULES as $moduleKey => $label) {
-                $globalKey = $this->moduleSettingsHaveBranchId()
-                    ? ['branch_id' => null, 'module_key' => $moduleKey]
-                    : ['module_key' => $moduleKey];
-
-                BranchModuleSetting::query()->firstOrCreate($globalKey, [
-                    'branch_enabled' => (bool) (self::MODULE_REGISTRY[$moduleKey]['safe_default_enabled'] ?? false),
-                    'default_branch_id' => $branch->id,
-                    'allow_user_switching' => (bool) (self::MODULE_REGISTRY[$moduleKey]['safe_default_enabled'] ?? false),
-                    'status' => 'active',
-                    'metadata' => ['label' => $label],
-                ]);
-
-                if ($this->moduleSettingsHaveBranchId()) {
-                    BranchModuleSetting::query()->firstOrCreate(
-                        ['branch_id' => $branch->id, 'module_key' => $moduleKey],
-                        [
-                            'branch_enabled' => (bool) (self::MODULE_REGISTRY[$moduleKey]['safe_default_enabled'] ?? false),
-                            'default_branch_id' => $branch->id,
-                            'allow_user_switching' => (bool) (self::MODULE_REGISTRY[$moduleKey]['safe_default_enabled'] ?? false),
-                            'status' => 'active',
-                            'metadata' => ['label' => $label, 'main_branch_default' => true],
-                        ],
-                    );
-                }
-            }
+            $this->ensureRegistryModuleSettings($branch);
 
             foreach (['developer', 'owner', 'admin', 'manager', 'accountant', 'store_keeper', 'guest', 'supplier'] as $role) {
                 BranchUserAccess::query()->firstOrCreate(
@@ -519,6 +884,53 @@ class ModuleBranchService
         });
     }
 
+    public function ensureRegistryModuleSettings(?Branch $mainBranch = null): void
+    {
+        if (!Schema::hasTable('branch_module_settings')) {
+            return;
+        }
+
+        $mainBranch ??= $this->mainBranch();
+
+        $this->ensureGlobalModuleRows($mainBranch);
+
+        if ($mainBranch) {
+            $this->ensureMainBranchHasAllModules($mainBranch);
+            $this->grantManagerAccess($mainBranch);
+        }
+    }
+
+    public function ensureMainBranchHasAllModules(?Branch $mainBranch = null): void
+    {
+        if (!Schema::hasTable('branches') || !Schema::hasTable('branch_module_settings') || !$this->moduleSettingsHaveBranchId()) {
+            return;
+        }
+
+        $mainBranch ??= $this->mainBranch();
+        if (!$mainBranch) {
+            return;
+        }
+
+        foreach ($this->moduleRegistry() as $moduleKey => $config) {
+            BranchModuleSetting::query()->firstOrCreate(
+                ['branch_id' => $mainBranch->id, 'module_key' => $moduleKey],
+                [
+                    'branch_enabled' => true,
+                    'default_branch_id' => $mainBranch->id,
+                    'allow_user_switching' => true,
+                    'status' => 'active',
+                    'metadata' => [
+                        'label' => $config['label'],
+                        'group' => $config['group'],
+                        'route_prefixes' => $config['route_prefixes'],
+                        'page_reference' => $config['page_reference'],
+                        'main_branch_default' => true,
+                    ],
+                ],
+            );
+        }
+    }
+
     public function ensureGlobalModuleRows(?Branch $mainBranch = null): void
     {
         if (!Schema::hasTable('branch_module_settings')) {
@@ -529,8 +941,8 @@ class ModuleBranchService
             ? Branch::query()->where('is_main', true)->first()
             : null;
 
-        foreach (self::MODULES as $moduleKey => $label) {
-            $safeDefault = (bool) (self::MODULE_REGISTRY[$moduleKey]['safe_default_enabled'] ?? false);
+        foreach ($this->moduleRegistry() as $moduleKey => $config) {
+            $safeDefault = (bool) ($config['safe_default_enabled'] ?? false);
             $globalKey = $this->moduleSettingsHaveBranchId()
                 ? ['branch_id' => null, 'module_key' => $moduleKey]
                 : ['module_key' => $moduleKey];
@@ -540,7 +952,13 @@ class ModuleBranchService
                 'default_branch_id' => $mainBranch?->id,
                 'allow_user_switching' => $safeDefault,
                 'status' => 'active',
-                'metadata' => ['label' => $label, 'global_registry_repair' => true],
+                'metadata' => [
+                    'label' => $config['label'],
+                    'group' => $config['group'],
+                    'route_prefixes' => $config['route_prefixes'],
+                    'page_reference' => $config['page_reference'],
+                    'global_registry_repair' => true,
+                ],
             ]);
         }
     }
@@ -551,21 +969,23 @@ class ModuleBranchService
             return null;
         }
 
-        $query = BranchModuleSetting::query()->where('module_key', $moduleKey);
+        $moduleKey = $this->canonicalModuleKey($moduleKey);
+        $keys = $this->moduleKeyCandidates($moduleKey);
+        $query = BranchModuleSetting::query()->whereIn('module_key', $keys);
         if ($this->moduleSettingsHaveBranchId()) {
             $query->whereNull('branch_id');
         }
 
-        $setting = $query->first() ?? BranchModuleSetting::query()->where('module_key', $moduleKey)->first();
-        if (!$setting && array_key_exists($moduleKey, self::MODULE_REGISTRY)) {
+        $setting = $query->first() ?? BranchModuleSetting::query()->whereIn('module_key', $keys)->first();
+        if (!$setting && $this->isRegisteredModule($moduleKey)) {
             $this->ensureGlobalModuleRows();
 
-            $query = BranchModuleSetting::query()->where('module_key', $moduleKey);
+            $query = BranchModuleSetting::query()->whereIn('module_key', $keys);
             if ($this->moduleSettingsHaveBranchId()) {
                 $query->whereNull('branch_id');
             }
 
-            $setting = $query->first() ?? BranchModuleSetting::query()->where('module_key', $moduleKey)->first();
+            $setting = $query->first() ?? BranchModuleSetting::query()->whereIn('module_key', $keys)->first();
         }
 
         return $setting;
@@ -577,14 +997,17 @@ class ModuleBranchService
             return null;
         }
 
+        $moduleKey = $this->canonicalModuleKey($moduleKey);
+
         return BranchModuleSetting::query()
             ->where('branch_id', $branchId)
-            ->where('module_key', $moduleKey)
+            ->whereIn('module_key', $this->moduleKeyCandidates($moduleKey))
             ->first();
     }
 
     public function isEnabled(string $moduleKey): bool
     {
+        $moduleKey = $this->canonicalModuleKey($moduleKey);
         if (!$this->isRegisteredModule($moduleKey) || !Schema::hasTable('branch_module_settings')) {
             return false;
         }
@@ -608,6 +1031,7 @@ class ModuleBranchService
 
     public function isBranchEnabled(string $moduleKey, int $branchId): bool
     {
+        $moduleKey = $this->canonicalModuleKey($moduleKey);
         if (!$this->isRegisteredModule($moduleKey) || !Schema::hasTable('branch_module_settings')) {
             return false;
         }
@@ -625,6 +1049,7 @@ class ModuleBranchService
 
     public function branchAllowsSwitching(string $moduleKey, int $branchId): bool
     {
+        $moduleKey = $this->canonicalModuleKey($moduleKey);
         if (!$this->isRegisteredModule($moduleKey) || !$this->isBranchEnabled($moduleKey, $branchId)) {
             return false;
         }
@@ -638,6 +1063,7 @@ class ModuleBranchService
 
     public function selectedBranch(string $moduleKey, ?User $user = null): ?Branch
     {
+        $moduleKey = $this->canonicalModuleKey($moduleKey);
         if (!Schema::hasTable('branches')) {
             return null;
         }
@@ -654,7 +1080,7 @@ class ModuleBranchService
 
         $preferred = UserModuleBranchPreference::query()
             ->where('user_id', $user->id)
-            ->where('module_key', $moduleKey)
+            ->whereIn('module_key', $this->moduleKeyCandidates($moduleKey))
             ->first();
 
         if ($preferred && $this->isBranchEnabled($moduleKey, $preferred->branch_id) && $this->canView($preferred->branch_id, $moduleKey, $user)) {
@@ -683,8 +1109,9 @@ class ModuleBranchService
 
     public function availableBranchesForModule(string $moduleKey, ?User $user = null)
     {
+        $moduleKey = $this->canonicalModuleKey($moduleKey);
         $user ??= Auth::user();
-        if (!$user || !$this->isRegisteredModule($moduleKey) || !($this->moduleConfig($moduleKey)['branchable'] ?? false)) {
+        if (!$user || !$this->isRegisteredModule($moduleKey) || !($this->moduleConfig($moduleKey)['supports_branch_selector'] ?? false)) {
             return collect();
         }
 
@@ -704,7 +1131,7 @@ class ModuleBranchService
                     ->orWhere('role', $user->role);
             })
             ->where(function (Builder $query) use ($moduleKey) {
-                $query->whereNull('module_key')->orWhere('module_key', $moduleKey);
+                $query->whereNull('module_key')->orWhereIn('module_key', $this->moduleKeyCandidates($moduleKey));
             })
             ->where('can_view', true)
             ->where('can_switch', true)
@@ -738,9 +1165,39 @@ class ModuleBranchService
 
     public function shouldFilterRecords(string $moduleKey, ?User $user = null): bool
     {
+        $moduleKey = $this->canonicalModuleKey($moduleKey);
         $user ??= Auth::user();
+        $config = $this->moduleConfig($moduleKey) ?? [];
+        $setting = null;
+        $selectedBranchId = $this->selectedBranchIdForModule($moduleKey, $user);
+        if ($selectedBranchId) {
+            $setting = $this->branchSetting($moduleKey, $selectedBranchId);
+        }
+        $setting ??= $this->setting($moduleKey);
+        $metadata = is_array($setting?->metadata) ? $setting->metadata : [];
+        $recordFilteringEnabled = array_key_exists('record_filtering_enabled', $metadata)
+            ? (bool) $metadata['record_filtering_enabled']
+            : (bool) ($config['can_filter_records'] ?? false);
 
-        return (bool) ($user && $this->isEnabled($moduleKey) && ($this->moduleConfig($moduleKey)['can_filter_records'] ?? false));
+        return (bool) (
+            $user
+            && $this->isEnabled($moduleKey)
+            && $selectedBranchId
+            && ($config['supports_record_filtering'] ?? false)
+            && $recordFilteringEnabled
+            && ($config['has_branch_id_support'] ?? false)
+        );
+    }
+
+    public function shouldFilterRelatedRecords(?string $currentModuleKey, string $relatedModuleKey, ?User $user = null): bool
+    {
+        $currentModuleKey = $currentModuleKey ? $this->canonicalModuleKey($currentModuleKey) : $this->currentModuleKey();
+
+        return (bool) (
+            $currentModuleKey
+            && $this->shouldFilterRecords($currentModuleKey, $user)
+            && $this->shouldFilterRecords($relatedModuleKey, $user)
+        );
     }
 
     public function isModuleBranchSwitchable(string $moduleKey, ?User $user = null): bool
@@ -750,13 +1207,14 @@ class ModuleBranchService
 
     public function canShowSelector(string $moduleKey, ?User $user = null): bool
     {
+        $moduleKey = $this->canonicalModuleKey($moduleKey);
         $user ??= Auth::user();
         if (!$user || !$this->isRegisteredModule($moduleKey)) {
             return false;
         }
 
         $config = $this->moduleConfig($moduleKey);
-        if (!($config['branchable'] ?? false)) {
+        if (!($config['supports_branch_selector'] ?? false)) {
             return false;
         }
 
@@ -770,6 +1228,7 @@ class ModuleBranchService
 
     public function selectedBranchIdsForModule(string $moduleKey, ?User $user = null): array
     {
+        $moduleKey = $this->canonicalModuleKey($moduleKey);
         $user ??= Auth::user();
         $available = $this->availableBranchesForModule($moduleKey, $user);
         if (!$user || $available->isEmpty()) {
@@ -783,7 +1242,7 @@ class ModuleBranchService
         $availableIds = $available->pluck('id')->map(fn ($id) => (int) $id)->values();
         $preferred = UserModuleBranchPreference::query()
             ->where('user_id', $user->id)
-            ->where('module_key', $moduleKey)
+            ->whereIn('module_key', $this->moduleKeyCandidates($moduleKey))
             ->first();
 
         $storedIds = collect($preferred?->branch_ids ?? [])
@@ -795,6 +1254,68 @@ class ModuleBranchService
         return $storedIds->isNotEmpty()
             ? $storedIds->all()
             : $availableIds->all();
+    }
+
+    public function selectedBranchNamesForModule(string $moduleKey, ?User $user = null): array
+    {
+        $selectedIds = $this->selectedBranchIdsForModule($moduleKey, $user);
+
+        return $this->availableBranchesForModule($moduleKey, $user)
+            ->whereIn('id', $selectedIds)
+            ->pluck('name')
+            ->values()
+            ->all();
+    }
+
+    public function isAllBranchesSelected(string $moduleKey, ?User $user = null): bool
+    {
+        $available = $this->availableBranchesForModule($moduleKey, $user);
+        if ($available->isEmpty()) {
+            return false;
+        }
+
+        return count($this->selectedBranchIdsForModule($moduleKey, $user)) === $available->count();
+    }
+
+    public function reportBranchContext(string $moduleKey, ?User $user = null): array
+    {
+        $moduleKey = $this->canonicalModuleKey($moduleKey);
+        $user ??= Auth::user();
+        $available = $this->availableBranchesForModule($moduleKey, $user);
+        $selectedIds = collect($this->selectedBranchIdsForModule($moduleKey, $user))
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn ($id) => $id > 0)
+            ->values();
+
+        $selectedBranches = $available->whereIn('id', $selectedIds->all())->values();
+        $allSelected = $available->isNotEmpty() && $selectedIds->count() === $available->count();
+        $mainBranch = $this->mainBranch();
+        $mode = $allSelected ? 'all' : ($selectedIds->count() > 1 ? 'multiple' : 'single');
+        $useMainBranding = $mode !== 'single';
+        $brandingBranch = $useMainBranding ? $mainBranch : $selectedBranches->first();
+
+        return [
+            'module_key' => $moduleKey,
+            'mode' => $mode,
+            'branch_ids' => $selectedIds->all(),
+            'branch_names' => $allSelected
+                ? ['All Branches']
+                : ($selectedBranches->pluck('name')->values()->all() ?: ['Main Branch']),
+            'branches' => $available,
+            'selected_branches' => $selectedBranches,
+            'branding_branch' => $brandingBranch,
+            'use_main_branding' => $useMainBranding,
+            'include_null_main_records' => $selectedBranches->contains(fn (Branch $branch) => (bool) $branch->is_main),
+        ];
+    }
+
+    public function currentModuleKey(): ?string
+    {
+        try {
+            return app(BranchModuleRegistryService::class)->moduleKeyForRoute(request()->route());
+        } catch (\Throwable) {
+            return null;
+        }
     }
 
     public function selectedBranchSummaryForModule(string $moduleKey, ?User $user = null): string
@@ -817,7 +1338,8 @@ class ModuleBranchService
 
     public function setPreference(string $moduleKey, int $branchId, User $user): void
     {
-        if (!$this->isRegisteredModule($moduleKey) || !($this->moduleConfig($moduleKey)['branchable'] ?? false)) {
+        $moduleKey = $this->canonicalModuleKey($moduleKey);
+        if (!$this->isRegisteredModule($moduleKey) || !($this->moduleConfig($moduleKey)['supports_branch_selector'] ?? false)) {
             abort(422, 'Unknown or non-branchable module.');
         }
 
@@ -841,6 +1363,7 @@ class ModuleBranchService
 
     public function setMultiPreference(string $moduleKey, array $branchIds, User $user): void
     {
+        $moduleKey = $this->canonicalModuleKey($moduleKey);
         if (!$this->supportsMultiBranchSelector($moduleKey)) {
             abort(422, 'This module does not support multi-branch selection.');
         }
@@ -879,50 +1402,140 @@ class ModuleBranchService
         );
     }
 
-    public function applyScope(Builder $query, string $moduleKey): Builder
+    public function applyScope(Builder $query, string $moduleKey, string $branchColumn = 'branch_id'): Builder
     {
         if (!$this->shouldFilterRecords($moduleKey)) {
             return $query;
         }
 
         $model = $query->getModel();
-        if (!Schema::hasColumn($model->getTable(), 'branch_id')) {
+        if (!Schema::hasColumn($model->getTable(), $branchColumn)) {
             return $query;
         }
 
         $branch = $this->selectedBranch($moduleKey);
+        $qualifiedColumn = $model->getTable() . '.' . $branchColumn;
 
-        return $branch
-            ? $query->where($model->getTable() . '.branch_id', $branch->id)
-            : $query->whereRaw('1 = 0');
+        if (!$branch) {
+            return $query->whereRaw('1 = 0');
+        }
+
+        return $query->where(function (Builder $scoped) use ($qualifiedColumn, $branch) {
+            $scoped->where($qualifiedColumn, $branch->id);
+
+            if ($branch->is_main) {
+                $scoped->orWhereNull($qualifiedColumn);
+            }
+        });
     }
 
-    public function applyRelatedScope(Builder $query, string $relatedModuleKey, string $workingModuleKey): Builder
+    public function applyRelatedScope(Builder $query, string $relatedModuleKey, string|int|null $workingModuleKeyOrBranchId = null, string $branchColumn = 'branch_id'): Builder
     {
-        if (!$this->shouldFilterRecords($relatedModuleKey)) {
+        $workingModuleKey = is_numeric($workingModuleKeyOrBranchId)
+            ? null
+            : ($workingModuleKeyOrBranchId ? (string) $workingModuleKeyOrBranchId : $this->currentModuleKey());
+
+        if (!is_numeric($workingModuleKeyOrBranchId) && !$this->shouldFilterRelatedRecords($workingModuleKey, $relatedModuleKey)) {
+            return $query;
+        }
+
+        if (is_numeric($workingModuleKeyOrBranchId) && !$this->shouldFilterRecords($relatedModuleKey)) {
             return $query;
         }
 
         $model = $query->getModel();
-        if (!Schema::hasColumn($model->getTable(), 'branch_id')) {
+        if (!Schema::hasColumn($model->getTable(), $branchColumn)) {
             return $query;
         }
 
-        $branchId = $this->selectedBranchIdForModule($workingModuleKey)
-            ?: $this->selectedBranchIdForModule($relatedModuleKey);
+        $branchId = is_numeric($workingModuleKeyOrBranchId)
+            ? (int) $workingModuleKeyOrBranchId
+            : ($workingModuleKey
+                ? $this->selectedBranchIdForModule((string) $workingModuleKey)
+                : null);
 
-        return $branchId
-            ? $query->where($model->getTable() . '.branch_id', $branchId)
-            : $query->whereRaw('1 = 0');
+        if (!$branchId || !$this->isBranchEnabled($relatedModuleKey, $branchId)) {
+            return $query;
+        }
+
+        $branch = Schema::hasTable('branches') ? Branch::query()->find($branchId) : null;
+        $qualifiedColumn = $model->getTable() . '.' . $branchColumn;
+
+        return $query->where(function (Builder $scoped) use ($qualifiedColumn, $branchId, $branch) {
+            $scoped->where($qualifiedColumn, $branchId);
+
+            if ($branch?->is_main) {
+                $scoped->orWhereNull($qualifiedColumn);
+            }
+        });
+    }
+
+    public function relatedScopeForWorkingModule(Builder $query, string $workingModuleKey, string $relatedModuleKey, string $branchColumn = 'branch_id'): Builder
+    {
+        return $this->applyRelatedScope($query, $relatedModuleKey, $workingModuleKey, $branchColumn);
     }
 
     public function branchIdForCreate(string $moduleKey): ?int
     {
-        return $this->selectedBranch($moduleKey)?->id;
+        return $this->shouldFilterRecords($moduleKey) ? $this->selectedBranch($moduleKey)?->id : null;
+    }
+
+    public function assignBranchOnCreate(object|array $modelOrData, string $moduleKey, string $branchColumn = 'branch_id'): object|array
+    {
+        $branchId = $this->branchIdForCreate($moduleKey);
+        if (!$branchId) {
+            return $modelOrData;
+        }
+
+        if (is_array($modelOrData)) {
+            $modelOrData[$branchColumn] = $branchId;
+
+            return $modelOrData;
+        }
+
+        $modelOrData->{$branchColumn} = $branchId;
+
+        return $modelOrData;
+    }
+
+    public function assertRecordInAllowedBranch(object $record, string $moduleKey, string $branchColumn = 'branch_id'): void
+    {
+        if (!$this->shouldFilterRecords($moduleKey)) {
+            return;
+        }
+
+        $table = method_exists($record, 'getTable') ? $record->getTable() : null;
+        if (!$table || !Schema::hasColumn($table, $branchColumn)) {
+            return;
+        }
+
+        $recordBranchId = data_get($record, $branchColumn);
+        $selectedIds = collect($this->selectedBranchIdsForModule($moduleKey))
+            ->filter(fn ($id) => is_numeric($id))
+            ->map(fn ($id) => (int) $id)
+            ->values();
+
+        if ($selectedIds->isEmpty()) {
+            abort(403, 'No branch is selected for this module.');
+        }
+
+        if ($recordBranchId && $selectedIds->contains((int) $recordBranchId)) {
+            return;
+        }
+
+        if (!$recordBranchId) {
+            $mainBranchId = $this->mainBranch()?->id;
+            if ($mainBranchId && $selectedIds->contains((int) $mainBranchId)) {
+                return;
+            }
+        }
+
+        abort(403, 'This record does not belong to the selected branch.');
     }
 
     public function canSwitch(int $branchId, string $moduleKey, User $user): bool
     {
+        $moduleKey = $this->canonicalModuleKey($moduleKey);
         if (!$this->branchAllowsSwitching($moduleKey, $branchId)) {
             return false;
         }
@@ -933,7 +1546,7 @@ class ModuleBranchService
                 $query->where('user_id', $user->id)->orWhere('role', $user->role);
             })
             ->where(function (Builder $query) use ($moduleKey) {
-                $query->whereNull('module_key')->orWhere('module_key', $moduleKey);
+                $query->whereNull('module_key')->orWhereIn('module_key', $this->moduleKeyCandidates($moduleKey));
             })
             ->where('can_view', true)
             ->where('can_switch', true)
@@ -942,6 +1555,7 @@ class ModuleBranchService
 
     public function canView(int $branchId, string $moduleKey, User $user): bool
     {
+        $moduleKey = $this->canonicalModuleKey($moduleKey);
         if (!$this->isBranchEnabled($moduleKey, $branchId)) {
             return false;
         }
@@ -952,7 +1566,7 @@ class ModuleBranchService
                 $query->where('user_id', $user->id)->orWhere('role', $user->role);
             })
             ->where(function (Builder $query) use ($moduleKey) {
-                $query->whereNull('module_key')->orWhere('module_key', $moduleKey);
+                $query->whereNull('module_key')->orWhereIn('module_key', $this->moduleKeyCandidates($moduleKey));
             })
             ->where('can_view', true)
             ->exists();
@@ -1008,21 +1622,31 @@ class ModuleBranchService
 
     public function ensureBranchModuleRows(Branch $branch): void
     {
-        foreach (self::MODULES as $moduleKey => $label) {
-            if (!$this->moduleSettingsHaveBranchId()) {
-                return;
-            }
+        if (!$this->moduleSettingsHaveBranchId()) {
+            return;
+        }
 
-            $global = $this->setting($moduleKey);
-            $safeDefault = (bool) (self::MODULE_REGISTRY[$moduleKey]['safe_default_enabled'] ?? false);
+        if ($branch->is_main) {
+            $this->ensureRegistryModuleSettings($branch);
+            return;
+        }
+
+        foreach ($this->moduleRegistry() as $moduleKey => $config) {
+            $safeDefault = (bool) ($config['safe_default_enabled'] ?? false);
             BranchModuleSetting::query()->firstOrCreate(
                 ['branch_id' => $branch->id, 'module_key' => $moduleKey],
                 [
-                    'branch_enabled' => (bool) ($global?->branch_enabled ?? $safeDefault),
-                    'default_branch_id' => $global?->default_branch_id,
-                    'allow_user_switching' => (bool) ($global?->allow_user_switching ?? $safeDefault),
-                    'status' => $global?->status ?? 'active',
-                    'metadata' => ['label' => $label, 'created_for_branch' => true],
+                    'branch_enabled' => $safeDefault,
+                    'default_branch_id' => $this->mainBranch()?->id,
+                    'allow_user_switching' => $safeDefault,
+                    'status' => 'active',
+                    'metadata' => [
+                        'label' => $config['label'],
+                        'group' => $config['group'],
+                        'route_prefixes' => $config['route_prefixes'],
+                        'page_reference' => $config['page_reference'],
+                        'created_for_branch' => true,
+                    ],
                 ],
             );
         }
@@ -1030,6 +1654,10 @@ class ModuleBranchService
 
     public function grantManagerAccess(Branch $branch): void
     {
+        if (!Schema::hasTable('branch_user_access')) {
+            return;
+        }
+
         foreach (['developer', 'owner', 'admin'] as $role) {
             BranchUserAccess::query()->updateOrCreate(
                 [
@@ -1056,7 +1684,7 @@ class ModuleBranchService
             return;
         }
 
-        $this->ensureGlobalModuleRows();
+        $this->ensureRegistryModuleSettings();
 
         Branch::query()
             ->where(function (Builder $query) {
@@ -1065,7 +1693,9 @@ class ModuleBranchService
             ->get()
             ->each(function (Branch $branch) {
                 $this->grantManagerAccess($branch);
-                $this->ensureBranchModuleRows($branch);
+                $branch->is_main
+                    ? $this->ensureMainBranchHasAllModules($branch)
+                    : $this->ensureBranchModuleRows($branch);
             });
     }
 

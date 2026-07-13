@@ -8,6 +8,7 @@ use App\Models\CustomerPayment;
 use App\Models\InvoiceArticles;
 use App\Models\PhysicalQuantity;
 use App\Models\SalesReturn;
+use App\Services\Branches\ModuleBranchService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -23,9 +24,10 @@ class SalesReturnController extends Controller
     {
         // $sales_returns = SalesReturn::with('article', 'invoice.customer.city')->orderBy('id', 'desc')->get();
         $authLayout = $this->getAuthLayout($request->route()->getName(), 'table');
+        $branches = app(ModuleBranchService::class);
 
         if ($request->ajax()) {
-            $sales_returns = SalesReturn::orderByDesc('id')
+            $sales_returns = $branches->applyScope(SalesReturn::orderByDesc('id'), 'sales_returns')
                 ->applyFilters($request);
 
             return response()->json(['data' => $sales_returns, 'authLayout' => $authLayout]);
@@ -40,9 +42,10 @@ class SalesReturnController extends Controller
     public function create()
     {
 
-        $customers = Customer::whereHas('user', function ($query) {
+        $branches = app(ModuleBranchService::class);
+        $customers = $branches->applyRelatedScope(Customer::whereHas('user', function ($query) {
                     $query->where('status', 'active');
-                })->with('city')->get()->makeHidden('creator');
+                })->with('city'), 'customers', 'sales_returns')->get()->makeHidden('creator');
 
         $customerOptions = $customers->mapWithKeys(function ($customer) {
             return [$customer->id => ['text' => $customer->customer_name . ' | ' . $customer->city->short_title]];
@@ -83,6 +86,8 @@ class SalesReturnController extends Controller
         $totalAmount = 0;
 
         DB::transaction(function () use ($data, $returnLines, &$totalAmount) {
+            $branches = app(ModuleBranchService::class);
+            $branchId = $branches->branchIdForCreate('sales_returns');
             $createdReturnIds = [];
             $physicalQuantityLinksSalesReturn = Schema::hasColumn('physical_quantities', 'sales_return_id');
 
@@ -142,6 +147,7 @@ class SalesReturnController extends Controller
                     'date' => $data['date'],
                     'quantity' => $quantity,
                     'amount' => $amount,
+                    'branch_id' => $branchId,
                 ]);
                 $createdReturnIds[] = $salesReturn->id;
 
@@ -154,6 +160,9 @@ class SalesReturnController extends Controller
 
                 if ($physicalQuantityLinksSalesReturn) {
                     $physicalQuantityData['sales_return_id'] = $salesReturn->id;
+                }
+                if (Schema::hasColumn('physical_quantities', 'branch_id')) {
+                    $physicalQuantityData['branch_id'] = app(ModuleBranchService::class)->branchIdForCreate('physical_quantities');
                 }
 
                 PhysicalQuantity::create($physicalQuantityData);
@@ -183,6 +192,7 @@ class SalesReturnController extends Controller
                 'amount' => $totalAmount,
                 'reff_no' => ($data['type'] === 'adjustment' ? 'ADJ-' : 'SR-') . ($createdReturnIds[0] ?? now()->format('YmdHis')),
                 'remarks' => $data['type'] === 'adjustment' ? 'Sales adjustment' : 'Sales return',
+                'branch_id' => app(ModuleBranchService::class)->branchIdForCreate('customer_payments'),
             ]);
         });
 

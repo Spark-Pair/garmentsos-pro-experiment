@@ -9,6 +9,7 @@ use App\Models\Supplier;
 use App\Models\CustomerPayment;
 use App\Models\SupplierPayment;
 use App\Models\PaymentClear;
+use App\Services\Branches\ModuleBranchService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -25,7 +26,8 @@ class StatementAdjustmentController extends Controller
         $authLayout = $this->getAuthLayout($request->route()->getName(), 'table');
 
         if ($request->ajax()) {
-            $entries = StatementAdjustment::with('adjustable')
+            $entries = app(ModuleBranchService::class)
+                ->applyScope(StatementAdjustment::with('adjustable'), 'statement_adjustments')
                 ->orderByDesc('date')
                 ->orderByDesc('id')
                 ->applyFilters($request);
@@ -45,6 +47,8 @@ class StatementAdjustmentController extends Controller
         if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin', 'accountant'])) {
             return $resp;
         }
+
+        app(ModuleBranchService::class)->assertRecordInAllowedBranch($statementAdjustment, 'statement_adjustments');
 
         $categoryOptions = $this->categoryOptions();
         $entryTypeOptions = $this->entryTypeOptions();
@@ -83,7 +87,9 @@ class StatementAdjustmentController extends Controller
         }
 
         $modelClass = $this->resolveAdjustableClass($request->category);
-        $adjustable = $modelClass::find($request->adjustable_id);
+        $branches = app(ModuleBranchService::class);
+        $adjustable = $branches->applyRelatedScope($modelClass::query(), $this->categoryModuleKey($request->category), 'statement_adjustments')
+            ->find($request->adjustable_id);
 
         if (!$adjustable) {
             return response()->json(['error' => 'Selected record not found.'], 404);
@@ -117,7 +123,9 @@ class StatementAdjustmentController extends Controller
         }
 
         $modelClass = $this->resolveAdjustableClass($request->category);
-        $adjustable = $modelClass::find($request->adjustable_id);
+        $branches = app(ModuleBranchService::class);
+        $adjustable = $branches->applyRelatedScope($modelClass::query(), $this->categoryModuleKey($request->category), 'statement_adjustments')
+            ->find($request->adjustable_id);
 
         if (!$adjustable) {
             return redirect()->back()->withErrors(['adjustable_id' => 'Selected record not found.'])->withInput();
@@ -131,14 +139,14 @@ class StatementAdjustmentController extends Controller
             }
         }
 
-        DB::transaction(function () use ($request, $adjustable, $resolvedDate) {
-            $adjustable->statementAdjustments()->create([
+        DB::transaction(function () use ($request, $adjustable, $resolvedDate, $branches) {
+            $adjustable->statementAdjustments()->create($branches->assignBranchOnCreate([
                 'date' => $resolvedDate,
                 'entry_type' => $request->entry_type,
                 'direction' => $request->direction,
                 'amount' => $request->amount,
                 'remarks' => $request->remarks,
-            ]);
+            ], 'statement_adjustments'));
         });
 
         return redirect()->route('statement-adjustments.create')->with('success', 'Opening balance / adjustment added successfully.');
@@ -149,6 +157,9 @@ class StatementAdjustmentController extends Controller
         if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin', 'accountant'])) {
             return $resp;
         }
+
+        $branches = app(ModuleBranchService::class);
+        $branches->assertRecordInAllowedBranch($statementAdjustment, 'statement_adjustments');
 
         $validator = Validator::make($request->all(), [
             'category' => 'required|in:customer,supplier,bank_account',
@@ -165,7 +176,8 @@ class StatementAdjustmentController extends Controller
         }
 
         $modelClass = $this->resolveAdjustableClass($request->category);
-        $adjustable = $modelClass::find($request->adjustable_id);
+        $adjustable = $branches->applyRelatedScope($modelClass::query(), $this->categoryModuleKey($request->category), 'statement_adjustments')
+            ->find($request->adjustable_id);
 
         if (!$adjustable) {
             return redirect()->back()->withErrors(['adjustable_id' => 'Selected record not found.'])->withInput();
@@ -233,6 +245,15 @@ class StatementAdjustmentController extends Controller
             'customer' => Customer::class,
             'supplier' => Supplier::class,
             'bank_account' => BankAccount::class,
+        };
+    }
+
+    private function categoryModuleKey(string $category): string
+    {
+        return match ($category) {
+            'customer' => 'customers',
+            'supplier' => 'suppliers',
+            'bank_account' => 'bank_accounts',
         };
     }
 

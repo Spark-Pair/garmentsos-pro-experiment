@@ -70,7 +70,7 @@ class ReportController extends Controller
                         return response()->json(['error' => 'Customer not found'], 404);
                     }
 
-                    $data = $customer->getStatement($dateFrom, $dateTo, $type, $selectedBranchIds);
+                    $data = $customer->getStatement($dateFrom, $dateTo, $type, $selectedBranchIds, $branchContext['include_null_main_records'] ?? false);
                     $data['branch_scope_label'] = implode(', ', $selectedBranchLabels);
                     $data['branch_scope_mode'] = $branchContext['mode'];
 
@@ -83,7 +83,7 @@ class ReportController extends Controller
                         return response()->json(['error' => 'Supplier not found'], 404);
                     }
 
-                    $data = $supplier->getStatement($dateFrom, $dateTo, $type);
+                    $data = $supplier->getStatement($dateFrom, $dateTo, $type, $selectedBranchIds, $branchContext['include_null_main_records'] ?? false);
 
                     $data['branch_scope_label'] = implode(', ', $selectedBranchLabels);
                     $data['branch_scope_mode'] = $branchContext['mode'];
@@ -97,7 +97,7 @@ class ReportController extends Controller
                         return response()->json(['error' => 'Bank account not found'], 404);
                     }
 
-                    $data = $bank_account->getStatement($dateFrom, $dateTo, $type);
+                    $data = $bank_account->getStatement($dateFrom, $dateTo, $type, $selectedBranchIds, $branchContext['include_null_main_records'] ?? false);
 
                     $data['branch_scope_label'] = implode(', ', $selectedBranchLabels);
                     $data['branch_scope_mode'] = $branchContext['mode'];
@@ -112,79 +112,26 @@ class ReportController extends Controller
 
     private function statementBranchContext(Request $request): array
     {
-        if (!Schema::hasTable('branches')) {
-            return [
-                'branches' => collect(),
-                'selected_ids' => [],
-                'selected_labels' => ['Main Branch'],
-                'selected_branches' => collect(),
-                'mode' => 'all',
-            ];
-        }
+        $moduleKey = str_contains((string) $request->path(), 'pending-payments')
+            ? 'reports_pending_payments'
+            : 'reports_statement';
 
-        $branches = Branch::query()
-            ->where('status', 'active')
-            ->orderByDesc('is_main')
-            ->orderBy('name')
-            ->get();
+        $context = app(ModuleBranchService::class)->reportBranchContext($moduleKey);
 
-        $moduleKey = str_contains((string) $request->path(), 'pending-payments') ? 'pending_payments' : 'statements';
-        $requested = collect($request->input('branch_ids', []));
-        if ($requested->count() === 1 && is_string($requested->first()) && str_contains($requested->first(), ',')) {
-            $requested = collect(explode(',', $requested->first()));
-        }
-
-        $requestedIds = $requested
-            ->reject(fn ($value) => $value === 'all')
-            ->filter(fn ($value) => is_numeric($value))
-            ->map(fn ($value) => (int) $value)
-            ->filter(fn ($value) => $value > 0)
-            ->unique()
-            ->values();
-
-        $allowedIds = $branches->pluck('id')->map(fn ($id) => (int) $id)->values();
-        $preferenceIds = collect(app(ModuleBranchService::class)->selectedBranchIdsForModule($moduleKey))
-            ->map(fn ($id) => (int) $id)
-            ->intersect($allowedIds)
-            ->values();
-
-        $selectedIds = $requestedIds->isNotEmpty()
-            ? $requestedIds->intersect($allowedIds)->values()
-            : ($preferenceIds->isNotEmpty() ? $preferenceIds : $allowedIds);
-
-        if ($selectedIds->isEmpty() && $allowedIds->isNotEmpty()) {
-            $selectedIds = $allowedIds;
-        }
-
-        $selectedBranches = $branches->whereIn('id', $selectedIds->all())->values();
-        $labels = $selectedBranches->pluck('name')->values()->all();
-        if (!$labels) {
-            $labels = ['Main Branch'];
-        }
-
-        $allSelected = $allowedIds->isNotEmpty() && $selectedIds->count() === $allowedIds->count();
-
-        return [
-            'branches' => $branches,
-            'selected_ids' => $selectedIds->all(),
-            'selected_labels' => $allSelected ? ['All Branches'] : $labels,
-            'selected_branches' => $selectedBranches,
-            'mode' => $allSelected ? 'all' : ($selectedIds->count() > 1 ? 'multiple' : 'single'),
-        ];
+        return array_merge($context, [
+            'selected_ids' => $context['branch_ids'],
+            'selected_labels' => $context['branch_names'],
+        ]);
     }
 
     private function statementBranding(array $branchContext): object
     {
-        $branches = app(ModuleBranchService::class);
-        $selectedBranches = $branchContext['selected_branches'];
-
-        if (($branchContext['mode'] ?? 'all') === 'single' && $selectedBranches->count() === 1) {
-            return (object) $branches->documentBranding('statements', (object) ['branch_id' => $selectedBranches->first()->id]);
-        }
-
-        $mainBranchId = Schema::hasTable('branches') ? Branch::query()->where('is_main', true)->value('id') : null;
-
-        return (object) $branches->documentBranding('statements', $mainBranchId ? (object) ['branch_id' => $mainBranchId] : null);
+        return (object) app(ModuleBranchService::class)->documentBranding(
+            'reports_statement',
+            ($branchContext['branding_branch'] ?? null)
+                ? (object) ['branch_id' => $branchContext['branding_branch']->id]
+                : null
+        );
     }
 
     public function statementRecordDetails(Request $request)
@@ -256,21 +203,21 @@ class ReportController extends Controller
         }
 
         if ($category === 'customer') {
-            $customers = Customer::whereHas('user', function ($query) {
+            $customers = app(ModuleBranchService::class)->applyRelatedScope(Customer::whereHas('user', function ($query) {
                 $query->where('status', 'active');
-            })->with('city')->get();
+            }), 'customers', 'reports_statement')->with('city')->get();
             return response()->json($customers->map(fn ($customer) => $this->formatNameOptionPayload($customer))->values());
         }
 
         if ($category === 'supplier') {
-            $suppliers = Supplier::whereHas('user', function ($query) {
+            $suppliers = app(ModuleBranchService::class)->applyRelatedScope(Supplier::whereHas('user', function ($query) {
                 $query->where('status', 'active');
-            })->get();
+            }), 'suppliers', 'reports_statement')->get();
             return response()->json($suppliers->map(fn ($supplier) => $this->formatNameOptionPayload($supplier))->values());
         }
 
         if ($category === 'bank_account') {
-            $bank_accounts = BankAccount::with('bank')->where('status', 'active')->get();
+            $bank_accounts = app(ModuleBranchService::class)->applyRelatedScope(BankAccount::with('bank')->where('status', 'active'), 'bank_accounts', 'reports_statement')->get();
             return response()->json($bank_accounts->map(fn ($account) => [
                 'id' => $account->id,
                 'account_title' => $account->account_title,
@@ -306,6 +253,12 @@ class ReportController extends Controller
         $reportBranches = $branchContext['branches'];
         $selectedBranchIds = $branchContext['selected_ids'];
         $selectedBranchLabels = $branchContext['selected_labels'];
+        $pendingBranding = (object) app(ModuleBranchService::class)->documentBranding(
+            'reports_pending_payments',
+            ($branchContext['branding_branch'] ?? null)
+                ? (object) ['branch_id' => $branchContext['branding_branch']->id]
+                : null
+        );
         $cities_options = Setup::where('type', 'city')
             ->orderBy('title')
             ->get()
@@ -327,8 +280,13 @@ class ReportController extends Controller
                 ])
                 ->whereNotNull('customer_id')
                 ->whereIn('method', ['cheque', 'slip'])
-                ->when(Schema::hasColumn('customer_payments', 'branch_id') && !empty($selectedBranchIds), function ($query) use ($selectedBranchIds) {
-                    $query->whereIn('branch_id', $selectedBranchIds);
+                ->when(Schema::hasColumn('customer_payments', 'branch_id') && !empty($selectedBranchIds), function ($query) use ($selectedBranchIds, $branchContext) {
+                    $query->where(function ($scope) use ($selectedBranchIds, $branchContext) {
+                        $scope->whereIn('branch_id', $selectedBranchIds);
+                        if ($branchContext['include_null_main_records'] ?? false) {
+                            $scope->orWhereNull('branch_id');
+                        }
+                    });
                 })
                 ->when($selectedCity, function ($query) use ($selectedCity) {
                     $query->whereHas('customer', function ($customerQuery) use ($selectedCity) {
@@ -404,11 +362,11 @@ class ReportController extends Controller
             })
             ->values();
 
-            return view("reports.pending-payments", compact('data', 'cities_options', 'selectedCity', 'reportBranches', 'selectedBranchIds', 'selectedBranchLabels'));
+            return view("reports.pending-payments", compact('data', 'cities_options', 'selectedCity', 'reportBranches', 'selectedBranchIds', 'selectedBranchLabels', 'pendingBranding'));
         }
 
         $selectedCity = '';
-        return view("reports.pending-payments", compact('cities_options', 'selectedCity', 'reportBranches', 'selectedBranchIds', 'selectedBranchLabels'));
+        return view("reports.pending-payments", compact('cities_options', 'selectedCity', 'reportBranches', 'selectedBranchIds', 'selectedBranchLabels', 'pendingBranding'));
     }
 
     public function article(Request $request)
@@ -418,6 +376,8 @@ class ReportController extends Controller
         }
 
         if ($request->ajax()) {
+            $branchContext = app(ModuleBranchService::class)->reportBranchContext('reports_article');
+            $selectedBranchIds = $branchContext['branch_ids'];
             $reffStartDate = $request->reff_date_range_start
                 ? Carbon::parse($request->reff_date_range_start)->startOfDay()
                 : null;
@@ -442,6 +402,9 @@ class ReportController extends Controller
                 'article',
                 'order.customer.city',
             ]);
+
+            $invoiceArticles->whereHas('invoice', fn ($q) => $this->applyReportBranchScope($q, 'invoices', $selectedBranchIds, $branchContext));
+            $orderArticles->whereHas('order', fn ($q) => $this->applyReportBranchScope($q, 'orders', $selectedBranchIds, $branchContext));
 
             if ($request->article_no) {
                 $articleFilter = function ($q) use ($request) {
@@ -651,6 +614,10 @@ class ReportController extends Controller
             return response()->json([
                 'data' => $data,
                 'authLayout' => $authLayout,
+                'branch_scope' => [
+                    'mode' => $branchContext['mode'],
+                    'labels' => $branchContext['branch_names'],
+                ],
                 'calculations' => [
                     'total_quantity' => $totalReffQuantity,
                     'total_reff_quantity' => $totalReffQuantity,
@@ -662,7 +629,9 @@ class ReportController extends Controller
         }
 
         $authLayout = $this->getAuthLayout($request->route()->getName(), 'table');
-        return view('reports.article', compact('authLayout'));
+        $branchContext = app(ModuleBranchService::class)->reportBranchContext('reports_article');
+        $selectedBranchLabels = $branchContext['branch_names'];
+        return view('reports.article', compact('authLayout', 'selectedBranchLabels'));
     }
 
     public function physicalQuantity(Request $request, PhysicalQuantityReportService $physicalQuantityReportService)
@@ -671,7 +640,17 @@ class ReportController extends Controller
             return $resp;
         }
 
-        $articleOptions = $physicalQuantityReportService->getArticleOptions();
+        $branchContext = app(ModuleBranchService::class)->reportBranchContext('reports_physical_quantity');
+        $selectedBranchIds = $branchContext['branch_ids'];
+        $selectedBranchLabels = $branchContext['branch_names'];
+        $physicalBranding = (object) app(ModuleBranchService::class)->documentBranding(
+            'reports_physical_quantity',
+            ($branchContext['branding_branch'] ?? null)
+                ? (object) ['branch_id' => $branchContext['branding_branch']->id]
+                : null
+        );
+        $includeNullBranchRecords = $branchContext['include_null_main_records'] ?? false;
+        $articleOptions = $physicalQuantityReportService->getArticleOptions($selectedBranchIds, $includeNullBranchRecords);
         $mode = $request->input('mode', 'all_articles');
         $reportType = Auth::user()?->physical_quantity_report_type ?? 'altration';
         if (!in_array($mode, ['all_articles', 'article_wise', 'proceed_by_wise'], true)) {
@@ -699,7 +678,7 @@ class ReportController extends Controller
             }
 
             $rows = $canGenerate
-                ? $physicalQuantityReportService->getArticleReportRows($filters, $reportType)
+                ? $physicalQuantityReportService->getArticleReportRows($filters, $reportType, $selectedBranchIds, $includeNullBranchRecords)
                 : collect();
             $maxRowsPerColumn = 58;
             $maxRowsPerPage = $maxRowsPerColumn * 2;
@@ -722,10 +701,26 @@ class ReportController extends Controller
                 'rows' => $rows,
                 'pages' => $pages,
                 'generated_at' => now(),
+                'branch_scope_label' => implode(', ', $selectedBranchLabels),
             ];
         }
 
-        return view('reports.physical-quantity', compact('articleOptions', 'mode', 'reportType', 'data'));
+        return view('reports.physical-quantity', compact('articleOptions', 'mode', 'reportType', 'data', 'selectedBranchLabels', 'physicalBranding'));
+    }
+
+    private function applyReportBranchScope($query, string $tableName, array $branchIds, array $branchContext, string $branchColumn = 'branch_id')
+    {
+        if (!Schema::hasColumn($tableName, $branchColumn) || empty($branchIds)) {
+            return $query;
+        }
+
+        return $query->where(function ($scope) use ($branchIds, $branchContext, $branchColumn) {
+            $scope->whereIn($branchColumn, $branchIds);
+
+            if ($branchContext['include_null_main_records'] ?? false) {
+                $scope->orWhereNull($branchColumn);
+            }
+        });
     }
 
     private function expenseStatementPayload(int $id): ?array

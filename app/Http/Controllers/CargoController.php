@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\Cargo;
 use App\Models\Invoice;
+use App\Services\Branches\BranchSerialService;
+use App\Services\Branches\ModuleBranchService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
@@ -20,9 +22,10 @@ class CargoController extends Controller
         }
 
         $authLayout = $this->getAuthLayout($request->route()->getName());
+        $branches = app(ModuleBranchService::class);
 
         if ($request->ajax()) {
-            $orders = Cargo::orderByDesc('id')
+            $orders = $branches->applyScope(Cargo::orderByDesc('id'), 'cargo')
                 ->applyFilters($request);
 
             return response()->json(['data' => $orders, 'authLayout' => $authLayout]);
@@ -41,7 +44,9 @@ class CargoController extends Controller
             return $resp;
         }
 
-        $invoices = Invoice::with('customer.city')
+        $branches = app(ModuleBranchService::class);
+
+        $invoices = $branches->applyRelatedScope(Invoice::with('customer.city'), 'invoices', 'cargo')
             ->whereNotNull('shipment_no')
             ->where(function ($query) {
                 $query->whereNull('cargo_name')
@@ -51,13 +56,8 @@ class CargoController extends Controller
             ->map(fn ($invoice) => $this->formatInvoiceOptionPayload($invoice))
             ->values();
 
-        $last_cargo = [];
-        $last_cargo = Cargo::orderby('id', 'desc')->first();
-
-        if (!$last_cargo) {
-            $last_cargo = new Cargo();
-            $last_cargo->cargo_no = '0000';
-        }
+        $last_cargo = new Cargo();
+        $last_cargo->cargo_no = app(BranchSerialService::class)->next('cargo', Cargo::class, 'cargo_no', null, 4);
 
         return view('cargos.generate', compact('invoices', 'last_cargo'));
     }
@@ -104,6 +104,7 @@ class CargoController extends Controller
         }
 
         DB::transaction(function () use ($request) {
+            $branches = app(ModuleBranchService::class);
             $invoicesArray = json_decode($request->invoices_array, true) ?? [];
             $invoiceIds = collect($invoicesArray)->pluck('id')->filter()->values();
 
@@ -116,8 +117,11 @@ class CargoController extends Controller
             Cargo::create([
                 'date' => $request->date,
                 'cargo_name' => $request->cargo_name,
-                'cargo_no' => $request->cargo_no,
+                'cargo_no' => $branches->shouldFilterRecords('cargo')
+                    ? app(BranchSerialService::class)->next('cargo', Cargo::class, 'cargo_no', null, 4)
+                    : $request->cargo_no,
                 'invoices_array' => $request->invoices_array,
+                'branch_id' => $branches->branchIdForCreate('cargo'),
             ]);
         });
 
@@ -129,7 +133,7 @@ class CargoController extends Controller
      */
     public function show(Cargo $cargo)
     {
-        //
+        app(ModuleBranchService::class)->assertRecordInAllowedBranch($cargo, 'cargo');
     }
 
     /**
@@ -137,7 +141,7 @@ class CargoController extends Controller
      */
     public function edit(Cargo $cargo)
     {
-        //
+        app(ModuleBranchService::class)->assertRecordInAllowedBranch($cargo, 'cargo');
     }
 
     /**
@@ -145,7 +149,7 @@ class CargoController extends Controller
      */
     public function update(Request $request, Cargo $cargo)
     {
-        //
+        app(ModuleBranchService::class)->assertRecordInAllowedBranch($cargo, 'cargo');
     }
 
     /**
@@ -153,6 +157,6 @@ class CargoController extends Controller
      */
     public function destroy(Cargo $cargo)
     {
-        //
+        app(ModuleBranchService::class)->assertRecordInAllowedBranch($cargo, 'cargo');
     }
 }

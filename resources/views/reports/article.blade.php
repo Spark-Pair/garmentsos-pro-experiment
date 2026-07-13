@@ -46,6 +46,9 @@
 
     <div class="w-[80%] mx-auto">
         <x-search-header heading="Article Report" :search_fields=$searchFields />
+        <div class="mt-2 rounded-lg border border-[var(--h-bg-color)] bg-[var(--h-bg-color)] px-3 py-2 text-xs text-[var(--secondary-text)]">
+            Branches: {{ implode(', ', $selectedBranchLabels ?? ['All Branches']) }}. Use the branch switcher beside Back/Refresh to change report branches.
+        </div>
     </div>
 
     <!-- Main Content -->

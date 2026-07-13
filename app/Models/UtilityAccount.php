@@ -18,6 +18,7 @@ class UtilityAccount extends Model
         'location_id',
         'account_title',
         'account_no',
+        'branch_id',
     ];
 
     public function billType() {

@@ -351,9 +351,6 @@
 
 @endsection
 
-@push('left-actions-after')
-    <x-module-branch-selector module-key="productions" />
-@endpush
 
 @push('page-scripts')
 <script defer src="{{ asset('js/pages/production-ticket-print.js') }}"></script>

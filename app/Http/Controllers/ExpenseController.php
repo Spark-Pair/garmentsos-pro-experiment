@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Expense;
 use App\Models\Setup;
 use App\Models\Supplier;
+use App\Services\Branches\ModuleBranchService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
@@ -20,9 +21,10 @@ class ExpenseController extends Controller
             return $resp;
         }
         $authLayout = $this->getAuthLayout($request->route()->getName(), 'table');
+        $branches = app(ModuleBranchService::class);
 
         if ($request->ajax()) {
-            $expensesQuery = Expense::with(['supplier', 'expenseSetups'])->orderByDesc('id');
+            $expensesQuery = $branches->applyScope(Expense::with(['supplier', 'expenseSetups'])->orderByDesc('id'), 'expenses');
 
             if ($this->isSupplierRole()) {
                 $supplier = $this->currentSupplier();
@@ -74,11 +76,12 @@ class ExpenseController extends Controller
             'title' => 'Adjustment',
         ]);
 
-        $lastExpense = Expense::with('supplier', 'expenseSetups')->latest('id')->first();
+        $branches = app(ModuleBranchService::class);
+        $lastExpense = $branches->applyScope(Expense::with('supplier', 'expenseSetups')->latest('id'), 'expenses')->first();
 
-        $suppliers = Supplier::whereHas('user', function ($query) {
+        $suppliers = $branches->applyRelatedScope(Supplier::whereHas('user', function ($query) {
             $query->where('status', 'active');
-        })->get();
+        }), 'suppliers', 'expenses')->get();
 
         $suppliers_options = [];
         foreach ($suppliers as $supplier) {
@@ -122,11 +125,15 @@ class ExpenseController extends Controller
                 'required',
                 'integer',
                 function ($attribute, $value, $fail) use ($request) {
+                    $branches = app(ModuleBranchService::class);
                     $exists = Expense::where('supplier_id', $request->supplier_id)
                         ->whereDate('date', $request->date)
                         ->where('amount', $request->amount)
                         ->where('expense', $request->expense)
                         ->where('reff_no', $value)
+                        ->when($branches->shouldFilterRecords('expenses'), function ($query) use ($branches) {
+                            $query->where('branch_id', $branches->branchIdForCreate('expenses'));
+                        })
                         ->exists();
 
                     if ($exists) {
@@ -148,6 +155,7 @@ class ExpenseController extends Controller
             'amount' => $request->amount,
             'lot_no' => $request->lot_no,
             'remarks' => $request->remarks,
+            'branch_id' => app(ModuleBranchService::class)->branchIdForCreate('expenses'),
         ]);
 
         return redirect()->back()->with('success', 'Expense added successfully! ID: ' . $expense->id);
