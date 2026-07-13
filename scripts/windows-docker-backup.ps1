@@ -114,10 +114,14 @@ function Get-ContainerSqlitePath($InstallDir) {
     $checkedPaths = New-Object System.Collections.Generic.List[string]
 
     $laravelCommand = @'
-php -r 'require "vendor/autoload.php"; $app = require "bootstrap/app.php"; $kernel = $app->make(Illuminate\Contracts\Console\Kernel::class); $kernel->bootstrap(); echo config("database.connections.sqlite.database");'
+require 'vendor/autoload.php';
+$app = require 'bootstrap/app.php';
+$kernel = $app->make(Illuminate\Contracts\Console\Kernel::class);
+$kernel->bootstrap();
+echo config('database.connections.sqlite.database');
 '@
 
-    $result = Invoke-ComposeExec $InstallDir @("sh", "-lc", $laravelCommand)
+    $result = Invoke-ComposeExec $InstallDir @("php", "-r", $laravelCommand)
     Write-BackupLog "Laravel SQLite path command exit code: $($result.exit_code)"
 
     if (-not [string]::IsNullOrWhiteSpace($result.stdout)) {
@@ -135,6 +139,8 @@ php -r 'require "vendor/autoload.php"; $app = require "bootstrap/app.php"; $kern
         $candidate -notmatch "Error|Exception|Undefined constant|Fatal|Parse error"
     ) {
         $checkedPaths.Add($candidate)
+    } else {
+        Write-BackupLog "Laravel SQLite path detection did not return a usable path; fallback paths will be checked."
     }
 
     $fallbackPaths = @(

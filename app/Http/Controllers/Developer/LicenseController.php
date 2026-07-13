@@ -28,7 +28,7 @@ class LicenseController extends Controller
         InstallationFingerprintService $fingerprints,
     )
     {
-        if ($resp = $this->denyIfNoRole(['developer', 'admin'])) {
+        if ($resp = $this->denyIfNoRole(['developer'])) {
             return $resp;
         }
 
@@ -172,7 +172,7 @@ class LicenseController extends Controller
 
     public function requestDemo(Request $request, LicenseService $licenses): RedirectResponse
     {
-        if ($resp = $this->denyIfNoRole(['developer', 'admin'])) {
+        if ($resp = $this->denyIfNoRole(['developer'])) {
             return $resp;
         }
 
@@ -210,7 +210,7 @@ class LicenseController extends Controller
 
     public function activate()
     {
-        if ($resp = $this->denyIfNoRole(['developer', 'admin'])) {
+        if ($resp = $this->denyIfNoRole(['developer'])) {
             return $resp;
         }
 
@@ -221,7 +221,7 @@ class LicenseController extends Controller
 
     public function activatePost()
     {
-        if ($resp = $this->denyIfNoRole(['developer', 'admin'])) {
+        if ($resp = $this->denyIfNoRole(['developer'])) {
             return $resp;
         }
 
@@ -232,7 +232,7 @@ class LicenseController extends Controller
 
     public function registerDevice(LicenseService $licenses): RedirectResponse
     {
-        if ($resp = $this->denyIfNoRole(['developer', 'admin'])) {
+        if ($resp = $this->denyIfNoRole(['developer'])) {
             return $resp;
         }
 
@@ -262,7 +262,7 @@ class LicenseController extends Controller
 
     public function checkDevice(LicenseService $licenses): RedirectResponse
     {
-        if ($resp = $this->denyIfNoRole(['developer', 'admin'])) {
+        if ($resp = $this->denyIfNoRole(['developer'])) {
             return $resp;
         }
 
@@ -290,7 +290,7 @@ class LicenseController extends Controller
 
     public function runMigrations(Request $request): RedirectResponse
     {
-        if ($resp = $this->denyIfNoRole(['developer', 'admin'])) {
+        if ($resp = $this->denyIfNoRole(['developer'])) {
             return $resp;
         }
 
@@ -328,7 +328,7 @@ class LicenseController extends Controller
 
     public function offline(OfflineActivationService $offline)
     {
-        if ($resp = $this->denyIfNoRole(['developer', 'admin'])) {
+        if ($resp = $this->denyIfNoRole(['developer'])) {
             return $resp;
         }
 
@@ -340,7 +340,7 @@ class LicenseController extends Controller
 
     public function importOffline(ImportOfflineLicenseRequest $request, LicenseService $licenses)
     {
-        if ($resp = $this->denyIfNoRole(['developer', 'admin'])) {
+        if ($resp = $this->denyIfNoRole(['developer'])) {
             return $resp;
         }
 
@@ -365,7 +365,7 @@ class LicenseController extends Controller
 
     public function refresh(RefreshLicenseRequest $request, LicenseService $licenses)
     {
-        if ($resp = $this->denyIfNoRole(['developer', 'admin'])) {
+        if ($resp = $this->denyIfNoRole(['developer'])) {
             return $resp;
         }
 
@@ -390,7 +390,7 @@ class LicenseController extends Controller
 
     public function reactivationRequest(ReactivateLicenseRequest $request, OfflineActivationService $offline)
     {
-        if ($resp = $this->denyIfNoRole(['developer', 'admin'])) {
+        if ($resp = $this->denyIfNoRole(['developer'])) {
             return $resp;
         }
 
@@ -405,7 +405,7 @@ class LicenseController extends Controller
 
     public function auditLogs()
     {
-        if ($resp = $this->denyIfNoRole(['developer', 'admin'])) {
+        if ($resp = $this->denyIfNoRole(['developer'])) {
             return $resp;
         }
 

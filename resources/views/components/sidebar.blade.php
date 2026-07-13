@@ -138,30 +138,32 @@
                         <li class="px-4 py-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--secondary-text)]">
                             System
                         </li>
-                        <li>
-                            <a href="{{ route('developer.settings') }}"
-                                role="menuitem"
-                                class="block px-4 py-2 hover:bg-[var(--h-bg-color)] rounded-lg transition-all duration-200 ease-in-out cursor-pointer">
-                                <i class="fas fa-sliders-h text-[var(--secondary-color)] mr-3"></i>
-                                Settings
-                            </a>
-                        </li>
-                        <li>
-                            <a href="{{ route('developer.branches.index') }}"
-                                role="menuitem"
-                                class="block px-4 py-2 hover:bg-[var(--h-bg-color)] rounded-lg transition-all duration-200 ease-in-out cursor-pointer">
-                                <i class="fas fa-code-branch text-[var(--secondary-color)] mr-3"></i>
-                                Branches
-                            </a>
-                        </li>
-                        <li>
-                            <a href="{{ route('developer.license.status') }}"
-                                role="menuitem"
-                                class="block px-4 py-2 hover:bg-[var(--h-bg-color)] rounded-lg transition-all duration-200 ease-in-out cursor-pointer">
-                                <i class="fas fa-key text-[var(--secondary-color)] mr-3"></i>
-                                License
-                            </a>
-                        </li>
+                        @if (Auth::user()->role === 'developer')
+                            <li>
+                                <a href="{{ route('developer.settings') }}"
+                                    role="menuitem"
+                                    class="block px-4 py-2 hover:bg-[var(--h-bg-color)] rounded-lg transition-all duration-200 ease-in-out cursor-pointer">
+                                    <i class="fas fa-sliders-h text-[var(--secondary-color)] mr-3"></i>
+                                    Settings
+                                </a>
+                            </li>
+                            <li>
+                                <a href="{{ route('developer.branches.index') }}"
+                                    role="menuitem"
+                                    class="block px-4 py-2 hover:bg-[var(--h-bg-color)] rounded-lg transition-all duration-200 ease-in-out cursor-pointer">
+                                    <i class="fas fa-code-branch text-[var(--secondary-color)] mr-3"></i>
+                                    Branches
+                                </a>
+                            </li>
+                            <li>
+                                <a href="{{ route('developer.license.status') }}"
+                                    role="menuitem"
+                                    class="block px-4 py-2 hover:bg-[var(--h-bg-color)] rounded-lg transition-all duration-200 ease-in-out cursor-pointer">
+                                    <i class="fas fa-key text-[var(--secondary-color)] mr-3"></i>
+                                    License
+                                </a>
+                            </li>
+                        @endif
                         <li>
                             <a href="{{ route('developer.backups') }}"
                                 role="menuitem"
@@ -177,13 +179,6 @@
                                 <i class="fas fa-shield-alt text-[var(--secondary-color)] mr-3"></i>
                                 Updater
                             </a>
-                        </li>
-                        <li>
-                            <button id="backupDB" type="button" role="menuitem" onclick="backupDB()"
-                                class="block w-full text-left px-4 py-2 hover:bg-[var(--h-bg-color)] rounded-lg transition-all duration-200 ease-in-out cursor-pointer">
-                                <i class="fas fa-database text-[var(--secondary-color)] mr-3"></i>
-                                Backup DB
-                            </button>
                         </li>
                     @endif
                     <!-- Theme Toggle -->
@@ -288,13 +283,21 @@
                 @endif
 
                 @if (in_array(Auth::user()->role, ['developer', 'admin']))
-                    <x-mobile-menu-item title="System" includesDropdown :dropdown="[
-                        ['href' => route('developer.settings'), 'title' => 'Developer Settings'],
-                        ['href' => route('developer.branches.index'), 'title' => 'Branches'],
-                        ['href' => route('developer.license.status'), 'title' => 'License Status'],
-                        ['href' => route('developer.backups'), 'title' => 'Backups'],
-                        ['href' => route('developer.updater'), 'title' => 'Updater'],
-                    ]" />
+                    @php
+                        $systemDropdown = [
+                            ['href' => route('developer.backups'), 'title' => 'Backup & Restore'],
+                            ['href' => route('developer.updater'), 'title' => 'Updater'],
+                        ];
+
+                        if (Auth::user()->role === 'developer') {
+                            $systemDropdown = array_merge([
+                                ['href' => route('developer.settings'), 'title' => 'Developer Settings'],
+                                ['href' => route('developer.branches.index'), 'title' => 'Branches'],
+                                ['href' => route('developer.license.status'), 'title' => 'License Status'],
+                            ], $systemDropdown);
+                        }
+                    @endphp
+                    <x-mobile-menu-item title="System" includesDropdown :dropdown="$systemDropdown" />
                 @endif
 
                 <x-mobile-menu-item title="Theme" asButton="true" id="themeToggleMobile" />

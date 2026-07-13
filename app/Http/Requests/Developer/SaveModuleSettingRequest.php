@@ -8,7 +8,7 @@ class SaveModuleSettingRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return in_array($this->user()?->role, ['developer', 'admin'], true);
+        return $this->user()?->role === 'developer';
     }
 
     public function rules(): array

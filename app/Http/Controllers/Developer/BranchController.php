@@ -17,7 +17,7 @@ class BranchController extends Controller
 {
     public function index(ModuleBranchService $branches)
     {
-        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin'])) {
+        if ($resp = $this->denyIfNoRole(['developer'])) {
             return $resp;
         }
 
@@ -32,7 +32,7 @@ class BranchController extends Controller
 
     public function create()
     {
-        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin'])) {
+        if ($resp = $this->denyIfNoRole(['developer'])) {
             return $resp;
         }
 
@@ -41,7 +41,7 @@ class BranchController extends Controller
 
     public function store(Request $request, ModuleBranchService $branches): RedirectResponse
     {
-        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin'])) {
+        if ($resp = $this->denyIfNoRole(['developer'])) {
             return $resp;
         }
 
@@ -57,7 +57,7 @@ class BranchController extends Controller
 
     public function show(Branch $branch, ModuleBranchService $branches)
     {
-        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin'])) {
+        if ($resp = $this->denyIfNoRole(['developer'])) {
             return $resp;
         }
 
@@ -70,7 +70,7 @@ class BranchController extends Controller
 
     public function edit(Branch $branch, ModuleBranchService $branches)
     {
-        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin'])) {
+        if ($resp = $this->denyIfNoRole(['developer'])) {
             return $resp;
         }
 
@@ -83,7 +83,7 @@ class BranchController extends Controller
 
     public function update(Request $request, Branch $branch): RedirectResponse
     {
-        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin'])) {
+        if ($resp = $this->denyIfNoRole(['developer'])) {
             return $resp;
         }
 
@@ -110,7 +110,7 @@ class BranchController extends Controller
 
     public function updateStatus(Request $request, Branch $branch): RedirectResponse
     {
-        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin'])) {
+        if ($resp = $this->denyIfNoRole(['developer'])) {
             return $resp;
         }
 
@@ -157,7 +157,7 @@ class BranchController extends Controller
 
     public function updateModules(Request $request, ModuleBranchService $branches): RedirectResponse
     {
-        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin'])) {
+        if ($resp = $this->denyIfNoRole(['developer'])) {
             return $resp;
         }
 
@@ -206,7 +206,7 @@ class BranchController extends Controller
 
     public function updateAccess(Request $request, ModuleBranchService $branches): RedirectResponse
     {
-        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin'])) {
+        if ($resp = $this->denyIfNoRole(['developer'])) {
             return $resp;
         }
 

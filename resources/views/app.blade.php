@@ -44,11 +44,12 @@
     ];
     $developerUpdateStatus = null;
     $developerLauncherHandoff = null;
-    if (Auth::check() && Auth::user()->role === 'developer' && !request()->is('login') && !request()->is('setup')) {
+    $canManageUpdates = Auth::check() && in_array(Auth::user()->role, ['developer', 'admin'], true);
+    if (Auth::check() && !request()->is('login') && !request()->is('setup')) {
         try {
             $releaseFeedService = app(\App\Services\Updater\ReleaseFeedService::class);
             $developerUpdateStatus = $releaseFeedService->checkConfiguredCached();
-            if (!empty($developerUpdateStatus['update_available'])) {
+            if ($canManageUpdates && !empty($developerUpdateStatus['update_available'])) {
                 $developerLauncherHandoff = $releaseFeedService->launcherHandoff($developerUpdateStatus);
             }
         } catch (\Throwable) {
@@ -606,31 +607,38 @@
                         <h2 class="text-lg font-semibold">Update available</h2>
                         <p class="mt-1 text-xs text-[var(--secondary-text)]">Current {{ $currentVersion }} · New {{ $latestVersion }}</p>
                     </div>
-                    @unless ($mandatoryUpdate)
+                    @if (!$mandatoryUpdate || !$canManageUpdates)
                         <button type="button" class="rounded-lg px-2 py-1 text-[var(--secondary-text)] hover:bg-[var(--h-bg-color)]" data-update-modal-close aria-label="Close update dialog">
                             <i class="fas fa-xmark"></i>
                         </button>
-                    @endunless
+                    @endif
                 </div>
                 <div class="space-y-4 px-5 py-4">
                     <p class="text-sm text-[var(--secondary-text)]">
                         {{ $mandatoryUpdate ? 'This update is marked mandatory. Update before continuing if your deployment policy requires it.' : 'You can update now or continue working and update later.' }}
                     </p>
+                    @unless ($canManageUpdates)
+                        <div class="rounded-lg border border-[var(--border-warning)] bg-[var(--bg-warning)] p-3 text-sm text-[var(--text-warning)]">
+                            Update is available. Please contact an admin or developer to apply it.
+                        </div>
+                    @endunless
                     <details class="rounded-lg border border-[var(--glass-border-color)]/10 bg-[var(--h-bg-color)] p-3 text-sm" open>
                         <summary class="cursor-pointer font-semibold">Details</summary>
                         <div class="mt-2 whitespace-pre-line text-[var(--secondary-text)]">{{ $releaseNotes }}</div>
                     </details>
                 </div>
                 <div class="flex flex-wrap justify-end gap-2 border-t border-[var(--glass-border-color)]/10 px-5 py-4">
-                    @unless ($mandatoryUpdate)
+                    @if (!$mandatoryUpdate || !$canManageUpdates)
                         <button type="button" class="rounded-lg border border-gray-600 bg-[var(--h-bg-color)] px-4 py-2 text-sm font-semibold text-[var(--secondary-text)]" data-update-modal-close>
                             Later
                         </button>
-                    @endunless
-                    <a href="{{ route('developer.updater') }}" class="rounded-lg border border-gray-600 bg-[var(--h-bg-color)] px-4 py-2 text-sm font-semibold text-[var(--secondary-text)]">
-                        Details
-                    </a>
-                    @if (!empty($developerLauncherHandoff['protocol_url']))
+                    @endif
+                    @if ($canManageUpdates)
+                        <a href="{{ route('developer.updater') }}" class="rounded-lg border border-gray-600 bg-[var(--h-bg-color)] px-4 py-2 text-sm font-semibold text-[var(--secondary-text)]">
+                            Details
+                        </a>
+                    @endif
+                    @if ($canManageUpdates && !empty($developerLauncherHandoff['protocol_url']))
                         <a href="#" data-update-start-url="{{ route('developer.updater.launcher-handoff.start') }}" class="js-update-handoff rounded-lg bg-[var(--primary-color)] px-4 py-2 text-sm font-semibold text-white">
                             Update Now
                         </a>

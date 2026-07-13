@@ -22,7 +22,7 @@ class SettingsController extends Controller
         FeatureAvailabilityService $features,
         BrandingSettingsService $branding,
     ) {
-        if ($resp = $this->denyIfNoRole(['developer', 'admin'])) {
+        if ($resp = $this->denyIfNoRole(['developer'])) {
             return $resp;
         }
 
@@ -49,7 +49,7 @@ class SettingsController extends Controller
 
     public function resetLabel(string $key, LabelSettingsService $labels): RedirectResponse
     {
-        if ($resp = $this->denyIfNoRole(['developer', 'admin'])) {
+        if ($resp = $this->denyIfNoRole(['developer'])) {
             return $resp;
         }
 
@@ -77,7 +77,7 @@ class SettingsController extends Controller
 
     public function resetBranding(string $key, BrandingSettingsService $branding): RedirectResponse
     {
-        if ($resp = $this->denyIfNoRole(['developer', 'admin'])) {
+        if ($resp = $this->denyIfNoRole(['developer'])) {
             return $resp;
         }
 

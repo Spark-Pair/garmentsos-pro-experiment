@@ -9,6 +9,8 @@ $ErrorActionPreference = "Stop"
 $InstallDir = $InstallDir.Trim('"')
 $ReleaseDir = $ReleaseDir.Trim('"')
 $script:EnvBackupCreated = $false
+$script:EnvBackupPath = ""
+$script:EnvWriteStoppedCompose = $false
 
 function Copy-RootLaunchers($SourceDir, $TargetDir) {
     $launchers = @(
@@ -405,8 +407,12 @@ function Set-EnvLine($Content, $Name, $Value) {
 }
 
 function Backup-EnvFile($EnvPath) {
-    if ($script:EnvBackupCreated -or -not (Test-Path -LiteralPath $EnvPath)) {
-        return
+    if ($script:EnvBackupCreated) {
+        return $script:EnvBackupPath
+    }
+
+    if (-not (Test-Path -LiteralPath $EnvPath)) {
+        return ""
     }
 
     $installRoot = Split-Path -Parent $EnvPath
@@ -417,13 +423,144 @@ function Backup-EnvFile($EnvPath) {
     $backupPath = Join-Path $backupDir "env_$timestamp.env"
     Copy-Item -LiteralPath $EnvPath -Destination $backupPath -Force
     $script:EnvBackupCreated = $true
+    $script:EnvBackupPath = $backupPath
     Write-Host "Environment backup created: $backupPath"
+    return $backupPath
+}
+
+function Clear-EnvFileProtection($EnvPath) {
+    $installRoot = Split-Path -Parent $EnvPath
+
+    try {
+        if (Test-Path -LiteralPath $installRoot) {
+            attrib -R -S -H "$installRoot" 2>$null | Out-Null
+        }
+    } catch {
+        Write-Warning "Could not clear install folder attributes before .env write. $($_.Exception.Message)"
+    }
+
+    if (-not (Test-Path -LiteralPath $EnvPath)) {
+        return
+    }
+
+    try {
+        $item = Get-Item -LiteralPath $EnvPath -Force
+        Write-Host ".env attributes before write: $($item.Attributes)"
+        try {
+            $acl = Get-Acl -LiteralPath $EnvPath
+            Write-Host ".env owner: $($acl.Owner)"
+        } catch {
+            Write-Warning "Could not read .env owner. $($_.Exception.Message)"
+        }
+        attrib -R -S -H "$EnvPath" 2>$null | Out-Null
+        $item = Get-Item -LiteralPath $EnvPath -Force
+        $removeAttributes = [System.IO.FileAttributes]::ReadOnly -bor [System.IO.FileAttributes]::Hidden -bor [System.IO.FileAttributes]::System
+        $item.Attributes = $item.Attributes -band (-bnot $removeAttributes)
+        $item = Get-Item -LiteralPath $EnvPath -Force
+        Write-Host ".env attributes after protection clear: $($item.Attributes)"
+    } catch {
+        Write-Warning "Could not clear .env read-only/system/hidden attributes. $($_.Exception.Message)"
+    }
+}
+
+function Test-EnvFileWritable($EnvPath) {
+    try {
+        if (-not (Test-Path -LiteralPath $EnvPath)) {
+            return $true
+        }
+
+        $stream = [System.IO.File]::Open($EnvPath, [System.IO.FileMode]::Open, [System.IO.FileAccess]::ReadWrite, [System.IO.FileShare]::Read)
+        $stream.Dispose()
+        Write-Host ".env write test succeeded."
+        return $true
+    } catch {
+        Write-Warning ".env write test failed: $($_.Exception.Message)"
+        return $false
+    }
+}
+
+function Stop-GarmentsAppForEnvWrite($EnvPath) {
+    $installRoot = Split-Path -Parent $EnvPath
+    if (-not (Test-Path -LiteralPath (Join-Path $installRoot "docker-compose.yml"))) {
+        Write-Warning "Cannot stop Docker app for .env write because docker-compose.yml was not found."
+        return
+    }
+
+    Write-Host "Stopping GarmentsOS app container before retrying .env write."
+    try {
+        Push-Location $installRoot
+        try {
+            docker compose stop app | Out-Host
+            $script:EnvWriteStoppedCompose = $true
+        } finally {
+            Pop-Location
+        }
+    } catch {
+        Write-Warning "Could not stop app service before .env retry. $($_.Exception.Message)"
+    }
+}
+
+function Restore-EnvBackupAfterWriteFailure($EnvPath, $BackupPath) {
+    if ([string]::IsNullOrWhiteSpace($BackupPath) -or -not (Test-Path -LiteralPath $BackupPath)) {
+        return
+    }
+
+    try {
+        Clear-EnvFileProtection $EnvPath
+        Copy-Item -LiteralPath $BackupPath -Destination $EnvPath -Force
+        Write-Warning "Restored .env from backup after failed write: $BackupPath"
+    } catch {
+        Write-Warning "Could not restore .env backup after failed write. Backup remains at: $BackupPath. $($_.Exception.Message)"
+    }
+}
+
+function Write-EnvContentAtomic($EnvPath, $Content) {
+    $installRoot = Split-Path -Parent $EnvPath
+    New-Item -ItemType Directory -Force -Path $installRoot | Out-Null
+
+    $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+    $tempPath = Join-Path $installRoot (".env.tmp_" + [System.Guid]::NewGuid().ToString("N"))
+    $replaceBackupPath = Join-Path $installRoot (".env.replace_backup_" + [System.Guid]::NewGuid().ToString("N"))
+
+    try {
+        [System.IO.File]::WriteAllText($tempPath, $Content, $utf8NoBom)
+        if (Test-Path -LiteralPath $EnvPath) {
+            [System.IO.File]::Replace($tempPath, $EnvPath, $replaceBackupPath, $true)
+            Remove-Item -LiteralPath $replaceBackupPath -Force -ErrorAction SilentlyContinue
+        } else {
+            Move-Item -LiteralPath $tempPath -Destination $EnvPath -Force
+        }
+    } finally {
+        Remove-Item -LiteralPath $tempPath -Force -ErrorAction SilentlyContinue
+    }
 }
 
 function Save-EnvContent($EnvPath, $Content) {
-    Backup-EnvFile $EnvPath
-    $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
-    [System.IO.File]::WriteAllText($EnvPath, $Content, $utf8NoBom)
+    $backupPath = Backup-EnvFile $EnvPath
+    Clear-EnvFileProtection $EnvPath
+
+    if (-not (Test-EnvFileWritable $EnvPath)) {
+        Stop-GarmentsAppForEnvWrite $EnvPath
+        Clear-EnvFileProtection $EnvPath
+    }
+
+    try {
+        Write-EnvContentAtomic $EnvPath $Content
+        Write-Host ".env written atomically with UTF-8 no BOM."
+    } catch {
+        $firstError = $_.Exception.Message
+        Write-Warning ".env atomic write failed: $firstError"
+        Stop-GarmentsAppForEnvWrite $EnvPath
+        Clear-EnvFileProtection $EnvPath
+
+        try {
+            Write-EnvContentAtomic $EnvPath $Content
+            Write-Host ".env written atomically after stopping Docker app service."
+        } catch {
+            Restore-EnvBackupAfterWriteFailure $EnvPath $backupPath
+            throw "Cannot write .env. Close GarmentsOS/Docker and retry, or run the updater as administrator. Last error: $($_.Exception.Message)"
+        }
+    }
 }
 
 function Read-EnvValue($Content, $Name) {
@@ -437,6 +574,7 @@ function Read-EnvValue($Content, $Name) {
 }
 
 function Update-GarmentsEnvForRelease($EnvPath, $TargetVersion, $TargetImage) {
+    Clear-EnvFileProtection $EnvPath
     $before = Get-Content -LiteralPath $EnvPath -Raw
     $beforeAppVersion = Read-EnvValue $before "APP_VERSION"
     $beforeImage = Read-EnvValue $before "GARMENTSOS_IMAGE"
@@ -472,6 +610,7 @@ function Ensure-EnvKey($EnvPath, $Key, $DefaultValue) {
         throw ".env file not found: $EnvPath"
     }
 
+    Clear-EnvFileProtection $EnvPath
     $content = Get-Content -LiteralPath $EnvPath -Raw
     $pattern = "(?m)^\s*" + [regex]::Escape($Key) + "="
     if ($content -match $pattern) {
@@ -479,11 +618,10 @@ function Ensure-EnvKey($EnvPath, $Key, $DefaultValue) {
         return
     }
 
-    Backup-EnvFile $EnvPath
     $line = "$Key=$DefaultValue"
     $lineEnding = if ($content -match "`r`n") { "`r`n" } else { "`n" }
     $updated = $content.TrimEnd("`r", "`n") + $lineEnding + $line + $lineEnding
-    Set-Content -Path $EnvPath -Value $updated -Encoding UTF8
+    Save-EnvContent $EnvPath $updated
     Write-Host "Added missing environment key: $Key"
 }
 
@@ -612,6 +750,7 @@ Update-GarmentsEnvForRelease $EnvPath $TargetVersion $TargetImage
 Push-Location $InstallDir
 try {
     docker compose up -d
+    $script:EnvWriteStoppedCompose = $false
 } finally {
     Pop-Location
 }
@@ -621,6 +760,17 @@ Ensure-GarmentsStorageLink $InstallDir
 $envContent = Get-Content $EnvPath -Raw
 $envContent = Set-EnvLine $envContent "RUN_MIGRATIONS_ON_START" "false"
 Save-EnvContent $EnvPath $envContent
+
+if ($script:EnvWriteStoppedCompose) {
+    Write-Host "Restarting GarmentsOS app after .env write retry stopped the app service."
+    Push-Location $InstallDir
+    try {
+        docker compose up -d
+        $script:EnvWriteStoppedCompose = $false
+    } finally {
+        Pop-Location
+    }
+}
 
 Register-GarmentsProtocol $InstallDir
 Install-GarmentsShortcuts $InstallDir
