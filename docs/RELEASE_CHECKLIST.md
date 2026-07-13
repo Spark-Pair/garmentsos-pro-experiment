@@ -5,11 +5,11 @@
 - Current branch is correct.
 - Working tree is clean.
 - No merge to `main` without explicit approval.
-- No push to stable `origin` for experiment work.
+- No push to stable `origin` without explicit release approval.
 
 ## GitHub Publishing
 
-- Use GitHub Actions -> `Publish GarmentsOS PRO Release` -> `Run workflow` for normal publishing.
+- Use GitHub Actions -> `Publish GarmentsOS PRO Stable Release` -> `Run workflow` for normal publishing.
 - Confirm workflow inputs: version, channel, mandatory flag, min launcher version, release notes, prerelease flag.
 - Confirm repository Actions permissions allow `GITHUB_TOKEN` read/write access for contents.
 - Confirm the workflow uploaded package archive, checksum, and versioned `latest.json`.

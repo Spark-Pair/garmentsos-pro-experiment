@@ -18,7 +18,7 @@ class BlockWhenUpdating
         'developer.updater.launcher-handoff.start',
         'developer.updater.update-lock-status',
         'developer.updater.clear-update-lock',
-        'developer.updater.set-experiment-feed',
+        'developer.updater.set-stable-feed',
         'developer.license.status',
         'developer.license.request-demo',
         'developer.license.register',

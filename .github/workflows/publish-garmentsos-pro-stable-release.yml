@@ -1,11 +1,12 @@
-﻿name: Publish GarmentsOS PRO Release
+﻿name: Publish GarmentsOS PRO Stable Release
 
 on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Release version, for example 1.8.14"
+        description: "Release version, for example 1.8.59"
         required: true
+        default: "1.8.59"
         type: string
       channel:
         description: "Update channel"

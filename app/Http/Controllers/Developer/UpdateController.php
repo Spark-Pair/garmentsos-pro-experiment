@@ -205,7 +205,7 @@ class UpdateController extends Controller
             ->with('success', $payload['message']);
     }
 
-    public function setExperimentFeed(): RedirectResponse
+    public function setStableFeed(): RedirectResponse
     {
         if ($resp = $this->denyIfNoRole(['developer', 'admin'])) {
             return $resp;

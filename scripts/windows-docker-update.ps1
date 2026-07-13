@@ -489,7 +489,7 @@ function Ensure-EnvKey($EnvPath, $Key, $DefaultValue) {
 
 function Ensure-GarmentsUpdaterEnvKeys($EnvPath) {
     Ensure-EnvKey $EnvPath "UPDATE_FEED_URL" "https://sparkpair.dev/api/updates/garmentsos-pro/stable/latest.json"
-    Ensure-EnvKey $EnvPath "UPDATE_FALLBACK_FEED_URL" "https://github.com/Spark-Pair/garmentsos-pro-experiment/releases/download/latest-stable/latest.json"
+    Ensure-EnvKey $EnvPath "UPDATE_FALLBACK_FEED_URL" "https://github.com/Spark-Pair/garmentsos-pro/releases/download/latest-stable/latest.json"
     Ensure-EnvKey $EnvPath "UPDATE_LOCK_TTL_MINUTES" "30"
     Ensure-EnvKey $EnvPath "UPDATE_CHANNEL" "stable"
     Ensure-EnvKey $EnvPath "UPDATE_LAUNCHER_PROTOCOL" "garmentsos"

@@ -1,6 +1,6 @@
 # Claude Instructions
 
-Follow [AGENTS.md](AGENTS.md) first. This repo is the GarmentsOS PRO experiment repo.
+Follow [AGENTS.md](AGENTS.md) first. This repo is the GarmentsOS PRO repo.
 
 Before editing, read:
 

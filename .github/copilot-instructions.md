@@ -1,6 +1,6 @@
 # Copilot Instructions
 
-This is the GarmentsOS PRO experiment repo. Read [AGENTS.md](../AGENTS.md) and the docs under `docs/` before suggesting code.
+This is the GarmentsOS PRO repo. Read [AGENTS.md](../AGENTS.md) and the docs under `docs/` before suggesting code.
 
 Important project rules:
 

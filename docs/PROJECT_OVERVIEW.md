@@ -2,7 +2,7 @@
 
 GarmentsOS PRO is a Laravel-based garment business application with modules for parties, articles, sales, finance, stock, cargo/documents, reports, attendance, and developer/system tools.
 
-This experiment branch includes a large branch-system implementation:
+This stable build includes the branch-system implementation:
 
 - Dynamic Branch Module Registry.
 - Global route-aware branch selector.

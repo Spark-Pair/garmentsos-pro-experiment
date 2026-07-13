@@ -218,10 +218,10 @@
                     <div>
                         <div class="font-semibold">Update feed repair</div>
                         <p class="mt-1 text-sm text-[var(--secondary-text)]">
-                            Use this if the installed `.env` points to the old GitHub experiment feed.
+                            Use this if the installed `.env` points to an old or private update feed.
                         </p>
                     </div>
-                    <form method="POST" action="{{ route('developer.updater.set-experiment-feed') }}">
+                    <form method="POST" action="{{ route('developer.updater.set-stable-feed') }}">
                         @csrf
                         <button type="submit" class="{{ $secondaryButton }}">
                             Set feed to SparkPair stable

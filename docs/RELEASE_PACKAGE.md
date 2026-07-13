@@ -10,7 +10,7 @@ GarmentsOS PRO has two package types:
 Normal publishing is done from the GitHub Actions UI:
 
 ```text
-Actions -> Publish GarmentsOS PRO Release -> Run workflow
+Actions -> Publish GarmentsOS PRO Stable Release -> Run workflow
 ```
 
 The workflow builds the Docker release package, creates tag `vVERSION`, uploads release assets, writes the final GitHub asset URLs into versioned `latest.json`, and updates the moving channel feed release such as `latest-stable`.
@@ -18,21 +18,21 @@ The workflow builds the Docker release package, creates tag `vVERSION`, uploads 
 Local command-line builds are for developer testing:
 
 ```bash
-bash scripts/docker-build-release.sh 1.8.0
+bash scripts/docker-build-release.sh 1.8.59
 ```
 
 Output:
 
 ```text
-docker-releases/garmentsos-pro-1.8.0/
-docker-releases/garmentsos-pro-1.8.0/images/garmentsos-pro-1.8.0.tar
-docker-releases/garmentsos-pro-1.8.0/docker-compose.yml
-docker-releases/garmentsos-pro-1.8.0/.env.example
-docker-releases/garmentsos-pro-1.8.0/scripts/
-docker-releases/garmentsos-pro-1.8.0/docs/
-docker-releases/garmentsos-pro-1.8.0/manifest.json
-docker-releases/garmentsos-pro-1.8.0.sha256
-docker-releases/garmentsos-pro-1.8.0.zip
+docker-releases/garmentsos-pro-1.8.59/
+docker-releases/garmentsos-pro-1.8.59/images/garmentsos-pro-1.8.59.tar
+docker-releases/garmentsos-pro-1.8.59/docker-compose.yml
+docker-releases/garmentsos-pro-1.8.59/.env.example
+docker-releases/garmentsos-pro-1.8.59/scripts/
+docker-releases/garmentsos-pro-1.8.59/docs/
+docker-releases/garmentsos-pro-1.8.59/manifest.json
+docker-releases/garmentsos-pro-1.8.59.sha256
+docker-releases/garmentsos-pro-1.8.59.zip
 docker-releases/latest.json
 ```
 
@@ -68,7 +68,7 @@ UPDATE_FEED_URL=https://sparkpair.dev/api/updates/garmentsos-pro/stable/latest.j
 Validate:
 
 ```bash
-bash scripts/validate-docker-release.sh docker-releases/garmentsos-pro-1.8.0
+bash scripts/validate-docker-release.sh docker-releases/garmentsos-pro-1.8.59
 ```
 
 ## Exclusions

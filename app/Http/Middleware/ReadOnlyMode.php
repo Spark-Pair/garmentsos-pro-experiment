@@ -53,7 +53,7 @@ class ReadOnlyMode
             'developer.updater.apply',
             'developer.updater.launcher-handoff.start',
             'developer.updater.clear-update-lock',
-            'developer.updater.set-experiment-feed',
+            'developer.updater.set-stable-feed',
             'developer.license.activate.post',
             'developer.license.request-demo',
             'developer.license.register',

@@ -19,17 +19,17 @@ UPDATE_REQUEST_TTL_MINUTES=10
 UPDATE_LOCK_TTL_MINUTES=30
 ```
 
-The GitHub experiment channel feed remains a fallback for developer/testing recovery:
+The GitHub stable channel feed remains a fallback for developer/testing recovery:
 
 ```env
-UPDATE_FALLBACK_FEED_URL=https://github.com/Spark-Pair/garmentsos-pro-experiment/releases/download/latest-stable/latest.json
+UPDATE_FALLBACK_FEED_URL=https://github.com/Spark-Pair/garmentsos-pro/releases/download/latest-stable/latest.json
 ```
 
 Feed priority in the local app:
 
 1. Installed `.env` `UPDATE_FEED_URL`
 2. `config/updater.php` feed URL default
-3. Experiment GitHub fallback feed
+3. Stable GitHub fallback feed
 
 The SparkPair `latest.json` endpoint must be public and must not require login. Private GitHub release assets can return `404` to unauthenticated clients, so installed clients should use the SparkPair feed URL.
 
@@ -40,8 +40,8 @@ Minimum required fields:
 ```json
 {
   "app": "garmentsos-pro",
-  "version": "1.8.40",
-  "package_url": "https://github.com/Spark-Pair/garmentsos-pro-experiment/releases/download/v1.8.40/garmentsos-pro-1.8.40.zip",
+  "version": "1.8.59",
+  "package_url": "https://github.com/Spark-Pair/garmentsos-pro/releases/download/v1.8.59/garmentsos-pro-1.8.59.zip",
   "package_sha256": "..."
 }
 ```
@@ -53,8 +53,8 @@ Optional fields displayed by the updater UI:
   "channel": "stable",
   "mandatory": false,
   "released_at": "2026-07-03T00:00:00Z",
-  "package_file": "garmentsos-pro-1.8.40.zip",
-  "setup_url": "https://github.com/Spark-Pair/garmentsos-pro-experiment/releases/download/v1.8.40/GarmentsOS-PRO.exe",
+  "package_file": "garmentsos-pro-1.8.59.zip",
+  "setup_url": "https://github.com/Spark-Pair/garmentsos-pro/releases/download/v1.8.59/GarmentsOS-PRO.exe",
   "notes": "..."
 }
 ```
@@ -101,7 +101,7 @@ Register request:
   "install_id": "local-random-install-id",
   "machine_hash": "hashed-safe-local-signals",
   "machine_name": "CLIENT-PC",
-  "app_version": "1.8.40"
+  "app_version": "1.8.59"
 }
 ```
 
@@ -112,7 +112,7 @@ Verify request:
   "product": "garmentsos-pro",
   "install_id": "local-random-install-id",
   "machine_hash": "hashed-safe-local-signals",
-  "app_version": "1.8.40"
+  "app_version": "1.8.59"
 }
 ```
 

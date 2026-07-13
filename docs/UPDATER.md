@@ -11,14 +11,14 @@ The updater is disabled by default:
 ```text
 UPDATER_ENABLED=false
 UPDATE_FEED_URL=https://sparkpair.dev/api/updates/garmentsos-pro/stable/latest.json
-UPDATE_FALLBACK_FEED_URL=https://github.com/Spark-Pair/garmentsos-pro-experiment/releases/download/latest-stable/latest.json
+UPDATE_FALLBACK_FEED_URL=https://github.com/Spark-Pair/garmentsos-pro/releases/download/latest-stable/latest.json
 UPDATE_CHANNEL=stable
 UPDATE_LAUNCHER_PROTOCOL=garmentsos
 ```
 
 No automatic update checks or automatic update apply actions are enabled for normal users.
 
-`UPDATE_FEED_URL` is the release metadata endpoint for `latest.json`. Client installs should use the public SparkPair feed. The GitHub `latest-stable` release feed remains available as an experiment/developer fallback.
+`UPDATE_FEED_URL` is the release metadata endpoint for `latest.json`. Client installs should use the public SparkPair feed. The GitHub `latest-stable` release feed remains available as a developer recovery fallback.
 
 `UPDATE_FALLBACK_FEED_URL` is tried when the primary feed cannot be reached. Existing installed `.env` values are preserved unless a developer/admin explicitly uses the updater page repair action.
 
@@ -157,12 +157,12 @@ Normal publishing should happen through GitHub Actions, not local CMD/PowerShell
 Use:
 
 ```text
-GitHub repository -> Actions -> Publish GarmentsOS PRO Release -> Run workflow
+GitHub repository -> Actions -> Publish GarmentsOS PRO Stable Release -> Run workflow
 ```
 
 Workflow inputs:
 
-- `version`: release version such as `1.8.14`; the workflow creates tag `v1.8.14`.
+- `version`: release version such as `1.8.59`; the workflow creates tag `v1.8.59`.
 - `channel`: update channel, usually `stable`.
 - `mandatory`: whether the metadata marks the update as mandatory.
 - `min_launcher_version`: minimum supported Windows launcher/package script version.
@@ -186,7 +186,7 @@ Channel feed releases:
 - `latest-beta`
 - `latest-dev`
 
-Each channel release contains a moving `latest.json` asset uploaded with `--clobber`. The channel `latest.json` still points `package_url` at the real immutable versioned release asset, for example `https://github.com/Spark-Pair/garmentsos-pro-experiment/releases/download/v1.8.16/garmentsos-pro-1.8.16.zip`.
+Each channel release contains a moving `latest.json` asset uploaded with `--clobber`. The channel `latest.json` still points `package_url` at the real immutable versioned release asset, for example `https://github.com/Spark-Pair/garmentsos-pro/releases/download/v1.8.59/garmentsos-pro-1.8.59.zip`.
 
 Private GitHub repositories return `404` for unauthenticated release asset requests. Browsers may appear to work when the developer is logged into GitHub, but installed apps and the Windows launcher are unauthenticated. For client installs, use the public SparkPair update server URL:
 
@@ -235,13 +235,13 @@ The response contains:
 ```json
 {
   "app": "garmentsos-pro",
-  "current_version": "1.8.18",
-  "target_version": "1.8.14",
+  "current_version": "1.8.58",
+  "target_version": "1.8.59",
   "channel": "stable",
-  "package_file": "garmentsos-pro-1.8.14.zip",
-  "package_url": "https://github.com/OWNER/REPO/releases/download/v1.8.14/garmentsos-pro-1.8.14.zip",
+  "package_file": "garmentsos-pro-1.8.59.zip",
+  "package_url": "https://github.com/OWNER/REPO/releases/download/v1.8.59/garmentsos-pro-1.8.59.zip",
   "package_sha256": "...",
-  "setup_url": "https://github.com/OWNER/REPO/releases/download/v1.8.14/GarmentsOS-PRO.exe",
+  "setup_url": "https://github.com/OWNER/REPO/releases/download/v1.8.59/GarmentsOS-PRO.exe",
   "mandatory": false,
   "notes": "Release notes",
   "requested_at": "2026-06-30T00:00:00Z",

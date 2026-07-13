@@ -3,7 +3,7 @@
 return [
     'enabled' => env('UPDATER_ENABLED', false),
     'feed_url' => env('UPDATE_FEED_URL', env('UPDATER_MANIFEST_URL', 'https://sparkpair.dev/api/updates/garmentsos-pro/stable/latest.json')),
-    'fallback_feed_url' => env('UPDATE_FALLBACK_FEED_URL', 'https://github.com/Spark-Pair/garmentsos-pro-experiment/releases/download/latest-stable/latest.json'),
+    'fallback_feed_url' => env('UPDATE_FALLBACK_FEED_URL', 'https://github.com/Spark-Pair/garmentsos-pro/releases/download/latest-stable/latest.json'),
     'feed_timeout' => env('UPDATE_FEED_TIMEOUT', 8),
     'launcher_protocol' => env('UPDATE_LAUNCHER_PROTOCOL', 'garmentsos'),
     'update_request_ttl_minutes' => env('UPDATE_REQUEST_TTL_MINUTES', 10),
@@ -12,7 +12,7 @@ return [
     'public_key' => env('UPDATER_PUBLIC_KEY', ''),
     'channel' => env('UPDATE_CHANNEL', env('UPDATER_CHANNEL', 'stable')),
     'require_signature' => env('UPDATER_REQUIRE_SIGNATURE', true),
-    'current_version' => env('APP_VERSION', '0.0.0'),
+    'current_version' => env('APP_VERSION', '1.8.59'),
     'installed_manifest_paths' => [
         env('GARMENTSOS_INSTALLED_MANIFEST', ''),
         'bootstrap/cache/installed-release.json',

@@ -1,6 +1,6 @@
 # GarmentsOS PRO Agent Rules
 
-This is the GarmentsOS PRO experiment repo. AI agents and developers must read these docs before changing code:
+This is the GarmentsOS PRO repo. AI agents and developers must read these docs before changing code:
 
 - [Project Overview](docs/PROJECT_OVERVIEW.md)
 - [Current Status](docs/CURRENT_STATUS.md)
