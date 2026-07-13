@@ -36,7 +36,9 @@ class CustomerController extends Controller
         }
 
         $cities_options = [];
-        $allCities = Setup::where('type', 'city')->get();
+        $allCities = app(ModuleBranchService::class)
+            ->applyRelatedScope(Setup::where('type', 'city'), 'setups', 'customers')
+            ->get();
 
         foreach ($allCities as $city) {
             $cities_options[(int)$city->id] = ['text' => $city->title];
@@ -56,7 +58,9 @@ class CustomerController extends Controller
         }
 
         $cities_options = [];
-        $allCities = Setup::where('type', 'city')->get();
+        $allCities = app(ModuleBranchService::class)
+            ->applyRelatedScope(Setup::where('type', 'city'), 'setups', 'customers')
+            ->get();
 
         foreach ($allCities as $city) {
             $cities_options[$city->id] = ['text' => $city->title];
@@ -82,7 +86,17 @@ class CustomerController extends Controller
                 'max:255',
                 Rule::unique('customers', 'customer_name')
                     ->where(function ($query) use ($request) {
-                        return $query->where('city_id', $request->city);
+                        $query->where('city_id', $request->city);
+
+                        $branches = app(ModuleBranchService::class);
+                        if ($branches->shouldFilterRecords('customers')) {
+                            $branchId = $branches->branchIdForCreate('customers');
+                            if ($branchId) {
+                                $query->where('branch_id', $branchId);
+                            }
+                        }
+
+                        return $query;
                     }),
             ],
             'person_name' => 'required|string|max:255',
@@ -165,6 +179,8 @@ class CustomerController extends Controller
             return $resp;
         }
 
+        app(ModuleBranchService::class)->assertRecordInAllowedBranch($customer, 'customers');
+
         return view('customers.edit', compact('customer'));
     }
 
@@ -176,6 +192,8 @@ class CustomerController extends Controller
         if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin'])) {
             return $resp;
         }
+
+        app(ModuleBranchService::class)->assertRecordInAllowedBranch($customer, 'customers');
 
         $validator = Validator::make($request->all(), [
             'person_name' => 'required|string|max:255',
@@ -231,6 +249,12 @@ class CustomerController extends Controller
      */
     public function destroy(Customer $customer)
     {
-        //
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin'])) {
+            return $resp;
+        }
+
+        app(ModuleBranchService::class)->assertRecordInAllowedBranch($customer, 'customers');
+
+        return redirect()->route('customers.index')->with('error', 'Customer delete is not available from this screen.');
     }
 }

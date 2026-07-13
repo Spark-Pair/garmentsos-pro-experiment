@@ -60,6 +60,38 @@ http://<server-lan-ip>:8000
 
 LAN browser PCs do not need the app files and do not consume separate licenses.
 
+## LAN / Windows Firewall
+
+The installer and updater try to create this inbound Windows Firewall rule automatically:
+
+```text
+Name: GarmentsOS PRO 8000
+Direction: Inbound
+Protocol: TCP
+Local port: APP_PORT from .env, default 8000
+Profile: Any
+```
+
+If Windows blocks the rule because the script was not run as administrator, the app can still run locally, but LAN clients may not connect. Do not turn the firewall off permanently. Instead, right-click and run as administrator:
+
+```text
+Repair GarmentsOS Network.bat
+```
+
+From another PC on the same LAN, test:
+
+```powershell
+Test-NetConnection <server-lan-ip> -Port 8000
+```
+
+Expected result:
+
+```text
+TcpTestSucceeded : True
+```
+
+Use a static/reserved IP for the server PC when clients bookmark `http://<server-lan-ip>:8000`.
+
 ## Safety
 
 - `.env` stays outside the image.

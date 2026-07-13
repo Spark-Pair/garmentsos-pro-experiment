@@ -87,7 +87,8 @@ for launcher in \
   "Install GarmentsOS.bat" \
   "Update GarmentsOS.bat" \
   "Stop GarmentsOS.bat" \
-  "Backup GarmentsOS.bat"; do
+  "Backup GarmentsOS.bat" \
+  "Repair GarmentsOS Network.bat"; do
   cp "$ROOT/scripts/package-launchers/$launcher.stub" "$DEST/$launcher"
 done
 

@@ -798,14 +798,25 @@ class ModuleBranchService
         'branch_assets' => 'Branch Logos / Assets',
     ];
 
+    private ?array $moduleRegistryCache = null;
+    private array $moduleConfigCache = [];
+    private array $availableBranchesCache = [];
+    private array $selectedBranchCache = [];
+
     public function moduleRegistry(): array
     {
-        return app(BranchModuleRegistryService::class)->registry();
+        return $this->moduleRegistryCache ??= app(BranchModuleRegistryService::class)->registry();
     }
 
     public function moduleConfig(string $moduleKey): ?array
     {
-        return app(BranchModuleRegistryService::class)->configFor($moduleKey);
+        $moduleKey = app(BranchModuleRegistryService::class)->canonicalKey($moduleKey);
+
+        if (!array_key_exists($moduleKey, $this->moduleConfigCache)) {
+            $this->moduleConfigCache[$moduleKey] = $this->moduleRegistry()[$moduleKey] ?? null;
+        }
+
+        return $this->moduleConfigCache[$moduleKey];
     }
 
     public function isRegisteredModule(string $moduleKey): bool
@@ -1069,13 +1080,18 @@ class ModuleBranchService
         }
 
         $user ??= Auth::user();
+        $cacheKey = $moduleKey . ':' . ($user?->id ?? 'guest');
+        if (array_key_exists($cacheKey, $this->selectedBranchCache)) {
+            return $this->selectedBranchCache[$cacheKey];
+        }
+
         $setting = $this->setting($moduleKey);
         $defaultBranchId = $setting?->default_branch_id;
 
         if (!$this->isEnabled($moduleKey) || !$user) {
-            return $defaultBranchId
+            return $this->selectedBranchCache[$cacheKey] = ($defaultBranchId
                 ? Branch::query()->find($defaultBranchId)
-                : Branch::query()->where('is_main', true)->first();
+                : Branch::query()->where('is_main', true)->first());
         }
 
         $preferred = UserModuleBranchPreference::query()
@@ -1084,7 +1100,7 @@ class ModuleBranchService
             ->first();
 
         if ($preferred && $this->isBranchEnabled($moduleKey, $preferred->branch_id) && $this->canView($preferred->branch_id, $moduleKey, $user)) {
-            return Branch::query()->find($preferred->branch_id);
+            return $this->selectedBranchCache[$cacheKey] = Branch::query()->find($preferred->branch_id);
         }
 
         $branch = $defaultBranchId
@@ -1092,10 +1108,10 @@ class ModuleBranchService
             : Branch::query()->where('is_main', true)->first();
 
         if ($branch && $this->isBranchEnabled($moduleKey, $branch->id) && $this->canView($branch->id, $moduleKey, $user)) {
-            return $branch;
+            return $this->selectedBranchCache[$cacheKey] = $branch;
         }
 
-        return Branch::query()
+        return $this->selectedBranchCache[$cacheKey] = Branch::query()
             ->where('status', 'active')
             ->orderBy('id')
             ->get()
@@ -1111,12 +1127,17 @@ class ModuleBranchService
     {
         $moduleKey = $this->canonicalModuleKey($moduleKey);
         $user ??= Auth::user();
+        $cacheKey = $moduleKey . ':' . ($user?->id ?? 'guest');
+        if (array_key_exists($cacheKey, $this->availableBranchesCache)) {
+            return $this->availableBranchesCache[$cacheKey];
+        }
+
         if (!$user || !$this->isRegisteredModule($moduleKey) || !($this->moduleConfig($moduleKey)['supports_branch_selector'] ?? false)) {
-            return collect();
+            return $this->availableBranchesCache[$cacheKey] = collect();
         }
 
         if ($this->canManageBranches($user)) {
-            return Branch::query()
+            return $this->availableBranchesCache[$cacheKey] = Branch::query()
                 ->where('status', 'active')
                 ->orderByDesc('is_main')
                 ->orderBy('name')
@@ -1134,11 +1155,10 @@ class ModuleBranchService
                 $query->whereNull('module_key')->orWhereIn('module_key', $this->moduleKeyCandidates($moduleKey));
             })
             ->where('can_view', true)
-            ->where('can_switch', true)
             ->pluck('branch_id')
             ->unique();
 
-        return Branch::query()
+        return $this->availableBranchesCache[$cacheKey] = Branch::query()
             ->whereIn('id', $branchIds)
             ->where('status', 'active')
             ->orderByDesc('is_main')
@@ -1359,6 +1379,8 @@ class ModuleBranchService
                 'branch_ids' => [$branchId],
             ],
         );
+
+        unset($this->selectedBranchCache[$moduleKey . ':' . $user->id]);
     }
 
     public function setMultiPreference(string $moduleKey, array $branchIds, User $user): void
@@ -1400,6 +1422,8 @@ class ModuleBranchService
                 'branch_ids' => $selectedIds->all(),
             ],
         );
+
+        unset($this->selectedBranchCache[$moduleKey . ':' . $user->id]);
     }
 
     public function applyScope(Builder $query, string $moduleKey, string $branchColumn = 'branch_id'): Builder
@@ -1540,17 +1564,7 @@ class ModuleBranchService
             return false;
         }
 
-        return $this->canManageBranches($user) || BranchUserAccess::query()
-            ->where('branch_id', $branchId)
-            ->where(function (Builder $query) use ($user) {
-                $query->where('user_id', $user->id)->orWhere('role', $user->role);
-            })
-            ->where(function (Builder $query) use ($moduleKey) {
-                $query->whereNull('module_key')->orWhereIn('module_key', $this->moduleKeyCandidates($moduleKey));
-            })
-            ->where('can_view', true)
-            ->where('can_switch', true)
-            ->exists();
+        return $this->canView($branchId, $moduleKey, $user);
     }
 
     public function canView(int $branchId, string $moduleKey, User $user): bool
@@ -1576,7 +1590,7 @@ class ModuleBranchService
     {
         $user ??= Auth::user();
 
-        return $user && in_array($user->role, ['developer', 'owner', 'admin'], true);
+        return $user && $user->role === 'developer';
     }
 
     public function createBranch(array $data): Branch

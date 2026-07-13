@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Developer;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class SaveModuleSettingRequest extends FormRequest
 {
@@ -14,7 +15,7 @@ class SaveModuleSettingRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'module_key' => ['required', 'string', 'in:articles,customers,suppliers,reports,rates'],
+            'module_key' => ['required', 'string', Rule::in(array_keys(config('modules', [])))],
             'enabled' => ['required', 'boolean'],
             'visible_in_sidebar' => ['nullable', 'boolean'],
         ];

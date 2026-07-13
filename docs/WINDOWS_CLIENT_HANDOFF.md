@@ -11,6 +11,7 @@ GarmentsOS-Docker-Release/
   Update GarmentsOS.bat
   Stop GarmentsOS.bat
   Backup GarmentsOS.bat
+  Repair GarmentsOS Network.bat
   GarmentsOS-PRO.exe
   launcher/
   scripts/
@@ -49,6 +50,7 @@ Client flow:
 4. Handoff update: in the app Developer Updater page, click `Prepare Update`, then open the downloaded JSON in the launcher.
 5. Fallback update: extract the new package and double-click `Update GarmentsOS.bat`.
 6. Stop the app: double-click `Stop GarmentsOS.bat`.
+7. LAN/firewall repair: right-click `Repair GarmentsOS Network.bat` and run as administrator if another PC can ping the server but cannot open `http://SERVER_IP:8000`.
 
 The technical scripts remain under `scripts/` for support and automation. Installed client folders hide technical files by default using the Windows hidden attribute. Support/developer machines can show hidden files in File Explorer or run install/update with `-HideTechnicalFiles:$false`.
 

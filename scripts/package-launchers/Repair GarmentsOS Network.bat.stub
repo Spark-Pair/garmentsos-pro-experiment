@@ -1,0 +1,22 @@
+@echo off
+setlocal
+title Repair GarmentsOS PRO Network
+set "PACKAGE_ROOT=%~dp0"
+
+echo Repairing GarmentsOS PRO LAN access...
+echo This may ask for administrator permission.
+echo.
+
+powershell -NoProfile -ExecutionPolicy Bypass -File "%PACKAGE_ROOT%scripts\windows-docker-repair-network.ps1" -InstallDir "C:\SparkPair\GarmentsOS"
+if errorlevel 1 (
+    echo.
+    echo Network repair did not complete.
+    echo Run this file as administrator or allow inbound TCP port 8000 in Windows Firewall.
+    pause
+    exit /b 1
+)
+
+echo.
+echo Network repair complete.
+pause
+exit /b 0
