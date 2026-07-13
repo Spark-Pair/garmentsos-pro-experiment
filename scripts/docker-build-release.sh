@@ -75,6 +75,7 @@ for script in \
   windows-docker-update.ps1 \
   windows-docker-backup.ps1 \
   windows-docker-restore.ps1 \
+  windows-docker-repair-network.ps1 \
   install.bat \
   update.bat \
   run-lan.bat \

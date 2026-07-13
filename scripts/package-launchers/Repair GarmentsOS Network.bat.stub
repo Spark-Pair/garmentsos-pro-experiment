@@ -7,7 +7,7 @@ echo Repairing GarmentsOS PRO LAN access...
 echo This may ask for administrator permission.
 echo.
 
-powershell -NoProfile -ExecutionPolicy Bypass -File "%PACKAGE_ROOT%scripts\windows-docker-repair-network.ps1" -InstallDir "C:\SparkPair\GarmentsOS"
+powershell -NoProfile -ExecutionPolicy Bypass -File "%PACKAGE_ROOT%scripts\windows-docker-repair-network.ps1" -InstallDir "%PACKAGE_ROOT%"
 if errorlevel 1 (
     echo.
     echo Network repair did not complete.
