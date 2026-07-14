@@ -601,8 +601,8 @@
             $mandatoryUpdate = (bool) ($developerUpdateStatus['mandatory'] ?? data_get($developerUpdateStatus, 'feed.mandatory', false));
         @endphp
         <div id="developer-update-modal" class="fixed inset-0 z-[9998] flex items-center justify-center bg-[var(--overlay-color)] px-4">
-            <div class="w-full max-w-xl rounded-xl border border-[var(--glass-border-color)]/20 bg-[var(--secondary-bg-color)] text-[var(--text-color)] shadow-2xl">
-                <div class="flex items-start justify-between gap-4 border-b border-[var(--glass-border-color)]/10 px-5 py-4">
+            <div class="flex max-h-[90vh] w-full max-w-xl flex-col overflow-hidden rounded-xl border border-[var(--glass-border-color)]/20 bg-[var(--secondary-bg-color)] text-[var(--text-color)] shadow-2xl">
+                <div class="flex shrink-0 items-start justify-between gap-4 border-b border-[var(--glass-border-color)]/10 px-5 py-4">
                     <div>
                         <h2 class="text-lg font-semibold">Update available</h2>
                         <p class="mt-1 text-xs text-[var(--secondary-text)]">Current {{ $currentVersion }} · New {{ $latestVersion }}</p>
@@ -613,7 +613,7 @@
                         </button>
                     @endif
                 </div>
-                <div class="space-y-4 px-5 py-4">
+                <div class="min-h-0 grow space-y-4 overflow-y-auto px-5 py-4 my-scrollbar-2">
                     <p class="text-sm text-[var(--secondary-text)]">
                         {{ $mandatoryUpdate ? 'This update is marked mandatory. Update before continuing if your deployment policy requires it.' : 'You can update now or continue working and update later.' }}
                     </p>
@@ -624,10 +624,10 @@
                     @endunless
                     <details class="rounded-lg border border-[var(--glass-border-color)]/10 bg-[var(--h-bg-color)] p-3 text-sm" open>
                         <summary class="cursor-pointer font-semibold">Details</summary>
-                        <div class="mt-2 whitespace-pre-line text-[var(--secondary-text)]">{{ $releaseNotes }}</div>
+                        <div class="mt-2 max-h-60 overflow-y-auto whitespace-pre-line rounded-lg pr-2 text-[var(--secondary-text)] my-scrollbar-2">{{ $releaseNotes }}</div>
                     </details>
                 </div>
-                <div class="flex flex-wrap justify-end gap-2 border-t border-[var(--glass-border-color)]/10 px-5 py-4">
+                <div class="flex shrink-0 flex-wrap justify-end gap-2 border-t border-[var(--glass-border-color)]/10 px-5 py-4">
                     @if (!$mandatoryUpdate || !$canManageUpdates)
                         <button type="button" class="rounded-lg border border-gray-600 bg-[var(--h-bg-color)] px-4 py-2 text-sm font-semibold text-[var(--secondary-text)]" data-update-modal-close>
                             Later

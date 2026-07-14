@@ -38,11 +38,9 @@ class InstallationIdentityService
     {
         $path = (string) config('licensing.install_id_path', storage_path('app/install-id.txt'));
 
-        if (File::exists($path)) {
-            $installId = trim((string) File::get($path));
-            if ($installId !== '') {
-                return $installId;
-            }
+        $existing = $this->existingInstallId();
+        if ($existing !== null) {
+            return $existing;
         }
 
         $installId = (string) Str::uuid();
@@ -50,6 +48,45 @@ class InstallationIdentityService
         File::put($path, $installId . PHP_EOL);
 
         return $installId;
+    }
+
+    public function existingInstallId(): ?string
+    {
+        $path = (string) config('licensing.install_id_path', storage_path('app/install-id.txt'));
+
+        if (!File::exists($path)) {
+            return $this->recoverInstallIdFromLicenseCaches($path);
+        }
+
+        try {
+            $installId = trim((string) File::get($path));
+
+            if ($installId !== '') {
+                return $installId;
+            }
+        } catch (\Throwable $e) {
+            Log::warning('License install ID file could not be read.', [
+                'path' => $path,
+                'error' => $e->getMessage(),
+                'type' => $e::class,
+            ]);
+
+            return $this->recoverInstallIdFromLicenseCaches($path);
+        }
+
+        return $this->recoverInstallIdFromLicenseCaches($path);
+    }
+
+    public function hasPersistedIdentity(): bool
+    {
+        if ($this->existingInstallId() !== null) {
+            return true;
+        }
+
+        $identityPath = (string) config('licensing.identity_path');
+
+        return $this->readUuidFromPath($identityPath) !== null
+            || $this->readUuidFromPath($identityPath . '.recovery') !== null;
     }
 
     public function installationMode(): string
@@ -122,5 +159,45 @@ class InstallationIdentityService
         ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
 
         return $uuid;
+    }
+
+    protected function recoverInstallIdFromLicenseCaches(string $installIdPath): ?string
+    {
+        $cachePaths = [
+            (string) config('licensing.request_cache_path'),
+            (string) config('licensing.registration_cache_path'),
+            (string) config('licensing.verify_cache_path'),
+        ];
+
+        foreach ($cachePaths as $cachePath) {
+            if ($cachePath === '' || !File::exists($cachePath)) {
+                continue;
+            }
+
+            try {
+                $cache = json_decode((string) File::get($cachePath), true, 512, JSON_THROW_ON_ERROR);
+                $installId = trim((string) ($cache['install_id'] ?? ''));
+                if ($installId === '') {
+                    continue;
+                }
+
+                File::ensureDirectoryExists(dirname($installIdPath));
+                File::put($installIdPath, $installId . PHP_EOL);
+                Log::warning('Recovered missing license install ID from preserved license cache.', [
+                    'cache' => basename($cachePath),
+                    'install_id_hash' => substr(hash('sha256', $installId), 0, 12),
+                ]);
+
+                return $installId;
+            } catch (\Throwable $e) {
+                Log::warning('License install ID recovery cache could not be read.', [
+                    'cache' => $cachePath,
+                    'error' => $e->getMessage(),
+                    'type' => $e::class,
+                ]);
+            }
+        }
+
+        return null;
     }
 }

@@ -97,6 +97,27 @@ class LicenseService
 
     public function registerInstall(): array
     {
+        if ($this->hasLocalLicenseApprovalState()) {
+            Log::warning('License registration skipped because local license/device identity already exists. Verifying existing identity instead.', [
+                'install_id_hash' => $this->shortHash($this->identity->existingInstallId()),
+                'verify_cache_exists' => File::exists((string) config('licensing.verify_cache_path')),
+                'registration_cache_exists' => File::exists((string) config('licensing.registration_cache_path')),
+                'request_cache_exists' => File::exists((string) config('licensing.request_cache_path')),
+            ]);
+
+            $status = $this->verifyNow();
+
+            return [
+                'ok' => !$status->shouldBlock(),
+                'message' => $status->message ?: 'Existing license/device identity was checked. Registration was not repeated.',
+                'body' => [
+                    'status' => $status->state,
+                    'message' => $status->message,
+                    'registration_skipped' => true,
+                ],
+            ];
+        }
+
         $result = $this->activationClient->registerInstall([
             'product' => config('updater.app_id', 'garmentsos-pro'),
             'install_id' => $this->identity->installId(),
@@ -147,6 +168,20 @@ class LicenseService
             return null;
         }
 
+        if ($this->hasExistingIdentityOrCache()) {
+            Log::info('License auto-registration skipped; existing identity/cache will be verified instead.', [
+                'install_id_hash' => $this->identity->existingInstallId()
+                    ? $this->shortHash($this->identity->existingInstallId())
+                    : null,
+                'identity_exists' => $this->identity->hasPersistedIdentity(),
+                'verify_cache_exists' => File::exists((string) config('licensing.verify_cache_path')),
+                'registration_cache_exists' => File::exists((string) config('licensing.registration_cache_path')),
+                'request_cache_exists' => File::exists((string) config('licensing.request_cache_path')),
+            ]);
+
+            return null;
+        }
+
         return $this->registerInstall();
     }
 
@@ -157,9 +192,19 @@ class LicenseService
 
     protected function statusForDeviceLicense(): LicenseStatus
     {
+        $installId = $this->identity->existingInstallId();
+        if ($installId === null) {
+            return LicenseStatus::problem(
+                'activation_required',
+                $this->shouldEnforceUsage() ? 'blocked' : 'none',
+                'License activation is required. Request a demo/trial or register this device with SparkPair.',
+                ['source' => 'missing_install_id'],
+            );
+        }
+
         $result = $this->activationClient->verify([
             'product' => config('updater.app_id', 'garmentsos-pro'),
-            'install_id' => $this->identity->installId(),
+            'install_id' => $installId,
             'machine_hash' => $this->machine->machineHash(),
             'app_version' => $this->versions->currentVersion(),
         ]);
@@ -295,6 +340,7 @@ class LicenseService
         File::put($path, json_encode([
             'valid' => (bool) ($body['valid'] ?? false),
             'status' => (string) ($body['status'] ?? ''),
+            'install_id' => (string) ($body['install_id'] ?? $this->identity->existingInstallId() ?? ''),
             'client_id' => (string) ($body['client_id'] ?? ''),
             'client_name' => (string) ($body['client_name'] ?? $body['customer_name'] ?? ''),
             'customer_name' => (string) ($body['customer_name'] ?? $body['client_name'] ?? ''),
@@ -338,6 +384,31 @@ class LicenseService
 
             return null;
         }
+    }
+
+    protected function hasExistingIdentityOrCache(): bool
+    {
+        return $this->identity->hasPersistedIdentity()
+            || File::exists((string) config('licensing.verify_cache_path'))
+            || File::exists((string) config('licensing.registration_cache_path'))
+            || File::exists((string) config('licensing.request_cache_path'));
+    }
+
+    protected function hasLocalLicenseApprovalState(): bool
+    {
+        return File::exists((string) config('licensing.verify_cache_path'))
+            || File::exists((string) config('licensing.registration_cache_path'))
+            || File::exists((string) config('licensing.request_cache_path'));
+    }
+
+    protected function shortHash(?string $value): ?string
+    {
+        $value = trim((string) $value);
+        if ($value === '') {
+            return null;
+        }
+
+        return substr(hash('sha256', $value), 0, 12);
     }
 
     public function registrationCache(): ?array
@@ -404,6 +475,7 @@ class LicenseService
             'registration_cache_exists' => File::exists((string) config('licensing.registration_cache_path')),
             'request_cache_exists' => File::exists((string) config('licensing.request_cache_path')),
             'last_verified_at' => (string) ($this->verifyCache()['checked_at'] ?? ''),
+            'install_id_hash' => $this->shortHash($this->identity->existingInstallId()),
             'app_version' => $this->versions->currentVersion(),
         ];
     }
@@ -413,6 +485,7 @@ class LicenseService
         $path = (string) config('licensing.registration_cache_path');
         File::ensureDirectoryExists(dirname($path));
         File::put($path, json_encode(array_merge($body, [
+            'install_id' => (string) ($body['install_id'] ?? $this->identity->existingInstallId() ?? ''),
             'registered_at' => now()->utc()->toIso8601String(),
         ]), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
     }
