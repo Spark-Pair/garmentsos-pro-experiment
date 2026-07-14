@@ -280,7 +280,7 @@ class VoucherController extends Controller
         ]);
 
         if ($validator->fails()) {
-            return redirect()->back()->withErrors($validator)->with('error', $validator->errors()->first());
+            return redirect()->back()->withErrors($validator)->withInput()->with('error', $validator->errors()->first());
         }
 
         $paymentDetailsArray = json_decode($request->payment_details_array, true) ?? [];
@@ -717,7 +717,7 @@ class VoucherController extends Controller
         ]);
 
         if ($validator->fails()) {
-            return redirect()->back()->withErrors($validator)->with('error', $validator->errors()->first());
+            return redirect()->back()->withErrors($validator)->withInput()->with('error', $validator->errors()->first());
         }
 
         $requestPayments = json_decode($request->payment_details_array, true);

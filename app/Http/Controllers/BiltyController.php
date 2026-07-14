@@ -80,7 +80,7 @@ class BiltyController extends Controller
         // Validate that all invoices have biltyNo
         foreach ($invoicesArray as $invoice) {
             if (!isset($invoice['biltyNo'])) {
-                return redirect()->back()->with('error', 'All invoices must have a Bilty number assigned');
+                return redirect()->back()->withInput()->with('error', 'Please enter a bilty number for every selected invoice.');
             }
         }
 
@@ -92,7 +92,7 @@ class BiltyController extends Controller
                 ->find($invoice['id']);
 
             if (!$sourceInvoice) {
-                return redirect()->back()->with('error', 'Selected invoice is not available for this branch.');
+                return redirect()->back()->withInput()->with('error', 'One of the selected invoices is not available for this branch.');
             }
 
             Bilty::create($branches->assignBranchOnCreate([

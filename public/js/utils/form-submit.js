@@ -11,11 +11,11 @@ function initGlobalFormValidation() {
                 return;
             }
 
-            if (!validateAllInputs()) {
+            if (!validateAllInputs(e.target)) {
                 e.preventDefault();
-                if (typeof showMessageBox === 'function') {
-                    showMessageBox('error', 'Some fields are incorrect. Please fix them.');
-                }
+                showValidationToast('Please fix the highlighted fields before saving.');
+                hideLoader();
+                return;
             }
         }
 
@@ -31,12 +31,21 @@ window.submitModalForm = function submitModalForm(button) {
     const form = button?.closest?.('form');
     if (!form) return;
 
-    if (typeof validateAllInputs === 'function' && !validateAllInputs()) {
-        if (typeof showMessageBox === 'function') {
-            showMessageBox('error', 'Some fields are incorrect. Please fix them.');
-        }
+    if (typeof validateAllInputs === 'function' && !validateAllInputs(form)) {
+        showValidationToast('Please fix the highlighted fields before saving.');
         return;
     }
 
     form.submit();
+}
+
+function showValidationToast(message) {
+    if (typeof showToast === 'function') {
+        showToast('error', message);
+        return;
+    }
+
+    if (typeof showMessageBox === 'function') {
+        showMessageBox('error', message);
+    }
 }

@@ -58,7 +58,7 @@ class RateController extends Controller
         ]);
 
         if ($validator->fails()) {
-            return redirect()->back()->withErrors($validator);
+            return redirect()->back()->withErrors($validator)->withInput();
         }
 
         $type = app(ModuleBranchService::class)->applyRelatedScope(Setup::where('type', 'worker_type'), 'setups', 'rates')->find($request->type_id);

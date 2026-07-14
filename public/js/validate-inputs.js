@@ -1,12 +1,95 @@
-function validateInput(input, listner) {
-    const rules = (input.dataset.validate || '').split('|');
+function validationLabel(input) {
+    const fieldName = input.name || input.id || 'This field';
+    const label = input.closest('.form-group')?.querySelector('label')?.textContent
+        || document.querySelector(`label[for="${CSS.escape(input.id || '')}"]`)?.textContent
+        || fieldName.replace(/[_-]/g, ' ');
+
+    return label.replace(/\s*\(optional\)\s*/i, '').replace(/\s*\*\s*$/, '').trim() || 'This field';
+}
+
+function validationErrorElement(input) {
+    const name = input.dataset.errorFor || input.name || input.id;
+    if (!name) return null;
+
+    let errorEl = document.getElementById(`${name}-error`);
+    if (errorEl) return errorEl;
+
+    const group = input.closest('.form-group');
+    if (!group) return null;
+
+    errorEl = document.createElement('div');
+    errorEl.id = `${name}-error`;
+    errorEl.className = 'text-[var(--border-error)] text-xs mt-1 hidden transition-all duration-300 ease-in-out';
+    group.appendChild(errorEl);
+
+    return errorEl;
+}
+
+function setValidationError(input, error) {
+    const errorEl = validationErrorElement(input);
+
+    if (error) {
+        input.classList.add("border-[var(--border-error)]");
+        input.setAttribute('aria-invalid', 'true');
+        if (errorEl) {
+            errorEl.classList.remove("hidden");
+            errorEl.textContent = error;
+        }
+        return false;
+    }
+
+    input.classList.remove("border-[var(--border-error)]");
+    input.removeAttribute('aria-invalid');
+    if (errorEl) {
+        errorEl.classList.add("hidden");
+        errorEl.textContent = '';
+    }
+    return true;
+}
+
+function validationValue(input) {
+    if (!input.dataset.errorFor) {
+        return input.value;
+    }
+
+    const hiddenInput = Array.from(input.closest('form')?.querySelectorAll('input[type="hidden"]') || document.querySelectorAll('input[type="hidden"]'))
+        .find(field => field.name === input.dataset.errorFor);
+
+    return hiddenInput?.value ?? input.value;
+}
+
+function normalizeValidationRules(input) {
+    const rules = (input.dataset.validate || '').split('|').filter(Boolean);
+    if (input.required && !rules.includes('required')) {
+        rules.unshift('required');
+    }
+
+    if (input.type === 'email' && !rules.includes('email')) {
+        rules.push('email');
+    }
+
+    if (input.type === 'number' && !rules.includes('numeric')) {
+        rules.push('numeric');
+    }
+
+    return rules;
+}
+
+function validateInput(input) {
+    if (!input || input.disabled || input.readOnly || input.type === 'hidden') {
+        return true;
+    }
+
+    const rules = normalizeValidationRules(input);
     let value = input.value;
-    const originalValue = value;
     let error = '';
+    const label = validationLabel(input);
 
     rules.forEach(rule => {
-        if (rule === 'required' && value.trim() === '') {
-            error = 'This field is required.';
+        if (error) return;
+
+        if (rule === 'required' && String(validationValue(input)).trim() === '') {
+            error = `${label} is required.`;
         }
 
         if (rule === 'lowercase') {
@@ -15,7 +98,7 @@ function validateInput(input, listner) {
 
         if (rule === 'alphanumeric') {
             if (/[^a-z0-9]/gi.test(value)) {
-                error = 'Only letters and numbers are allowed.';
+                error = `${label} can only contain letters and numbers.`;
             }
             value = value.replace(/[^a-z0-9]/gi, '');
         }
@@ -25,16 +108,21 @@ function validateInput(input, listner) {
         }
 
         if (rule === 'numeric') {
-            if (/[^0-9.]/g.test(value)) {
-                error = 'Only numbers are allowed.';
+            const allowNegative = input.dataset.allowNegativeAmount === 'true';
+            const allowedPattern = allowNegative ? /[^0-9.-]/g : /[^0-9.]/g;
+            if (allowedPattern.test(value) || (allowNegative && (value.match(/-/g) || []).length > 1)) {
+                error = `${label} must be a number.`;
             }
-            value = value.replace(/[^0-9.]/g, '');
+            value = value.replace(allowedPattern, '');
+            if (allowNegative && value.includes('-')) {
+                value = (value.trim().startsWith('-') ? '-' : '') + value.replace(/-/g, '');
+            }
         }
 
         // friendly = allows letters, numbers, space, dot, dash
         if (rule === 'friendly') {
             if (/[^a-zA-Z0-9 .-|]/g.test(value)) {
-                error = 'Only letters, numbers, space, dot, dash, and pipe are allowed.';
+                error = `${label} can only contain letters, numbers, spaces, dots, dashes, and pipe.`;
             }
             value = value.replace(/[^a-zA-Z0-9 .-|]/g, '');
         }
@@ -98,16 +186,20 @@ function validateInput(input, listner) {
         if (rule.startsWith('min:')) {
             const min = parseInt(rule.split(':')[1]);
             if (value.length < min) {
-                error = `Minimum ${min} characters required.`;
+                error = `${label} must be at least ${min} characters.`;
             }
         }
 
         if (rule.startsWith('max:')) {
             const max = parseInt(rule.split(':')[1]);
             if (parseFloat(value) > max) {
-                error = `Maximum allowed value is ${max}.`;
+                error = `${label} cannot be more than ${max}.`;
                 value = max;
             }
+        }
+
+        if (rule === 'email' && value.trim() !== '' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim())) {
+            error = 'Enter a valid email address.';
         }
 
         // if (rule.startsWith('unique:')) {
@@ -124,43 +216,48 @@ function validateInput(input, listner) {
             const field = rule.split(':')[1];
             const dataset = window[field + 's'];
             if (Array.isArray(dataset) && dataset.includes(value)) {
-                error = `${field} is already taken.`;
+                error = `${field.replace(/[_-]/g, ' ')} already exists.`;
             }
         }
     });
 
     input.value = value;
 
-    const errorEl = document.getElementById(`${input.name}-error`);
-    if (error) {
-        input.classList.add("border-[var(--border-error)]");
-        if (errorEl) {
-            errorEl.classList.remove("hidden");
-            errorEl.textContent = error;
-        }
-        return false;
-    } else {
-        input.classList.remove("border-[var(--border-error)]");
-        if (errorEl) {
-            errorEl.classList.add("hidden");
-            errorEl.textContent = '';
-        }
-        return true;
-    }
+    return setValidationError(input, error);
 }
 
-// Attach validation to every input field with data-validate
-window.addEventListener('DOMContentLoaded', () => {
-    document.querySelectorAll('[data-validate]').forEach(input => {
-        input.addEventListener('input', () => validateInput(input));
-        input.addEventListener('blur', () => validateInput(input));
-    });
+function shouldRealtimeValidate(input) {
+    return input && input.matches('input, select, textarea') && (input.required || input.dataset.validate);
+}
+
+document.addEventListener('input', (event) => {
+    if (shouldRealtimeValidate(event.target)) {
+        validateInput(event.target);
+    }
 });
 
-function validateAllInputs() {
+document.addEventListener('change', (event) => {
+    if (shouldRealtimeValidate(event.target)) {
+        validateInput(event.target);
+    }
+});
+
+document.addEventListener('blur', (event) => {
+    if (shouldRealtimeValidate(event.target)) {
+        validateInput(event.target);
+    }
+}, true);
+
+function validateAllInputs(root = document) {
     let valid = true;
-    document.querySelectorAll('[data-validate]').forEach(input => {
+    root.querySelectorAll('input, select, textarea').forEach(input => {
+        if (!shouldRealtimeValidate(input)) return;
         if (!validateInput(input)) valid = false;
     });
+
+    if (!valid) {
+        root.querySelector('[aria-invalid="true"]')?.focus();
+    }
+
     return valid;
 }

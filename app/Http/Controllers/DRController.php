@@ -107,15 +107,15 @@ class DRController extends Controller
         $newEmpty = empty($data['new_payments_data']);
 
         if ($returnEmpty && $newEmpty) {
-            return redirect()->back()->with('error', 'Payments not selected and Payments not added.');
+            return redirect()->back()->withInput()->with('error', 'Please select returned payments and add replacement payments.');
         }
 
         if ($returnEmpty) {
-            return redirect()->back()->with('error', 'Payments not selected.');
+            return redirect()->back()->withInput()->with('error', 'Please select at least one returned payment.');
         }
 
         if ($newEmpty) {
-            return redirect()->back()->with('error', 'Payments not added.');
+            return redirect()->back()->withInput()->with('error', 'Please add at least one replacement payment.');
         }
 
         $data['new_payments'] = [];

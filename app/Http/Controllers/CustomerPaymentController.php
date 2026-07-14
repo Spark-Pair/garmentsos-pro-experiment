@@ -422,7 +422,7 @@ class CustomerPaymentController extends Controller
         ]);
 
         if ($validator->fails()) {
-            return redirect()->back()->with('error', $validator->errors()->first());
+            return redirect()->back()->withErrors($validator)->withInput()->with('error', $validator->errors()->first());
         }
 
         $payload = $this->buildCustomerPaymentPayload($request);
@@ -430,18 +430,18 @@ class CustomerPaymentController extends Controller
 
         if (($payload['method'] ?? null) === 'program') {
             if (empty($payload['program_id'])) {
-                return redirect()->back()->with('error', 'Program payment ke liye payment program select karna zaroori hai.');
+                return redirect()->back()->withInput()->with('error', 'Please select a payment program for program payments.');
             }
 
             $program = PaymentProgram::select('id', 'customer_id', 'amount', 'category', 'sub_category_id')
                 ->find($payload['program_id']);
 
             if (!$program) {
-                return redirect()->back()->with('error', 'Selected payment program does not exist.');
+                return redirect()->back()->withInput()->with('error', 'Selected payment program was not found.');
             }
 
             if ((int) $program->customer_id !== (int) $payload['customer_id']) {
-                return redirect()->back()->with('error', 'Selected program does not belong to selected customer.');
+                return redirect()->back()->withInput()->with('error', 'Selected payment program does not belong to the selected customer.');
             }
 
             // Allow any amount for program payments (no balance limit)
@@ -611,7 +611,7 @@ class CustomerPaymentController extends Controller
 
 
         if ($validator->fails()) {
-            return redirect()->back()->withErrors($validator);
+            return redirect()->back()->withErrors($validator)->withInput();
         }
 
         $payload = $this->buildCustomerPaymentPayload($request);
@@ -620,18 +620,18 @@ class CustomerPaymentController extends Controller
 
         if (($payload['method'] ?? null) === 'program') {
             if (empty($payload['program_id'])) {
-                return redirect()->back()->with('error', 'Program payment ke liye payment program select karna zaroori hai.');
+                return redirect()->back()->withInput()->with('error', 'Please select a payment program for program payments.');
             }
 
             $program = PaymentProgram::select('id', 'customer_id', 'amount', 'category', 'sub_category_id')
                 ->find($payload['program_id']);
 
             if (!$program) {
-                return redirect()->back()->with('error', 'Selected payment program does not exist.');
+                return redirect()->back()->withInput()->with('error', 'Selected payment program was not found.');
             }
 
             if ((int) $program->customer_id !== (int) $payload['customer_id']) {
-                return redirect()->back()->with('error', 'Selected program does not belong to selected customer.');
+                return redirect()->back()->withInput()->with('error', 'Selected payment program does not belong to the selected customer.');
             }
 
             // Allow any amount for program payments (no balance limit)
@@ -694,7 +694,7 @@ class CustomerPaymentController extends Controller
         });
 
         if ($validator->fails()) {
-            return redirect()->back()->withErrors($validator);
+            return redirect()->back()->withErrors($validator)->withInput();
         }
 
         $payment = CustomerPayment::with('paymentClearRecord')->find($id);
@@ -703,7 +703,7 @@ class CustomerPaymentController extends Controller
         }
 
         if (empty($payment->cheque_no) && empty($payment->slip_no)) {
-            return redirect()->back()->with('error', 'Sirf cheque/slip payments clear kiye ja sakte hain.');
+            return redirect()->back()->withInput()->with('error', 'Only cheque or slip payments can be cleared.');
         }
 
         $alreadyCleared = (float) $payment->paymentClearRecord->sum('amount');
@@ -714,7 +714,7 @@ class CustomerPaymentController extends Controller
         }
 
         if ((float) $request->amount > $remaining) {
-            return redirect()->back()->with('error', 'Clear amount remaining outstanding se zyada nahi ho sakta.');
+            return redirect()->back()->withInput()->with('error', 'Clear amount cannot be greater than the remaining outstanding amount.');
         }
 
         $reffNo = $request->reff_no ?: '-';
@@ -807,7 +807,7 @@ class CustomerPaymentController extends Controller
         ]);
 
         if ($validator->fails()) {
-            return redirect()->back()->withErrors($validator);
+            return redirect()->back()->withErrors($validator)->withInput();
         }
 
         /**

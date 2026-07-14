@@ -15,6 +15,7 @@
     'dataClearable' => false,
     'disabled' => false,
     'addBtnLink' => '',
+    'required' => false,
 ])
 
 @php
@@ -86,6 +87,8 @@
             onfocus="selectClicked(this)"
             {{-- onkeydown="selectKeyDown(event, this)" --}}
             :dataClearable="$dataClearable"
+            :dataValidate="$required ? 'required' : ''"
+            data-error-for="{{ $name }}"
             isSelect
         />
 

@@ -59,12 +59,26 @@ function initUtilityBillsIndex() {
                     return;
                 }
 
-                alert(response?.message || "Failed to mark paid.");
+                showUtilityBillError(response?.message || "Failed to mark paid.");
             },
             error: function (xhr) {
-                alert(xhr?.responseJSON?.message || "Failed to mark paid.");
+                showUtilityBillError(xhr?.responseJSON?.message || "Failed to mark paid.");
             }
         });
+    }
+
+    function showUtilityBillError(message) {
+        if (typeof showToast === 'function') {
+            showToast('error', message);
+            return;
+        }
+
+        if (typeof showMessageBox === 'function') {
+            showMessageBox('error', message);
+            return;
+        }
+
+        console.error(message);
     }
 }
 

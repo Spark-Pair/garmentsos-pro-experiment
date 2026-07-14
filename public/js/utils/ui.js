@@ -60,6 +60,10 @@ function showMessageBox(type = 'info', message = '') {
     messageBoxAnimation();
 }
 
+function showToast(type = 'info', message = '') {
+    showMessageBox(type, message);
+}
+
 function hideNotification(notificationElem) {
     notificationElem.classList.add('fade-out');
     notificationElem.addEventListener('animationend', () => {
