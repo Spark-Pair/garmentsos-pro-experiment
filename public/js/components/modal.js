@@ -1114,6 +1114,13 @@ function setupCardKeyboardNavigation(modalWrapper, data) {
         list[idx].scrollIntoView({ block: 'nearest', inline: 'nearest' });
         modalWrapper.dataset.kbIndex = String(idx);
     };
+    const focusSearchInput = () => {
+        const input = modalWrapper.querySelector('#basicSearch input');
+        if (!input) return false;
+        input.focus();
+        input.select?.();
+        return true;
+    };
 
     const closeSubMenuInWrapper = () => {
         const openMenu = modalWrapper.querySelector('.subMenu:not(.hidden)');
@@ -1133,6 +1140,13 @@ function setupCardKeyboardNavigation(modalWrapper, data) {
         const wrappers = Array.from(document.querySelectorAll('div[id$=\"-wrapper\"]'));
         const lastWrapper = wrappers[wrappers.length - 1];
         if (lastWrapper && lastWrapper !== modalWrapper) return;
+
+        if (data.basicSearch && e.altKey && !e.ctrlKey && !e.metaKey && e.key.toLowerCase() === 'f') {
+            e.preventDefault();
+            e.stopPropagation();
+            focusSearchInput();
+            return;
+        }
 
         const openMenu = modalWrapper.querySelector('.subMenu:not(.hidden)');
         if (openMenu) {
@@ -1222,7 +1236,7 @@ function setupCardKeyboardNavigation(modalWrapper, data) {
 
     const searchInput = modalWrapper.querySelector('#basicSearch input');
     if (searchInput) {
-        searchInput.focus();
+        focusSearchInput();
         searchInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
                 e.preventDefault();

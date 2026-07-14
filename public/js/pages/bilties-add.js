@@ -16,6 +16,7 @@
         generateListBtn.disabled = true;
         let totalCottonCount = 0;
         let isModalOpened = false;
+        let invoiceModalData = null;
 
         window.trackStateOfgenerateBtn = function trackStateOfgenerateBtn(elem) {
             if (elem.value !== "") {
@@ -29,12 +30,22 @@
             generateModal();
         });
 
-        function generateModal() {
-            let cardData = [];
+        function invoiceSearchText(item) {
+            return [
+                item.invoice_no,
+                item.date,
+                item.cotton_count,
+                item.cargo_name,
+                item.customer?.customer_name,
+                item.customer?.city?.title,
+            ].filter(Boolean).join(" ").toLowerCase();
+        }
 
-            if (invoicesData.length > 0) {
+        function buildInvoiceCards(data) {
+            let cardData = [];
+            if (data.length > 0) {
                 cardData.push(
-                    ...invoicesData.map((item) => {
+                    ...data.map((item) => {
                         return {
                             id: item.id,
                             name: item.invoice_no,
@@ -50,13 +61,31 @@
                 );
             }
 
-            let modalData = {
+            return cardData;
+        }
+
+        window.searchBiltyInvoices = function searchBiltyInvoices(searchValue) {
+            if (!invoiceModalData) return;
+
+            const query = String(searchValue || "").trim().toLowerCase();
+            const filteredInvoices = query
+                ? invoicesData.filter((item) => invoiceSearchText(item).includes(query))
+                : invoicesData;
+
+            invoiceModalData.cards.data = buildInvoiceCards(filteredInvoices);
+            renderCardsInModal(invoiceModalData);
+        };
+
+        function generateModal() {
+            invoiceModalData = {
                 id: "modalForm",
                 class: "h-[80%] w-full",
-                cards: { name: "Invoices", count: 3, data: cardData },
+                cards: { name: "Invoices", count: 3, data: buildInvoiceCards(invoicesData) },
+                basicSearch: true,
+                onBasicSearch: "searchBiltyInvoices(this.value)",
             };
 
-            createModal(modalData);
+            createModal(invoiceModalData);
         }
 
         function deselectInvoiceAtIndex(index) {
