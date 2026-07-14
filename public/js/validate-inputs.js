@@ -71,6 +71,8 @@ function validateInput(input, listner) {
         }
 
         if (rule === 'amount') {
+            const allowNegative = input.dataset.allowNegativeAmount === 'true';
+            const isNegative = allowNegative && value.trim().startsWith('-');
             // remove non-numeric characters except dot (for decimals)
             value = value.replace(/[^0-9.]/g, '');
 
@@ -86,6 +88,10 @@ function validateInput(input, listner) {
                 }
 
                 value = parts.join('.');
+            }
+
+            if (isNegative && value) {
+                value = `-${value}`;
             }
         }
 

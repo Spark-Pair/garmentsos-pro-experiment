@@ -8,8 +8,8 @@ function initUtilityBillsAdd() {
     let amountInpDom = document.getElementById('amount');
     let dueDateInpDom = document.getElementById('due_date');
 
-    let selectedBillTypeId = 0;
-    let selectedLocationId = 0;
+    let selectedBillTypeId = document.querySelector('input[name="bill_type_id"]')?.value || 0;
+    let selectedLocationId = document.querySelector('input[name="location_id"]')?.value || 0;
 
     window.trackBillType = function(elem) {
         selectedBillTypeId = 0;

@@ -1080,12 +1080,16 @@ function setupCardKeyboardNavigation(modalWrapper, data) {
     const container = modalWrapper.querySelector(`.${data.id}CardsContainer`);
     if (!container) return;
 
+    modalWrapper.dataset.kbColumns = String(Number(data.cards?.count) || 1);
+
     const getCards = () => Array.from(container.querySelectorAll('.item.card'));
     const getVisibleCards = () => getCards().filter(c => !c.classList.contains('hidden'));
     const cards = getCards();
     if (!cards.length) return;
 
     cards.forEach((card, i) => {
+        if (card.dataset.kbCardBound === '1') return;
+        card.dataset.kbCardBound = '1';
         card.setAttribute('tabindex', '0');
         card.dataset.kbIndex = String(i);
         card.addEventListener('focus', () => {
@@ -1104,7 +1108,7 @@ function setupCardKeyboardNavigation(modalWrapper, data) {
         });
     });
 
-    const getColumns = () => Number(data.cards?.count) || 1;
+    const getColumns = () => Number(modalWrapper.dataset.kbColumns) || 1;
     const clamp = (i, list) => Math.max(0, Math.min(list.length - 1, i));
     const focusCard = (i) => {
         const list = getVisibleCards();
@@ -1134,6 +1138,14 @@ function setupCardKeyboardNavigation(modalWrapper, data) {
         }
         return false;
     };
+
+    if (modalWrapper.dataset.kbWrapperBound === '1') {
+        if (!modalWrapper.contains(document.activeElement) || document.activeElement === modalWrapper) {
+            focusCard(0);
+        }
+        return;
+    }
+    modalWrapper.dataset.kbWrapperBound = '1';
 
     modalWrapper.addEventListener('keydown', (e) => {
         const wrappers = Array.from(document.querySelectorAll('div[id$=\"-wrapper\"]'));

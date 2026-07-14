@@ -236,7 +236,7 @@ Route::group(['middleware' => ['setup.complete', 'auth', 'activeSession', 'ensur
     Route::get('attendances/generate-slip', [AttendanceController::class, 'generateSlip'])->name('attendances.generate-slip');
     Route::post('attendances/generate-slip', [AttendanceController::class, 'generateSlipPost'])->name('attendances.generate-slip-post');
 
-    Route::resource('utility-bills', UtilityBillController::class)->only(['index', 'create', 'store']);
+    Route::resource('utility-bills', UtilityBillController::class)->only(['index', 'create', 'store', 'edit', 'update']);
     Route::put('utility-bills/{utilityBill}/mark-paid', [UtilityBillController::class, 'markPaid'])->name('utility-bills.mark-paid');
 
     Route::resource('utility-accounts', UtilityAccountController::class);

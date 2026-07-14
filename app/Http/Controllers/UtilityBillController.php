@@ -42,26 +42,10 @@ class UtilityBillController extends Controller
             return $resp;
         }
 
-        $bill_type_options = [];
-        $location_options = [];
+        [$bill_type_options, $location_options] = $this->utilityBillFormOptions();
+        $account_options = [];
 
-        $branches = app(ModuleBranchService::class);
-        $bill_types = $branches->applyRelatedScope(Setup::where('type', 'utility_bill_type'), 'setups', 'utility_bills')->get();
-        $locations = $branches->applyRelatedScope(Setup::where('type', 'utility_bill_location'), 'setups', 'utility_bills')->get();
-
-        foreach($bill_types as $type) {
-            $bill_type_options[(int)$type->id] = [
-                'text' => $type->title
-            ];
-        }
-
-        foreach($locations as $location) {
-            $location_options[(int)$location->id] = [
-                'text' => $location->title
-            ];
-        }
-
-        return view('utility-bills.add', compact('bill_type_options', 'location_options'));
+        return view('utility-bills.add', compact('bill_type_options', 'location_options', 'account_options'));
     }
 
     /**
@@ -77,7 +61,7 @@ class UtilityBillController extends Controller
             'account_id' => 'required|integer|exists:utility_accounts,id',
             'month' => 'required|date_format:Y-m',
             'units' => 'nullable|integer',
-            'amount' => 'required|numeric|min:1',
+            'amount' => 'required|numeric',
             'due_date' => 'required|date',
         ]);
 
@@ -98,6 +82,57 @@ class UtilityBillController extends Controller
         return redirect()->back()->with('success', 'Utility Bill added successfully.');
     }
 
+    public function edit(UtilityBill $utilityBill)
+    {
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin', 'accountant', 'store_keeper'])) {
+            return $resp;
+        }
+
+        app(ModuleBranchService::class)->assertRecordInAllowedBranch($utilityBill, 'utility_bills');
+
+        [$bill_type_options, $location_options] = $this->utilityBillFormOptions();
+        $utilityBill->load('account');
+        $account_options = $this->utilityAccountOptions(
+            (int) ($utilityBill->account?->bill_type_id ?? 0),
+            (int) ($utilityBill->account?->location_id ?? 0)
+        );
+
+        return view('utility-bills.add', compact('bill_type_options', 'location_options', 'account_options', 'utilityBill'));
+    }
+
+    public function update(Request $request, UtilityBill $utilityBill)
+    {
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin', 'accountant', 'store_keeper'])) {
+            return $resp;
+        }
+
+        app(ModuleBranchService::class)->assertRecordInAllowedBranch($utilityBill, 'utility_bills');
+
+        $request->validate([
+            'account_id' => 'required|integer|exists:utility_accounts,id',
+            'month' => 'required|date_format:Y-m',
+            'units' => 'nullable|integer',
+            'amount' => 'required|numeric',
+            'due_date' => 'required|date',
+        ]);
+
+        $branches = app(ModuleBranchService::class);
+        $account = $branches->applyRelatedScope(UtilityAccount::query(), 'utility_accounts', 'utility_bills')->find($request->account_id);
+        if (!$account) {
+            return redirect()->back()->withErrors(['account_id' => 'Selected utility account is not available for this branch.'])->withInput();
+        }
+
+        $utilityBill->update([
+            'account_id' => $request->account_id,
+            'month' => $request->month,
+            'units' => $request->units,
+            'amount' => $request->amount,
+            'due_date' => $request->due_date,
+        ]);
+
+        return redirect()->route('utility-bills.index')->with('success', 'Utility Bill updated successfully.');
+    }
+
     public function markPaid(Request $request, UtilityBill $utilityBill)
     {
         if(!$this->checkRole(['developer', 'owner', 'admin', 'accountant']))
@@ -114,5 +149,52 @@ class UtilityBillController extends Controller
             'success' => true,
             'message' => 'Bill marked as paid successfully.',
         ]);
+    }
+
+    private function utilityBillFormOptions(): array
+    {
+        $bill_type_options = [];
+        $location_options = [];
+
+        $branches = app(ModuleBranchService::class);
+        $bill_types = $branches->applyRelatedScope(Setup::where('type', 'utility_bill_type'), 'setups', 'utility_bills')->get();
+        $locations = $branches->applyRelatedScope(Setup::where('type', 'utility_bill_location'), 'setups', 'utility_bills')->get();
+
+        foreach ($bill_types as $type) {
+            $bill_type_options[(int) $type->id] = [
+                'text' => $type->title,
+            ];
+        }
+
+        foreach ($locations as $location) {
+            $location_options[(int) $location->id] = [
+                'text' => $location->title,
+            ];
+        }
+
+        return [$bill_type_options, $location_options];
+    }
+
+    private function utilityAccountOptions(int $billTypeId, int $locationId): array
+    {
+        if (!$billTypeId || !$locationId) {
+            return [];
+        }
+
+        $branches = app(ModuleBranchService::class);
+        $accounts = $branches->applyRelatedScope(
+            UtilityAccount::where('bill_type_id', $billTypeId)->where('location_id', $locationId),
+            'utility_accounts',
+            'utility_bills'
+        )->get();
+
+        $options = [];
+        foreach ($accounts as $account) {
+            $options[(int) $account->id] = [
+                'text' => $account->account_title . ' | ' . $account->account_no,
+            ];
+        }
+
+        return $options;
     }
 }

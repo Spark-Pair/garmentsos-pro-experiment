@@ -41,24 +41,7 @@ class UtilityAccountController extends Controller
             return $resp;
         }
 
-        $bill_type_options = [];
-        $location_options = [];
-
-        $branches = app(ModuleBranchService::class);
-        $bill_types = $branches->applyRelatedScope(Setup::where('type', 'utility_bill_type'), 'setups', 'utility_accounts')->get();
-        $locations = $branches->applyRelatedScope(Setup::where('type', 'utility_bill_location'), 'setups', 'utility_accounts')->get();
-
-        foreach($bill_types as $type) {
-            $bill_type_options[(int)$type->id] = [
-                'text' => $type->title
-            ];
-        }
-
-        foreach($locations as $location) {
-            $location_options[(int)$location->id] = [
-                'text' => $location->title
-            ];
-        }
+        [$bill_type_options, $location_options] = $this->utilityAccountFormOptions();
 
         return view('utility-accounts.add', compact('bill_type_options', 'location_options'));
     }
@@ -109,7 +92,15 @@ class UtilityAccountController extends Controller
      */
     public function edit(UtilityAccount $utilityAccount)
     {
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin', 'accountant', 'store_keeper'])) {
+            return $resp;
+        }
+
         app(ModuleBranchService::class)->assertRecordInAllowedBranch($utilityAccount, 'utility_accounts');
+
+        [$bill_type_options, $location_options] = $this->utilityAccountFormOptions();
+
+        return view('utility-accounts.add', compact('bill_type_options', 'location_options', 'utilityAccount'));
     }
 
     /**
@@ -117,7 +108,34 @@ class UtilityAccountController extends Controller
      */
     public function update(Request $request, UtilityAccount $utilityAccount)
     {
+        if ($resp = $this->denyIfNoRole(['developer', 'owner', 'admin', 'accountant', 'store_keeper'])) {
+            return $resp;
+        }
+
         app(ModuleBranchService::class)->assertRecordInAllowedBranch($utilityAccount, 'utility_accounts');
+
+        $request->validate([
+            'bill_type_id' => 'required|integer|exists:setups,id',
+            'location_id' => 'required|integer|exists:setups,id',
+            'account_title' => 'required|string|max:200',
+            'account_no' => 'required|string|max:200'
+        ]);
+
+        $branches = app(ModuleBranchService::class);
+        $billType = $branches->applyRelatedScope(Setup::where('type', 'utility_bill_type'), 'setups', 'utility_accounts')->find($request->bill_type_id);
+        $location = $branches->applyRelatedScope(Setup::where('type', 'utility_bill_location'), 'setups', 'utility_accounts')->find($request->location_id);
+        if (!$billType || !$location) {
+            return redirect()->back()->withErrors(['bill_type_id' => 'Selected bill type/location is not available for this branch.'])->withInput();
+        }
+
+        $utilityAccount->update([
+            'bill_type_id' => $request->bill_type_id,
+            'location_id' => $request->location_id,
+            'account_title' => $request->account_title,
+            'account_no' => $request->account_no,
+        ]);
+
+        return redirect()->route('utility-accounts.index')->with('success', 'Utility account updated successfully.');
     }
 
     /**
@@ -126,5 +144,29 @@ class UtilityAccountController extends Controller
     public function destroy(UtilityAccount $utilityAccount)
     {
         app(ModuleBranchService::class)->assertRecordInAllowedBranch($utilityAccount, 'utility_accounts');
+    }
+
+    private function utilityAccountFormOptions(): array
+    {
+        $bill_type_options = [];
+        $location_options = [];
+
+        $branches = app(ModuleBranchService::class);
+        $bill_types = $branches->applyRelatedScope(Setup::where('type', 'utility_bill_type'), 'setups', 'utility_accounts')->get();
+        $locations = $branches->applyRelatedScope(Setup::where('type', 'utility_bill_location'), 'setups', 'utility_accounts')->get();
+
+        foreach ($bill_types as $type) {
+            $bill_type_options[(int) $type->id] = [
+                'text' => $type->title,
+            ];
+        }
+
+        foreach ($locations as $location) {
+            $location_options[(int) $location->id] = [
+                'text' => $location->title,
+            ];
+        }
+
+        return [$bill_type_options, $location_options];
     }
 }

@@ -63,6 +63,8 @@ function parseFormattedNumber(number) {
 }
 
 function formatAmountInput(input) {
+    const allowNegative = input.dataset.allowNegativeAmount === 'true';
+    const isNegative = allowNegative && input.value.trim().startsWith('-');
     let value = input.value.replace(/[^0-9.]/g, '');
 
     if (value.includes('.')) {
@@ -71,7 +73,7 @@ function formatAmountInput(input) {
         value = decPart ? `${intPart}.${decPart}` : intPart;
     }
 
-    input.value = value;
+    input.value = isNegative && value ? `-${value}` : value;
     input.type = 'number';
     input.step = '0.01';
 }

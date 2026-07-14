@@ -261,7 +261,7 @@ class InvoiceController extends Controller
         // SHIPMENT-BASED INVOICE
         if ($request->has('shipment_no')) {
             $validator = Validator::make($request->all(), [
-                "shipment_no" => "required|string|exists:shipments,shipment_no",
+                "shipment_no" => "required|string",
                 "date" => "required|date",
                 "customers_array" => "required|json",
                 "printAfterSave" => "integer|in:0,1",
@@ -273,7 +273,8 @@ class InvoiceController extends Controller
 
             $customers_array = json_decode($request->customers_array, true);
             $branches = app(ModuleBranchService::class);
-            $shipment = $branches->applyRelatedScope(Shipment::where("shipment_no", $request->shipment_no)->with('articles.article'), 'shipments', 'invoices')->first();
+            $shipmentQuery = $branches->applyRelatedScope(Shipment::with('articles.article'), 'shipments', 'invoices');
+            $shipment = $this->applyDocumentNumberLookup($shipmentQuery, 'shipment_no', $request->shipment_no)->first();
             if (!$shipment) {
                 throw ValidationException::withMessages([
                     'shipment_no' => 'Shipment not found for the selected branch.',
@@ -305,7 +306,7 @@ class InvoiceController extends Controller
                 $invoice = new Invoice();
                 $invoice->customer_id = $customer["id"];
                 $invoice->invoice_no = $invoiceNo;
-                $invoice->shipment_no = $request->shipment_no;
+                $invoice->shipment_no = $shipment->shipment_no;
                 $invoice->netAmount = $shipment->netAmount * $customer['cotton_count'];
                 $invoice->cotton_count = $customer['cotton_count'];
                 $invoice->date = date("Y-m-d");
@@ -337,7 +338,7 @@ class InvoiceController extends Controller
         else if ($request->has('order_no')) {
             $validator = Validator::make($request->all(), [
                 "invoice_no" => "required|string",
-                "order_no" => "required|string|exists:orders,order_no",
+                "order_no" => "required|string",
                 "date" => "required|date",
                 "netAmount" => "required|string",
                 "articles_in_invoice" => "required|string",
@@ -357,14 +358,15 @@ class InvoiceController extends Controller
                 'articles_in_invoice' => json_decode($request->articles_in_invoice, true),
             ];
 
-            $orderDb = app(ModuleBranchService::class)
-                ->applyRelatedScope(Order::where("order_no", $data["order_no"]), 'orders', 'invoices')
-                ->first();
+            $orderQuery = app(ModuleBranchService::class)
+                ->applyRelatedScope(Order::query(), 'orders', 'invoices');
+            $orderDb = $this->applyDocumentNumberLookup($orderQuery, 'order_no', $data["order_no"])->first();
             if (!$orderDb) {
                 throw ValidationException::withMessages([
                     'order_no' => 'Order not found for the selected branch.',
                 ]);
             }
+            $data['order_no'] = $orderDb->order_no;
             $orderArticleIds = collect($data['articles_in_invoice'])->pluck('order_article_id')->filter()->map(fn ($id) => (int) $id);
             $orderArticles = OrderArticles::whereIn('id', $orderArticleIds)->get()->keyBy('id');
             $invoiceQuantities = collect($data['articles_in_invoice'])

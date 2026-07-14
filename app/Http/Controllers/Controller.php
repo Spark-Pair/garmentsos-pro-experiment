@@ -22,6 +22,7 @@ use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Foundation\Validation\ValidatesRequests;
 use Illuminate\Routing\Controller as BaseController;
 use Illuminate\Http\Request;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Validator;
@@ -194,10 +195,57 @@ class Controller extends BaseController
         return redirect(route($redirectRoute))->with('error', $message);
     }
 
+    protected function applyDocumentNumberLookup(Builder $query, string $column, ?string $value): Builder
+    {
+        $candidates = $this->documentNumberCandidates($value);
+
+        if (empty($candidates)) {
+            return $query->whereRaw('1 = 0');
+        }
+
+        return $query->where(function ($lookup) use ($column, $candidates) {
+            foreach ($candidates as $candidate) {
+                $lookup->orWhere($column, $candidate)
+                    ->orWhere($column, 'like', '%-' . $candidate);
+            }
+        });
+    }
+
+    protected function documentNumberCandidates(?string $value): array
+    {
+        $value = trim((string) $value);
+        if ($value === '') {
+            return [];
+        }
+
+        $candidates = [$value];
+
+        if (preg_match('/^[A-Z0-9]+-[A-Z0-9]+-(.+)$/i', $value, $matches)) {
+            $candidates[] = $matches[1];
+        }
+
+        if (preg_match('/^[A-Z]+-(.+)$/i', $value, $matches)) {
+            $candidates[] = $matches[1];
+        }
+
+        foreach ($candidates as $candidate) {
+            if (preg_match('/^\d+$/', $candidate)) {
+                $candidates[] = str_pad($candidate, 4, '0', STR_PAD_LEFT);
+                $candidates[] = str_pad($candidate, 6, '0', STR_PAD_LEFT);
+            }
+
+            if (preg_match('/^(\d{2})-(\d+)$/', $candidate, $matches)) {
+                $candidates[] = $matches[1] . '-' . str_pad($matches[2], 4, '0', STR_PAD_LEFT);
+            }
+        }
+
+        return array_values(array_unique(array_filter($candidates, fn ($candidate) => trim((string) $candidate) !== '')));
+    }
+
     public function getOrderDetails(Order $order, Request $request)
     {
         $validator = Validator::make($request->all(), [
-            "order_no" => "required|exists:orders,order_no",
+            "order_no" => "required|string",
         ]);
 
         if ($validator->fails()) {
@@ -206,12 +254,11 @@ class Controller extends BaseController
 
         // Load order with customer, city, and articles
         $branchService = app(ModuleBranchService::class);
-        $order = $branchService->applyRelatedScope(Order::with([
+        $orderQuery = $branchService->applyRelatedScope(Order::with([
             'customer.city',
             'articles.article' => fn ($q) => $q->withSum('invoiceArticles as sold_pcs', 'invoice_pcs'),
-        ]), 'orders', 'invoices')
-            ->where("order_no", $request->order_no)
-            ->first();
+        ]), 'orders', 'invoices');
+        $order = $this->applyDocumentNumberLookup($orderQuery, 'order_no', $request->order_no)->first();
 
         if (!$order) {
             return response()->json(["error" => "Order not found."]);
@@ -373,7 +420,7 @@ class Controller extends BaseController
     public function getShipmentDetails(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            "shipment_no" => "required|exists:shipments,shipment_no",
+            "shipment_no" => "required|string",
         ]);
 
         if ($validator->fails()) {
@@ -381,7 +428,9 @@ class Controller extends BaseController
         }
 
         // Get shipment by number
-        $shipment = Shipment::where('shipment_no', $request->shipment_no)
+        $branchService = app(ModuleBranchService::class);
+        $shipmentQuery = $branchService->applyRelatedScope(Shipment::query(), 'shipments', 'invoices');
+        $shipment = $this->applyDocumentNumberLookup($shipmentQuery, 'shipment_no', $request->shipment_no)
             ->with([
                 'articles.article' => fn ($q) => $q->withSum('invoiceArticles as sold_pcs', 'invoice_pcs'),
             ])
@@ -751,7 +800,13 @@ class Controller extends BaseController
             return response()->json(["error" => $validator->errors()->first()]);
         }
 
-        $utilityAccounts = UtilityAccount::where('bill_type_id', $request->bill_type_id)->where('location_id', $request->location_id)->get();
+        $utilityAccounts = app(ModuleBranchService::class)
+            ->applyRelatedScope(
+                UtilityAccount::where('bill_type_id', $request->bill_type_id)->where('location_id', $request->location_id),
+                'utility_accounts',
+                'utility_bills'
+            )
+            ->get();
 
         return response()->json([
             'status' => 'success',

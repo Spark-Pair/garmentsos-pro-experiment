@@ -33,14 +33,16 @@ function initUtilityBillsIndex() {
             data: data,
             x: e.pageX,
             y: e.pageY,
-            actions: [],
+            actions: [
+                { id: 'edit', text: 'Edit', href: `/utility-bills/${data.id}/edit` },
+            ],
             onlyThisActions: true,
         };
 
         if (!data.is_paid) {
             contextMenuData.actions.push({id: 'mark-paid', text: 'Mark Paid', onclick: `markThisPaid(${data.id})`})
-            createContextMenu(contextMenuData);
         }
+        createContextMenu(contextMenuData);
     }
 
     window.markThisPaid = function(id) {

@@ -14,6 +14,24 @@ function initUtilityAccountsIndex() {
             <span class="capitalize">${data.account_no}</span>
         </div>`;
     }
+
+    window.generateContextMenu = function(e) {
+        e.preventDefault();
+        const item = e.target.closest('.item');
+        if (!item) return;
+        const data = JSON.parse(item.dataset.json);
+
+        createContextMenu({
+            item,
+            data,
+            x: e.pageX,
+            y: e.pageY,
+            actions: [
+                { id: 'edit', text: 'Edit' },
+            ],
+            onlyThisActions: true,
+        });
+    }
 }
 
 window.initUtilityAccountsIndex = initUtilityAccountsIndex;
