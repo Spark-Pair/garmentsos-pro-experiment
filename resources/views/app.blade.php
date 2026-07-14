@@ -48,7 +48,7 @@
     if (Auth::check() && !request()->is('login') && !request()->is('setup')) {
         try {
             $releaseFeedService = app(\App\Services\Updater\ReleaseFeedService::class);
-            $developerUpdateStatus = $releaseFeedService->checkConfiguredCached();
+            $developerUpdateStatus = $releaseFeedService->checkConfiguredCached((int) config('updater.app_shell_feed_cache_seconds', 0));
             if ($canManageUpdates && !empty($developerUpdateStatus['update_available'])) {
                 $developerLauncherHandoff = $releaseFeedService->launcherHandoff($developerUpdateStatus);
             }

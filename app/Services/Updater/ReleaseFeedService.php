@@ -125,6 +125,10 @@ class ReleaseFeedService
 
     public function checkConfiguredCached(int $seconds = 900): array
     {
+        if ($seconds <= 0) {
+            return $this->checkConfigured();
+        }
+
         $feedUrl = trim((string) config('updater.feed_url', ''));
         $currentVersion = $this->versions->currentVersion();
         $key = 'updater.release_feed.' . sha1($feedUrl . '|' . $currentVersion);
