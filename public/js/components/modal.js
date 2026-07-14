@@ -1118,7 +1118,6 @@ function setupCardKeyboardNavigation(modalWrapper, data) {
         const input = modalWrapper.querySelector('#basicSearch input');
         if (!input) return false;
         input.focus();
-        input.select?.();
         return true;
     };
 
