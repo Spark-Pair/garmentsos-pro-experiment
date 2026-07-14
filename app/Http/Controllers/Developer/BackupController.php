@@ -8,6 +8,7 @@ use App\Services\BackupService;
 use App\Services\BackupStorageService;
 use App\Services\BackupVerifier;
 use App\Services\RestoreService;
+use App\Services\RestoreUploadJobService;
 use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Artisan;
@@ -20,13 +21,14 @@ use Throwable;
 
 class BackupController extends Controller
 {
-    public function index(BackupStorageService $storage, RestoreService $restore)
+    public function index(BackupStorageService $storage, RestoreService $restore, RestoreUploadJobService $restoreJobs)
     {
         if ($resp = $this->denyIfNoRole(['developer', 'admin'])) {
             return $resp;
         }
 
         $foundationReady = $this->backupTablesReady();
+        $preferredRestoreJob = $restoreJobs->preferredPublicStatus(session('restore_job_id'));
 
         return view('developer.license.backups', [
             'logs' => $foundationReady ? $storage->listManagedBackups() : collect(),
@@ -34,6 +36,8 @@ class BackupController extends Controller
             'foundationReady' => $foundationReady,
             'missingTables' => $this->missingBackupTables(),
             'diagnostics' => $this->diagnostics($storage),
+            'restoreJobId' => $preferredRestoreJob['id'] ?? session('restore_job_id'),
+            'restoreJobStatus' => $preferredRestoreJob,
         ]);
     }
 

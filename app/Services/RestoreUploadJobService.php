@@ -133,6 +133,10 @@ class RestoreUploadJobService
         $status['last_heartbeat'] = now()->toIso8601String();
         $status['updated_at'] = now()->toIso8601String();
         $this->writeStatus($jobId, $status);
+
+        if (($result['success'] ?? false) === true) {
+            $this->markOlderQueuedJobsSuperseded($jobId);
+        }
     }
 
     public function fail(string $jobId, string $message, array $context = []): void
@@ -160,6 +164,51 @@ class RestoreUploadJobService
     public function readPublicStatus(string $jobId): array
     {
         return $this->publicStatus($this->readStatus($jobId));
+    }
+
+    public function preferredPublicStatus(?string $sessionJobId = null): ?array
+    {
+        $jobs = collect($this->allPublicStatuses());
+        if ($jobs->isEmpty()) {
+            return null;
+        }
+
+        $active = $jobs
+            ->filter(fn (array $job): bool => in_array((string) ($job['status'] ?? ''), ['running'], true))
+            ->sortByDesc(fn (array $job): int => strtotime((string) ($job['updated_at'] ?? $job['created_at'] ?? '')) ?: 0)
+            ->first();
+        if ($active) {
+            return $active;
+        }
+
+        $sessionJob = $sessionJobId
+            ? $jobs->firstWhere('id', $sessionJobId)
+            : null;
+
+        $latestCompleted = $jobs
+            ->filter(fn (array $job): bool => ($job['status'] ?? '') === 'completed')
+            ->sortByDesc(fn (array $job): int => strtotime((string) ($job['completed_at'] ?? $job['updated_at'] ?? $job['created_at'] ?? '')) ?: 0)
+            ->first();
+
+        if ($latestCompleted && $sessionJob && in_array((string) ($sessionJob['status'] ?? ''), ['queued', 'pending', 'superseded'], true)) {
+            $completedAt = strtotime((string) ($latestCompleted['completed_at'] ?? $latestCompleted['updated_at'] ?? '')) ?: 0;
+            $sessionAt = strtotime((string) ($sessionJob['created_at'] ?? '')) ?: 0;
+            if ($completedAt >= $sessionAt) {
+                return $latestCompleted;
+            }
+        }
+
+        $waiting = $jobs
+            ->filter(fn (array $job): bool => in_array((string) ($job['status'] ?? ''), ['queued', 'pending'], true))
+            ->sortByDesc(fn (array $job): int => strtotime((string) ($job['updated_at'] ?? $job['created_at'] ?? '')) ?: 0)
+            ->first();
+        if ($waiting) {
+            return $waiting;
+        }
+
+        return $latestCompleted ?: $jobs
+            ->sortByDesc(fn (array $job): int => strtotime((string) ($job['updated_at'] ?? $job['created_at'] ?? '')) ?: 0)
+            ->first();
     }
 
     public function readStatus(string $jobId): array
@@ -227,6 +276,60 @@ class RestoreUploadJobService
         $status['safe_error'] = $status['process_start_error'] ? 'Restore could not start automatically.' : null;
 
         return $status;
+    }
+
+    private function allPublicStatuses(): array
+    {
+        $base = $this->jobsBaseDirectory();
+        if (!File::isDirectory($base)) {
+            return [];
+        }
+
+        $jobs = [];
+        foreach (File::directories($base) as $directory) {
+            $jobId = basename($directory);
+            try {
+                $jobs[] = $this->readPublicStatus($jobId);
+            } catch (\Throwable) {
+                //
+            }
+        }
+
+        return $jobs;
+    }
+
+    private function markOlderQueuedJobsSuperseded(string $completedJobId): void
+    {
+        $completed = $this->readStatus($completedJobId);
+        $completedAt = strtotime((string) ($completed['completed_at'] ?? $completed['updated_at'] ?? '')) ?: time();
+
+        foreach ($this->allPublicStatuses() as $job) {
+            $jobId = (string) ($job['id'] ?? '');
+            if ($jobId === '' || $jobId === $completedJobId) {
+                continue;
+            }
+
+            if (!in_array((string) ($job['status'] ?? ''), ['pending', 'queued'], true)) {
+                continue;
+            }
+
+            $createdAt = strtotime((string) ($job['created_at'] ?? '')) ?: 0;
+            if ($createdAt > $completedAt) {
+                continue;
+            }
+
+            try {
+                $status = $this->readStatus($jobId);
+                $status['status'] = 'superseded';
+                $status['progress'] = 100;
+                $status['message'] = 'A newer restore job completed. This older queued job was ignored.';
+                $status['completed_at'] = now()->toIso8601String();
+                $status['updated_at'] = now()->toIso8601String();
+                $this->writeStatus($jobId, $status);
+            } catch (\Throwable) {
+                //
+            }
+        }
     }
 
     private function assertRunnableQueuedJob(string $jobId): void
@@ -324,6 +427,11 @@ class RestoreUploadJobService
         $this->assertSafeJobId($jobId);
 
         return storage_path(self::BASE_PATH . '/' . $jobId);
+    }
+
+    private function jobsBaseDirectory(): string
+    {
+        return storage_path(self::BASE_PATH);
     }
 
     private function assertSafeJobId(string $jobId): void

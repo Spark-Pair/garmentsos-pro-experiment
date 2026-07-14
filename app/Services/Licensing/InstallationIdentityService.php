@@ -4,6 +4,7 @@ namespace App\Services\Licensing;
 
 use App\Models\AppInstallation;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use JsonException;
 
@@ -99,6 +100,14 @@ class InstallationIdentityService
 
             return Str::isUuid($uuid) ? $uuid : null;
         } catch (JsonException) {
+            return null;
+        } catch (\Throwable $e) {
+            Log::warning('License installation identity file could not be read.', [
+                'path' => $path,
+                'error' => $e->getMessage(),
+                'type' => $e::class,
+            ]);
+
             return null;
         }
     }

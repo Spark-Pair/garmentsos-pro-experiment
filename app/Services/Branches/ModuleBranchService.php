@@ -11,6 +11,7 @@ use App\Services\Settings\BrandingSettingsService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
@@ -802,6 +803,7 @@ class ModuleBranchService
     private array $moduleConfigCache = [];
     private array $availableBranchesCache = [];
     private array $selectedBranchCache = [];
+    private bool $branchReadinessWarningLogged = false;
 
     public function moduleRegistry(): array
     {
@@ -1019,7 +1021,7 @@ class ModuleBranchService
     public function isEnabled(string $moduleKey): bool
     {
         $moduleKey = $this->canonicalModuleKey($moduleKey);
-        if (!$this->isRegisteredModule($moduleKey) || !Schema::hasTable('branch_module_settings')) {
+        if (!$this->isRegisteredModule($moduleKey) || !$this->branchTablesReadyForSelectors()) {
             return false;
         }
 
@@ -1043,7 +1045,7 @@ class ModuleBranchService
     public function isBranchEnabled(string $moduleKey, int $branchId): bool
     {
         $moduleKey = $this->canonicalModuleKey($moduleKey);
-        if (!$this->isRegisteredModule($moduleKey) || !Schema::hasTable('branch_module_settings')) {
+        if (!$this->isRegisteredModule($moduleKey) || !$this->branchTablesReadyForSelectors()) {
             return false;
         }
 
@@ -1075,7 +1077,7 @@ class ModuleBranchService
     public function selectedBranch(string $moduleKey, ?User $user = null): ?Branch
     {
         $moduleKey = $this->canonicalModuleKey($moduleKey);
-        if (!Schema::hasTable('branches')) {
+        if (!$this->branchTablesReadyForSelectors()) {
             return null;
         }
 
@@ -1130,6 +1132,10 @@ class ModuleBranchService
         $cacheKey = $moduleKey . ':' . ($user?->id ?? 'guest');
         if (array_key_exists($cacheKey, $this->availableBranchesCache)) {
             return $this->availableBranchesCache[$cacheKey];
+        }
+
+        if (!$this->branchTablesReadyForSelectors()) {
+            return $this->availableBranchesCache[$cacheKey] = collect();
         }
 
         if (!$user || !$this->isRegisteredModule($moduleKey) || !($this->moduleConfig($moduleKey)['supports_branch_selector'] ?? false)) {
@@ -1187,6 +1193,10 @@ class ModuleBranchService
     {
         $moduleKey = $this->canonicalModuleKey($moduleKey);
         $user ??= Auth::user();
+        if (!$this->branchTablesReadyForSelectors()) {
+            return false;
+        }
+
         $config = $this->moduleConfig($moduleKey) ?? [];
         $setting = null;
         $selectedBranchId = $this->selectedBranchIdForModule($moduleKey, $user);
@@ -1229,6 +1239,10 @@ class ModuleBranchService
     {
         $moduleKey = $this->canonicalModuleKey($moduleKey);
         $user ??= Auth::user();
+        if (!$this->branchTablesReadyForSelectors()) {
+            return false;
+        }
+
         if (!$user || !$this->isRegisteredModule($moduleKey)) {
             return false;
         }
@@ -1243,7 +1257,8 @@ class ModuleBranchService
 
     public function supportsMultiBranchSelector(string $moduleKey): bool
     {
-        return (bool) ($this->moduleConfig($moduleKey)['supports_multi_branch_selector'] ?? false);
+        return $this->branchTablesReadyForSelectors()
+            && (bool) ($this->moduleConfig($moduleKey)['supports_multi_branch_selector'] ?? false);
     }
 
     public function selectedBranchIdsForModule(string $moduleKey, ?User $user = null): array
@@ -1570,6 +1585,10 @@ class ModuleBranchService
     public function canView(int $branchId, string $moduleKey, User $user): bool
     {
         $moduleKey = $this->canonicalModuleKey($moduleKey);
+        if (!$this->branchTablesReadyForSelectors()) {
+            return false;
+        }
+
         if (!$this->isBranchEnabled($moduleKey, $branchId)) {
             return false;
         }
@@ -1809,5 +1828,28 @@ class ModuleBranchService
             'logo_text' => $branch?->header_text ?: ($app->logo_text ?? null),
             'logo_url' => $branchLogoUrl ?: (!empty($app->logo) ? asset('images/' . $app->logo) : null),
         ];
+    }
+
+    protected function branchTablesReadyForSelectors(): bool
+    {
+        $missing = array_values(array_filter([
+            'branches',
+            'branch_module_settings',
+            'branch_user_access',
+            'user_module_branch_preferences',
+        ], fn (string $table): bool => !Schema::hasTable($table)));
+
+        if ($missing === []) {
+            return true;
+        }
+
+        if (!$this->branchReadinessWarningLogged) {
+            $this->branchReadinessWarningLogged = true;
+            Log::warning('Branch selector hidden because branch tables are not ready.', [
+                'missing_tables' => $missing,
+            ]);
+        }
+
+        return false;
     }
 }

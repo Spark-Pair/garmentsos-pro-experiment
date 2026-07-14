@@ -321,25 +321,45 @@ class LicenseService
     protected function readVerifyCache(): ?array
     {
         $path = (string) config('licensing.verify_cache_path');
-        if (!File::exists($path)) {
+        try {
+            if (!File::exists($path)) {
+                return null;
+            }
+
+            $decoded = json_decode((string) File::get($path), true);
+
+            return is_array($decoded) && ($decoded['valid'] ?? false) === true ? $decoded : null;
+        } catch (\Throwable $e) {
+            Log::warning('License verify cache could not be read.', [
+                'path' => $path,
+                'error' => $e->getMessage(),
+                'type' => $e::class,
+            ]);
+
             return null;
         }
-
-        $decoded = json_decode((string) File::get($path), true);
-
-        return is_array($decoded) && ($decoded['valid'] ?? false) === true ? $decoded : null;
     }
 
     public function registrationCache(): ?array
     {
         $path = (string) config('licensing.registration_cache_path');
-        if (!File::exists($path)) {
+        try {
+            if (!File::exists($path)) {
+                return null;
+            }
+
+            $decoded = json_decode((string) File::get($path), true);
+
+            return is_array($decoded) ? $decoded : null;
+        } catch (\Throwable $e) {
+            Log::warning('License registration cache could not be read.', [
+                'path' => $path,
+                'error' => $e->getMessage(),
+                'type' => $e::class,
+            ]);
+
             return null;
         }
-
-        $decoded = json_decode((string) File::get($path), true);
-
-        return is_array($decoded) ? $decoded : null;
     }
 
     public function verifyCache(): ?array
@@ -350,13 +370,42 @@ class LicenseService
     public function requestCache(): ?array
     {
         $path = (string) config('licensing.request_cache_path');
-        if (!File::exists($path)) {
+        try {
+            if (!File::exists($path)) {
+                return null;
+            }
+
+            $decoded = json_decode((string) File::get($path), true);
+
+            return is_array($decoded) ? $decoded : null;
+        } catch (\Throwable $e) {
+            Log::warning('License request cache could not be read.', [
+                'path' => $path,
+                'error' => $e->getMessage(),
+                'type' => $e::class,
+            ]);
+
             return null;
         }
+    }
 
-        $decoded = json_decode((string) File::get($path), true);
-
-        return is_array($decoded) ? $decoded : null;
+    public function diagnostics(): array
+    {
+        return [
+            'install_id_exists' => File::exists((string) config('licensing.install_id_path')),
+            'identity_exists' => File::exists((string) config('licensing.identity_path')),
+            'license_dir_exists' => File::exists(dirname((string) config('licensing.verify_cache_path'))),
+            'license_dir_writable' => is_writable(dirname((string) config('licensing.verify_cache_path'))),
+            'verify_cache_exists' => File::exists((string) config('licensing.verify_cache_path')),
+            'verify_cache_readable' => is_readable((string) config('licensing.verify_cache_path')),
+            'verify_cache_writable' => File::exists((string) config('licensing.verify_cache_path'))
+                ? is_writable((string) config('licensing.verify_cache_path'))
+                : is_writable(dirname((string) config('licensing.verify_cache_path'))),
+            'registration_cache_exists' => File::exists((string) config('licensing.registration_cache_path')),
+            'request_cache_exists' => File::exists((string) config('licensing.request_cache_path')),
+            'last_verified_at' => (string) ($this->verifyCache()['checked_at'] ?? ''),
+            'app_version' => $this->versions->currentVersion(),
+        ];
     }
 
     protected function writeRegistrationCache(array $body): void

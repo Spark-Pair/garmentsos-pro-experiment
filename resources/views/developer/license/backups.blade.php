@@ -13,7 +13,8 @@
         $restoreEnabled = (bool) ($restoreRequirements['restore_enabled'] ?? false);
         $foundationReady = $foundationReady ?? true;
         $missingTables = $missingTables ?? [];
-        $restoreJobId = session('restore_job_id');
+        $restoreJobId = $restoreJobId ?? session('restore_job_id');
+        $restoreJobStatus = $restoreJobStatus ?? null;
     @endphp
 
     <div class="max-w-6xl mx-auto w-full">
@@ -120,28 +121,32 @@
                     data-run-now-url="{{ route('developer.backups.restore-upload.run-now', $restoreJobId) }}">
                     <div class="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                         <div>
-                            <div class="font-semibold" data-restore-status-title>Restore waiting to start</div>
-                            <p class="mt-1" data-restore-status-message>The database file has been uploaded. Restore has not started yet.</p>
+                            <div class="font-semibold" data-restore-status-title>
+                                {{ ($restoreJobStatus['status'] ?? '') === 'completed' ? 'Restore completed' : 'Restore waiting to start' }}
+                            </div>
+                            <p class="mt-1" data-restore-status-message>
+                                {{ $restoreJobStatus['message'] ?? 'The database file has been uploaded. Restore has not started yet.' }}
+                            </p>
                         </div>
                         <span class="{{ $badge }} border-[var(--border-warning)] bg-[var(--bg-warning)] text-[var(--text-warning)]" data-restore-status-badge>
-                            Waiting
+                            {{ ($restoreJobStatus['status'] ?? '') === 'completed' ? 'Completed' : 'Waiting' }}
                         </span>
                     </div>
                     <div class="mt-3 flex flex-wrap items-center gap-2">
                         <span class="text-xs font-semibold" data-restore-progress-label>Waiting to start</span>
                         <button type="button"
-                            class="{{ $secondaryButton }} hidden"
+                            class="{{ $secondaryButton }} {{ ($restoreJobStatus['can_run_now'] ?? false) ? '' : 'hidden' }}"
                             data-restore-run-now>
                             Run Restore Now
                         </button>
                         <a href="{{ route('home') }}"
-                            class="{{ $secondaryButton }} hidden"
+                            class="{{ $secondaryButton }} {{ ($restoreJobStatus['status'] ?? '') === 'completed' ? '' : 'hidden' }}"
                             data-restore-refresh>
                             Go to Dashboard
                         </a>
                     </div>
                     <div class="mt-3 h-2 overflow-hidden rounded-full bg-[var(--h-bg-color)]">
-                        <div class="h-full bg-[var(--primary-color)] transition-all duration-300" style="width: 10%" data-restore-status-progress></div>
+                        <div class="h-full bg-[var(--primary-color)] transition-all duration-300" style="width: {{ (int) ($restoreJobStatus['progress'] ?? 10) }}%" data-restore-status-progress></div>
                     </div>
                     <p class="mt-2 text-xs text-[var(--secondary-text)]">You can keep this page open. The restore runs outside the browser request to avoid gateway timeout.</p>
                 </div>
@@ -329,6 +334,17 @@
                         };
                     }
 
+                    if (status === 'superseded') {
+                        return {
+                            title: 'Restore superseded',
+                            message: payload.message || 'A newer restore job completed. This older queued job was ignored.',
+                            badge: 'Superseded',
+                            label: 'Superseded',
+                            percent: 100,
+                            tone: 'success',
+                        };
+                    }
+
                     if (status === 'failed' || status === 'missing') {
                         return {
                             title: 'Restore failed',
@@ -337,6 +353,17 @@
                             label: 'Failed',
                             percent: 0,
                             tone: 'error',
+                        };
+                    }
+
+                    if (status === 'unavailable') {
+                        return {
+                            title: 'Restore status unavailable',
+                            message: payload.message || 'Restore status unavailable. Refresh this page or check restore logs.',
+                            badge: 'Unavailable',
+                            label: 'Status unavailable',
+                            percent: 0,
+                            tone: 'warning',
                         };
                     }
 
@@ -401,7 +428,7 @@
                         notify(status === 'completed' ? 'success' : 'error', 'Restore ' + status, text);
                     }
 
-                    return status === 'completed' || status === 'failed' || status === 'missing';
+                    return status === 'completed' || status === 'failed' || status === 'missing' || status === 'superseded';
                 };
 
                 const poll = async () => {
@@ -410,7 +437,7 @@
                         const payload = await response.json();
                         if (render(payload)) return;
                     } catch (error) {
-                        render({status: 'failed', message: 'Restore status could not be loaded.', progress: 0});
+                        render({status: 'unavailable', message: 'Restore status unavailable. Refresh this page or check restore logs.', progress: 0});
                         return;
                     }
 

@@ -14,6 +14,7 @@
         $foundationReady = $foundationReady ?? true;
         $missingTables = $missingTables ?? [];
         $requestCache = $requestCache ?? null;
+        $canManageLicense = $canManageLicense ?? false;
         $isActive = $status->state === 'active';
         $isPending = in_array($status->state, ['pending', 'activation_required'], true) || (($licenseConfig['device_status'] ?? '') === 'pending');
         $isDevelopmentBypass = !$licensingEnabled || ($licenseConfig['development_bypass'] ?? false);
@@ -148,7 +149,16 @@
             </div>
         </section>
 
-        @if (!$isActive)
+        @if (!$canManageLicense && !$isActive)
+            <section class="{{ $panel }}">
+                <x-form-title-bar title="Activation Required" />
+                <p class="text-sm text-[var(--secondary-text)]">
+                    This device needs SparkPair approval before normal app access can continue. Please contact your administrator or developer to register/check this device.
+                </p>
+            </section>
+        @endif
+
+        @if ($canManageLicense && !$isActive)
             <section class="{{ $panel }}">
                 <x-form-title-bar title="Request Demo / Trial" />
                 <form method="POST" action="{{ route('developer.license.request-demo') }}" class="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -191,42 +201,66 @@
             </section>
         @endif
 
-        <section class="{{ $panel }}">
-            <x-form-title-bar title="Device Actions" />
-            <div class="flex flex-wrap gap-3">
-                <form method="POST" action="{{ route('developer.license.register') }}">
-                    @csrf
-                    <button type="submit" class="{{ $primaryButton }}">Activate Existing License / Register Device</button>
-                </form>
-                <form method="POST" action="{{ route('developer.license.check') }}">
-                    @csrf
-                    <button type="submit" class="{{ $secondaryButton }}">Check Status</button>
-                </form>
-                <button type="button" class="{{ $secondaryButton }}" onclick="navigator.clipboard && navigator.clipboard.writeText(document.getElementById('license-install-id').innerText)">
-                    Copy Install ID
-                </button>
-                <a href="{{ route('developer.audit-logs') }}" class="{{ $secondaryButton }}">Audit Logs</a>
-            </div>
-        </section>
-
-        <section class="{{ $panel }}">
-            <x-form-title-bar title="Developer Maintenance" />
-            <div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-                <p class="max-w-3xl text-sm text-[var(--secondary-text)]">
-                    Run database migrations only after a verified update or restore. This does not edit license/device identity files.
-                </p>
-                <form method="POST" action="{{ route('developer.license.run-migrations') }}" class="space-y-3">
-                    @csrf
-                    <label class="flex items-start gap-2 text-sm text-[var(--secondary-text)]">
-                        <input type="checkbox" name="confirm_migrations" value="1" class="mt-1">
-                        <span>I understand this will run pending database migrations on this installation.</span>
-                    </label>
-                    <button type="submit" class="{{ $secondaryButton }}">
-                        Run Database Migrations
+        @if ($canManageLicense)
+            <section class="{{ $panel }}">
+                <x-form-title-bar title="Device Actions" />
+                <div class="flex flex-wrap gap-3">
+                    <form method="POST" action="{{ route('developer.license.register') }}">
+                        @csrf
+                        <button type="submit" class="{{ $primaryButton }}">Activate Existing License / Register Device</button>
+                    </form>
+                    <form method="POST" action="{{ route('developer.license.check') }}">
+                        @csrf
+                        <button type="submit" class="{{ $secondaryButton }}">Check Status</button>
+                    </form>
+                    <button type="button" class="{{ $secondaryButton }}" onclick="navigator.clipboard && navigator.clipboard.writeText(document.getElementById('license-install-id').innerText)">
+                        Copy Install ID
                     </button>
-                </form>
-            </div>
-        </section>
+                    <a href="{{ route('developer.audit-logs') }}" class="{{ $secondaryButton }}">Audit Logs</a>
+                </div>
+            </section>
+        @endif
+
+        @if ($canManageLicense)
+            <section class="{{ $panel }}">
+                <x-form-title-bar title="Developer Maintenance" />
+                <div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                    <p class="max-w-3xl text-sm text-[var(--secondary-text)]">
+                        Run database migrations only after a verified update or restore. This does not edit license/device identity files.
+                    </p>
+                    <form method="POST" action="{{ route('developer.license.run-migrations') }}" class="space-y-3">
+                        @csrf
+                        <label class="flex items-start gap-2 text-sm text-[var(--secondary-text)]">
+                            <input type="checkbox" name="confirm_migrations" value="1" class="mt-1">
+                            <span>I understand this will run pending database migrations on this installation.</span>
+                        </label>
+                        <button type="submit" class="{{ $secondaryButton }}">
+                            Run Database Migrations
+                        </button>
+                    </form>
+                </div>
+            </section>
+        @endif
+
+        @if ($canManageLicense)
+            <details class="{{ $panel }}">
+                <summary class="cursor-pointer font-semibold">License diagnostics</summary>
+                <div class="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+                    @foreach (($diagnostics ?? []) as $key => $value)
+                        <div class="{{ $softPanel }}">
+                            <div class="text-xs uppercase text-[var(--secondary-text)]">{{ str_replace('_', ' ', $key) }}</div>
+                            <div class="mt-1 break-all text-sm font-semibold">
+                                @if (is_bool($value))
+                                    {{ $value ? 'yes' : 'no' }}
+                                @else
+                                    {{ $value ?: '-' }}
+                                @endif
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+            </details>
+        @endif
                         </div>
                     </div>
                 </div>

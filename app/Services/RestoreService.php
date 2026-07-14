@@ -464,17 +464,31 @@ class RestoreService
     {
         $migrateExitCode = Artisan::call('migrate', ['--force' => true]);
         $migrationOutput = trim(Artisan::output());
+        if ($migrateExitCode !== 0) {
+            throw new RuntimeException('Post-restore migrations failed. Restore was not completed.');
+        }
+
+        DB::purge('sqlite');
+        $branchTableCheck = $this->verifyRequiredBranchTables();
+
         $branches = app(\App\Services\Branches\ModuleBranchService::class);
         $mainBranch = $branches->ensureMainBranch();
         $branches->backfillManagerAccess();
+        $this->verifyBranchRepairCompleted();
+
         $branchBackfill = $this->backfillNullBranchIds($mainBranch?->id);
         $summaryCounts = $this->restoredBusinessCounts();
         $cacheExitCode = Artisan::call('cache:clear');
+        $viewClearExitCode = Artisan::call('view:clear');
+        $configClearExitCode = Artisan::call('config:clear');
 
         $this->auditLogs->record('restore.post_maintenance_completed', [
             'migrate_exit_code' => $migrateExitCode,
             'cache_clear_exit_code' => $cacheExitCode,
+            'view_clear_exit_code' => $viewClearExitCode,
+            'config_clear_exit_code' => $configClearExitCode,
             'migration_output_preview' => Str::limit($migrationOutput, 500),
+            'branch_table_check' => $branchTableCheck,
             'branch_backfill' => $branchBackfill,
             'business_counts' => $summaryCounts,
         ], [
@@ -484,9 +498,66 @@ class RestoreService
         return [
             'migrate_exit_code' => $migrateExitCode,
             'cache_clear_exit_code' => $cacheExitCode,
+            'view_clear_exit_code' => $viewClearExitCode,
+            'config_clear_exit_code' => $configClearExitCode,
+            'branch_table_check' => $branchTableCheck,
             'branch_backfill' => $branchBackfill,
             'business_counts' => $summaryCounts,
         ];
+    }
+
+    protected function verifyRequiredBranchTables(): array
+    {
+        $required = [
+            'branches',
+            'branch_module_settings',
+            'branch_user_access',
+            'user_module_branch_preferences',
+        ];
+
+        $missing = array_values(array_filter($required, fn (string $table): bool => !Schema::hasTable($table)));
+        if ($missing !== []) {
+            throw new RuntimeException('Post-restore branch migrations did not create required tables: ' . implode(', ', $missing));
+        }
+
+        return [
+            'required_tables' => $required,
+            'missing_tables' => [],
+        ];
+    }
+
+    protected function verifyBranchRepairCompleted(): void
+    {
+        $mainBranchId = Schema::hasTable('branches')
+            ? DB::table('branches')->where('is_main', true)->value('id')
+            : null;
+
+        if (!$mainBranchId) {
+            throw new RuntimeException('Post-restore branch repair did not create Main Branch.');
+        }
+
+        if (!Schema::hasTable('branch_module_settings')) {
+            throw new RuntimeException('Post-restore branch module settings table is missing.');
+        }
+
+        $settingsCount = DB::table('branch_module_settings')->count();
+        if ($settingsCount <= 0) {
+            throw new RuntimeException('Post-restore branch repair did not create module settings.');
+        }
+
+        if (!Schema::hasTable('branch_user_access')) {
+            throw new RuntimeException('Post-restore branch access table is missing.');
+        }
+
+        $managerAccess = DB::table('branch_user_access')
+            ->where('branch_id', $mainBranchId)
+            ->whereIn('role', ['developer', 'owner', 'admin'])
+            ->where('can_view', true)
+            ->count();
+
+        if ($managerAccess <= 0) {
+            throw new RuntimeException('Post-restore branch repair did not create manager access.');
+        }
     }
 
     protected function backfillNullBranchIds(?int $mainBranchId): array

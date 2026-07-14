@@ -11,6 +11,7 @@ $ReleaseDir = $ReleaseDir.Trim('"')
 $script:EnvBackupCreated = $false
 $script:EnvBackupPath = ""
 $script:EnvWriteStoppedCompose = $false
+$script:LicenseStateBackupPath = ""
 
 function Copy-RootLaunchers($SourceDir, $TargetDir) {
     $launchers = @(
@@ -487,6 +488,94 @@ function Backup-EnvFile($EnvPath) {
     return $backupPath
 }
 
+function Backup-GarmentsLicenseState($InstallDir) {
+    $backupRoot = Join-Path $InstallDir "backups"
+    New-Item -ItemType Directory -Force -Path $backupRoot | Out-Null
+    $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
+    $backupDir = Join-Path $backupRoot "license_state_$timestamp"
+    New-Item -ItemType Directory -Force -Path $backupDir | Out-Null
+    $archivePath = Join-Path $backupDir "license-state.tgz"
+
+    Write-Host "Backing up license/device identity state before update..."
+
+    try {
+        Push-Location $InstallDir
+        try {
+            $containerId = (docker compose ps -q app)
+            if ([string]::IsNullOrWhiteSpace($containerId)) {
+                Write-Warning "App container is not running; license state backup was skipped."
+                return ""
+            }
+
+            docker compose exec -T app sh -lc 'mkdir -p /tmp/garmentsos-license-backup && cd /var/www/html/storage/app && tar -czf /tmp/garmentsos-license-state.tgz install-id.txt license 2>/tmp/garmentsos-license-tar.err; test -s /tmp/garmentsos-license-state.tgz' | Out-Host
+            docker cp "${containerId}:/tmp/garmentsos-license-state.tgz" $archivePath | Out-Host
+            docker compose exec -T app sh -lc 'rm -f /tmp/garmentsos-license-state.tgz /tmp/garmentsos-license-tar.err' | Out-Host
+
+            if (-not (Test-Path -LiteralPath $archivePath) -or (Get-Item -LiteralPath $archivePath).Length -le 0) {
+                Write-Warning "License state backup archive was not created."
+                return ""
+            }
+
+            $metadata = [ordered]@{
+                created_at = (Get-Date).ToUniversalTime().ToString("o")
+                reason = "pre_update_license_state_backup"
+                archive = $archivePath
+                install_dir = $InstallDir
+                preserved = @(
+                    "storage/app/install-id.txt",
+                    "storage/app/license/installation.json",
+                    "storage/app/license/verify-cache.json",
+                    "storage/app/license/registration-cache.json",
+                    "storage/app/license/request-cache.json"
+                )
+            }
+            $metadata | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $backupDir "license-state-metadata.json") -Encoding UTF8
+            $script:LicenseStateBackupPath = $archivePath
+            Write-Host "License state backup created: $archivePath"
+            return $archivePath
+        } finally {
+            Pop-Location
+        }
+    } catch {
+        Write-Warning "Could not backup license state before update. Existing Docker storage volume will still be preserved. $($_.Exception.Message)"
+        return ""
+    }
+}
+
+function Restore-GarmentsLicenseState($InstallDir, $ArchivePath) {
+    if ([string]::IsNullOrWhiteSpace($ArchivePath) -or -not (Test-Path -LiteralPath $ArchivePath)) {
+        Write-Warning "No license state backup archive is available to restore."
+        return
+    }
+
+    Write-Warning "Restoring license/device identity state after failed update: $ArchivePath"
+
+    try {
+        Push-Location $InstallDir
+        try {
+            $containerId = (docker compose ps -q app)
+            if ([string]::IsNullOrWhiteSpace($containerId)) {
+                Write-Warning "App container is not running; attempting to start app for license state restore."
+                docker compose up -d app | Out-Host
+                $containerId = (docker compose ps -q app)
+            }
+
+            if ([string]::IsNullOrWhiteSpace($containerId)) {
+                Write-Warning "Could not resolve app container for license state restore."
+                return
+            }
+
+            docker cp $ArchivePath "${containerId}:/tmp/garmentsos-license-state.tgz" | Out-Host
+            docker compose exec -T app sh -lc 'mkdir -p /var/www/html/storage/app/license && tar -xzf /tmp/garmentsos-license-state.tgz -C /var/www/html/storage/app && chown -R www-data:www-data /var/www/html/storage/app/license /var/www/html/storage/app/install-id.txt 2>/dev/null || true && chmod -R ug+rwX /var/www/html/storage/app/license /var/www/html/storage/app/install-id.txt 2>/dev/null || true && rm -f /tmp/garmentsos-license-state.tgz' | Out-Host
+            Write-Warning "License/device identity state restored from update backup."
+        } finally {
+            Pop-Location
+        }
+    } catch {
+        Write-Warning "Could not restore license state backup. Backup remains at: $ArchivePath. $($_.Exception.Message)"
+    }
+}
+
 function Clear-EnvFileProtection($EnvPath) {
     $installRoot = Split-Path -Parent $EnvPath
 
@@ -778,51 +867,38 @@ try {
     throw
 }
 
-docker load -i $ImageTar | Out-Host
+$LicenseStateBackup = Backup-GarmentsLicenseState $InstallDir
 
-Copy-Item -Force (Join-Path $ReleaseDir "docker-compose.yml") $InstallDir
-Copy-Item -Force (Join-Path $ReleaseDir ".env.example") $InstallDir
-Copy-Item -Recurse -Force (Join-Path $ReleaseDir "scripts") $InstallDir
-Copy-Item -Recurse -Force (Join-Path $ReleaseDir "docs") $InstallDir
-Copy-Item -Recurse -Force (Join-Path $ReleaseDir "images") $InstallDir
-Copy-Item -Recurse -Force (Join-Path $ReleaseDir "checksums") $InstallDir
-Copy-Item -Force (Join-Path $ReleaseDir "manifest.json") $InstallDir
-Update-LauncherExeFromRelease $ReleaseDir $InstallDir
-Copy-RootLaunchers $ReleaseDir $InstallDir
-
-$EnvPath = Join-Path $InstallDir ".env"
-if (-not (Test-Path $EnvPath)) {
-    throw "Existing .env is required for update."
-}
-
-Ensure-GarmentsUpdaterEnvKeys $EnvPath
-Ensure-GarmentsLicenseEnvKeys $EnvPath
-Ensure-GarmentsFirewallRule $InstallDir 8000
-
-$TargetVersion = [string]$Manifest.version
-$TargetImage = [string]$Manifest.image
-if ([string]::IsNullOrWhiteSpace($TargetImage)) {
-    $TargetImage = "sparkpair/garmentsos-pro:$TargetVersion"
-}
-
-Update-GarmentsEnvForRelease $EnvPath $TargetVersion $TargetImage
-
-Push-Location $InstallDir
 try {
-    docker compose up -d
-    $script:EnvWriteStoppedCompose = $false
-} finally {
-    Pop-Location
-}
+    docker load -i $ImageTar | Out-Host
 
-Ensure-GarmentsStorageLink $InstallDir
+    Copy-Item -Force (Join-Path $ReleaseDir "docker-compose.yml") $InstallDir
+    Copy-Item -Force (Join-Path $ReleaseDir ".env.example") $InstallDir
+    Copy-Item -Recurse -Force (Join-Path $ReleaseDir "scripts") $InstallDir
+    Copy-Item -Recurse -Force (Join-Path $ReleaseDir "docs") $InstallDir
+    Copy-Item -Recurse -Force (Join-Path $ReleaseDir "images") $InstallDir
+    Copy-Item -Recurse -Force (Join-Path $ReleaseDir "checksums") $InstallDir
+    Copy-Item -Force (Join-Path $ReleaseDir "manifest.json") $InstallDir
+    Update-LauncherExeFromRelease $ReleaseDir $InstallDir
+    Copy-RootLaunchers $ReleaseDir $InstallDir
 
-$envContent = Get-Content $EnvPath -Raw
-$envContent = Set-EnvLine $envContent "RUN_MIGRATIONS_ON_START" "false"
-Save-EnvContent $EnvPath $envContent
+    $EnvPath = Join-Path $InstallDir ".env"
+    if (-not (Test-Path $EnvPath)) {
+        throw "Existing .env is required for update."
+    }
 
-if ($script:EnvWriteStoppedCompose) {
-    Write-Host "Restarting GarmentsOS app after .env write retry stopped the app service."
+    Ensure-GarmentsUpdaterEnvKeys $EnvPath
+    Ensure-GarmentsLicenseEnvKeys $EnvPath
+    Ensure-GarmentsFirewallRule $InstallDir 8000
+
+    $TargetVersion = [string]$Manifest.version
+    $TargetImage = [string]$Manifest.image
+    if ([string]::IsNullOrWhiteSpace($TargetImage)) {
+        $TargetImage = "sparkpair/garmentsos-pro:$TargetVersion"
+    }
+
+    Update-GarmentsEnvForRelease $EnvPath $TargetVersion $TargetImage
+
     Push-Location $InstallDir
     try {
         docker compose up -d
@@ -830,18 +906,40 @@ if ($script:EnvWriteStoppedCompose) {
     } finally {
         Pop-Location
     }
+
+    Ensure-GarmentsStorageLink $InstallDir
+
+    $envContent = Get-Content $EnvPath -Raw
+    $envContent = Set-EnvLine $envContent "RUN_MIGRATIONS_ON_START" "false"
+    Save-EnvContent $EnvPath $envContent
+
+    if ($script:EnvWriteStoppedCompose) {
+        Write-Host "Restarting GarmentsOS app after .env write retry stopped the app service."
+        Push-Location $InstallDir
+        try {
+            docker compose up -d
+            $script:EnvWriteStoppedCompose = $false
+        } finally {
+            Pop-Location
+        }
+    }
+
+    Register-GarmentsProtocol $InstallDir
+    Install-GarmentsShortcuts $InstallDir
+    Remove-InstalledEnvTemplate $InstallDir
+
+    if ($HideTechnicalFiles) {
+        Hide-GarmentsTechnicalFiles $InstallDir
+    } else {
+        Write-Host "Technical files were left visible because HideTechnicalFiles is false."
+    }
+    Protect-GarmentsInstallFolder $InstallDir
+
+    Write-Host "Update complete. Volumes were preserved."
+    Write-Host "License/device identity state was preserved in the Docker storage volume."
+    Write-Host "Rollback: load the previous image tar, set GARMENTSOS_IMAGE in .env to the previous tag, then run docker compose up -d."
+} catch {
+    Write-Warning "Update failed after pre-update backup. Attempting to preserve/restore license device identity. $($_.Exception.Message)"
+    Restore-GarmentsLicenseState $InstallDir $LicenseStateBackup
+    throw
 }
-
-Register-GarmentsProtocol $InstallDir
-Install-GarmentsShortcuts $InstallDir
-Remove-InstalledEnvTemplate $InstallDir
-
-if ($HideTechnicalFiles) {
-    Hide-GarmentsTechnicalFiles $InstallDir
-} else {
-    Write-Host "Technical files were left visible because HideTechnicalFiles is false."
-}
-Protect-GarmentsInstallFolder $InstallDir
-
-Write-Host "Update complete. Volumes were preserved."
-Write-Host "Rollback: load the previous image tar, set GARMENTSOS_IMAGE in .env to the previous tag, then run docker compose up -d."

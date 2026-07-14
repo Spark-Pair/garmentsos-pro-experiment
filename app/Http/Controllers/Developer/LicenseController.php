@@ -28,10 +28,6 @@ class LicenseController extends Controller
         InstallationFingerprintService $fingerprints,
     )
     {
-        if ($resp = $this->denyIfNoRole(['developer'])) {
-            return $resp;
-        }
-
         $registrationResult = null;
         try {
             if (!$licenses->developmentBypass()) {
@@ -66,6 +62,7 @@ class LicenseController extends Controller
         $licenseConfig = $this->safeLicenseConfigSummary($licenses);
         $requestCache = $this->safeArray(fn () => $licenses->requestCache(), []);
         $verifyCache = $this->safeArray(fn () => $licenses->verifyCache(), []);
+        $diagnostics = $this->safeArray(fn () => $licenses->diagnostics(), []);
 
         return view('developer.license.status', [
             'status' => $status,
@@ -81,6 +78,8 @@ class LicenseController extends Controller
             'licenseConfig' => $licenseConfig,
             'registrationResult' => $registrationResult,
             'requestCache' => $requestCache,
+            'diagnostics' => $diagnostics,
+            'canManageLicense' => auth()->user()?->role === 'developer',
         ]);
     }
 
