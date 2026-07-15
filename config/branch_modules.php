@@ -164,7 +164,7 @@ return [
         'reports_article' => array_merge($multiReport, ['label' => 'Article Report', 'group' => 'Reports', 'page_reference' => 'reports/article']),
         'reports_statement' => array_merge($multiReport, ['label' => 'Statement Report', 'group' => 'Reports', 'page_reference' => 'reports/statement', 'supports_record_filtering' => true, 'can_filter_records' => true, 'has_branch_id_support' => true]),
         'reports_pending_payments' => array_merge($multiReport, ['label' => 'Pending Payments Report', 'group' => 'Reports', 'page_reference' => 'reports/pending-payments', 'supports_record_filtering' => true, 'can_filter_records' => true, 'has_branch_id_support' => true]),
-        'reports_physical_quantity' => array_merge($report, ['label' => 'Physical Quantity Report', 'group' => 'Reports', 'page_reference' => 'reports/physical-quantity', 'supports_record_filtering' => true, 'can_filter_records' => true, 'has_branch_id_support' => true]),
+        'reports_physical_quantity' => array_merge($multiReport, ['label' => 'Physical Quantity Report', 'group' => 'Reports', 'page_reference' => 'reports/physical-quantity', 'supports_record_filtering' => true, 'can_filter_records' => true, 'has_branch_id_support' => true]),
         'permissions_report' => array_merge($system, ['label' => 'Permissions Report', 'group' => 'Reports', 'page_reference' => 'permissions-report']),
 
         'developer_settings' => array_merge($system, ['label' => 'Developer Settings', 'group' => 'Developer / System', 'page_reference' => 'developer/settings']),

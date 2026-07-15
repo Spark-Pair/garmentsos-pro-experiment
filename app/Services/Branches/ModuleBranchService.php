@@ -838,7 +838,47 @@ class ModuleBranchService
 
     private function moduleKeyCandidates(string $moduleKey): array
     {
-        return app(BranchModuleRegistryService::class)->aliasesFor($moduleKey);
+        $candidates = app(BranchModuleRegistryService::class)->aliasesFor($moduleKey);
+
+        if (str_starts_with($this->canonicalModuleKey($moduleKey), 'reports_')) {
+            $candidates[] = 'reports';
+        }
+
+        return array_values(array_unique($candidates));
+    }
+
+    private function firstSettingByModuleKeyPriority($settings, array $keys): ?BranchModuleSetting
+    {
+        $settings = collect($settings);
+
+        foreach ($keys as $key) {
+            $setting = $settings->first(fn (BranchModuleSetting $candidate) => $candidate->module_key === $key);
+            if ($setting) {
+                return $setting;
+            }
+        }
+
+        return null;
+    }
+
+    private function branchSettingsByModuleKeyPriority(string $moduleKey, int $branchId)
+    {
+        $keys = $this->moduleKeyCandidates($moduleKey);
+
+        return BranchModuleSetting::query()
+            ->where('branch_id', $branchId)
+            ->whereIn('module_key', $keys)
+            ->get()
+            ->sortBy(fn (BranchModuleSetting $setting) => array_search($setting->module_key, $keys, true))
+            ->values();
+    }
+
+    private function canFallbackFromSetting(string $moduleKey, BranchModuleSetting $setting): bool
+    {
+        $metadata = is_array($setting->metadata) ? $setting->metadata : [];
+
+        return !(bool) $setting->branch_enabled
+            && (bool) ($metadata['registry_repair'] ?? false);
     }
 
     public function ensureMainBranch(array $details = []): Branch
@@ -989,7 +1029,8 @@ class ModuleBranchService
             $query->whereNull('branch_id');
         }
 
-        $setting = $query->first() ?? BranchModuleSetting::query()->whereIn('module_key', $keys)->first();
+        $setting = $this->firstSettingByModuleKeyPriority($query->get(), $keys)
+            ?? $this->firstSettingByModuleKeyPriority(BranchModuleSetting::query()->whereIn('module_key', $keys)->get(), $keys);
         if (!$setting && $this->isRegisteredModule($moduleKey)) {
             $this->ensureGlobalModuleRows();
 
@@ -998,7 +1039,8 @@ class ModuleBranchService
                 $query->whereNull('branch_id');
             }
 
-            $setting = $query->first() ?? BranchModuleSetting::query()->whereIn('module_key', $keys)->first();
+            $setting = $this->firstSettingByModuleKeyPriority($query->get(), $keys)
+                ?? $this->firstSettingByModuleKeyPriority(BranchModuleSetting::query()->whereIn('module_key', $keys)->get(), $keys);
         }
 
         return $setting;
@@ -1012,10 +1054,10 @@ class ModuleBranchService
 
         $moduleKey = $this->canonicalModuleKey($moduleKey);
 
-        return BranchModuleSetting::query()
+        return $this->firstSettingByModuleKeyPriority(BranchModuleSetting::query()
             ->where('branch_id', $branchId)
             ->whereIn('module_key', $this->moduleKeyCandidates($moduleKey))
-            ->first();
+            ->get(), $this->moduleKeyCandidates($moduleKey));
     }
 
     public function isEnabled(string $moduleKey): bool
@@ -1049,9 +1091,17 @@ class ModuleBranchService
             return false;
         }
 
-        $setting = $this->branchSetting($moduleKey, $branchId);
+        $settings = $this->branchSettingsByModuleKeyPriority($moduleKey, $branchId);
+        $setting = $settings->first();
 
         if ($setting) {
+            if ($this->canFallbackFromSetting($moduleKey, $setting)) {
+                $fallback = $settings->skip(1)->first(fn (BranchModuleSetting $candidate) => $candidate->branch_enabled && $candidate->status === 'active');
+                if ($fallback) {
+                    return true;
+                }
+            }
+
             return (bool) ($setting->branch_enabled && $setting->status === 'active');
         }
 
@@ -1067,11 +1117,21 @@ class ModuleBranchService
             return false;
         }
 
-        $setting = $this->branchSetting($moduleKey, $branchId);
+        $settings = $this->branchSettingsByModuleKeyPriority($moduleKey, $branchId);
+        $setting = $settings->first();
 
-        return $setting
-            ? (bool) $setting->allow_user_switching
-            : (bool) $this->setting($moduleKey)?->allow_user_switching;
+        if ($setting) {
+            if ($this->canFallbackFromSetting($moduleKey, $setting)) {
+                $fallback = $settings->skip(1)->first(fn (BranchModuleSetting $candidate) => $candidate->branch_enabled && $candidate->status === 'active' && $candidate->allow_user_switching);
+                if ($fallback) {
+                    return true;
+                }
+            }
+
+            return (bool) $setting->allow_user_switching;
+        }
+
+        return (bool) $this->setting($moduleKey)?->allow_user_switching;
     }
 
     public function selectedBranch(string $moduleKey, ?User $user = null): ?Branch

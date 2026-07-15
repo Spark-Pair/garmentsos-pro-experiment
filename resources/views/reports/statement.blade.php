@@ -128,9 +128,6 @@
                     />
                 </div>
 
-                <div class="col-span-full rounded-lg border border-[var(--h-bg-color)] bg-[var(--h-bg-color)] px-3 py-2 text-xs text-[var(--secondary-text)]">
-                    Branches: {{ implode(', ', $selectedBranchLabels) }}. Use the branch switcher beside Back/Refresh to change statement branches.
-                </div>
             </div>
         </div>
 
