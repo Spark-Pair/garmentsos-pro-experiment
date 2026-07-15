@@ -29,6 +29,7 @@ class LicenseActivationClient
             return [
                 'ok' => false,
                 'message' => 'License verify URL is not configured.',
+                'url' => '',
             ];
         }
 
@@ -153,13 +154,28 @@ class LicenseActivationClient
                 'ok' => false,
                 'message' => 'License server is not reachable.',
                 'error' => $e->getMessage(),
+                'url' => $url,
+                'http_status' => null,
+                'json_parsed' => false,
             ];
         }
 
-        $body = $response->json();
+        try {
+            $body = $response->json();
+            $jsonParsed = is_array($body);
+        } catch (Throwable) {
+            $body = null;
+            $jsonParsed = false;
+        }
+
+        $base = [
+            'url' => $url,
+            'http_status' => $response->status(),
+            'json_parsed' => $jsonParsed,
+        ];
 
         if (!$response->successful()) {
-            return [
+            return $base + [
                 'ok' => false,
                 'message' => is_array($body) ? ($body['message'] ?? $fallbackMessage) : $fallbackMessage,
                 'status' => $response->status(),
@@ -168,7 +184,7 @@ class LicenseActivationClient
             ];
         }
 
-        return [
+        return $base + [
             'ok' => is_array($body),
             'message' => is_array($body) ? ($body['message'] ?? 'Request completed.') : 'Response was invalid.',
             'body' => is_array($body) ? $body : null,

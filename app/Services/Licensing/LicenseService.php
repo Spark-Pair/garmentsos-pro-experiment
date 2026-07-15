@@ -209,20 +209,24 @@ class LicenseService
             'product' => config('updater.app_id', 'garmentsos-pro'),
             'install_id' => $installId,
             'machine_hash' => $machineHash,
+            'machine_name' => $this->machine->machineName(),
             'app_version' => $this->versions->currentVersion(),
+            'client_id' => (string) ($this->readVerifyCache()['client_id'] ?? config('licensing.client_id', '')),
+            'client_name' => (string) ($this->readVerifyCache()['client_name'] ?? config('licensing.client_name', '')),
             'fingerprint_source' => $this->machine->source(),
             'fingerprint_version' => 2,
             'stable_fingerprint_migration' => true,
+            'rebind_requested' => true,
+            'fingerprint_rebind_reason' => 'stable_install_identity_after_update',
         ];
 
         if ($previousMachineHash !== null) {
             $verifyPayload['previous_machine_hash'] = $previousMachineHash;
             $verifyPayload['previous_machine_hashes'] = $previousMachineHashes;
-            $verifyPayload['fingerprint_rebind_reason'] = 'stable_install_identity_after_update';
-            $verifyPayload['rebind_requested'] = true;
         }
 
         $result = $this->activationClient->verify($verifyPayload);
+        $this->safeCacheWrite('last_response', fn () => $this->writeLastResponseCache($result, $verifyPayload));
 
         if (($result['ok'] ?? false) && is_array($result['body'] ?? null)) {
             $body = $result['body'];
@@ -252,13 +256,16 @@ class LicenseService
 
     protected function statusFromVerifyResponse(array $body, string $source): LicenseStatus
     {
-        $status = strtolower(trim((string) ($body['status'] ?? 'invalid')));
+        $status = strtolower(trim((string) ($body['status'] ?? $body['state'] ?? 'invalid')));
+        $allowed = ($body['allowed'] ?? false) === true
+            || ($body['valid'] ?? false) === true
+            || in_array($status, ['active', 'approved'], true);
         $message = trim((string) ($body['message'] ?? 'License verification completed.'));
         $expiresAt = $this->parseDate($body['expires_at'] ?? null);
         $graceDays = (int) ($body['grace_days'] ?? config('licensing.offline_grace_days', 7));
         $graceUntil = $expiresAt ? $expiresAt->copy()->addDays(max(0, $graceDays)) : null;
 
-        if (($body['valid'] ?? false) === true && $status === 'active') {
+        if ($allowed && $status !== 'grace') {
             $this->safeCacheWrite('verify', fn () => $this->writeVerifyCache($body));
 
             return LicenseStatus::valid($source, [
@@ -423,10 +430,21 @@ class LicenseService
     protected function writeVerifyCache(array $body): void
     {
         $path = (string) config('licensing.verify_cache_path');
+        $status = strtolower(trim((string) ($body['status'] ?? $body['state'] ?? 'active')));
+        $allowed = ($body['allowed'] ?? false) === true
+            || ($body['valid'] ?? false) === true
+            || in_array($status, ['active', 'approved'], true);
+
+        if ($allowed && $status !== 'grace') {
+            $status = 'active';
+        }
+
         File::ensureDirectoryExists(dirname($path));
         File::put($path, json_encode([
-            'valid' => (bool) ($body['valid'] ?? false),
-            'status' => (string) ($body['status'] ?? ''),
+            'valid' => true,
+            'allowed' => true,
+            'status' => $status !== '' ? $status : 'active',
+            'device_approval' => (string) ($body['device_approval'] ?? $body['device_status'] ?? $body['status'] ?? $body['state'] ?? 'active'),
             'install_id' => (string) ($body['install_id'] ?? $this->identity->existingInstallId() ?? ''),
             'client_id' => (string) ($body['client_id'] ?? ''),
             'client_name' => (string) ($body['client_name'] ?? $body['customer_name'] ?? ''),
@@ -434,9 +452,46 @@ class LicenseService
             'expires_at' => (string) ($body['expires_at'] ?? ''),
             'grace_days' => (int) ($body['grace_days'] ?? config('licensing.offline_grace_days', 7)),
             'message' => (string) ($body['message'] ?? ''),
+            'rebind_performed' => (bool) ($body['rebind_performed'] ?? false),
             'machine_hash' => $this->machine->machineHash(),
             'fingerprint_source' => $this->machine->source(),
             'checked_at' => now()->utc()->toIso8601String(),
+        ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+    }
+
+    protected function writeLastResponseCache(array $result, array $payload): void
+    {
+        $path = (string) config('licensing.last_response_cache_path');
+        $body = is_array($result['body'] ?? null) ? $result['body'] : [];
+        $status = strtolower(trim((string) ($body['status'] ?? $body['state'] ?? $result['status_text'] ?? '')));
+        $allowed = ($body['allowed'] ?? false) === true
+            || ($body['valid'] ?? false) === true
+            || in_array($status, ['active', 'approved'], true);
+
+        File::ensureDirectoryExists(dirname($path));
+        File::put($path, json_encode([
+            'checked_at' => now()->utc()->toIso8601String(),
+            'verify_url' => (string) ($result['url'] ?? config('licensing.server_url', '')),
+            'http_status' => $result['http_status'] ?? $result['status'] ?? null,
+            'json_parsed' => (bool) ($result['json_parsed'] ?? is_array($result['body'] ?? null)),
+            'ok' => (bool) ($result['ok'] ?? false),
+            'allowed' => $allowed,
+            'valid' => (bool) ($body['valid'] ?? $allowed),
+            'status' => $status !== '' ? $status : 'network_error',
+            'device_approval' => (string) ($body['device_approval'] ?? $body['device_status'] ?? $status),
+            'rebind_requested' => (bool) ($payload['rebind_requested'] ?? false),
+            'rebind_performed' => (bool) ($body['rebind_performed'] ?? false),
+            'message' => (string) ($body['message'] ?? $result['message'] ?? ''),
+            'error' => (string) ($result['error'] ?? ''),
+            'install_id' => (string) ($payload['install_id'] ?? ''),
+            'machine_hash_preview' => substr((string) ($payload['machine_hash'] ?? ''), 0, 12),
+            'previous_machine_hash_preview' => substr((string) ($payload['previous_machine_hash'] ?? ''), 0, 12),
+            'fingerprint_source' => (string) ($payload['fingerprint_source'] ?? ''),
+            'fingerprint_version' => (int) ($payload['fingerprint_version'] ?? 0),
+            'app_version' => (string) ($payload['app_version'] ?? ''),
+            'client_id' => (string) ($body['client_id'] ?? $payload['client_id'] ?? ''),
+            'client_name' => (string) ($body['client_name'] ?? $body['customer_name'] ?? $payload['client_name'] ?? ''),
+            'customer_name' => (string) ($body['customer_name'] ?? $body['client_name'] ?? $payload['client_name'] ?? ''),
         ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
     }
 
@@ -527,6 +582,28 @@ class LicenseService
         return $this->readVerifyCache();
     }
 
+    public function lastResponseCache(): ?array
+    {
+        $path = (string) config('licensing.last_response_cache_path');
+        try {
+            if (!File::exists($path)) {
+                return null;
+            }
+
+            $decoded = json_decode((string) File::get($path), true);
+
+            return is_array($decoded) ? $decoded : null;
+        } catch (\Throwable $e) {
+            Log::warning('License last response cache could not be read.', [
+                'path' => $path,
+                'error' => $e->getMessage(),
+                'type' => $e::class,
+            ]);
+
+            return null;
+        }
+    }
+
     public function requestCache(): ?array
     {
         $path = (string) config('licensing.request_cache_path');
@@ -565,7 +642,9 @@ class LicenseService
                 : is_writable(dirname((string) config('licensing.verify_cache_path'))),
             'registration_cache_exists' => File::exists((string) config('licensing.registration_cache_path')),
             'request_cache_exists' => File::exists((string) config('licensing.request_cache_path')),
+            'last_response_cache_exists' => File::exists((string) config('licensing.last_response_cache_path')),
             'last_verified_at' => (string) ($this->verifyCache()['checked_at'] ?? ''),
+            'last_response_at' => (string) ($this->lastResponseCache()['checked_at'] ?? ''),
             'install_id_hash' => $this->shortHash($this->identity->existingInstallId()),
             'machine_hash_preview' => $this->machine->shortHash(),
             'previous_machine_hash_preview' => $previousMachineHash ? substr($previousMachineHash, 0, 12) : null,

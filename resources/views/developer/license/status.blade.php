@@ -20,6 +20,18 @@
         $isApprovedButInvalid = in_array(strtolower((string) ($licenseConfig['device_status'] ?? '')), ['active', 'approved', 'grace'], true)
             && !$isActive
             && in_array($status->state, ['invalid_readonly', 'installation_mismatch', 'blocked'], true);
+        $hasLatestCheck = !empty($licenseConfig['last_check_at']);
+        $needsRefresh = !$isActive && in_array($status->state, ['invalid_readonly', 'installation_mismatch', 'activation_required', 'blocked'], true);
+        $statusMessage = $status->message;
+        if ($needsRefresh && !$hasLatestCheck) {
+            $statusMessage = 'License has not been refreshed after this update. Click Refresh/Rebind License Approval.';
+        } elseif (($licenseConfig['latest_response_status'] ?? '') === 'pending') {
+            $statusMessage = 'This installation is pending approval on SparkPair.';
+        } elseif (in_array(($licenseConfig['latest_response_status'] ?? ''), ['identity_mismatch', 'installation_mismatch', 'fingerprint_mismatch'], true)) {
+            $statusMessage = 'This installation needs rebind approval. Click Refresh/Rebind or approve it in SparkPair admin.';
+        } elseif (!empty($licenseConfig['latest_response_message'])) {
+            $statusMessage = $licenseConfig['latest_response_message'];
+        }
         $isDevelopmentBypass = !$licensingEnabled || ($licenseConfig['development_bypass'] ?? false);
         $isReadonlyRecovery = session('license_readonly', false);
         $bannerClass = $isActive
@@ -103,7 +115,7 @@
                     </p>
                 @elseif ($isPending)
                     <div class="font-semibold">Waiting for SparkPair approval</div>
-                    <p class="mt-1">{{ $status->message ?: 'This device or demo request is pending approval.' }}</p>
+                    <p class="mt-1">{{ $statusMessage ?: 'This device or demo request is pending approval.' }}</p>
                 @elseif ($isApprovedButInvalid)
                     <div class="font-semibold">License approval needs refresh</div>
                     <p class="mt-1">
@@ -112,11 +124,17 @@
                     </p>
                 @else
                     <div class="font-semibold">License activation is required</div>
-                    <p class="mt-1">{{ $status->message ?: 'Request a demo/trial or register this device with SparkPair.' }}</p>
+                    <p class="mt-1">{{ $statusMessage ?: 'Request a demo/trial or register this device with SparkPair.' }}</p>
+                @endif
+                @if ($canManageLicense && $needsRefresh)
+                    <form method="POST" action="{{ route('developer.license.check') }}" class="mt-3">
+                        @csrf
+                        <button type="submit" class="{{ $primaryButton }}">Refresh/Rebind License Approval</button>
+                    </form>
                 @endif
             </div>
 
-            @if ($isApprovedButInvalid || !empty($licenseConfig['previous_machine_hash_preview']))
+            @if ($needsRefresh || $isApprovedButInvalid || !empty($licenseConfig['previous_machine_hash_preview']))
                 <div class="mb-5 rounded-lg border border-[var(--border-warning)] bg-[var(--bg-warning)] p-4 text-sm text-[var(--text-warning)]">
                     <div class="font-semibold">Stable fingerprint rebind</div>
                     <p class="mt-1">
@@ -131,6 +149,21 @@
                     @endif
                 </div>
             @endif
+
+            <div class="mb-5 rounded-lg border border-[var(--h-bg-color)] bg-[var(--h-bg-color)]/50 p-4 text-sm text-[var(--secondary-text)]">
+                <div class="font-semibold text-[var(--text-color)]">Latest license refresh response</div>
+                @if ($hasLatestCheck)
+                    <div class="mt-2 grid grid-cols-1 gap-2 md:grid-cols-4">
+                        <div>HTTP: <span class="font-semibold">{{ $licenseConfig['latest_response_http_status'] ?: '-' }}</span></div>
+                        <div>Status: <span class="font-semibold">{{ $licenseConfig['latest_response_status'] ?: '-' }}</span></div>
+                        <div>Allowed: <span class="font-semibold">{{ $licenseConfig['latest_response_allowed'] ? 'yes' : 'no' }}</span></div>
+                        <div>Rebind: <span class="font-semibold">{{ $licenseConfig['latest_response_rebind_performed'] ? 'done' : 'not reported' }}</span></div>
+                    </div>
+                    <p class="mt-2">{{ $licenseConfig['latest_response_message'] ?: 'No message returned.' }}</p>
+                @else
+                    <p class="mt-2">No license refresh response is recorded after this update. Click Refresh/Rebind License Approval.</p>
+                @endif
+            </div>
 
             <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
                 <div class="{{ $softPanel }}">

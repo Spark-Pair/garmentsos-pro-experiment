@@ -116,6 +116,12 @@ class LicenseController extends Controller
                 'last_check_at' => '',
                 'last_registration_at' => '',
                 'last_request_at' => '',
+                'latest_response_status' => '',
+                'latest_response_message' => '',
+                'latest_response_http_status' => '',
+                'latest_response_json_parsed' => false,
+                'latest_response_allowed' => false,
+                'latest_response_rebind_performed' => false,
                 'device_status' => '',
                 'customer_name' => '',
             ];
@@ -141,13 +147,14 @@ class LicenseController extends Controller
     {
         $licenses = app(LicenseService::class);
         $verifyCache = $licenses->verifyCache();
+        $lastResponse = $licenses->lastResponseCache();
         $registrationCache = $licenses->registrationCache();
         $requestCache = $licenses->requestCache();
         $diagnostics = $licenses->diagnostics();
 
         return [
-            'client_id' => (string) ($verifyCache['client_id'] ?? config('licensing.client_id', '')),
-            'client_name' => (string) ($verifyCache['client_name'] ?? config('licensing.client_name', '')),
+            'client_id' => (string) ($verifyCache['client_id'] ?? $lastResponse['client_id'] ?? config('licensing.client_id', '')),
+            'client_name' => (string) ($verifyCache['client_name'] ?? $lastResponse['client_name'] ?? config('licensing.client_name', '')),
             'expires_at' => (string) config('licensing.expires_at', ''),
             'grace_days' => (int) config('licensing.offline_grace_days', 7),
             'check_url_configured' => trim((string) config('licensing.server_url', '')) !== '',
@@ -166,11 +173,17 @@ class LicenseController extends Controller
             'previous_machine_hash_preview' => (string) ($diagnostics['previous_machine_hash_preview'] ?? ''),
             'fingerprint_source' => (string) ($diagnostics['fingerprint_source'] ?? 'stable_install_identity'),
             'app_version' => app(\App\Services\Updater\InstalledVersionService::class)->currentVersion(),
-            'last_check_at' => (string) ($verifyCache['checked_at'] ?? config('licensing.last_check_at', '')),
+            'last_check_at' => (string) ($verifyCache['checked_at'] ?? $lastResponse['checked_at'] ?? config('licensing.last_check_at', '')),
             'last_registration_at' => (string) ($registrationCache['registered_at'] ?? ''),
-            'last_request_at' => (string) ($requestCache['requested_at'] ?? ''),
-            'device_status' => (string) ($registrationCache['status'] ?? $verifyCache['status'] ?? $requestCache['status'] ?? ''),
-            'customer_name' => (string) ($verifyCache['customer_name'] ?? $verifyCache['client_name'] ?? $registrationCache['client_name'] ?? $requestCache['business_name'] ?? ''),
+            'last_request_at' => (string) ($requestCache['requested_at'] ?? $lastResponse['checked_at'] ?? ''),
+            'latest_response_status' => (string) ($lastResponse['status'] ?? ''),
+            'latest_response_message' => (string) ($lastResponse['message'] ?? ''),
+            'latest_response_http_status' => (string) ($lastResponse['http_status'] ?? ''),
+            'latest_response_json_parsed' => (bool) ($lastResponse['json_parsed'] ?? false),
+            'latest_response_allowed' => (bool) ($lastResponse['allowed'] ?? false),
+            'latest_response_rebind_performed' => (bool) ($lastResponse['rebind_performed'] ?? false),
+            'device_status' => (string) ($verifyCache['device_approval'] ?? $lastResponse['device_approval'] ?? $registrationCache['status'] ?? $verifyCache['status'] ?? $requestCache['status'] ?? ''),
+            'customer_name' => (string) ($verifyCache['customer_name'] ?? $verifyCache['client_name'] ?? $lastResponse['customer_name'] ?? $lastResponse['client_name'] ?? $registrationCache['client_name'] ?? $requestCache['business_name'] ?? ''),
         ];
     }
 

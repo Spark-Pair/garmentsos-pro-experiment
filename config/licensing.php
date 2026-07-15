@@ -56,6 +56,8 @@ return [
 
     'verify_cache_path' => storage_path('app/license/verify-cache.json'),
 
+    'last_response_cache_path' => storage_path('app/license/last-response.json'),
+
     'registration_cache_path' => storage_path('app/license/registration-cache.json'),
 
     'request_cache_path' => storage_path('app/license/request-cache.json'),
