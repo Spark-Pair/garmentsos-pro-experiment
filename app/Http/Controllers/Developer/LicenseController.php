@@ -279,7 +279,9 @@ class LicenseController extends Controller
 
             return redirect()
                 ->route('developer.license.status')
-                ->with($status->shouldBlock() ? 'error' : 'success', $status->message);
+                ->with($status->shouldBlock() ? 'error' : 'success', $status->shouldBlock()
+                    ? $status->message
+                    : 'License refreshed. Reloading app may now return normal access.');
         } catch (Throwable $e) {
             Log::error('License status check failed inside app.', [
                 'error' => $e->getMessage(),

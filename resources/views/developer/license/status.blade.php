@@ -18,6 +18,7 @@
         $isActive = $status->state === 'active';
         $isPending = in_array($status->state, ['pending', 'activation_required'], true) || (($licenseConfig['device_status'] ?? '') === 'pending');
         $isDevelopmentBypass = !$licensingEnabled || ($licenseConfig['development_bypass'] ?? false);
+        $isReadonlyRecovery = session('license_readonly', false);
         $bannerClass = $isActive
             ? 'border-[var(--border-success)] bg-[var(--bg-success)] text-[var(--text-success)]'
             : ($isDevelopmentBypass
@@ -65,6 +66,15 @@
                     @if ($missingTables)
                         <p class="mt-2 font-mono text-xs">Missing: {{ implode(', ', $missingTables) }}</p>
                     @endif
+                </div>
+            @endif
+
+            @if ($isReadonlyRecovery)
+                <div class="mb-4 rounded-lg border border-[var(--border-warning)] bg-[var(--bg-warning)] p-4 text-sm text-[var(--text-warning)]">
+                    <div class="font-semibold">Readonly recovery mode</div>
+                    <p class="mt-1">
+                        Business actions are readonly, but license refresh, activation, updater, and repair actions are allowed for recovery.
+                    </p>
                 </div>
             @endif
 
