@@ -50,6 +50,7 @@ class ReadOnlyMode
             'developer.backups.store',
             'developer.backups.verify',
             'developer.backups.run-migrations',
+            'developer.backups.repair-storage',
             'developer.updater.check',
             'developer.updater.apply',
             'developer.updater.launcher-handoff.start',

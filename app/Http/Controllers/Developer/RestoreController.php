@@ -73,7 +73,7 @@ class RestoreController extends Controller
 
             return redirect()
                 ->route('developer.backups')
-                ->with('error', 'Restore could not be started. Check logs for details.');
+                ->with('error', $this->restoreStartMessage($e));
         }
 
         return redirect()
@@ -108,7 +108,7 @@ class RestoreController extends Controller
 
             return response()->json([
                 'status' => 'failed',
-                'message' => 'Restore could not be started. Check logs for details.',
+                'message' => $this->restoreStartMessage($e),
             ], 500);
         }
     }
@@ -132,5 +132,16 @@ class RestoreController extends Controller
                 'message' => 'Restore job status was not found.',
             ], 404);
         }
+    }
+
+    protected function restoreStartMessage(Throwable $e): string
+    {
+        $message = $e->getMessage();
+
+        if (str_contains($message, 'storage/cache is not writable') || str_contains($message, 'Permission denied')) {
+            return 'Restore failed because app storage/cache is not writable. Restart app or run Repair.';
+        }
+
+        return 'Restore could not be started. Check logs for details.';
     }
 }

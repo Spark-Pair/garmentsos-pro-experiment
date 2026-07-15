@@ -15,6 +15,8 @@ class RestoreUploadJobService
 
     public function create(UploadedFile $file, array $input, ?int $userId): array
     {
+        app(AppStorageRepairService::class)->guardForBackupRestore();
+
         $extension = strtolower($file->getClientOriginalExtension());
         if (!in_array($extension, ['sqlite', 'db'], true)) {
             throw new RuntimeException('Restore file must be a SQLite .sqlite or .db file.');
@@ -57,6 +59,8 @@ class RestoreUploadJobService
 
     public function start(string $jobId, bool $manual = false): void
     {
+        app(AppStorageRepairService::class)->guardForBackupRestore();
+
         $this->assertRunnableQueuedJob($jobId);
 
         $lock = Cache::lock("restore-upload-job-start:{$jobId}", 30);

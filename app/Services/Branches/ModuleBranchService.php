@@ -648,7 +648,7 @@ class ModuleBranchService
         'backups' => [
             'label' => 'Backups / Restore',
             'group' => 'Developer',
-            'route_prefixes' => ['developer.backups', 'backup-db'],
+            'route_prefixes' => ['developer.backups'],
             'page_reference' => 'developer/license backups restore',
             'branchable' => false,
             'can_filter_records' => false,

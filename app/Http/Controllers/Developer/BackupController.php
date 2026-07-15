@@ -7,6 +7,7 @@ use App\Models\BackupLog;
 use App\Services\BackupService;
 use App\Services\BackupStorageService;
 use App\Services\BackupVerifier;
+use App\Services\AppStorageRepairService;
 use App\Services\RestoreService;
 use App\Services\RestoreUploadJobService;
 use Illuminate\Http\Request;
@@ -110,6 +111,31 @@ class BackupController extends Controller
         }
     }
 
+    public function repairStorage(AppStorageRepairService $repair): RedirectResponse
+    {
+        if ($resp = $this->denyIfNoRole(['developer', 'admin'])) {
+            return $resp;
+        }
+
+        try {
+            $repair->repair();
+            $repair->guardForBackupRestore();
+
+            return redirect()
+                ->route('developer.backups')
+                ->with('success', 'Storage permissions repaired. Backup/restore paths are writable.');
+        } catch (Throwable $e) {
+            Log::error('Developer storage permission repair failed.', [
+                'error' => $e->getMessage(),
+                'type' => $e::class,
+            ]);
+
+            return redirect()
+                ->route('developer.backups')
+                ->with('error', 'Storage repair could not complete. Restart app or run php artisan app:repair-storage.');
+        }
+    }
+
     public function verify(BackupLog $backupLog, BackupStorageService $storage, BackupVerifier $verifier): RedirectResponse
     {
         if ($resp = $this->denyIfNoRole(['developer', 'admin'])) {
@@ -177,28 +203,6 @@ class BackupController extends Controller
         }
 
         return response()->download($path, $backupLog->filename, [
-            'Content-Type' => 'application/octet-stream',
-            'Cache-Control' => 'no-store, no-cache, must-revalidate, max-age=0',
-        ]);
-    }
-
-    public function legacyDownload(BackupService $backups): BinaryFileResponse
-    {
-        if ($resp = $this->denyIfNoRole(['developer', 'admin'])) {
-            abort(403, 'You do not have permission to download database backup.');
-        }
-
-        if (!$this->backupTablesReady()) {
-            abort(503, 'Backup tables are not available yet. Run migrations before creating backups.');
-        }
-
-        $result = $backups->createManualBackup('legacy_download_backup');
-
-        if (!$result['success']) {
-            abort(500, $result['message']);
-        }
-
-        return response()->download($result['path'], $result['filename'], [
             'Content-Type' => 'application/octet-stream',
             'Cache-Control' => 'no-store, no-cache, must-revalidate, max-age=0',
         ]);

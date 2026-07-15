@@ -97,10 +97,10 @@ Route::get('updating', function (UpdateLockService $locks) {
 })->middleware(['setup.complete', 'auth', 'activeSession'])->name('updating');
 
 Route::group(['middleware' => ['setup.complete', 'auth', 'activeSession', 'ensureLicense', 'readonly', 'blockWhenUpdating']], function () {
-    Route::get('/backup-db', [BackupController::class, 'legacyDownload'])->name('backup-db');
     Route::get('developer/backups', [BackupController::class, 'index'])->name('developer.backups');
     Route::post('developer/backups', [BackupController::class, 'store'])->name('developer.backups.store');
     Route::post('developer/backups/run-migrations', [BackupController::class, 'runMigrations'])->name('developer.backups.run-migrations');
+    Route::post('developer/backups/repair-storage', [BackupController::class, 'repairStorage'])->name('developer.backups.repair-storage');
     Route::post('developer/backups/{backupLog}/verify', [BackupController::class, 'verify'])->name('developer.backups.verify');
     Route::get('developer/backups/{backupLog}/download', [BackupController::class, 'download'])->name('developer.backups.download');
     Route::get('developer/backups/{backupLog}/restore', [RestoreController::class, 'show'])->name('developer.backups.restore.show');

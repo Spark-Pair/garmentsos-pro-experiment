@@ -24,6 +24,8 @@ class BlockWhenUpdating
         'developer.license.register',
         'developer.license.check',
         'developer.license.refresh',
+        'developer.backups',
+        'developer.backups.repair-storage',
         'login',
         'loginPost',
         'logout',

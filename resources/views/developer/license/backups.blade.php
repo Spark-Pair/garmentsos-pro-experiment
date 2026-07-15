@@ -180,14 +180,23 @@
                         Developer/admin recovery action for copied or upgraded installs. This runs Laravel migrations only; it does not restore backups or change license/device identity.
                     </p>
                 </div>
-                <form method="POST" action="{{ route('developer.backups.run-migrations') }}" class="space-y-3">
-                    @csrf
-                    <label class="flex items-start gap-2 text-sm text-[var(--secondary-text)]">
-                        <input type="checkbox" name="confirm_migrations" value="1" class="mt-1">
-                        <span>I confirm this local database should be migrated now.</span>
-                    </label>
-                    <button type="submit" class="{{ $secondaryButton }}">Run Database Migrations</button>
-                </form>
+                <div class="space-y-4">
+                    <form method="POST" action="{{ route('developer.backups.repair-storage') }}">
+                        @csrf
+                        <button type="submit" class="{{ $primaryButton }}">Repair Storage Permissions</button>
+                        <p class="mt-2 text-xs text-[var(--secondary-text)]">
+                            Creates required storage folders, clears Laravel cache data safely, and checks backup/restore writability.
+                        </p>
+                    </form>
+                    <form method="POST" action="{{ route('developer.backups.run-migrations') }}" class="space-y-3">
+                        @csrf
+                        <label class="flex items-start gap-2 text-sm text-[var(--secondary-text)]">
+                            <input type="checkbox" name="confirm_migrations" value="1" class="mt-1">
+                            <span>I confirm this local database should be migrated now.</span>
+                        </label>
+                        <button type="submit" class="{{ $secondaryButton }}">Run Database Migrations</button>
+                    </form>
+                </div>
             </div>
         </section>
 

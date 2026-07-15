@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Services\RestoreService;
 use App\Services\RestoreUploadJobService;
+use App\Services\AppStorageRepairService;
 use Illuminate\Console\Command;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Log;
@@ -15,11 +16,12 @@ class RunRestoreUploadJob extends Command
 
     protected $description = 'Run a previously uploaded SQLite restore job.';
 
-    public function handle(RestoreUploadJobService $jobs, RestoreService $restore): int
+    public function handle(RestoreUploadJobService $jobs, RestoreService $restore, AppStorageRepairService $storageRepair): int
     {
         $jobId = (string) $this->argument('jobId');
 
         try {
+            $storageRepair->guardForBackupRestore();
             $jobs->markRunning($jobId, 'Validating uploaded database and creating emergency backup.');
 
             $uploadPath = $jobs->uploadPath($jobId);
@@ -47,7 +49,11 @@ class RunRestoreUploadJob extends Command
             ]);
 
             try {
-                $jobs->fail($jobId, 'Restore failed safely. Check logs for details.', [
+                $message = str_contains($e->getMessage(), 'storage/cache is not writable') || str_contains($e->getMessage(), 'Permission denied')
+                    ? 'Restore failed because app storage/cache is not writable. Restart app or run Repair.'
+                    : 'Restore failed safely. Check logs for details.';
+
+                $jobs->fail($jobId, $message, [
                     'error' => $e->getMessage(),
                     'type' => $e::class,
                 ]);

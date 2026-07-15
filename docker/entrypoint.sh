@@ -17,6 +17,7 @@ mkdir -p \
   database \
   storage/app/license \
   storage/app/private/backups \
+  storage/app/private/restore-jobs \
   storage/app/backups \
   storage/framework/cache/data \
   storage/framework/sessions \
@@ -25,8 +26,9 @@ mkdir -p \
   bootstrap/cache
 
 echo "Repairing Laravel writable storage permissions."
-chown -R www-data:www-data storage bootstrap/cache || true
-chmod -R ug+rwX storage bootstrap/cache || true
+chown -R www-data:www-data storage bootstrap/cache database || true
+chmod -R ug+rwX storage bootstrap/cache database || true
+find storage/framework/cache/data -mindepth 1 -maxdepth 10 -exec rm -rf {} + 2>/dev/null || true
 
 DB_PATH="$(php -r '$env=parse_ini_file(".env", false, INI_SCANNER_RAW); echo $env["DB_DATABASE"] ?? "database/database.sqlite";')"
 if [[ "$DB_PATH" != /* ]]; then

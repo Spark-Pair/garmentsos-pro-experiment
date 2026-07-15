@@ -122,10 +122,10 @@ class ArticleController extends Controller
         $yearFirstDigit = substr($year, 0, 1);
         $yearLastDigit = substr($year, -1);
 
-        // Pad article_no to 3 digits
-        $articleNoPadded = str_pad($data['article_no'], 3, '0', STR_PAD_LEFT);
+        // Pad article_no to at least 4 digits, e.g. MAIN-H2-6|0001.
+        $articleNoPadded = str_pad($data['article_no'], 4, '0', STR_PAD_LEFT);
 
-        // Combine as F2-5-001
+        // Combine as F2-5|0001
         $formattedArticleNo = $seasonLetter . $yearFirstDigit . '-' . $yearLastDigit . '|' . $articleNoPadded;
 
         if ($branches->shouldFilterRecords('articles') && $branchId) {
