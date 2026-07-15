@@ -11,10 +11,11 @@
     window.createRow = function createRow(data) {
         return `
                 <div id="${data.id}" oncontextmenu='${htmlAttr(data.oncontextmenu || "")}' onclick='${htmlAttr(data.onclick || "")}'
-                    class="item row relative group grid text- grid-cols-3 border-b border-[var(--h-bg-color)] items-center py-2 cursor-pointer hover:bg-[var(--h-secondary-bg-color)] transition-all fade-in ease-in-out"
+                    class="item row relative group grid text- grid-cols-4 border-b border-[var(--h-bg-color)] items-center py-2 cursor-pointer hover:bg-[var(--h-secondary-bg-color)] transition-all fade-in ease-in-out"
                     data-json='${jsonAttr(data)}'>
 
                     <span class="text-center">${data.name}</span>
+                    <span class="text-center capitalize">${data.details["City"] || '-'}</span>
                     <span class="text-center">${data.details["Amount"]}</span>
                     <span class="text-center">${data.details['Date']}</span>
                 </div>

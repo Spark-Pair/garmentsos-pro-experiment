@@ -52,6 +52,13 @@ function validationValue(input) {
         return input.value;
     }
 
+    const selectHiddenInput = input.closest('.selectParent')?.querySelector(`input.dbInput[name="${CSS.escape(input.dataset.errorFor)}"]`)
+        || input.closest('.selectParent')?.querySelector(`input.dbInput[data-for="${CSS.escape(input.id || '')}"]`);
+
+    if (selectHiddenInput) {
+        return selectHiddenInput.value;
+    }
+
     const hiddenInput = Array.from(input.closest('form')?.querySelectorAll('input[type="hidden"]') || document.querySelectorAll('input[type="hidden"]'))
         .find(field => field.name === input.dataset.errorFor);
 
@@ -84,6 +91,12 @@ function validateInput(input) {
     let value = input.value;
     let error = '';
     const label = validationLabel(input);
+    const hasRequiredRule = rules.includes('required');
+    const rawValidationValue = String(validationValue(input)).trim();
+
+    if (!hasRequiredRule && rawValidationValue === '' && String(value).trim() === '') {
+        return setValidationError(input, '');
+    }
 
     rules.forEach(rule => {
         if (error) return;
@@ -230,20 +243,52 @@ function shouldRealtimeValidate(input) {
     return input && input.matches('input, select, textarea') && (input.required || input.dataset.validate);
 }
 
+const touchedValidationFields = new WeakSet();
+
+function markValidationFieldTouched(input) {
+    if (input) {
+        touchedValidationFields.add(input);
+    }
+}
+
+function shouldShowRealtimeValidation(input) {
+    return touchedValidationFields.has(input) || input?.getAttribute('aria-invalid') === 'true';
+}
+
+function visibleValidationFieldForHiddenInput(input) {
+    if (!input || !input.classList?.contains('dbInput')) {
+        return null;
+    }
+
+    const scope = input.closest('.selectParent') || input.closest('form') || document;
+    const forId = input.dataset.for || '';
+    const name = input.name || '';
+
+    return scope.querySelector(`[data-error-for="${CSS.escape(name)}"]`)
+        || (forId ? scope.querySelector(`#${CSS.escape(forId)}`) : null);
+}
+
 document.addEventListener('input', (event) => {
-    if (shouldRealtimeValidate(event.target)) {
+    if (shouldRealtimeValidate(event.target) && shouldShowRealtimeValidation(event.target)) {
         validateInput(event.target);
     }
 });
 
 document.addEventListener('change', (event) => {
-    if (shouldRealtimeValidate(event.target)) {
+    if (shouldRealtimeValidate(event.target) && shouldShowRealtimeValidation(event.target)) {
         validateInput(event.target);
+        return;
+    }
+
+    const visibleField = visibleValidationFieldForHiddenInput(event.target);
+    if (visibleField && shouldRealtimeValidate(visibleField) && shouldShowRealtimeValidation(visibleField)) {
+        validateInput(visibleField);
     }
 });
 
 document.addEventListener('blur', (event) => {
     if (shouldRealtimeValidate(event.target)) {
+        markValidationFieldTouched(event.target);
         validateInput(event.target);
     }
 }, true);
@@ -252,6 +297,7 @@ function validateAllInputs(root = document) {
     let valid = true;
     root.querySelectorAll('input, select, textarea').forEach(input => {
         if (!shouldRealtimeValidate(input)) return;
+        markValidationFieldTouched(input);
         if (!validateInput(input)) valid = false;
     });
 

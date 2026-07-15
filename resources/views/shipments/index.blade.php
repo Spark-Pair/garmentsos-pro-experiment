@@ -7,14 +7,26 @@
                 "id" => "shipment_no",
                 "type" => "text",
                 "placeholder" => "Enter shipment no",
-                                "dataFilterPath" => "name",
+                "dataFilterPath" => "shipment_no",
+            ],
+            "City" => [
+                "id" => "city",
+                "type" => "text",
+                "placeholder" => "Enter city",
+                "dataFilterPath" => "city",
+            ],
+            "Amount" => [
+                "id" => "amount",
+                "type" => "text",
+                "placeholder" => "Enter amount",
+                "dataFilterPath" => "netAmount",
             ],
             "Date Range" => [
                 "id" => "date_range_start",
                 "type" => "date",
                 "id2" => "date_range_end",
                 "type2" => "date",
-                                "dataFilterPath" => "data.date",
+                "dataFilterPath" => "date",
             ]
         ];
     @endphp
@@ -34,8 +46,9 @@
             <div class="details h-full z-40">
                 <div class="container-parent h-full">
                     <div class="card_container px-3 h-full flex flex-col">
-                        <div id="table-head" class="grid grid-cols-3 bg-[var(--h-bg-color)] rounded-lg font-medium py-2 hidden mt-4">
+                        <div id="table-head" class="grid grid-cols-4 bg-[var(--h-bg-color)] rounded-lg font-medium py-2 hidden mt-4">
                             <div class="text-center cursor-pointer" onclick="sortByThis(this)">Shipment No.</div>
+                            <div class="text-center cursor-pointer" onclick="sortByThis(this)">City</div>
                             <div class="text-center cursor-pointer" onclick="sortByThis(this)">Amount</div>
                             <div class="text-center cursor-pointer" onclick="sortByThis(this)">Date</div>
                         </div>

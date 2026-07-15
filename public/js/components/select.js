@@ -2,15 +2,20 @@ function getSelectScope(elem) {
     return elem.closest('form') || document;
 }
 
-function selectThisOption(optionLiElem) {
+function selectThisOption(optionLiElem, options = {}) {
+    const shouldValidate = options.validate !== false;
     const forId = optionLiElem.dataset.for;
     const scope = getSelectScope(optionLiElem);
     const selectSearch = scope.querySelector(`#${forId}`);
+    const dropdownSearch = optionLiElem.closest('.selectParent')?.querySelector('.dropDownParent input');
     const dbInput = scope.querySelector(`.dbInput[data-for="${forId}"]`);
 
     if (!selectSearch || !dbInput) return;
 
     selectSearch.value = optionLiElem.textContent.trim();
+    if (dropdownSearch) {
+        dropdownSearch.value = selectSearch.value;
+    }
     dbInput.value = optionLiElem.dataset.value;
 
     const allOptions = scope.querySelectorAll(`.optionsDropdown li[data-for="${forId}"]`);
@@ -34,6 +39,19 @@ function selectThisOption(optionLiElem) {
     }
 
     dispatchChangeWithRetry();
+
+    if (!shouldValidate) {
+        return;
+    }
+
+    selectSearch.dispatchEvent(new Event('input', { bubbles: true }));
+    selectSearch.dispatchEvent(new Event('change', { bubbles: true }));
+    if (
+        typeof validateInput === 'function'
+        && (typeof shouldShowRealtimeValidation !== 'function' || shouldShowRealtimeValidation(selectSearch))
+    ) {
+        validateInput(selectSearch);
+    }
 }
 
 function searchSelect(selectSearchInput) {
@@ -93,20 +111,20 @@ function validateSelectInput(selectSearchInput) {
     }
 }
 
-function selectFirstOption(forId, scope = document) {
+function selectFirstOption(forId, scope = document, options = {}) {
     const dbInput = scope.querySelector(`.dbInput[data-for="${forId}"]`);
     const currentValue = dbInput ? String(dbInput.value || '') : '';
     if (currentValue) {
         const matched = scope.querySelector(`.optionsDropdown li[data-for="${forId}"][data-value="${CSS.escape(currentValue)}"]`);
         if (matched) {
-            selectThisOption(matched);
+            selectThisOption(matched, options);
             return;
         }
     }
 
     const firstOption = scope.querySelector(`.optionsDropdown li[data-for="${forId}"]:not(.hidden)`);
     if (firstOption) {
-        selectThisOption(firstOption);
+        selectThisOption(firstOption, options);
     }
 }
 
@@ -169,7 +187,7 @@ function selectKeyDown(event, input) {
 
 function bootSelectDefaults() {
     document.querySelectorAll(".selectParent .dbInput")
-        .forEach(dbInput => selectFirstOption(dbInput.dataset.for, getSelectScope(dbInput)));
+        .forEach(dbInput => selectFirstOption(dbInput.dataset.for, getSelectScope(dbInput), { validate: false }));
 }
 
 if (document.readyState === 'loading') {

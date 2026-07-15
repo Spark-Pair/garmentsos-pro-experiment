@@ -838,9 +838,10 @@ class ModuleBranchService
 
     private function moduleKeyCandidates(string $moduleKey): array
     {
-        $candidates = app(BranchModuleRegistryService::class)->aliasesFor($moduleKey);
+        $canonical = $this->canonicalModuleKey($moduleKey);
+        $candidates = array_merge([$canonical], app(BranchModuleRegistryService::class)->aliasesFor($moduleKey));
 
-        if (str_starts_with($this->canonicalModuleKey($moduleKey), 'reports_')) {
+        if (str_starts_with($canonical, 'reports_')) {
             $candidates[] = 'reports';
         }
 
@@ -879,6 +880,28 @@ class ModuleBranchService
 
         return !(bool) $setting->branch_enabled
             && (bool) ($metadata['registry_repair'] ?? false);
+    }
+
+    private function fallbackCandidateSettingEnabled(string $moduleKey, ?int $branchId = null, bool $requireSwitching = false): bool
+    {
+        $moduleKey = $this->canonicalModuleKey($moduleKey);
+        $candidateKeys = array_values(array_diff($this->moduleKeyCandidates($moduleKey), [$moduleKey]));
+        if ($candidateKeys === [] || !Schema::hasTable('branch_module_settings')) {
+            return false;
+        }
+
+        $query = BranchModuleSetting::query()->whereIn('module_key', $candidateKeys);
+        if ($this->moduleSettingsHaveBranchId()) {
+            $branchId === null
+                ? $query->whereNull('branch_id')
+                : $query->where('branch_id', $branchId);
+        }
+
+        return $query->get()
+            ->sortBy(fn (BranchModuleSetting $setting) => array_search($setting->module_key, $candidateKeys, true))
+            ->contains(fn (BranchModuleSetting $setting) => $setting->branch_enabled
+                && $setting->status === 'active'
+                && (!$requireSwitching || $setting->allow_user_switching));
     }
 
     public function ensureMainBranch(array $details = []): Branch
@@ -1072,6 +1095,10 @@ class ModuleBranchService
             return true;
         }
 
+        if ($this->fallbackCandidateSettingEnabled($moduleKey)) {
+            return true;
+        }
+
         if (!$this->moduleSettingsHaveBranchId()) {
             return false;
         }
@@ -1095,6 +1122,10 @@ class ModuleBranchService
         $setting = $settings->first();
 
         if ($setting) {
+            if ($setting->branch_enabled && $setting->status === 'active') {
+                return true;
+            }
+
             if ($this->canFallbackFromSetting($moduleKey, $setting)) {
                 $fallback = $settings->skip(1)->first(fn (BranchModuleSetting $candidate) => $candidate->branch_enabled && $candidate->status === 'active');
                 if ($fallback) {
@@ -1102,12 +1133,18 @@ class ModuleBranchService
                 }
             }
 
-            return (bool) ($setting->branch_enabled && $setting->status === 'active');
+            return $this->fallbackCandidateSettingEnabled($moduleKey, $branchId)
+                || $this->fallbackCandidateSettingEnabled($moduleKey);
+        }
+
+        if ($this->fallbackCandidateSettingEnabled($moduleKey, $branchId)) {
+            return true;
         }
 
         $global = $this->setting($moduleKey);
 
-        return (bool) ($global?->branch_enabled && $global->status === 'active');
+        return (bool) ($global?->branch_enabled && $global->status === 'active')
+            || $this->fallbackCandidateSettingEnabled($moduleKey);
     }
 
     public function branchAllowsSwitching(string $moduleKey, int $branchId): bool
@@ -1121,6 +1158,10 @@ class ModuleBranchService
         $setting = $settings->first();
 
         if ($setting) {
+            if ($setting->branch_enabled && $setting->status === 'active' && $setting->allow_user_switching) {
+                return true;
+            }
+
             if ($this->canFallbackFromSetting($moduleKey, $setting)) {
                 $fallback = $settings->skip(1)->first(fn (BranchModuleSetting $candidate) => $candidate->branch_enabled && $candidate->status === 'active' && $candidate->allow_user_switching);
                 if ($fallback) {
@@ -1128,10 +1169,13 @@ class ModuleBranchService
                 }
             }
 
-            return (bool) $setting->allow_user_switching;
+            return $this->fallbackCandidateSettingEnabled($moduleKey, $branchId, requireSwitching: true)
+                || $this->fallbackCandidateSettingEnabled($moduleKey, requireSwitching: true);
         }
 
-        return (bool) $this->setting($moduleKey)?->allow_user_switching;
+        return (bool) $this->setting($moduleKey)?->allow_user_switching
+            || $this->fallbackCandidateSettingEnabled($moduleKey, $branchId, requireSwitching: true)
+            || $this->fallbackCandidateSettingEnabled($moduleKey, requireSwitching: true);
     }
 
     public function selectedBranch(string $moduleKey, ?User $user = null): ?Branch

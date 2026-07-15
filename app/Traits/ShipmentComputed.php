@@ -31,6 +31,7 @@ trait ShipmentComputed
             'id' => $this->id,
             'name' => $this->shipment_no,
             'details' => [
+                'City' => $this->city,
                 'Amount' => \App\Support\Money::format($this->netAmount),
                 'Date' => $this->date->format('d-M-Y, D'),
             ],
@@ -41,6 +42,7 @@ trait ShipmentComputed
                 'date' => $this->date,
                 'discount' => (float) ($this->discount ?? 0),
                 'netAmount' => (float) ($this->netAmount ?? 0),
+                'city' => $this->city,
                 'articles' => $articles,
             ],
             'oncontextmenu' => "generateContextMenu(event)",
@@ -65,6 +67,14 @@ trait ShipmentComputed
 
                 \App\Support\DateRange::apply($query, 'date', $start, $end);
                 return $query;
+
+            case 'amount':
+            case 'netAmount':
+                $amount = str_replace(',', '', (string) $value);
+                return $query->where('netAmount', 'like', "%$amount%");
+
+            case 'city':
+                return $query->where('city', 'like', "%$value%");
 
             default:
                 return $query->where($key, 'like', "%$value%");
