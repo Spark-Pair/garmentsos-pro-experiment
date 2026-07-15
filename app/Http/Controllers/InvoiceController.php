@@ -98,6 +98,7 @@ class InvoiceController extends Controller
             $last_Invoice = new Invoice();
             $last_Invoice->invoice_no = app(BranchSerialService::class)->next('invoices', Invoice::class, 'invoice_no', 'INV');
         }
+        $nextInvoiceNo = app(BranchSerialService::class)->next('invoices', Invoice::class, 'invoice_no', 'INV');
 
         $branches = app(ModuleBranchService::class);
         $customers = $branches->applyRelatedScope(Customer::with('user'), 'customers', 'invoices')
@@ -107,7 +108,7 @@ class InvoiceController extends Controller
 
         $branchBranding = app(ModuleBranchService::class)->documentBranding('invoices');
 
-        return view("invoices.generate", compact("last_Invoice", 'customers', 'orderNumber', 'branchBranding'));
+        return view("invoices.generate", compact("last_Invoice", 'customers', 'orderNumber', 'branchBranding', 'nextInvoiceNo'));
     }
 
     /**

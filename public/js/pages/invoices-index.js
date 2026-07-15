@@ -8,6 +8,22 @@
         }
     }
 
+    function compactInvoicePrintHeaders(printDocument) {
+        const labels = {
+            'S.No': 'S.#',
+            'Packets': 'Pkts',
+            'Rate/Pc.': 'Rate',
+            'Amount': 'Amt.',
+        };
+
+        printDocument.querySelectorAll('.gos-a5-invoice .thead .th').forEach(header => {
+            const compactLabel = labels[header.textContent.trim()];
+            if (compactLabel) {
+                header.textContent = compactLabel;
+            }
+        });
+    }
+
     window.createRow = function createRow(data) {
         return `
                 <div id="${data.id}" oncontextmenu='${htmlAttr(data.oncontextmenu || "")}' onclick='${htmlAttr(data.onclick || "")}'
@@ -59,12 +75,27 @@
                         <title>Print Invoice</title>
                         ${headContent}
                         <style>
+                            @page {
+                                size: A5 portrait;
+                                margin: 0;
+                            }
+
                             @media print {
                                 body {
                                     margin: 0;
                                     padding: 0;
-                                    width: 210mm;
-                                    height: 302.5mm;
+                                    width: 148mm;
+                                    height: 210mm;
+                                }
+
+                                #preview-container,
+                                #preview-container > .preview,
+                                .preview-container,
+                                .preview {
+                                    width: 148mm !important;
+                                    height: 210mm !important;
+                                    max-width: 148mm !important;
+                                    max-height: 210mm !important;
                                 }
 
                                 .preview-container, .preview-container * {
@@ -74,7 +105,6 @@
                         </style>
                     </head>
                     <body>
-                        <div class="preview-container">${preview.innerHTML}</div>
                         <div id="preview-container" class="preview-container">${preview.innerHTML}</div>
                     </body>
                 </html>
@@ -86,6 +116,7 @@
             printDocument.querySelectorAll('.preview').forEach(p => p.classList.remove('py-6'));
             printDocument.querySelectorAll('#banner').forEach(p => p.classList.remove('mt-8'));
             printDocument.querySelectorAll('.footer').forEach(p => p.classList.remove('mb-4'));
+            compactInvoicePrintHeaders(printDocument);
 
             const invoiceCopys = printDocument.querySelectorAll('#preview-container .preview-copy');
             if (invoiceCopys) {
@@ -116,7 +147,9 @@
             data: data,
             x: e.pageX,
             y: e.pageY,
-            actions: [{ id: 'print', text: 'Print Invoice', onclick: 'printInvoice(this)' }],
+            actions: [
+                { id: 'print', text: 'Print Invoice', onclick: 'printInvoice(this)' },
+            ],
         };
 
         createContextMenu(contextMenuData);
@@ -127,8 +160,10 @@
 
         const modalData = {
             id: 'modalForm',
-            preview: { type: 'invoice', data: data.data, document: 'Sales Invoice' },
-            bottomActions: [{ id: 'print', text: 'Print Invoice', onclick: 'printInvoice(this)' }],
+            preview: { type: 'invoice', size: 'A5', data: data.data, document: 'Sales Invoice' },
+            bottomActions: [
+                { id: 'print', text: 'Print Invoice', onclick: 'printInvoice(this)' },
+            ],
         };
 
         createModal(modalData);

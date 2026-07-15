@@ -78,6 +78,7 @@
                                 <th class="p-3 text-left">Record Filtering</th>
                                 <th class="p-3 text-left">Branch Branding</th>
                                 <th class="p-3 text-left">Serial Prefix</th>
+                                <th class="p-3 text-left">Default Order Discount (%)</th>
                                 <th class="p-3 text-left">Doc Identity Prefix</th>
                                 <th class="p-3 text-left">Status</th>
                                 <th class="p-3 text-left">Notes</th>
@@ -104,6 +105,7 @@
                                     $filtering = array_key_exists('record_filtering_enabled', $metadata)
                                         ? (bool) $metadata['record_filtering_enabled']
                                         : ($supportsFiltering && $hasBranchIdSupport);
+                                    $defaultOrderDiscount = max(0, min(100, (int) ($metadata['default_order_discount_percent'] ?? 0)));
                                     $filterWarning = $supportsSwitching && ! $hasBranchIdSupport && ! $isSystemModule;
                                 @endphp
                                 <tr>
@@ -188,6 +190,21 @@
                                             <input type="checkbox" disabled @checked($canSerialPrefix)>
                                             <span>{{ $canSerialPrefix ? 'Serial prefix configured' : 'No serial prefix' }}</span>
                                         </label>
+                                    </td>
+                                    <td class="p-3">
+                                        @if ($moduleKey === 'orders')
+                                            <input
+                                                type="number"
+                                                min="0"
+                                                max="100"
+                                                step="1"
+                                                name="modules[{{ $moduleKey }}][default_order_discount_percent]"
+                                                value="{{ $defaultOrderDiscount }}"
+                                                class="{{ $input }} min-w-[10rem] text-xs"
+                                            >
+                                        @else
+                                            <span class="text-xs text-[var(--secondary-text)]">-</span>
+                                        @endif
                                     </td>
                                     <td class="p-3">
                                         <input

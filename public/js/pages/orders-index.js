@@ -68,11 +68,28 @@
                         <title>Print Order</title>
                         ${headContent}
                         <style>
+                            @page {
+                                size: A5 portrait;
+                                margin: 0.25in;
+                            }
+
                             @media print {
                                 body {
                                     margin: 0;
                                     padding: 0;
-                                    width: 210mm;
+                                    width: calc(148mm - 0.5in);
+                                    height: calc(210mm - 0.5in);
+                                }
+
+                                #preview-container,
+                                #preview-container > .preview,
+                                .preview-container,
+                                .preview {
+                                    width: calc(148mm - 0.5in) !important;
+                                    height: calc(210mm - 0.5in) !important;
+                                    max-width: calc(148mm - 0.5in) !important;
+                                    max-height: calc(210mm - 0.5in) !important;
+                                    padding: 0 !important;
                                 }
 
                                 .preview-container, .preview-container * {
@@ -82,7 +99,6 @@
                         </style>
                     </head>
                     <body>
-                        <div class="preview-container">${preview.innerHTML}</div>
                         <div id="preview-container" class="preview-container">${preview.innerHTML}</div>
                     </body>
                 </html>
@@ -139,7 +155,7 @@
 
         const modalData = {
             id: 'modalForm',
-            preview: { type: 'order', data: data.data, document: 'Sales Order' },
+            preview: { type: 'order', size: 'A5', data: data.data, document: 'Sales Order' },
             bottomActions: [{ id: 'print', text: 'Print Order', onclick: 'printOrder(this)' }],
         };
 

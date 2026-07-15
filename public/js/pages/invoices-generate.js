@@ -9,6 +9,57 @@
         const companyLogoBase = config.companyLogoBase || "";
         const searchFieldsHtml = config.searchFieldsHtml || "";
         const errorAlertTemplate = config.errorAlertTemplate || "";
+        let invoicePreviewOffset = 0;
+
+        function safeDocumentNumberPreview(value, fallback = "Will be generated on save") {
+            const text = String(value ?? "").trim();
+            return text && !text.includes("NaN") ? text : fallback;
+        }
+
+        function incrementDocumentNumber(value, offset = 0, fallback = "Will be generated on save") {
+            const text = safeDocumentNumberPreview(value, "");
+            if (!text) return fallback;
+
+            const replaced = text.replace(/(\d+)(?!.*\d)/, match => {
+                const next = Number.parseInt(match, 10) + offset;
+                return Number.isFinite(next) ? String(next).padStart(match.length, "0") : match;
+            });
+
+            return safeDocumentNumberPreview(replaced, fallback);
+        }
+
+        function invoiceDetailLine(orderedArticle, article) {
+            const description = String(orderedArticle?.description ?? '').trim();
+            const fabricType = String(article?.fabric_type ?? '').trim();
+            const parts = [description, fabricType].filter((part, index, list) => (
+                part && list.findIndex(item => item.toLowerCase() === part.toLowerCase()) === index
+            ));
+
+            return parts.join(' | ');
+        }
+
+        function compactInvoicePrintHeaders(printDocument) {
+            const labels = {
+                'S.No': 'S.#',
+                'Packets': 'Pkts',
+                'Rate/Pc.': 'Rate',
+                'Amount': 'Amt.',
+            };
+
+            printDocument.querySelectorAll('.gos-a5-invoice .thead .th').forEach(header => {
+                const compactLabel = labels[header.textContent.trim()];
+                if (compactLabel) {
+                    header.textContent = compactLabel;
+                }
+            });
+        }
+
+        function nextInvoicePreviewNo() {
+            const base = config.nextInvoiceNo || incrementDocumentNumber(lastInvoice?.invoice_no, 1);
+            const previewNo = incrementDocumentNumber(base, invoicePreviewOffset);
+            invoicePreviewOffset += 1;
+            return previewNo;
+        }
 
         let btnTypeGlobal = "order";
 
@@ -672,14 +723,7 @@
             const previewDom = document.getElementById("preview");
 
             function generateInvoiceNo() {
-                const yearShort = String(new Date().getFullYear()).slice(-2);
-
-                let lastInvoiceNo = lastInvoice?.invoice_no || `${yearShort}-0000`;
-
-                let lastNumber = lastInvoiceNo.split("-")[1];
-                const nextInvoiceNo = String(parseInt(lastNumber, 10) + 1).padStart(4, "0");
-
-                return `${yearShort}-${nextInvoiceNo}`;
+                return nextInvoicePreviewNo();
             }
 
             function getInvoiceDate() {
@@ -704,6 +748,7 @@
             }
 
             function generateInvoice() {
+                invoicePreviewOffset = 0;
                 const customerData = selectedCustomersArray[0];
                 invoiceNo = generateInvoiceNo();
                 invoiceDate = new Date();
@@ -757,7 +802,6 @@
                 const invoiceTableHeader = `
                     <div class="th text-sm font-medium">S.No</div>
                     <div class="th text-sm font-medium">Article</div>
-                    <div class="th text-sm font-medium col-span-2">Description</div>
                     <div class="th text-sm font-medium">Unit</div>
                     <div class="th text-sm font-medium">Packets</div>
                     <div class="th text-sm font-medium">Pcs.</div>
@@ -776,20 +820,21 @@
                         totalAmount += total;
                         totalPcs += qty;
                         totalPackets += article?.pcs_per_packet ? Math.floor(qty / article.pcs_per_packet) : 0;
+                        const detailLine = invoiceDetailLine(orderedArticle, article);
 
                         return `
-                            <div>
+                            <div class="invoice-item-row">
                                 <hr class="w-full ${hrClass} border-black">
-                                <div class="tr grid grid-cols-9 justify-between w-full px-4 gap-0.5">
+                                <div class="tr invoice-item-main grid grid-cols-7 justify-between w-full px-4 gap-0.5">
                                     <div class="td text-sm font-semibold truncate">${index + 1}.</div>
                                     <div class="td text-sm font-semibold truncate">${article.article_no ?? ''}</div>
-                                    <div class="td text-sm font-semibold col-span-2 truncate capitalize">${orderedArticle.description ?? ''}</div>
                                     <div class="td text-sm font-semibold truncate">${article?.pcs_per_packet ?? 0}</div>
                                     <div class="td text-sm font-semibold truncate">${article?.pcs_per_packet ? Math.floor(qty / article.pcs_per_packet) : 0}</div>
                                     <div class="td text-sm font-semibold truncate">${qty}</div>
                                     <div class="td text-sm font-semibold truncate">${formatNumbersWithDigits(salesRate, 1, 1)}</div>
                                     <div class="td text-sm font-semibold truncate">${formatNumbersWithDigits(total, 1, 1)}</div>
                                 </div>
+                                ${detailLine ? `<div class="invoice-item-desc"><span>Details</span>${detailLine}</div>` : ''}
                             </div>
                         `;
                     }).join('')}
@@ -808,7 +853,7 @@
                         <div class="w-1/4 text-right grow">${formatNumbersWithDigits(totalAmount, 1, 1)}</div>
                     </div>
                     <div class="total flex justify-between items-center border border-black rounded-lg py-1.5 px-4 w-full">
-                        <div class="text-nowrap">Discount - %${discountVal}</div>
+                        <div class="text-nowrap">Discount - ${discountVal}%</div>
                         <div class="w-1/4 text-right grow">${formatNumbersWithDigits(discountAmount, 1, 1)}</div>
                     </div>
                     <div class="total flex justify-between items-center border border-black rounded-lg py-1.5 px-4 w-full">
@@ -819,7 +864,7 @@
 
                 return `
                     <div id="preview-container" class="h-auto mx-auto relative flex flex-col">
-                        <div id="preview" class="preview w-[208mm] h-[302mm] overflow-hidden flex flex-col">
+                        <div id="preview" class="preview w-[148mm] h-[210mm] gos-a5-document gos-a5-invoice overflow-hidden flex flex-col">
                             <div class="flex flex-col h-full">
                                 <div id="banner" class="banner w-full flex justify-between items-center px-5">
                                     <div class="left">
@@ -872,7 +917,7 @@
                                     <div class="table w-full">
                                         <div class="table w-full border border-black rounded-lg pb-2.5 overflow-hidden">
                                             <div class="thead w-full">
-                                                <div class="tr grid grid-cols-9 w-full px-4 py-1.5 bg-[var(--primary-color)] text-white">
+                                                <div class="tr grid grid-cols-7 w-full px-4 py-1.5 bg-[var(--primary-color)] text-white">
                                                     ${invoiceTableHeader}
                                                 </div>
                                             </div>
@@ -1163,14 +1208,7 @@
             const previewDom = document.getElementById("preview");
 
             function generateInvoiceNo() {
-                const yearShort = String(new Date().getFullYear()).slice(-2);
-
-                let lastInvoiceNo = lastInvoice?.invoice_no || `${yearShort}-0000`;
-
-                let lastNumber = lastInvoiceNo.split("-")[1];
-                const nextInvoiceNo = String(parseInt(lastNumber, 10) + 1).padStart(4, "0");
-
-                return `${yearShort}-${nextInvoiceNo}`;
+                return nextInvoicePreviewNo();
             }
 
             function getInvoiceDate() {
@@ -1195,6 +1233,7 @@
             }
 
             function generateInvoice() {
+                invoicePreviewOffset = 0;
                 invoiceNo = generateInvoiceNo();
                 invoiceDate = new Date();
 
@@ -1246,7 +1285,6 @@
                 const invoiceTableHeader = `
                     <div class="th text-sm font-medium">S.No</div>
                     <div class="th text-sm font-medium">Article</div>
-                    <div class="th text-sm font-medium col-span-2">Description</div>
                     <div class="th text-sm font-medium">Unit</div>
                     <div class="th text-sm font-medium">Packets</div>
                     <div class="th text-sm font-medium">Pcs.</div>
@@ -1265,20 +1303,21 @@
                         totalAmountCalc += total;
                         totalPcsCalc += qty;
                         totalPacketsCalc += article?.pcs_per_packet ? Math.floor(qty / article.pcs_per_packet) : 0;
+                        const detailLine = invoiceDetailLine(orderedArticle, article);
 
                         return `
-                            <div>
+                            <div class="invoice-item-row">
                                 <hr class="w-full ${hrClass} border-black">
-                                <div class="tr grid grid-cols-9 justify-between w-full px-4 gap-0.5">
+                                <div class="tr invoice-item-main grid grid-cols-7 justify-between w-full px-4 gap-0.5">
                                     <div class="td text-sm font-semibold truncate">${index + 1}.</div>
                                     <div class="td text-sm font-semibold truncate">${article.article_no ?? ''}</div>
-                                    <div class="td text-sm font-semibold col-span-2 truncate capitalize">${orderedArticle.description ?? ''}</div>
                                     <div class="td text-sm font-semibold truncate">${article?.pcs_per_packet ?? 0}</div>
                                     <div class="td text-sm font-semibold truncate">${article?.pcs_per_packet ? Math.floor(qty / article.pcs_per_packet) : 0}</div>
                                     <div class="td text-sm font-semibold truncate">${qty}</div>
                                     <div class="td text-sm font-semibold truncate">${formatNumbersWithDigits(salesRate, 1, 1)}</div>
                                     <div class="td text-sm font-semibold truncate">${formatNumbersWithDigits(total, 1, 1)}</div>
                                 </div>
+                                ${detailLine ? `<div class="invoice-item-desc"><span>Details</span>${detailLine}</div>` : ''}
                             </div>
                         `;
                     }).join('')}
@@ -1297,7 +1336,7 @@
                         <div class="w-1/4 text-right grow">${formatNumbersWithDigits(totalAmountCalc, 1, 1)}</div>
                     </div>
                     <div class="total flex justify-between items-center border border-black rounded-lg py-1.5 px-4 w-full">
-                        <div class="text-nowrap">Discount - %${discountVal}</div>
+                        <div class="text-nowrap">Discount - ${discountVal}%</div>
                         <div class="w-1/4 text-right grow">${formatNumbersWithDigits(discountAmount, 1, 1)}</div>
                     </div>
                     <div class="total flex justify-between items-center border border-black rounded-lg py-1.5 px-4 w-full">
@@ -1308,7 +1347,7 @@
 
                 return `
                     <div id="preview-container" class="h-auto mx-auto relative flex flex-col">
-                        <div id="preview" class="preview w-[208mm] h-[302mm] overflow-hidden flex flex-col">
+                        <div id="preview" class="preview w-[148mm] h-[210mm] gos-a5-document gos-a5-invoice overflow-hidden flex flex-col">
                             <div class="flex flex-col h-full">
                                 <div id="banner" class="banner w-full flex justify-between items-center px-5">
                                     <div class="left">
@@ -1360,7 +1399,7 @@
                                     <div class="table w-full">
                                         <div class="table w-full border border-black rounded-lg pb-2.5 overflow-hidden">
                                             <div class="thead w-full">
-                                                <div class="tr grid grid-cols-9 w-full px-4 py-1.5 bg-[var(--primary-color)] text-white">
+                                                <div class="tr grid grid-cols-7 w-full px-4 py-1.5 bg-[var(--primary-color)] text-white">
                                                     ${invoiceTableHeader}
                                                 </div>
                                             </div>
@@ -1427,12 +1466,27 @@
                                 <title>Print Invoice</title>
                                 ${headContent}
                                 <style>
+                                    @page {
+                                        size: A5 portrait;
+                                        margin: 0;
+                                    }
+
                                     @media print {
                                         body {
                                             margin: 0;
                                             padding: 0;
-                                            width: 210mm;
-                                            height: 302.5mm;
+                                            width: 148mm;
+                                            height: 210mm;
+                                        }
+
+                                        #preview-container,
+                                        #preview,
+                                        .preview-container,
+                                        .preview {
+                                            width: 148mm !important;
+                                            height: 210mm !important;
+                                            max-width: 148mm !important;
+                                            max-height: 210mm !important;
                                         }
 
                                         .preview-container, .preview-container * {
@@ -1457,6 +1511,7 @@
                         printDocument
                             .querySelectorAll(".footer")
                             .forEach((p) => p.classList.remove("mb-4"));
+                        compactInvoicePrintHeaders(printDocument);
 
                         let orderCopy = printDocument.querySelector(
                             "#preview-container .invoice-copy"

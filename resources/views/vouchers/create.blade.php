@@ -167,6 +167,7 @@
             voucherType: @json($voucherType),
             csrfToken: @json(csrf_token()),
             lastVoucher: @json($last_voucher),
+            nextVoucherNo: @json($nextVoucherNo ?? $last_voucher?->voucher_no ?? null),
             companyData: @json($client_company),
             branchBranding: @json($branchBranding ?? null),
             companyLogoUrl: @json(asset('images/' . $client_company->logo)),

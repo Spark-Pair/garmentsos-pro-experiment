@@ -1,4 +1,14 @@
 function createModal(data, animate = 'animate') {
+    const invoiceDetailLine = (orderedArticle, article) => {
+        const description = String(orderedArticle?.description ?? '').trim();
+        const fabricType = String(article?.fabric_type ?? '').trim();
+        const parts = [description, fabricType].filter((part, index, list) => (
+            part && list.findIndex(item => item.toLowerCase() === part.toLowerCase()) === index
+        ));
+
+        return parts.join(' | ');
+    };
+
     const statusColor = {
         active: ['[var(--bg-success)]', '[var(--h-bg-success)]', '[var(--border-success)]'],
         transparent: ['transparent', 'transparent', 'transparent'],
@@ -603,11 +613,18 @@ function createModal(data, animate = 'animate') {
             let rowSerial = 1;
 
             articlePages.forEach((articlesChunk, pageIndex) => {
-                invoiceTableHeader = `
+                invoiceTableHeader = data.preview.type == 'invoice' ? `
+                    <div class="th text-sm font-medium ">S.No</div>
+                    <div class="th text-sm font-medium ">Article</div>
+                    <div class="th text-sm font-medium ">Unit</div>
+                    <div class="th text-sm font-medium ">Packets</div>
+                    <div class="th text-sm font-medium ">Pcs.</div>
+                    <div class="th text-sm font-medium ">Rate/Pc.</div>
+                    <div class="th text-sm font-medium ">Amount</div>
+                ` : `
                     <div class="th text-sm font-medium ">S.No</div>
                     <div class="th text-sm font-medium ">Article</div>
                     <div class="th text-sm font-medium col-span-2">Description</div>
-                    ${data.preview.type == 'invoice' ? '<div class="th text-sm font-medium ">Unit</div>' : ''}
                     <div class="th text-sm font-medium ">Packets</div>
                     <div class="th text-sm font-medium ">Pcs.</div>
                     <div class="th text-sm font-medium ">Rate/Pc.</div>
@@ -636,6 +653,26 @@ function createModal(data, animate = 'animate') {
                             totalAmount += total;
                             totalPcs += qty;
                             totalPackets += article?.pcs_per_packet ? Math.floor(qty / article.pcs_per_packet) : 0;
+
+                            if (data.preview.type == 'invoice') {
+                                const detailLine = invoiceDetailLine(orderedArticle, article);
+
+                                return `
+                                    <div class="invoice-item-row">
+                                        <hr class="w-full ${hrClass} border-black">
+                                        <div class="tr invoice-item-main grid grid-cols-7 justify-between w-full px-4 gap-0.5">
+                                            <div class="td text-sm font-semibold truncate">${rowSerial++}.</div>
+                                            <div class="td text-sm font-semibold truncate">${article.article_no}</div>
+                                            <div class="td text-sm font-semibold truncate">${article?.pcs_per_packet}</div>
+                                            <div class="td text-sm font-semibold truncate">${article?.pcs_per_packet ? Math.floor(qty / article.pcs_per_packet) : 0}</div>
+                                            <div class="td text-sm font-semibold truncate">${qty}</div>
+                                            <div class="td text-sm font-semibold truncate">${formatNumbersWithDigits(salesRate, 1, 1)}</div>
+                                            <div class="td text-sm font-semibold truncate">${formatNumbersWithDigits(total, 1, 1)}</div>
+                                        </div>
+                                        ${detailLine ? `<div class="invoice-item-desc"><span>Details</span>${detailLine}</div>` : ''}
+                                    </div>
+                                `;
+                            }
 
                             return `
                                 <div>
@@ -672,7 +709,7 @@ function createModal(data, animate = 'animate') {
                             <div class="w-1/4 text-right grow">${formatNumbersWithDigits(totalAmount, 1, 1)}</div>
                         </div>
                         <div class="total flex justify-between items-center border border-black rounded-lg py-1.5 px-4 w-full">
-                            <div class="text-nowrap">Discount - %${discount}</div>
+                            <div class="text-nowrap">Discount - ${discount}%</div>
                             <div class="w-1/4 text-right grow">${formatNumbersWithDigits(discountAmount, 1, 1)}</div>
                         </div>
                         <div class="total flex justify-between items-center border border-black rounded-lg py-1.5 px-4 w-full">
@@ -699,8 +736,11 @@ function createModal(data, animate = 'animate') {
     function renderPreviewPage(data, previewData, cottonCount, invoiceTableHeader, invoiceTableBody, invoiceBottom, pageIndex) {
         const previewCompany = previewData?.branch_branding || companyData;
         const previewLogoUrl = previewCompany.logo_url || (previewCompany.logo ? `${companyLogoBase}images/${previewCompany.logo}` : '');
+        const isCompactDocument = data.preview.size == "A5" || data.preview.type == "order" || data.preview.type == "invoice";
+        const pageSizeClass = isCompactDocument ? "w-[148mm] h-[210mm]" : "w-[208mm] h-[302mm]";
+        const pageTextClass = isCompactDocument ? `gos-a5-document ${data.preview.type == "invoice" ? "gos-a5-invoice" : ""}` : "";
         return `
-            <div id="preview" class="preview ${data.preview.size == "A5" ? "w-[145mm] h-[210mm]" : "w-[208mm] h-[302mm]"} overflow-hidden flex flex-col">
+            <div id="preview" class="preview ${pageSizeClass} ${pageTextClass} overflow-hidden flex flex-col">
                 <div class="flex flex-col h-full">
                     <div id="banner" class="banner w-full flex justify-between items-center px-5">
                         <div class="left">
@@ -709,7 +749,7 @@ function createModal(data, animate = 'animate') {
                                 <div class="flex items-center gap-3">
                                     ${previewLogoUrl ? `
                                         <div class="h-[3.50rem] w-[13.5rem] flex items-center justify-center gap-2.5">
-                                            <img 
+                                            <img
                                                 src="${previewLogoUrl}"
                                                 alt="garmentsos-pro"
                                                 class="max-h-full max-w-full object-contain"
@@ -773,7 +813,7 @@ function createModal(data, animate = 'animate') {
                             <div class="table w-full">
                                 <div class="table w-full border border-black rounded-lg pb-2.5 overflow-hidden">
                                     <div class="thead w-full">
-                                        <div class="tr ${data.preview.type == 'voucher' || data.preview.type == 'cargo_list' ? 'flex justify-between' : 'grid'} ${data.preview.type == 'shipment' ? 'grid-cols-8' : 'grid-cols-9'} w-full px-4 py-1.5 bg-[var(--primary-color)] text-white">
+                                        <div class="tr ${data.preview.type == 'voucher' || data.preview.type == 'cargo_list' ? 'flex justify-between' : 'grid'} ${data.preview.type == 'invoice' ? 'grid-cols-7' : data.preview.type == 'shipment' ? 'grid-cols-8' : 'grid-cols-9'} w-full px-4 py-1.5 bg-[var(--primary-color)] text-white">
                                             ${invoiceTableHeader}
                                         </div>
                                     </div>

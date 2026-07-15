@@ -59,13 +59,8 @@
                 </div>
                 <div class="final flex justify-between items-center bg-[var(--h-bg-color)] border border-gray-600 rounded-lg py-2 px-4 w-full">
                     <label for="discount" class="grow">Discount - %</label>
-                    @if($isCustomerPortalOrder)
-                        <input type="hidden" name="discount" id="discount" value="10" />
-                        <div class="text-right w-1/2 select-none">10</div>
-                    @else
-                        <input type="text" name="discount" id="discount" value="10" min="0" max="100"
-                            class="text-right bg-transparent outline-none w-1/2 border-none" />
-                    @endif
+                    <input type="number" name="discount" id="discount" value="{{ old('discount', $defaultOrderDiscount ?? 0) }}" min="0" max="100" step="1"
+                        class="text-right bg-transparent outline-none w-1/2 border-none" />
                 </div>
                 <div class="final flex justify-between items-center border border-gray-600 rounded-lg py-2 px-4 w-full">
                     <div class="grow">Net Amount - Rs.</div>
@@ -78,8 +73,8 @@
 
         <!-- Step 2: view order -->
         <div class="step2 hidden space-y-4 text-black h-[35rem] overflow-y-auto my-scrollbar-2 bg-white rounded-md py-10">
-            <div id="preview-container" class="w-[208mm] h-[300mm] mx-auto overflow-hidden relative ">
-                <div id="preview" class="preview w-[208mm] h-[300mm] overflow-hidden flex flex-col">
+            <div id="preview-container" class="w-[148mm] h-[210mm] mx-auto overflow-hidden relative ">
+                <div id="preview" class="preview w-[148mm] h-[210mm] gos-a5-document overflow-hidden flex flex-col">
                     <h1 class="text-[var(--border-error)] font-medium text-center mt-5">No Preview avalaible.</h1>
                 </div>
             </div>
@@ -94,6 +89,8 @@
 <script>
         window.__ordersGenerate = {
             lastOrder: @json($last_order),
+            nextOrderNo: @json($nextOrderNo ?? $last_order?->order_no ?? null),
+            defaultOrderDiscountPercent: @json($defaultOrderDiscount ?? 0),
             companyData: @json($branchBranding ?? $client_company),
             ordersCreateUrl: '{{ route("orders.create") }}',
             companyLogoBase: '{{ asset("images") }}',

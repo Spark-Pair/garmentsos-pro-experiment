@@ -1623,6 +1623,21 @@ class ModuleBranchService
         return $this->shouldFilterRecords($moduleKey) ? $this->selectedBranch($moduleKey)?->id : null;
     }
 
+    public function getDefaultOrderDiscountForBranch(?int $branchId = null): int
+    {
+        $branchId ??= $this->selectedBranchIdForModule('orders') ?? $this->mainBranch()?->id;
+        $setting = $branchId ? $this->branchSetting('orders', $branchId) : null;
+        $metadata = is_array($setting?->metadata) ? $setting->metadata : [];
+
+        if (!array_key_exists('default_order_discount_percent', $metadata)) {
+            return 0;
+        }
+
+        $discount = (int) $metadata['default_order_discount_percent'];
+
+        return max(0, min(100, $discount));
+    }
+
     public function assignBranchOnCreate(object|array $modelOrData, string $moduleKey, string $branchColumn = 'branch_id'): object|array
     {
         $branchId = $this->branchIdForCreate($moduleKey);

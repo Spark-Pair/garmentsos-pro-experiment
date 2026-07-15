@@ -463,6 +463,405 @@
             text-overflow: clip !important;
             white-space: nowrap !important;
         }
+
+        .gos-a5-document {
+            box-sizing: border-box;
+            padding: 8mm;
+            font-size: 11.2px;
+            line-height: 1.24;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        .gos-a5-document hr {
+            margin-top: 6px !important;
+            margin-bottom: 6px !important;
+        }
+
+        .gos-a5-document #banner,
+        .gos-a5-document .banner,
+        .gos-a5-document #header,
+        .gos-a5-document .header {
+            padding-left: 14px !important;
+            padding-right: 14px !important;
+        }
+
+        .gos-a5-document #banner,
+        .gos-a5-document .banner {
+            align-items: center !important;
+        }
+
+        .gos-a5-document .logo img {
+            max-height: 36px !important;
+            width: auto !important;
+        }
+
+        .gos-a5-document .logo .h-\[3\.50rem\] {
+            height: 40px !important;
+            width: 152px !important;
+        }
+
+        .gos-a5-document .logo .mt-2 {
+            margin-top: 4px !important;
+        }
+
+        .gos-a5-document .text-2xl {
+            font-size: 20.5px !important;
+            line-height: 1.12 !important;
+        }
+
+        .gos-a5-document .text-lg {
+            font-size: 14.5px !important;
+            line-height: 1.15 !important;
+        }
+
+        .gos-a5-document .text-sm {
+            font-size: 11.1px !important;
+            line-height: 1.2 !important;
+        }
+
+        .gos-a5-document .customer {
+            font-size: 14.7px !important;
+            line-height: 1.15 !important;
+        }
+
+        .gos-a5-document .right,
+        .gos-a5-document .date,
+        .gos-a5-document .number,
+        .gos-a5-document .preview-copy,
+        .gos-a5-document .copy,
+        .gos-a5-document .person,
+        .gos-a5-document .address,
+        .gos-a5-document .phone {
+            font-size: 11.6px !important;
+            line-height: 1.22 !important;
+        }
+
+        .gos-a5-document .right.space-y-1\.5 > :not([hidden]) ~ :not([hidden]),
+        .gos-a5-document .left.space-y-1 > :not([hidden]) ~ :not([hidden]) {
+            margin-top: 2px !important;
+        }
+
+        .gos-a5-document .body {
+            padding-left: 14px !important;
+            padding-right: 14px !important;
+        }
+
+        .gos-a5-document .grid-cols-9 {
+            grid-template-columns:
+                minmax(28px, 0.55fr)
+                minmax(56px, 1.05fr)
+                minmax(0, 1.3fr)
+                minmax(0, 1.7fr)
+                minmax(30px, 0.65fr)
+                minmax(42px, 0.78fr)
+                minmax(34px, 0.64fr)
+                minmax(54px, 1fr)
+                minmax(64px, 1.18fr) !important;
+        }
+
+        .gos-a5-document .grid-cols-8 {
+            grid-template-columns:
+                minmax(28px, 0.55fr)
+                minmax(56px, 1.05fr)
+                minmax(0, 1.4fr)
+                minmax(0, 1.7fr)
+                minmax(42px, 0.8fr)
+                minmax(34px, 0.65fr)
+                minmax(58px, 1.05fr)
+                minmax(66px, 1.2fr) !important;
+        }
+
+        .gos-a5-document .th,
+        .gos-a5-document .td {
+            min-width: 0;
+            align-items: center;
+            display: flex;
+            overflow: hidden !important;
+            justify-content: center;
+            text-align: center;
+            font-size: 10.8px !important;
+            line-height: 1.22 !important;
+        }
+
+        .gos-a5-document .thead .th:nth-child(3),
+        .gos-a5-document .tbody .td:nth-child(3) {
+            justify-content: flex-start;
+            text-align: left;
+        }
+
+        .gos-a5-document .thead .th:last-child,
+        .gos-a5-document .tbody .td:last-child,
+        .gos-a5-document .thead .th:nth-last-child(2),
+        .gos-a5-document .tbody .td:nth-last-child(2) {
+            justify-content: flex-end;
+            text-align: right;
+        }
+
+        .gos-a5-document .thead .tr {
+            column-gap: 3px;
+            min-height: 25px;
+            padding: 4px 9px !important;
+        }
+
+        .gos-a5-document .tbody .tr {
+            column-gap: 3px;
+            min-height: 28px;
+            padding: 4px 9px !important;
+        }
+
+        .gos-a5-document .tbody hr {
+            margin-top: 0 !important;
+            margin-bottom: 0 !important;
+        }
+
+        .gos-a5-document .table.border {
+            padding-bottom: 0 !important;
+            border-radius: 6px !important;
+        }
+
+        .gos-a5-document > .flex > .grid.grid-cols-2 {
+            gap: 7px !important;
+            padding-left: 14px !important;
+            padding-right: 14px !important;
+        }
+
+        .gos-a5-document .total {
+            min-height: 25px;
+            border-radius: 5px !important;
+            font-size: 11px !important;
+            line-height: 1.2 !important;
+            padding: 5px 10px !important;
+        }
+
+        .gos-a5-document .total > div:first-child {
+            min-width: 0;
+            overflow: hidden;
+            padding-right: 8px;
+            text-overflow: ellipsis;
+        }
+
+        .gos-a5-document .total > div:last-child {
+            min-width: 70px;
+            text-align: right;
+        }
+
+        .gos-a5-document .footer,
+        .gos-a5-document .tfooter {
+            padding-left: 14px !important;
+            padding-right: 14px !important;
+            font-size: 10px !important;
+            line-height: 1.2 !important;
+        }
+
+        .gos-a5-document.gos-a5-invoice {
+            --gos-invoice-border: #4b5563;
+            --gos-invoice-detail-bg: #f8fafc;
+            box-sizing: border-box;
+            padding: 4.25mm;
+            font-size: 11px;
+            line-height: 1.28;
+        }
+
+        .gos-a5-invoice hr {
+            border-color: var(--gos-invoice-border) !important;
+            border-top-width: 1px !important;
+            margin-top: 5px !important;
+            margin-bottom: 5px !important;
+        }
+
+        .gos-a5-invoice #banner,
+        .gos-a5-invoice .banner,
+        .gos-a5-invoice #header,
+        .gos-a5-invoice .header,
+        .gos-a5-invoice .body,
+        .gos-a5-invoice > .flex > .grid.grid-cols-2,
+        .gos-a5-invoice .footer,
+        .gos-a5-invoice .tfooter {
+            padding-left: 8px !important;
+            padding-right: 8px !important;
+        }
+
+        .gos-a5-invoice .logo img {
+            max-height: 40px !important;
+        }
+
+        .gos-a5-invoice .logo .h-\[3\.50rem\] {
+            height: 44px !important;
+            width: 166px !important;
+        }
+
+        .gos-a5-invoice .text-2xl {
+            font-size: 19px !important;
+            line-height: 1.12 !important;
+        }
+
+        .gos-a5-invoice .customer {
+            font-size: 14px !important;
+            font-weight: 700 !important;
+            line-height: 1.18 !important;
+        }
+
+        .gos-a5-invoice .right,
+        .gos-a5-invoice .date,
+        .gos-a5-invoice .number,
+        .gos-a5-invoice .preview-copy,
+        .gos-a5-invoice .copy,
+        .gos-a5-invoice .person,
+        .gos-a5-invoice .address,
+        .gos-a5-invoice .phone {
+            font-size: 11px !important;
+            line-height: 1.28 !important;
+        }
+
+        .gos-a5-invoice .grid-cols-9 {
+            grid-template-columns:
+                minmax(24px, 0.45fr)
+                minmax(48px, 0.9fr)
+                minmax(0, 1.35fr)
+                minmax(0, 1.55fr)
+                minmax(26px, 0.5fr)
+                minmax(34px, 0.62fr)
+                minmax(28px, 0.48fr)
+                minmax(48px, 0.85fr)
+                minmax(58px, 1fr) !important;
+        }
+
+        .gos-a5-invoice .grid-cols-7 {
+            grid-template-columns:
+                minmax(24px, 0.6fr)
+                minmax(0, 3.1fr)
+                minmax(30px, 0.72fr)
+                minmax(34px, 0.78fr)
+                minmax(30px, 0.72fr)
+                minmax(52px, 1.45fr)
+                minmax(66px, 1.75fr) !important;
+        }
+
+        .gos-a5-invoice .table.border,
+        .gos-a5-invoice .total,
+        .gos-a5-invoice .invoice-item-desc {
+            border-color: var(--gos-invoice-border) !important;
+            border-width: 1px !important;
+        }
+
+        .gos-a5-invoice .thead .tr {
+            column-gap: 2px;
+            min-height: 25px;
+            padding: 5px 8px !important;
+            border-bottom: 1px solid var(--gos-invoice-border);
+        }
+
+        .gos-a5-invoice .tbody .tr {
+            column-gap: 2px;
+            min-height: 26px;
+            padding: 5px 8px 1px !important;
+        }
+
+        .gos-a5-invoice .th,
+        .gos-a5-invoice .td {
+            font-size: 10.9px !important;
+            line-height: 1.25 !important;
+        }
+
+        .gos-a5-invoice .th {
+            font-size: 10.4px !important;
+            font-weight: 600 !important;
+        }
+
+        .gos-a5-invoice .grid-cols-7 .th:nth-child(2),
+        .gos-a5-invoice .grid-cols-7 .td:nth-child(2) {
+            justify-content: flex-start;
+            text-align: left;
+        }
+
+        .gos-a5-invoice .grid-cols-7 .td:nth-child(2),
+        .gos-a5-invoice .grid-cols-7 .td:nth-child(5),
+        .gos-a5-invoice .grid-cols-7 .td:nth-child(6),
+        .gos-a5-invoice .grid-cols-7 .td:nth-child(7) {
+            font-weight: 600 !important;
+        }
+
+        .gos-a5-invoice .grid-cols-7 .th:nth-child(3),
+        .gos-a5-invoice .grid-cols-7 .td:nth-child(3) {
+            justify-content: center;
+            text-align: center;
+        }
+
+        .gos-a5-invoice .grid-cols-7 .th:nth-last-child(-n + 2),
+        .gos-a5-invoice .grid-cols-7 .td:nth-last-child(-n + 2) {
+            justify-content: flex-end;
+            text-align: right;
+        }
+
+        .gos-a5-invoice .tbody hr {
+            display: none;
+        }
+
+        .gos-a5-invoice .invoice-item-row {
+            border-top: 1px solid var(--gos-invoice-border);
+        }
+
+        .gos-a5-invoice .invoice-item-row:first-child {
+            border-top: 0;
+        }
+
+        .gos-a5-invoice .invoice-item-main .td:nth-child(2) {
+            white-space: normal !important;
+            overflow-wrap: anywhere;
+            word-break: normal;
+        }
+
+        .gos-a5-invoice .invoice-item-desc {
+            background: var(--gos-invoice-detail-bg);
+            border-left-style: solid;
+            border-right-style: solid;
+            border-top-style: solid;
+            border-bottom-style: solid;
+            border-radius: 3px;
+            color: #111827;
+            font-size: 10.5px;
+            font-weight: 500;
+            line-height: 1.3;
+            margin: 1px 8px 6px 42px;
+            overflow-wrap: anywhere;
+            padding: 3px 7px;
+            text-align: left;
+            white-space: normal;
+            word-break: normal;
+        }
+
+        .gos-a5-invoice .invoice-item-desc span {
+            color: #374151;
+            display: inline-block;
+            font-size: 9px;
+            font-weight: 700;
+            letter-spacing: 0;
+            margin-right: 6px;
+            text-transform: uppercase;
+        }
+
+        .gos-a5-invoice .total {
+            min-height: 26px;
+            font-size: 11px !important;
+            padding: 5px 10px !important;
+        }
+
+        .gos-a5-invoice .total > div:last-child {
+            font-weight: 600;
+        }
+
+        .gos-a5-invoice .total:last-child {
+            font-weight: 700;
+        }
+
+        .gos-a5-invoice .total:last-child > div:last-child {
+            font-weight: 700;
+        }
+
+        .gos-a5-invoice > .flex > .grid.grid-cols-2 {
+            gap: 6px !important;
+        }
     </style>
 
     @vite('resources/css/app.css')

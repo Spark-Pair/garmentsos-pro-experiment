@@ -5,6 +5,16 @@
 
     const invoiceContainer = document.getElementById('invoice-container');
 
+    function invoiceDetailLine(orderedArticle, article) {
+        const description = String(orderedArticle?.description ?? '').trim();
+        const fabricType = String(article?.fabric_type ?? '').trim();
+        const parts = [description, fabricType].filter((part, index, list) => (
+            part && list.findIndex(item => item.toLowerCase() === part.toLowerCase()) === index
+        ));
+
+        return parts.join(' | ');
+    }
+
     function renderInvoices() {
         if (!invoiceContainer) return;
         invoiceContainer.classList.remove('hidden');
@@ -96,14 +106,13 @@
         let totalPackets = 0;
 
         const invoiceTableHeader = `
-            <div class="th text-sm font-medium">S.No</div>
+            <div class="th text-sm font-medium">S.#</div>
             <div class="th text-sm font-medium">Article</div>
-            <div class="th text-sm font-medium col-span-2">Description</div>
             <div class="th text-sm font-medium">Unit</div>
-            <div class="th text-sm font-medium">Packets</div>
+            <div class="th text-sm font-medium">Pkts</div>
             <div class="th text-sm font-medium">Pcs.</div>
-            <div class="th text-sm font-medium">Rate/Pc.</div>
-            <div class="th text-sm font-medium">Amount</div>
+            <div class="th text-sm font-medium">Rate</div>
+            <div class="th text-sm font-medium">Amt.</div>
         `;
 
         const invoiceTableBody = `
@@ -117,22 +126,23 @@
                 totalAmount += total;
                 totalPcs += qty;
                 totalPackets += article?.pcs_per_packet ? Math.floor(qty / article.pcs_per_packet) : 0;
+                const detailLine = invoiceDetailLine(orderedArticle, article);
 
-                return `
-                    <div>
-                        <hr class="w-full ${hrClass} border-black">
-                        <div class="tr grid grid-cols-9 justify-between w-full px-4 gap-0.5">
-                            <div class="td text-sm font-semibold truncate">${index + 1}.</div>
-                            <div class="td text-sm font-semibold truncate">${article.article_no ?? ''}</div>
-                            <div class="td text-sm font-semibold col-span-2 truncate capitalize">${orderedArticle.description ?? ''}</div>
-                            <div class="td text-sm font-semibold truncate">${article?.pcs_per_packet ?? 0}</div>
-                            <div class="td text-sm font-semibold truncate">${article?.pcs_per_packet ? Math.floor(qty / article.pcs_per_packet) : 0}</div>
-                            <div class="td text-sm font-semibold truncate">${qty}</div>
-                            <div class="td text-sm font-semibold truncate">${formatNumbersWithDigits(salesRate, 1, 1)}</div>
-                            <div class="td text-sm font-semibold truncate">${formatNumbersWithDigits(total, 1, 1)}</div>
-                        </div>
+            return `
+                <div class="invoice-item-row">
+                    <hr class="w-full ${hrClass} border-black">
+                    <div class="tr invoice-item-main grid grid-cols-7 justify-between w-full px-4 gap-0.5">
+                        <div class="td text-sm font-semibold truncate">${index + 1}.</div>
+                        <div class="td text-sm font-semibold truncate">${article.article_no ?? ''}</div>
+                        <div class="td text-sm font-semibold truncate">${article?.pcs_per_packet ?? 0}</div>
+                        <div class="td text-sm font-semibold truncate">${article?.pcs_per_packet ? Math.floor(qty / article.pcs_per_packet) : 0}</div>
+                        <div class="td text-sm font-semibold truncate">${qty}</div>
+                        <div class="td text-sm font-semibold truncate">${formatNumbersWithDigits(salesRate, 1, 1)}</div>
+                        <div class="td text-sm font-semibold truncate">${formatNumbersWithDigits(total, 1, 1)}</div>
                     </div>
-                `;
+                    ${detailLine ? `<div class="invoice-item-desc"><span>Details</span>${detailLine}</div>` : ''}
+                </div>
+            `;
             }).join('')}
         `;
 
@@ -149,7 +159,7 @@
                 <div class="w-1/4 text-right grow">${formatNumbersWithDigits(totalAmount, 1, 1)}</div>
             </div>
             <div class="total flex justify-between items-center border border-black rounded-lg py-1.5 px-4 w-full">
-                <div class="text-nowrap">Discount - %${discountVal}</div>
+                <div class="text-nowrap">Discount - ${discountVal}%</div>
                 <div class="w-1/4 text-right grow">${formatNumbersWithDigits(discountAmount, 1, 1)}</div>
             </div>
             <div class="total flex justify-between items-center border border-black rounded-lg py-1.5 px-4 w-full">
@@ -159,8 +169,8 @@
         `;
 
         return `
-            <div class="preview-container w-[208mm] h-[302mm] mx-auto overflow-hidden relative">
-                <div id="preview" class="preview w-[208mm] h-[302mm] overflow-hidden flex flex-col">
+            <div class="preview-container w-[148mm] h-[210mm] mx-auto overflow-hidden relative">
+                <div id="preview" class="preview w-[148mm] h-[210mm] gos-a5-document gos-a5-invoice overflow-hidden flex flex-col">
                     <div class="flex flex-col h-full">
                         <div id="banner" class="banner w-full flex justify-between items-center px-5">
                             <div class="left">
@@ -213,7 +223,7 @@
                             <div class="table w-full">
                                 <div class="table w-full border border-black rounded-lg pb-2.5 overflow-hidden">
                                     <div class="thead w-full">
-                                        <div class="tr grid grid-cols-9 w-full px-4 py-1.5 bg-[var(--primary-color)] text-white">
+                                <div class="tr grid grid-cols-7 w-full px-4 py-1.5 bg-[var(--primary-color)] text-white">
                                             ${invoiceTableHeader}
                                         </div>
                                     </div>
@@ -265,12 +275,24 @@
                     <title>Print Invoice</title>
                     ${headContent}
                     <style>
+                        @page {
+                            size: A5 portrait;
+                            margin: 0;
+                        }
+
                         @media print {
                             body {
                                 margin: 0;
                                 padding: 0;
-                                width: 210mm;
-                                height: 302.5mm;
+                                width: 148mm;
+                                height: 210mm;
+                            }
+                            .preview-container,
+                            .preview {
+                                width: 148mm !important;
+                                height: 210mm !important;
+                                max-width: 148mm !important;
+                                max-height: 210mm !important;
                             }
                             .preview-container, .preview-container * {
                                 page-break-inside: avoid;

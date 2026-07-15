@@ -192,17 +192,21 @@ class OrderController extends Controller
             $last_order = new Order();
             $last_order->order_no = app(BranchSerialService::class)->next('orders', Order::class, 'order_no');
         }
+        $nextOrderNo = app(BranchSerialService::class)->next('orders', Order::class, 'order_no');
+        $defaultOrderDiscount = $branches->getDefaultOrderDiscountForBranch($branches->selectedBranchIdForModule('orders'));
 
         if ($request->ajax()) {
             return response()->json([
                 'status' => 'success',
                 'articles' => $articles,
                 'customers_options' => array_values($customers_options),
+                'default_order_discount_percent' => $defaultOrderDiscount,
+                'next_order_no' => $nextOrderNo,
             ]);
         }
 
         $branchBranding = app(ModuleBranchService::class)->documentBranding('orders');
-        return view('orders.generate', compact('last_order', 'branchBranding'));
+        return view('orders.generate', compact('last_order', 'branchBranding', 'defaultOrderDiscount', 'nextOrderNo'));
         // return $articles;
     }
 
@@ -221,13 +225,12 @@ class OrderController extends Controller
                 return redirect()->back()->with('error', 'Customer account not linked with this user.');
             }
             $request->merge(['customer_id' => $customer->id]);
-            $request->merge(['discount' => 10]);
         }
 
         $validator = Validator::make($request->all(), [
             'date' => 'required|date',
             'customer_id' => 'required|integer|exists:customers,id',
-            'discount' => 'required|integer',
+            'discount' => 'required|integer|min:0|max:100',
             'netAmount' => 'required|string',
             'articles' => 'required|json',
             'order_no' => 'required|string',
@@ -239,7 +242,7 @@ class OrderController extends Controller
 
         $createdOrder = DB::transaction(function () use ($request) {
             $articles = json_decode($request->articles, true) ?? [];
-            $discount = $this->isCustomerRole() ? 10 : (int) $request->discount;
+            $discount = max(0, min(100, (int) $request->discount));
             $this->validateOrderArticleStock($articles);
 
             $branches = app(ModuleBranchService::class);
@@ -412,7 +415,7 @@ class OrderController extends Controller
         app(ModuleBranchService::class)->assertRecordInAllowedBranch($order, 'orders');
 
         $validator = Validator::make($request->all(), [
-            'discount'   => 'required|integer|min:0',
+            'discount'   => 'required|integer|min:0|max:100',
             'netAmount'  => 'required|string',
             'articles'   => 'required',
         ]);

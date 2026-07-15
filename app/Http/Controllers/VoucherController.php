@@ -216,6 +216,7 @@ class VoucherController extends Controller
         if (app(ModuleBranchService::class)->shouldFilterRecords('vouchers')) {
             $last_voucher = (object) ['voucher_no' => app(BranchSerialService::class)->next('vouchers', Voucher::class, 'voucher_no', 'V')];
         }
+        $nextVoucherNo = app(BranchSerialService::class)->next('vouchers', Voucher::class, 'voucher_no', 'V');
 
         // --- Self Accounts (needed for Self Cheque / ATM even in supplier vouchers) ---
         $self_accounts = app(ModuleBranchService::class)->applyRelatedScope(BankAccount::where('category', 'self'), 'bank_accounts', 'vouchers')
@@ -255,10 +256,10 @@ class VoucherController extends Controller
             })->toArray();
 
             $branchBranding = app(ModuleBranchService::class)->documentBranding('vouchers');
-            return view("vouchers.create", compact("suppliers_options", 'self_accounts_options', 'last_voucher', 'branchBranding'));
+            return view("vouchers.create", compact("suppliers_options", 'self_accounts_options', 'last_voucher', 'branchBranding', 'nextVoucherNo'));
         } else {
             $branchBranding = app(ModuleBranchService::class)->documentBranding('vouchers');
-            return view("vouchers.create", compact("self_accounts_options", 'last_voucher', 'branchBranding'));
+            return view("vouchers.create", compact("self_accounts_options", 'last_voucher', 'branchBranding', 'nextVoucherNo'));
         }
     }
 

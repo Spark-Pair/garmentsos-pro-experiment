@@ -1,0 +1,436 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>A5 Sales Invoice</title>
+    <style>
+        @page {
+            size: A5 portrait;
+            margin: 6mm 8mm;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        :root {
+            --ink: #1f2937;
+            --muted: #64748b;
+            --line: #e2e8f0;
+            --line-strong: #cbd5e1;
+            --head: #475569;
+            --soft: #f8fafc;
+            --accent: #334155;
+        }
+
+        html,
+        body {
+            margin: 0;
+            min-height: 100%;
+            font-family: Arial, Helvetica, sans-serif;
+            color: var(--ink);
+            background: #e5e7eb;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        body {
+            padding: 14px;
+        }
+
+        .invoice-page {
+            position: relative;
+            width: 132mm;
+            min-height: 198mm;
+            margin: 0 auto;
+            padding: 0 0 15mm;
+            background: #fff;
+            font-size: 10px;
+            line-height: 1.28;
+            overflow: hidden;
+        }
+
+        .top-grid {
+            display: grid;
+            grid-template-columns: 1fr 1.15fr;
+            gap: 7mm;
+            padding-bottom: 4mm;
+            border-bottom: 1px solid var(--line-strong);
+        }
+
+        .brand-mark {
+            display: flex;
+            align-items: flex-end;
+            gap: 6px;
+            margin-bottom: 3mm;
+            color: var(--accent);
+        }
+
+        .brand-monogram {
+            font-size: 26px;
+            font-weight: 800;
+            line-height: 0.82;
+            letter-spacing: -1px;
+        }
+
+        .brand-name {
+            font-size: 12px;
+            font-weight: 800;
+            line-height: 1.05;
+        }
+
+        .brand-sub {
+            display: inline-block;
+            margin-bottom: 2px;
+            padding: 1px 6px;
+            border-radius: 2px;
+            color: #fff;
+            background: var(--head);
+            font-size: 9px;
+            font-weight: 600;
+            line-height: 1.25;
+        }
+
+        .contacts {
+            color: var(--muted);
+            font-size: 9.5px;
+        }
+
+        .invoice-meta {
+            display: grid;
+            grid-template-columns: 0.78fr 1fr;
+            gap: 4mm;
+            align-items: start;
+        }
+
+        .title-block {
+            grid-column: 1 / -1;
+            text-align: right;
+            margin-bottom: 1mm;
+        }
+
+        .title {
+            color: var(--accent);
+            font-size: 12px;
+            font-weight: 800;
+            line-height: 1.1;
+            text-transform: uppercase;
+        }
+
+        .order-no {
+            margin-top: 2px;
+            color: var(--muted);
+            font-size: 9px;
+            font-weight: 600;
+        }
+
+        .meta-panel {
+            min-width: 0;
+        }
+
+        .panel-title {
+            margin-bottom: 2px;
+            color: var(--head);
+            font-size: 9px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0;
+        }
+
+        .bill-name {
+            font-size: 11px;
+            font-weight: 800;
+            line-height: 1.18;
+        }
+
+        .meta-line {
+            display: flex;
+            justify-content: space-between;
+            gap: 7px;
+            padding: 1px 0;
+            color: var(--ink);
+            font-size: 9.5px;
+            line-height: 1.25;
+        }
+
+        .meta-label {
+            color: var(--muted);
+            white-space: nowrap;
+        }
+
+        .meta-value {
+            font-weight: 700;
+            text-align: right;
+        }
+
+        .items {
+            width: 100%;
+            margin-top: 4mm;
+            border-collapse: collapse;
+            table-layout: fixed;
+        }
+
+        .items col:nth-child(1) { width: 9%; }
+        .items col:nth-child(2) { width: 39%; }
+        .items col:nth-child(3) { width: 9%; }
+        .items col:nth-child(4) { width: 10%; }
+        .items col:nth-child(5) { width: 9%; }
+        .items col:nth-child(6) { width: 11%; }
+        .items col:nth-child(7) { width: 13%; }
+
+        .items thead th {
+            padding: 5px 5px;
+            border-top: 1px solid var(--line-strong);
+            border-bottom: 1px solid var(--line-strong);
+            color: #fff;
+            background: var(--head);
+            font-size: 9px;
+            font-weight: 800;
+            text-align: left;
+        }
+
+        .items tbody td {
+            padding: 5px 5px 6px;
+            border-bottom: 1px solid var(--line);
+            font-size: 10px;
+            font-weight: 700;
+            vertical-align: top;
+        }
+
+        .items th.num,
+        .items td.num {
+            text-align: right;
+        }
+
+        .article-code {
+            display: block;
+            color: var(--ink);
+            font-size: 10.5px;
+            font-weight: 800;
+            line-height: 1.18;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .article-detail {
+            display: block;
+            margin-top: 2px;
+            color: var(--muted);
+            font-size: 9px;
+            font-style: italic;
+            font-weight: 500;
+            line-height: 1.2;
+            white-space: normal;
+        }
+
+        .summary {
+            display: grid;
+            grid-template-columns: 0.92fr 1.08fr;
+            gap: 5mm;
+            margin-top: 5mm;
+        }
+
+        .qty-box,
+        .amount-box {
+            border-top: 1px solid var(--line-strong);
+            border-bottom: 1px solid var(--line-strong);
+            background: var(--soft);
+        }
+
+        .qty-row,
+        .amount-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            padding: 4px 6px;
+            border-bottom: 1px solid var(--line);
+            font-size: 10px;
+        }
+
+        .qty-row:last-child,
+        .amount-row:last-child {
+            border-bottom: 0;
+        }
+
+        .summary-label {
+            color: var(--muted);
+            font-weight: 700;
+        }
+
+        .summary-value {
+            color: var(--ink);
+            font-weight: 800;
+            text-align: right;
+            white-space: nowrap;
+        }
+
+        .amount-row.net {
+            background: #f1f5f9;
+            color: var(--accent);
+            font-size: 11px;
+            font-weight: 800;
+        }
+
+        .footer {
+            position: absolute;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            padding-top: 3mm;
+            border-top: 1px solid var(--line-strong);
+            color: var(--muted);
+            font-size: 9px;
+            line-height: 1.2;
+        }
+
+        @media print {
+            html,
+            body {
+                width: auto;
+                min-height: auto;
+                padding: 0;
+                background: #fff;
+            }
+
+            .invoice-page {
+                width: 100%;
+                min-height: calc(210mm - 12mm);
+                margin: 0;
+                box-shadow: none;
+            }
+        }
+
+        @media screen {
+            .invoice-page {
+                box-shadow: 0 10px 35px rgb(15 23 42 / 0.22);
+            }
+        }
+    </style>
+</head>
+<body>
+    <main class="invoice-page">
+        <header class="top-grid">
+            <section>
+                <div class="brand-mark">
+                    <div class="brand-monogram">AJG</div>
+                    <div>
+                        <div class="brand-sub">Best Boy Collection</div>
+                        <div class="brand-name">Al Jobat Garments</div>
+                    </div>
+                </div>
+                <div class="contacts">021-12345678 | 0321-98765432</div>
+            </section>
+
+            <section class="invoice-meta">
+                <div class="title-block">
+                    <div class="title">Sales Invoice</div>
+                    <div class="order-no">Order No: AJ-O-26-0749</div>
+                </div>
+
+                <div class="meta-panel">
+                    <div class="panel-title">Bill To</div>
+                    <div class="bill-name">M/S: 4 Choice Garments</div>
+                    <div>Okara</div>
+                    <div>03038671283</div>
+                </div>
+
+                <div class="meta-panel">
+                    <div class="meta-line">
+                        <span class="meta-label">Date</span>
+                        <span class="meta-value">15-Jul-2026 Wed</span>
+                    </div>
+                    <div class="meta-line">
+                        <span class="meta-label">Invoice No</span>
+                        <span class="meta-value">AJ-I-26-0448</span>
+                    </div>
+                    <div class="meta-line">
+                        <span class="meta-label">Copy</span>
+                        <span class="meta-value">Office</span>
+                    </div>
+                    <div class="meta-line">
+                        <span class="meta-label">Document</span>
+                        <span class="meta-value">Sales Invoice</span>
+                    </div>
+                </div>
+            </section>
+        </header>
+
+        <table class="items" aria-label="Invoice items">
+            <colgroup>
+                <col>
+                <col>
+                <col>
+                <col>
+                <col>
+                <col>
+                <col>
+            </colgroup>
+            <thead>
+                <tr>
+                    <th>S.#</th>
+                    <th>Article</th>
+                    <th class="num">Unit</th>
+                    <th class="num">Pkts</th>
+                    <th class="num">Pcs</th>
+                    <th class="num">Rate</th>
+                    <th class="num">Amt.</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>1.</td>
+                    <td>
+                        <span class="article-code">AJ-W2-6|2333</span>
+                        <span class="article-detail">18-20-22-24 | 1 pc inner | Winter</span>
+                    </td>
+                    <td class="num">4</td>
+                    <td class="num">10</td>
+                    <td class="num">40</td>
+                    <td class="num">350.0</td>
+                    <td class="num">14,000.0</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <section class="summary" aria-label="Invoice summary">
+            <div class="qty-box">
+                <div class="qty-row">
+                    <span class="summary-label">Total Pcs</span>
+                    <span class="summary-value">40</span>
+                </div>
+                <div class="qty-row">
+                    <span class="summary-label">Total Pkts</span>
+                    <span class="summary-value">10</span>
+                </div>
+            </div>
+
+            <div class="amount-box">
+                <div class="amount-row">
+                    <span class="summary-label">Gross Amount</span>
+                    <span class="summary-value">14,000.0</span>
+                </div>
+                <div class="amount-row">
+                    <span class="summary-label">Discount 0%</span>
+                    <span class="summary-value">0.0</span>
+                </div>
+                <div class="amount-row net">
+                    <span>Net Amount</span>
+                    <span class="summary-value">14,000.0</span>
+                </div>
+            </div>
+        </section>
+
+        <footer class="footer">
+            <span>Powered by SparkPair</span>
+            <span>© 2026 SparkPair | +92 316 5825495</span>
+        </footer>
+    </main>
+</body>
+</html>

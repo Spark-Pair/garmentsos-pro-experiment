@@ -167,6 +167,7 @@ class BranchController extends Controller
             'modules.*.branch_enabled' => ['nullable', 'boolean'],
             'modules.*.allow_user_switching' => ['nullable', 'boolean'],
             'modules.*.record_filtering_enabled' => ['nullable', 'boolean'],
+            'modules.*.default_order_discount_percent' => ['nullable', 'integer', 'min:0', 'max:100'],
             'modules.*.default_branch_id' => ['nullable', 'integer', 'exists:branches,id'],
             'modules.*.status' => ['nullable', 'in:active,inactive'],
         ]);
@@ -188,6 +189,12 @@ class BranchController extends Controller
                 && ($module['supports_record_filtering'] ?? false)
                 && ($module['has_branch_id_support'] ?? false)
             );
+            if ($moduleKey === 'orders') {
+                $metadata['default_order_discount_percent'] = max(
+                    0,
+                    min(100, (int) ($data['default_order_discount_percent'] ?? 0))
+                );
+            }
 
             BranchModuleSetting::query()->updateOrCreate(
                 ['branch_id' => $branchId, 'module_key' => $moduleKey],

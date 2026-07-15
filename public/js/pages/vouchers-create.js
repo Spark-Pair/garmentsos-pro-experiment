@@ -12,6 +12,23 @@ function initVouchersCreate() {
 
     let btnTypeGlobal = voucherType === 'supplier' ? 'supplier' : 'self_account';
 
+    function safeDocumentNumberPreview(value, fallback = 'Will be generated on save') {
+        const text = String(value ?? '').trim();
+        return text && !text.includes('NaN') ? text : fallback;
+    }
+
+    function incrementDocumentNumber(value, offset = 0, fallback = 'Will be generated on save') {
+        const text = safeDocumentNumberPreview(value, '');
+        if (!text) return fallback;
+
+        const replaced = text.replace(/(\d+)(?!.*\d)/, match => {
+            const next = Number.parseInt(match, 10) + offset;
+            return Number.isFinite(next) ? String(next).padStart(match.length, '0') : match;
+        });
+
+        return safeDocumentNumberPreview(replaced, fallback);
+    }
+
     function renderTemplate(template, values) {
         let html = template || '';
         Object.entries(values || {}).forEach(([key, value]) => {
@@ -773,9 +790,22 @@ function initVouchersCreate() {
     }
 
     function generateVoucherNo() {
+        if (config.nextVoucherNo) {
+            return safeDocumentNumberPreview(config.nextVoucherNo);
+        }
+
+        const rawVoucherNo = safeDocumentNumberPreview(lastVoucher?.voucher_no, '');
+        if (!rawVoucherNo || rawVoucherNo.includes('-')) {
+            return incrementDocumentNumber(rawVoucherNo, 1);
+        }
+
         let parts = lastVoucher.voucher_no.split('/');
         let left = parseInt(parts[0], 10);
         let right = parseInt(parts[1], 10);
+
+        if (!Number.isFinite(left) || !Number.isFinite(right)) {
+            return incrementDocumentNumber(rawVoucherNo, 1);
+        }
 
         left += 1;
         if (parseInt(parts[0], 10) === 100) {

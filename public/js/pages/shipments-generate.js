@@ -374,9 +374,8 @@
     const previewDom = document.getElementById('preview');
 
     function generateShipmentNo() {
-        const lastShipmentNo = lastShipment.shipment_no;
-        const nextShipmentNo = String(parseInt(lastShipmentNo) + 1).padStart(4, '0');
-        return nextShipmentNo;
+        const shipmentNo = String(lastShipment?.shipment_no ?? '').trim();
+        return shipmentNo && !shipmentNo.includes('NaN') ? shipmentNo : 'Will be generated on save';
     }
 
     function getShipmentDate() {

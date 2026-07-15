@@ -13,6 +13,7 @@
     const generateOrderBtn = document.getElementById('generateOrderBtn');
     const isCustomerRole = !!window.__ordersGenerate?.isCustomerRole;
     const discountInput = document.getElementById('discount');
+    let defaultDiscountTouched = false;
 
     let totalQuantityDOM;
     let totalAmountDOM;
@@ -59,13 +60,27 @@
         });
     }
 
-    if (isCustomerRole && discountInput) {
-        discountInput.value = '10';
-        discountInput.addEventListener('input', () => {
-            discountInput.value = '10';
-            calculateNetAmount();
-            renderFinals();
-        });
+    function safeDocumentNumberPreview(value, fallback = 'Will be generated on save') {
+        const text = String(value ?? '').trim();
+        return text && !text.includes('NaN') ? text : fallback;
+    }
+
+    function incrementDocumentNumber(value, offset = 0, fallback = 'Will be generated on save') {
+        const text = safeDocumentNumberPreview(value, '');
+        if (!text) return fallback;
+
+        return text.replace(/(\d+)(?!.*\d)/, match => {
+            const next = Number.parseInt(match, 10) + offset;
+            return Number.isFinite(next) ? String(next).padStart(match.length, '0') : match;
+        }) || fallback;
+    }
+
+    function applyDefaultOrderDiscount(value) {
+        if (!discountInput || defaultDiscountTouched) return;
+        const numeric = Number.parseInt(value ?? 0, 10);
+        discountInput.value = Number.isFinite(numeric) ? Math.max(0, Math.min(100, numeric)) : 0;
+        calculateNetAmount();
+        renderFinals();
     }
 
     window.generateArticlesModal = function generateArticlesModal() {
@@ -323,7 +338,7 @@
 
     function calculateNetAmount() {
         const totalAmount = totalOrderAmount;
-        let discount = parseFloat(document.getElementById('discount').value || 0);
+        let discount = parseInt(document.getElementById('discount').value || 0, 10);
         if (Number.isNaN(discount)) discount = 0;
         discount = Math.max(0, Math.min(100, discount));
         if (discountDOM) discountDOM.value = discount;
@@ -333,7 +348,10 @@
     }
 
     if (discountDOM) {
-        discountDOM.addEventListener('input', calculateNetAmount);
+        discountDOM.addEventListener('input', () => {
+            defaultDiscountTouched = true;
+            calculateNetAmount();
+        });
         discountDOM.addEventListener('focus', e => {
             e.target.select();
         });
@@ -405,12 +423,9 @@
     const previewDom = document.getElementById('preview');
 
     function generateOrderNo() {
-        const yearShort = String(new Date().getFullYear()).slice(-2);
-        const lastOrderNo = lastOrder?.order_no || `${yearShort}-0000`;
-        const lastNumber = lastOrderNo.split('-')[1];
-        const nextOrderNo = String(parseInt(lastNumber, 10) + 1).padStart(4, '0');
-
-        return `${yearShort}-${nextOrderNo}`;
+        return safeDocumentNumberPreview(
+            window.__ordersGenerate?.nextOrderNo || incrementDocumentNumber(lastOrder?.order_no, 1)
+        );
     }
 
     function getOrderDate() {
@@ -551,6 +566,10 @@
             success: function (response) {
                 populateOptions(response.customers_options);
                 articles = response.articles || [];
+                if (response.next_order_no) {
+                    window.__ordersGenerate.nextOrderNo = response.next_order_no;
+                }
+                applyDefaultOrderDiscount(response.default_order_discount_percent);
             },
             error: function () {
                 alert('Error submitting form');
@@ -607,6 +626,7 @@
     function initOrdersGenerate(data) {
         lastOrder = data?.lastOrder || null;
         companyData = data?.companyData || null;
+        applyDefaultOrderDiscount(data?.defaultOrderDiscountPercent);
         renderList();
     }
 
