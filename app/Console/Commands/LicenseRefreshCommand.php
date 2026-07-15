@@ -14,10 +14,13 @@ class LicenseRefreshCommand extends Command
     public function handle(LicenseService $licenses): int
     {
         $status = $licenses->verifyNow();
+        $diagnostics = $licenses->diagnostics();
 
         $this->table(['key', 'value'], [
             ['install_id', $licenses->installId()],
             ['machine_hash_preview', $licenses->machineHashPreview()],
+            ['previous_machine_hash_preview', $diagnostics['previous_machine_hash_preview'] ?? '-'],
+            ['fingerprint_source', $diagnostics['fingerprint_source'] ?? '-'],
             ['state', $status->state],
             ['enforcement', $status->enforcement],
             ['allowed', $status->isAllowed() ? 'yes' : 'no'],

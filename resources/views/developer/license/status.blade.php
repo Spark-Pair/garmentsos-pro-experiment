@@ -17,6 +17,9 @@
         $canManageLicense = $canManageLicense ?? false;
         $isActive = $status->state === 'active';
         $isPending = in_array($status->state, ['pending', 'activation_required'], true) || (($licenseConfig['device_status'] ?? '') === 'pending');
+        $isApprovedButInvalid = in_array(strtolower((string) ($licenseConfig['device_status'] ?? '')), ['active', 'approved', 'grace'], true)
+            && !$isActive
+            && in_array($status->state, ['invalid_readonly', 'installation_mismatch', 'blocked'], true);
         $isDevelopmentBypass = !$licensingEnabled || ($licenseConfig['development_bypass'] ?? false);
         $isReadonlyRecovery = session('license_readonly', false);
         $bannerClass = $isActive
@@ -101,23 +104,29 @@
                 @elseif ($isPending)
                     <div class="font-semibold">Waiting for SparkPair approval</div>
                     <p class="mt-1">{{ $status->message ?: 'This device or demo request is pending approval.' }}</p>
+                @elseif ($isApprovedButInvalid)
+                    <div class="font-semibold">License approval needs refresh</div>
+                    <p class="mt-1">
+                        This device is approved, but the stored approval still references the older Docker-based fingerprint.
+                        Refresh approval to rebind this same install ID to the stable install identity.
+                    </p>
                 @else
                     <div class="font-semibold">License activation is required</div>
                     <p class="mt-1">{{ $status->message ?: 'Request a demo/trial or register this device with SparkPair.' }}</p>
                 @endif
             </div>
 
-            @if (!empty($licenseConfig['previous_machine_hash_preview']))
+            @if ($isApprovedButInvalid || !empty($licenseConfig['previous_machine_hash_preview']))
                 <div class="mb-5 rounded-lg border border-[var(--border-warning)] bg-[var(--bg-warning)] p-4 text-sm text-[var(--text-warning)]">
-                    <div class="font-semibold">License approval refresh may be needed</div>
+                    <div class="font-semibold">Stable fingerprint rebind</div>
                     <p class="mt-1">
-                        This installation has an approved local license cache, but an older device fingerprint was detected.
-                        Normal Docker updates can change runtime-only values, so GarmentsOS now uses the stable install identity for verification.
+                        This installation keeps the same install ID, but GarmentsOS now verifies with a stable install identity instead of Docker runtime values.
+                        SparkPair can safely rebind an already approved install ID to this new stable fingerprint.
                     </p>
                     @if ($canManageLicense)
                         <form method="POST" action="{{ route('developer.license.check') }}" class="mt-3">
                             @csrf
-                            <button type="submit" class="{{ $secondaryButton }}">Refresh License Approval</button>
+                            <button type="submit" class="{{ $primaryButton }}">Refresh/Rebind License Approval</button>
                         </form>
                     @endif
                 </div>
@@ -249,7 +258,7 @@
                     </form>
                     <form method="POST" action="{{ route('developer.license.check') }}">
                         @csrf
-                        <button type="submit" class="{{ $secondaryButton }}">Refresh License Approval</button>
+                        <button type="submit" class="{{ $secondaryButton }}">Refresh/Rebind License Approval</button>
                     </form>
                     <button type="button" class="{{ $secondaryButton }}" onclick="navigator.clipboard && navigator.clipboard.writeText(document.getElementById('license-install-id').innerText)">
                         Copy Install ID

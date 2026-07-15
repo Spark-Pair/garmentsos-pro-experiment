@@ -156,15 +156,17 @@ class LicenseActivationClient
             ];
         }
 
+        $body = $response->json();
+
         if (!$response->successful()) {
             return [
                 'ok' => false,
-                'message' => $response->json('message') ?: $fallbackMessage,
+                'message' => is_array($body) ? ($body['message'] ?? $fallbackMessage) : $fallbackMessage,
                 'status' => $response->status(),
+                'status_text' => is_array($body) ? ($body['status'] ?? $body['state'] ?? '') : '',
+                'body' => is_array($body) ? $body : null,
             ];
         }
-
-        $body = $response->json();
 
         return [
             'ok' => is_array($body),
