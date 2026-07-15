@@ -15,7 +15,7 @@
 - Confirm the workflow uploaded package archive, checksum, and versioned `latest.json`.
 - Confirm the workflow uploaded `GarmentsOS-PRO.exe` when the launcher build succeeds.
 - Confirm the workflow updated the moving channel feed release, for example `latest-stable`.
-- Confirm `latest.json` is copied to the public SparkPair feed, because private GitHub assets return `404` to unauthenticated installed clients.
+- Confirm `latest.json` is copied to the public SparkPair feed and points ZIP/EXE URLs directly at public GitHub Release assets.
 - Confirm the workflow summary shows the release URL and `UPDATE_FEED_URL`.
 - Local `scripts/docker-build-release.sh` runs are for developer testing only.
 

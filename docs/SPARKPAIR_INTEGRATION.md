@@ -12,7 +12,7 @@ GarmentsOS PRO is the local client app. SparkPair Website/Admin Panel is the sou
 Installed clients should use:
 
 ```env
-UPDATE_FEED_URL=https://sparkpair.dev/api/updates/garmentsos-pro/stable/latest.json
+UPDATE_FEED_URL=https://www.sparkpair.dev/api/updates/garmentsos-pro/stable/latest.json
 UPDATE_CHANNEL=stable
 UPDATE_LAUNCHER_PROTOCOL=garmentsos
 UPDATE_REQUEST_TTL_MINUTES=10
@@ -31,7 +31,7 @@ Feed priority in the local app:
 2. `config/updater.php` feed URL default
 3. Stable GitHub fallback feed
 
-The SparkPair `latest.json` endpoint must be public and must not require login. Private GitHub release assets can return `404` to unauthenticated clients, so installed clients should use the SparkPair feed URL.
+The SparkPair `latest.json` endpoint must be public and must not require login. SparkPair should serve small metadata only. Large ZIP/EXE downloads should point directly to public GitHub Release assets and must not be streamed through SparkPair/Vercel.
 
 ## Feed JSON
 
@@ -64,7 +64,7 @@ Optional fields displayed by the updater UI:
 The GitHub release workflow can optionally notify SparkPair after assets are published:
 
 ```http
-POST https://sparkpair.dev/api/admin/releases/sync-github
+POST https://www.sparkpair.dev/api/admin/releases/sync-github
 Authorization: Bearer <RELEASE_WEBHOOK_SECRET>
 Content-Type: application/json
 ```
@@ -72,11 +72,11 @@ Content-Type: application/json
 Configure these GitHub Actions secrets:
 
 ```text
-SPARKPAIR_RELEASE_SYNC_URL=https://sparkpair.dev/api/admin/releases/sync-github
+SPARKPAIR_RELEASE_SYNC_URL=https://www.sparkpair.dev/api/admin/releases/sync-github
 SPARKPAIR_RELEASE_WEBHOOK_SECRET=<secret>
 ```
 
-If either secret is missing, release sync is skipped with a warning. If sync fails, the workflow warns but does not fail the GitHub release while the SparkPair site is stabilizing.
+If the sync secret is missing for stable releases, the workflow fails because SparkPair metadata would not be updated. Beta/dev sync can remain warning-only.
 
 ## License Verify
 

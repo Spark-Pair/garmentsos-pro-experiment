@@ -17,7 +17,7 @@ use Illuminate\Support\Facades\File;
 
 class UpdateController extends Controller
 {
-    private const SPARKPAIR_STABLE_FEED = 'https://sparkpair.dev/api/updates/garmentsos-pro/stable/latest.json';
+    private const SPARKPAIR_STABLE_FEED = 'https://www.sparkpair.dev/api/updates/garmentsos-pro/stable/latest.json';
 
     public function index(InstalledVersionService $versions, ReleaseFeedService $releaseFeed, UpdateLockService $locks)
     {

@@ -19,7 +19,7 @@ It is a host-side updater. Laravel does not update its own running Docker contai
 For client installs, use a public feed URL:
 
 ```env
-UPDATE_FEED_URL=https://sparkpair.dev/api/updates/garmentsos-pro/stable/latest.json
+UPDATE_FEED_URL=https://www.sparkpair.dev/api/updates/garmentsos-pro/stable/latest.json
 ```
 
 Private GitHub release assets return `404` to unauthenticated apps/launchers even if they open in a browser where the developer is logged in.

@@ -1894,7 +1894,7 @@ public sealed class MainForm : Form
             var workDir = Path.Combine(Path.GetTempPath(), "GarmentsOSUpdate", DateTime.Now.ToString("yyyyMMdd_HHmmss"));
             Directory.CreateDirectory(workDir);
 
-            var packageFileName = ResolvePackageFileName(currentFeed.PackageFile, currentFeed.PackageUrl);
+            var packageFileName = await ResolvePackageFileNameAsync(currentFeed.PackageFile, currentFeed.PackageUrl);
             var packagePath = Path.Combine(workDir, packageFileName);
             Log("Selected update package file name: " + packageFileName);
             Log("Update package path: " + packagePath);
@@ -2026,7 +2026,7 @@ public sealed class MainForm : Form
             var workDir = Path.Combine(Path.GetTempPath(), "GarmentsOSInstall", DateTime.Now.ToString("yyyyMMdd_HHmmss"));
             Directory.CreateDirectory(workDir);
 
-            var packageFileName = ResolvePackageFileName(currentFeed.PackageFile, currentFeed.PackageUrl);
+            var packageFileName = await ResolvePackageFileNameAsync(currentFeed.PackageFile, currentFeed.PackageUrl);
             var packagePath = Path.Combine(workDir, packageFileName);
             Log("Selected install package file name: " + packageFileName);
             Log("Install package path: " + packagePath);
@@ -2522,13 +2522,15 @@ public sealed class MainForm : Form
     {
         try
         {
+            LogDownloadSource(url);
             using var request = new HttpRequestMessage(HttpMethod.Get, url);
             using var response = await downloadHttp.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
             var finalUrl = response.RequestMessage?.RequestUri?.ToString() ?? url;
             var contentType = response.Content.Headers.ContentType?.ToString() ?? "";
             var totalBytes = response.Content.Headers.ContentLength ?? expectedBytes;
+            var contentDisposition = response.Content.Headers.ContentDisposition?.ToString() ?? "";
 
-            Log($"Download response: status={(int) response.StatusCode} {response.ReasonPhrase}; url={url}; final_url={finalUrl}; content_type={contentType}; bytes_expected={(totalBytes.HasValue ? totalBytes.Value.ToString() : "unknown")}");
+            Log($"Download response: status={(int) response.StatusCode} {response.ReasonPhrase}; url={url}; final_url={finalUrl}; content_type={contentType}; content_disposition={contentDisposition}; bytes_expected={(totalBytes.HasValue ? totalBytes.Value.ToString() : "unknown")}");
 
             if (!response.IsSuccessStatusCode)
             {
@@ -2588,7 +2590,7 @@ public sealed class MainForm : Form
                 throw new InvalidOperationException("No bytes were received from the update server.");
             }
 
-            Log($"Download completed: url={url}; final_url={finalUrl}; bytes_downloaded={downloaded}; content_type={contentType}");
+            Log($"Download completed: url={url}; final_url={finalUrl}; bytes_downloaded={downloaded}; content_type={contentType}; content_disposition={contentDisposition}");
             UpdateDownloadProgress(label, stepKey, downloaded, totalBytes ?? downloaded, startedAt, endPercent, endPercent);
         }
         catch (Exception ex)
@@ -2603,20 +2605,40 @@ public sealed class MainForm : Form
         var status = $"{statusCode} {reasonPhrase}".Trim();
         if (statusCode is 401 or 403)
         {
-            return $"Download failed with HTTP {status}. The update package may require authentication or the feed may point to a private release asset. URL: {url}. Final URL: {finalUrl}.";
+            return $"Download failed with HTTP {status}. The update package may require authentication or the public release asset may not be available yet. URL: {url}. Final URL: {finalUrl}.";
         }
 
         if (statusCode == 404)
         {
             if (IsGithubUrl(url) || IsGithubUrl(finalUrl))
             {
-                return $"Release package is not publicly available. SparkPair release storage may not be configured. HTTP 404. URL: {url}. Final URL: {finalUrl}.";
+                return $"GitHub release package was not found or is not public yet. HTTP 404. URL: {url}. Final URL: {finalUrl}.";
             }
 
-            return $"Download failed with HTTP 404. The update package URL was not reachable or the release asset is private/missing. URL: {url}. Final URL: {finalUrl}.";
+            return $"Download failed with HTTP 404. The update package URL was not reachable or the release asset is missing. URL: {url}. Final URL: {finalUrl}.";
         }
 
         return $"Download failed with HTTP {status}. URL: {url}. Final URL: {finalUrl}. Content-Type: {contentType}.";
+    }
+
+    private void LogDownloadSource(string url)
+    {
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri))
+        {
+            return;
+        }
+
+        if (uri.Host.Equals("github.com", StringComparison.OrdinalIgnoreCase))
+        {
+            Log("Downloading package directly from public GitHub Releases.");
+            return;
+        }
+
+        if (uri.Host.EndsWith("sparkpair.dev", StringComparison.OrdinalIgnoreCase)
+            && uri.AbsolutePath.StartsWith("/api/downloads/", StringComparison.OrdinalIgnoreCase))
+        {
+            Log("Warning: SparkPair binary proxy URL is deprecated. Feed should point package_url directly to public GitHub Releases.");
+        }
     }
 
     private static bool IsGithubUrl(string value)
@@ -2625,11 +2647,49 @@ public sealed class MainForm : Form
             && uri.Host.Equals("github.com", StringComparison.OrdinalIgnoreCase);
     }
 
-    private static string ResolvePackageFileName(string? packageFile, string packageUrl)
+    private async Task<string> ResolvePackageFileNameAsync(string? packageFile, string packageUrl)
+    {
+        var urlFileName = UrlFileName(packageUrl);
+        if (!string.IsNullOrWhiteSpace(packageFile) || HasSupportedPackageExtension(urlFileName))
+        {
+            return ResolvePackageFileName(packageFile, packageUrl, contentDisposition: null);
+        }
+
+        var remoteFileName = await TryGetRemotePackageFileNameAsync(packageUrl);
+        return ResolvePackageFileName(packageFile, packageUrl, remoteFileName);
+    }
+
+    private async Task<string?> TryGetRemotePackageFileNameAsync(string url)
+    {
+        try
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Head, url);
+            using var response = await downloadHttp.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
+            var finalUrl = response.RequestMessage?.RequestUri?.ToString() ?? url;
+            var contentDisposition = response.Content.Headers.ContentDisposition;
+            var remoteFileName = contentDisposition?.FileNameStar ?? contentDisposition?.FileName;
+
+            Log($"Package filename probe: status={(int) response.StatusCode} {response.ReasonPhrase}; url={url}; final_url={finalUrl}; content_disposition={contentDisposition}");
+
+            if (!response.IsSuccessStatusCode || string.IsNullOrWhiteSpace(remoteFileName))
+            {
+                return null;
+            }
+
+            return remoteFileName.Trim('"');
+        }
+        catch (Exception ex)
+        {
+            Log("Could not read remote package filename before download: " + ex.Message);
+            return null;
+        }
+    }
+
+    private static string ResolvePackageFileName(string? packageFile, string packageUrl, string? contentDisposition)
     {
         var candidate = !string.IsNullOrWhiteSpace(packageFile)
             ? packageFile.Trim()
-            : UrlFileName(packageUrl);
+            : (!string.IsNullOrWhiteSpace(contentDisposition) ? contentDisposition.Trim() : UrlFileName(packageUrl));
 
         candidate = SanitizePackageFileName(candidate);
         if (string.IsNullOrWhiteSpace(candidate))

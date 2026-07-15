@@ -130,9 +130,9 @@ For SQLite, prefer a safe backup strategy such as SQLite backup APIs or `VACUUM 
 - Client PCs must not contain `.git/`.
 - Client PCs must not contain Git remotes.
 - Client PCs must not contain private GitHub organization/user IDs, tokens, deploy keys, or workflow secrets.
-- Do not run `git pull` on client PCs from the private repository.
-- Prefer a private repository plus a release package produced on the developer/release machine.
-- Future update delivery should use a release server/proxy or signed public manifest that does not reveal private repository access.
+- Do not run `git pull` on client PCs.
+- Release packages should be produced by the GitHub Actions release workflow.
+- Large ZIP/EXE update assets are public GitHub Release assets. SparkPair should serve metadata or redirects only and must not stream large binaries.
 
 ## Secrets Handling Rules
 - No production secrets in source code.

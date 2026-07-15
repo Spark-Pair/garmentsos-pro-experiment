@@ -13,7 +13,7 @@ Normal publishing is done from the GitHub Actions UI:
 Actions -> Publish GarmentsOS PRO Stable Release -> Run workflow
 ```
 
-The workflow builds the Docker release package, creates tag `vVERSION`, uploads release assets, writes the final GitHub asset URLs into versioned `latest.json`, and updates the moving channel feed release such as `latest-stable`.
+The workflow builds the Docker release package, creates tag `vVERSION`, uploads release assets, writes direct public GitHub asset URLs into versioned `latest.json`, and updates the moving channel feed release such as `latest-stable`.
 
 Local command-line builds are for developer testing:
 
@@ -38,15 +38,15 @@ docker-releases/latest.json
 
 Generated Docker releases are ignored by Git and must not be committed.
 
-`latest.json` is generated beside the package archive for GitHub/SparkPair update metadata. Upload it with the release assets after replacing placeholder URLs when publishing.
+`latest.json` is generated beside the package archive for GitHub/SparkPair update metadata. The publishing workflow replaces placeholder URLs with direct public GitHub Release asset URLs.
 
 The versioned release keeps its own `latest.json` for audit/history. Installed apps should use the stable channel URL instead:
 
 ```env
-UPDATE_FEED_URL=https://sparkpair.dev/api/updates/garmentsos-pro/stable/latest.json
+UPDATE_FEED_URL=https://www.sparkpair.dev/api/updates/garmentsos-pro/stable/latest.json
 ```
 
-The moving channel file still points `package_url` at the immutable `vVERSION` package asset.
+The moving channel file still points `package_url` at the immutable public GitHub `vVERSION` package asset.
 
 If the feed includes a real `setup_url`, the Developer Updater page shows a `Download Windows Updater` button. Placeholder setup URLs are hidden from the UI.
 
@@ -59,10 +59,19 @@ Expected release assets:
 
 The client EXE is copied from the published WinForms launcher output as `GarmentsOS-PRO.exe`. If the launcher build fails, the GitHub workflow skips it with a warning and the package still has BAT/PowerShell fallback launchers.
 
-For private repositories, GitHub release assets require authentication and return `404` to installed clients. Publish `docker-releases/latest.json` to the public SparkPair update feed, for example:
+SparkPair should publish or serve the small `latest.json` metadata only. Large binaries should be downloaded directly from public GitHub Release asset URLs, for example:
+
+```json
+{
+  "package_url": "https://github.com/Spark-Pair/garmentsos-pro/releases/download/v1.8.70/garmentsos-pro-1.8.70.zip",
+  "setup_url": "https://github.com/Spark-Pair/garmentsos-pro/releases/download/v1.8.70/GarmentsOS-PRO.exe"
+}
+```
+
+Installed apps can use the SparkPair feed URL:
 
 ```env
-UPDATE_FEED_URL=https://sparkpair.dev/api/updates/garmentsos-pro/stable/latest.json
+UPDATE_FEED_URL=https://www.sparkpair.dev/api/updates/garmentsos-pro/stable/latest.json
 ```
 
 Validate:

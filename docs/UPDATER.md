@@ -10,7 +10,7 @@ The updater is disabled by default:
 
 ```text
 UPDATER_ENABLED=false
-UPDATE_FEED_URL=https://sparkpair.dev/api/updates/garmentsos-pro/stable/latest.json
+UPDATE_FEED_URL=https://www.sparkpair.dev/api/updates/garmentsos-pro/stable/latest.json
 UPDATE_FALLBACK_FEED_URL=https://github.com/Spark-Pair/garmentsos-pro/releases/download/latest-stable/latest.json
 UPDATE_CHANNEL=stable
 UPDATE_LAUNCHER_PROTOCOL=garmentsos
@@ -74,12 +74,12 @@ Client PCs must not contain:
 
 - GitHub tokens
 - deploy keys
-- private repository URLs
+- private repository credentials
 - signing private keys
 - update server secrets
 - build machine credentials
 
-Clients should receive signed release manifests and signed/checksummed packages through a trusted release server or controlled manual import workflow.
+Clients should receive release metadata from SparkPair or GitHub channel feeds and download signed/checksummed packages directly from public GitHub Releases.
 
 ## Signed Manifest
 
@@ -148,7 +148,7 @@ Expected GitHub release assets:
 - `min_launcher_version`
 - `notes`
 
-`package_url` and `setup_url` are placeholders during local builds. Replace them with final GitHub/SparkPair release asset URLs when publishing.
+`package_url` and `setup_url` are placeholders during local builds. The publishing workflow replaces them with direct public GitHub Release asset URLs. SparkPair may publish or serve the small `latest.json` metadata, but it must not stream the large ZIP/EXE binaries.
 
 ## Publishing From GitHub UI
 
@@ -188,23 +188,23 @@ Channel feed releases:
 
 Each channel release contains a moving `latest.json` asset uploaded with `--clobber`. The channel `latest.json` still points `package_url` at the real immutable versioned release asset, for example `https://github.com/Spark-Pair/garmentsos-pro/releases/download/v1.8.59/garmentsos-pro-1.8.59.zip`.
 
-Private GitHub repositories return `404` for unauthenticated release asset requests. Browsers may appear to work when the developer is logged into GitHub, but installed apps and the Windows launcher are unauthenticated. For client installs, use the public SparkPair update server URL:
+The GarmentsOS PRO release repository is public for client update assets. Installed apps and the Windows launcher download `package_url` and `setup_url` directly from GitHub Releases without a GitHub token. SparkPair can remain the stable update feed URL for small JSON metadata:
 
 ```env
-UPDATE_FEED_URL=https://sparkpair.dev/api/updates/garmentsos-pro/stable/latest.json
+UPDATE_FEED_URL=https://www.sparkpair.dev/api/updates/garmentsos-pro/stable/latest.json
 ```
 
-The workflow still publishes `latest.json` to `latest-stable`, `latest-beta`, and `latest-dev` for audit and for public repos, but private repo asset URLs are not a reliable client feed.
+The workflow still publishes `latest.json` to `latest-stable`, `latest-beta`, and `latest-dev` for audit. The SparkPair feed should contain the same metadata and point `package_url` / `setup_url` to the immutable public GitHub Release asset URLs.
 
 The installed app can point at the public published feed with:
 
 ```env
-UPDATE_FEED_URL=https://sparkpair.dev/api/updates/garmentsos-pro/stable/latest.json
+UPDATE_FEED_URL=https://www.sparkpair.dev/api/updates/garmentsos-pro/stable/latest.json
 UPDATE_CHANNEL=stable
 UPDATE_LAUNCHER_PROTOCOL=garmentsos
 ```
 
-The Developer Updater page fetches this feed read-only, validates the basic JSON contract, compares the installed/current version with `version`, and displays whether an update is available. If GitHub or the internet is unreachable, the page shows `feed_unreachable` instead of crashing. If the HTTP status is `404`, the page explains that private GitHub release assets need a public update feed URL or SparkPair update server.
+The Developer Updater page fetches this feed read-only, validates the basic JSON contract, compares the installed/current version with `version`, and displays whether an update is available. If GitHub or the internet is unreachable, the page shows `feed_unreachable` instead of crashing. If the package download returns `404`, the launcher explains that the public GitHub Release asset is missing or not public yet.
 
 This feed display does not directly apply updates from Laravel. Actual client update application is handled by the Windows GUI launcher/package flow.
 
