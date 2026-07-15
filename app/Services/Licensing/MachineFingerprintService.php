@@ -10,27 +10,31 @@ class MachineFingerprintService
 
     public function machineName(): string
     {
-        $hostname = gethostname();
+        $installId = $this->identity->existingInstallId() ?? $this->identity->installId();
 
-        return is_string($hostname) && trim($hostname) !== ''
-            ? trim($hostname)
-            : 'unknown';
+        return 'GarmentsOS Install ' . substr(hash('sha256', $installId), 0, 8);
     }
 
     public function machineHash(): string
     {
         $signals = [
             'install_id' => $this->identity->installId(),
-            'machine_name' => $this->machineName(),
-            'os_family' => PHP_OS_FAMILY,
-            'sapi' => PHP_SAPI,
+            'installation_uuid' => $this->identity->uuid(),
+            'installation_mode' => $this->identity->installationMode(),
         ];
 
-        return hash('sha256', json_encode($signals, JSON_UNESCAPED_SLASHES));
+        ksort($signals);
+
+        return hash('sha256', 'garmentsos-pro-device-v2|' . json_encode($signals, JSON_UNESCAPED_SLASHES));
     }
 
     public function shortHash(): string
     {
         return substr($this->machineHash(), 0, 12);
+    }
+
+    public function source(): string
+    {
+        return 'stable_install_identity';
     }
 }

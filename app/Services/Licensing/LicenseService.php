@@ -202,16 +202,41 @@ class LicenseService
             );
         }
 
-        $result = $this->activationClient->verify([
+        $machineHash = $this->machine->machineHash();
+        $previousMachineHash = $this->previousMachineHash($machineHash);
+        $verifyPayload = [
             'product' => config('updater.app_id', 'garmentsos-pro'),
             'install_id' => $installId,
-            'machine_hash' => $this->machine->machineHash(),
+            'machine_hash' => $machineHash,
             'app_version' => $this->versions->currentVersion(),
-        ]);
+            'fingerprint_source' => $this->machine->source(),
+        ];
+
+        if ($previousMachineHash !== null) {
+            $verifyPayload['previous_machine_hash'] = $previousMachineHash;
+            $verifyPayload['fingerprint_rebind_reason'] = 'stable_install_identity_after_update';
+        }
+
+        $result = $this->activationClient->verify($verifyPayload);
 
         if (($result['ok'] ?? false) && is_array($result['body'] ?? null)) {
             $body = $result['body'];
             return $this->statusFromVerifyResponse($body, 'server_verify');
+        }
+
+        if ($this->isUpdateCausedIdentityMismatch($result) && $this->hasApprovedCacheForInstall($installId)) {
+            Log::warning('License server reported device identity mismatch after update; using approved local cache while approval is refreshed.', [
+                'install_id_hash' => $this->shortHash($installId),
+                'machine_hash_preview' => $this->machine->shortHash(),
+                'previous_machine_hash_preview' => $previousMachineHash ? substr($previousMachineHash, 0, 12) : null,
+                'fingerprint_source' => $this->machine->source(),
+                'server_status' => $result['status'] ?? null,
+            ]);
+
+            return $this->statusFromVerifyCache(
+                'This installation is approved, but the local device fingerprint changed after update. Refresh approval from SparkPair.',
+                $result['message'] ?? $result['error'] ?? null,
+            );
         }
 
         return $this->statusFromVerifyCache(
@@ -267,6 +292,20 @@ class LicenseService
         }
 
         if (in_array($status, ['suspended', 'blocked', 'tampered', 'installation_mismatch', 'security_issue'], true)) {
+            if ($this->isServerBodyIdentityMismatch($body) && $this->hasApprovedCacheForInstall((string) ($body['install_id'] ?? $this->identity->existingInstallId() ?? ''))) {
+                Log::warning('License verify response reported device identity mismatch; using approved local cache while approval is refreshed.', [
+                    'install_id_hash' => $this->shortHash((string) ($body['install_id'] ?? $this->identity->existingInstallId() ?? '')),
+                    'machine_hash_preview' => $this->machine->shortHash(),
+                    'fingerprint_source' => $this->machine->source(),
+                    'server_status' => $status,
+                ]);
+
+                return $this->statusFromVerifyCache(
+                    'This installation is approved, but the local device fingerprint changed after update. Refresh approval from SparkPair.',
+                    $message,
+                );
+            }
+
             return LicenseStatus::problem(
                 $status === 'suspended' ? 'suspended' : $status,
                 'blocked',
@@ -276,6 +315,20 @@ class LicenseService
                     'grace_until' => $graceUntil,
                     'source' => $source,
                 ],
+            );
+        }
+
+        if ($this->isServerBodyIdentityMismatch($body) && $this->hasApprovedCacheForInstall((string) ($body['install_id'] ?? $this->identity->existingInstallId() ?? ''))) {
+            Log::warning('License verify response reported invalid device identity; using approved local cache while approval is refreshed.', [
+                'install_id_hash' => $this->shortHash((string) ($body['install_id'] ?? $this->identity->existingInstallId() ?? '')),
+                'machine_hash_preview' => $this->machine->shortHash(),
+                'fingerprint_source' => $this->machine->source(),
+                'server_status' => $status,
+            ]);
+
+            return $this->statusFromVerifyCache(
+                'This installation is approved, but the local device fingerprint changed after update. Refresh approval from SparkPair.',
+                $message,
             );
         }
 
@@ -311,7 +364,7 @@ class LicenseService
             return LicenseStatus::problem(
                 'offline_grace',
                 'none',
-                'License server is unreachable. Using cached license status.',
+                $message !== '' ? $message : 'License server is unreachable. Using cached license status.',
                 [
                     'expires_at' => $expiresAt,
                     'grace_until' => $graceUntil,
@@ -347,6 +400,8 @@ class LicenseService
             'expires_at' => (string) ($body['expires_at'] ?? ''),
             'grace_days' => (int) ($body['grace_days'] ?? config('licensing.offline_grace_days', 7)),
             'message' => (string) ($body['message'] ?? ''),
+            'machine_hash' => $this->machine->machineHash(),
+            'fingerprint_source' => $this->machine->source(),
             'checked_at' => now()->utc()->toIso8601String(),
         ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
     }
@@ -462,6 +517,8 @@ class LicenseService
 
     public function diagnostics(): array
     {
+        $previousMachineHash = $this->previousMachineHash($this->machine->machineHash());
+
         return [
             'install_id_exists' => File::exists((string) config('licensing.install_id_path')),
             'identity_exists' => File::exists((string) config('licensing.identity_path')),
@@ -476,8 +533,63 @@ class LicenseService
             'request_cache_exists' => File::exists((string) config('licensing.request_cache_path')),
             'last_verified_at' => (string) ($this->verifyCache()['checked_at'] ?? ''),
             'install_id_hash' => $this->shortHash($this->identity->existingInstallId()),
+            'machine_hash_preview' => $this->machine->shortHash(),
+            'previous_machine_hash_preview' => $previousMachineHash ? substr($previousMachineHash, 0, 12) : null,
+            'fingerprint_source' => $this->machine->source(),
+            'installation_file_path' => (string) config('licensing.identity_path'),
             'app_version' => $this->versions->currentVersion(),
         ];
+    }
+
+    protected function previousMachineHash(string $currentMachineHash): ?string
+    {
+        foreach ([$this->readVerifyCache(), $this->registrationCache(), $this->requestCache()] as $cache) {
+            $hash = trim((string) ($cache['machine_hash'] ?? ''));
+            if ($hash !== '' && hash_equals($currentMachineHash, $hash) === false) {
+                return $hash;
+            }
+        }
+
+        return null;
+    }
+
+    protected function isUpdateCausedIdentityMismatch(array $result): bool
+    {
+        $message = strtolower((string) ($result['message'] ?? $result['error'] ?? ''));
+        $status = strtolower((string) ($result['body']['status'] ?? $result['status_text'] ?? ''));
+
+        return str_contains($message, 'identity changed')
+            || str_contains($message, 'fingerprint')
+            || str_contains($message, 'machine hash')
+            || str_contains($message, 'device identity')
+            || in_array($status, ['installation_mismatch', 'fingerprint_mismatch', 'identity_mismatch'], true);
+    }
+
+    protected function isServerBodyIdentityMismatch(array $body): bool
+    {
+        $message = strtolower((string) ($body['message'] ?? $body['reason'] ?? ''));
+        $status = strtolower((string) ($body['status'] ?? $body['state'] ?? ''));
+
+        return str_contains($message, 'identity changed')
+            || str_contains($message, 'fingerprint')
+            || str_contains($message, 'machine hash')
+            || str_contains($message, 'device identity')
+            || in_array($status, ['installation_mismatch', 'fingerprint_mismatch', 'identity_mismatch'], true);
+    }
+
+    protected function hasApprovedCacheForInstall(string $installId): bool
+    {
+        $cache = $this->readVerifyCache();
+        if (!$cache || ($cache['valid'] ?? false) !== true) {
+            return false;
+        }
+
+        $cachedInstallId = trim((string) ($cache['install_id'] ?? ''));
+        $cachedStatus = strtolower(trim((string) ($cache['status'] ?? '')));
+
+        return $cachedInstallId !== ''
+            && hash_equals($installId, $cachedInstallId)
+            && in_array($cachedStatus, ['active', 'grace'], true);
     }
 
     protected function writeRegistrationCache(array $body): void

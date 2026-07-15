@@ -8,6 +8,7 @@ use App\Services\BackupService;
 use App\Services\Licensing\InstallationFingerprintService;
 use App\Services\Licensing\InstallationIdentityService;
 use App\Services\Licensing\LicenseService;
+use App\Services\Licensing\MachineFingerprintService;
 use App\Services\Licensing\OfflineActivationService;
 use App\Services\Licensing\SignedLicenseFileService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -25,6 +26,7 @@ class LicensingFoundationTest extends TestCase
 
         config([
             'licensing.identity_path' => storage_path('framework/testing/license-' . Str::random(12) . '/installation.json'),
+            'licensing.install_id_path' => storage_path('framework/testing/license-' . Str::random(12) . '/install-id.txt'),
             'licensing.cache_path' => storage_path('framework/testing/license-' . Str::random(12) . '/license.json'),
         ]);
     }
@@ -48,6 +50,22 @@ class LicensingFoundationTest extends TestCase
         $hash = app(InstallationFingerprintService::class)->fingerprintHash();
 
         $this->assertMatchesRegularExpression('/^[a-f0-9]{64}$/', $hash);
+    }
+
+    public function test_license_device_hash_is_stable_when_app_version_changes(): void
+    {
+        $machine = app(MachineFingerprintService::class);
+        $fingerprints = app(InstallationFingerprintService::class);
+
+        config(['app.version' => '1.8.69']);
+        $firstMachineHash = $machine->machineHash();
+        $firstFingerprintHash = $fingerprints->fingerprintHash();
+
+        config(['app.version' => '1.8.70']);
+
+        $this->assertSame($firstMachineHash, $machine->machineHash());
+        $this->assertSame($firstFingerprintHash, $fingerprints->fingerprintHash());
+        $this->assertSame('stable_install_identity', $machine->source());
     }
 
     public function test_signed_license_cache_detects_tampering(): void

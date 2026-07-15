@@ -97,6 +97,22 @@
                 @endif
             </div>
 
+            @if (!empty($licenseConfig['previous_machine_hash_preview']))
+                <div class="mb-5 rounded-lg border border-[var(--border-warning)] bg-[var(--bg-warning)] p-4 text-sm text-[var(--text-warning)]">
+                    <div class="font-semibold">License approval refresh may be needed</div>
+                    <p class="mt-1">
+                        This installation has an approved local license cache, but an older device fingerprint was detected.
+                        Normal Docker updates can change runtime-only values, so GarmentsOS now uses the stable install identity for verification.
+                    </p>
+                    @if ($canManageLicense)
+                        <form method="POST" action="{{ route('developer.license.check') }}" class="mt-3">
+                            @csrf
+                            <button type="submit" class="{{ $secondaryButton }}">Refresh License Approval</button>
+                        </form>
+                    @endif
+                </div>
+            @endif
+
             <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
                 <div class="{{ $softPanel }}">
                     <div class="text-xs uppercase text-[var(--secondary-text)]">Current state</div>
@@ -125,6 +141,14 @@
                 <div class="{{ $softPanel }}">
                     <div class="text-xs uppercase text-[var(--secondary-text)]">Machine hash</div>
                     <div class="mt-1 break-all text-lg font-semibold">{{ $licenseConfig['machine_hash_preview'] ?: '-' }}</div>
+                </div>
+                <div class="{{ $softPanel }}">
+                    <div class="text-xs uppercase text-[var(--secondary-text)]">Previous hash</div>
+                    <div class="mt-1 break-all text-lg font-semibold">{{ $licenseConfig['previous_machine_hash_preview'] ?: '-' }}</div>
+                </div>
+                <div class="{{ $softPanel }}">
+                    <div class="text-xs uppercase text-[var(--secondary-text)]">Fingerprint source</div>
+                    <div class="mt-1 break-all text-sm font-semibold">{{ $licenseConfig['fingerprint_source'] ?: '-' }}</div>
                 </div>
                 <div class="{{ $softPanel }}">
                     <div class="text-xs uppercase text-[var(--secondary-text)]">App version</div>
@@ -212,6 +236,10 @@
                     <form method="POST" action="{{ route('developer.license.check') }}">
                         @csrf
                         <button type="submit" class="{{ $secondaryButton }}">Check Status</button>
+                    </form>
+                    <form method="POST" action="{{ route('developer.license.check') }}">
+                        @csrf
+                        <button type="submit" class="{{ $secondaryButton }}">Refresh License Approval</button>
                     </form>
                     <button type="button" class="{{ $secondaryButton }}" onclick="navigator.clipboard && navigator.clipboard.writeText(document.getElementById('license-install-id').innerText)">
                         Copy Install ID

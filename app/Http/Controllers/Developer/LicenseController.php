@@ -110,6 +110,8 @@ class LicenseController extends Controller
                 'machine_name' => $this->safeValue(fn () => $licenses->machineName(), '-'),
                 'machine_hash' => '',
                 'machine_hash_preview' => $this->safeValue(fn () => $licenses->machineHashPreview(), '-'),
+                'previous_machine_hash_preview' => '',
+                'fingerprint_source' => 'stable_install_identity',
                 'app_version' => $this->safeValue(fn () => app(\App\Services\Updater\InstalledVersionService::class)->currentVersion(), 'local'),
                 'last_check_at' => '',
                 'last_registration_at' => '',
@@ -141,6 +143,7 @@ class LicenseController extends Controller
         $verifyCache = $licenses->verifyCache();
         $registrationCache = $licenses->registrationCache();
         $requestCache = $licenses->requestCache();
+        $diagnostics = $licenses->diagnostics();
 
         return [
             'client_id' => (string) ($verifyCache['client_id'] ?? config('licensing.client_id', '')),
@@ -160,6 +163,8 @@ class LicenseController extends Controller
             'machine_name' => $licenses->machineName(),
             'machine_hash' => $licenses->machineHash(),
             'machine_hash_preview' => $licenses->machineHashPreview(),
+            'previous_machine_hash_preview' => (string) ($diagnostics['previous_machine_hash_preview'] ?? ''),
+            'fingerprint_source' => (string) ($diagnostics['fingerprint_source'] ?? 'stable_install_identity'),
             'app_version' => app(\App\Services\Updater\InstalledVersionService::class)->currentVersion(),
             'last_check_at' => (string) ($verifyCache['checked_at'] ?? config('licensing.last_check_at', '')),
             'last_registration_at' => (string) ($registrationCache['registered_at'] ?? ''),

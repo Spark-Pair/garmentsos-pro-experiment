@@ -152,9 +152,19 @@ class InstallationIdentityService
     protected function writeUuid(string $path): string
     {
         $uuid = (string) Str::uuid();
+        $installId = $this->existingInstallId() ?? (string) Str::uuid();
+        $installIdPath = (string) config('licensing.install_id_path', storage_path('app/install-id.txt'));
+        if ($this->existingInstallId() === null) {
+            File::ensureDirectoryExists(dirname($installIdPath));
+            File::put($installIdPath, $installId . PHP_EOL);
+        }
+
         File::ensureDirectoryExists(dirname($path));
         File::put($path, json_encode([
             'installation_uuid' => $uuid,
+            'install_id_hash' => substr(hash('sha256', $installId), 0, 12),
+            'fingerprint_source' => 'stable_install_identity',
+            'fingerprint_version' => 2,
             'created_at' => now()->toIso8601String(),
         ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
 
