@@ -24,6 +24,16 @@
         });
     }
 
+    function invoiceCopyMarkup(preview, copyLabel) {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'invoice-print-copy';
+        wrapper.innerHTML = preview.innerHTML;
+        wrapper.querySelectorAll('.preview-copy').forEach(invoiceCopy => {
+            invoiceCopy.textContent = `Invoice Copy: ${copyLabel}`;
+        });
+        return wrapper.outerHTML;
+    }
+
     window.createRow = function createRow(data) {
         return `
                 <div id="${data.id}" oncontextmenu='${htmlAttr(data.oncontextmenu || "")}' onclick='${htmlAttr(data.onclick || "")}'
@@ -81,31 +91,50 @@
                             }
 
                             @media print {
+                                html,
                                 body {
                                     margin: 0;
                                     padding: 0;
-                                    width: 148mm;
-                                    height: 210mm;
+                                    width: auto;
+                                    min-height: 0;
                                 }
 
-                                #preview-container,
-                                #preview-container > .preview,
-                                .preview-container,
+                                #preview-container {
+                                    width: auto !important;
+                                    height: auto !important;
+                                    max-height: none !important;
+                                    overflow: visible !important;
+                                }
+
+                                .invoice-print-copy {
+                                    width: 148mm !important;
+                                    height: auto !important;
+                                    overflow: visible !important;
+                                }
+
                                 .preview {
                                     width: 148mm !important;
                                     height: 210mm !important;
                                     max-width: 148mm !important;
                                     max-height: 210mm !important;
+                                    overflow: hidden !important;
+                                    break-after: page;
+                                    page-break-after: always;
+                                    page-break-inside: avoid;
                                 }
 
-                                .preview-container, .preview-container * {
-                                    page-break-inside: avoid;
+                                .invoice-print-copy:last-child .preview:last-child {
+                                    break-after: auto;
+                                    page-break-after: auto;
                                 }
                             }
                         </style>
                     </head>
                     <body>
-                        <div id="preview-container" class="preview-container">${preview.innerHTML}</div>
+                        <div id="preview-container" class="preview-container">
+                            ${invoiceCopyMarkup(preview, 'Customer')}
+                            ${invoiceCopyMarkup(preview, 'Office')}
+                        </div>
                     </body>
                 </html>
             `);
@@ -117,13 +146,6 @@
             printDocument.querySelectorAll('#banner').forEach(p => p.classList.remove('mt-8'));
             printDocument.querySelectorAll('.footer').forEach(p => p.classList.remove('mb-4'));
             compactInvoicePrintHeaders(printDocument);
-
-            const invoiceCopys = printDocument.querySelectorAll('#preview-container .preview-copy');
-            if (invoiceCopys) {
-                invoiceCopys.forEach(invoiceCopy => {
-                    invoiceCopy.textContent = 'Invoice Copy: Office';
-                });
-            }
 
             printIframe.contentWindow.onafterprint = () => {};
 

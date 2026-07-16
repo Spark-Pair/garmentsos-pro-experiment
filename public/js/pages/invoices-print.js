@@ -7,12 +7,12 @@
 
     function invoiceDetailLine(orderedArticle, article) {
         const description = String(orderedArticle?.description ?? '').trim();
-        const fabricType = String(article?.fabric_type ?? '').trim();
+        const fabricType = String(article?.fabric_type ?? orderedArticle?.fabric_type ?? '').trim();
         const parts = [description, fabricType].filter((part, index, list) => (
             part && list.findIndex(item => item.toLowerCase() === part.toLowerCase()) === index
         ));
 
-        return parts.join(' | ');
+        return parts.length ? parts.join(' | ') : '';
     }
 
     function renderInvoices() {
