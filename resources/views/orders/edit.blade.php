@@ -1,6 +1,28 @@
 @extends('app')
 @section('title', 'Generate Order | ' . $client_company->name)
 @section('content')
+    @php
+        $isDeveloper = Auth::user()?->role === 'developer';
+        $currentCustomerOption = [
+            $order->customer->id => [
+                'text' => $order->customer->customer_name . ' | ' . $order->customer->city->title,
+                'data_option' => [
+                    'id' => $order->customer->id,
+                    'customer_name' => $order->customer->customer_name,
+                    'person_name' => $order->customer->person_name,
+                    'urdu_title' => $order->customer->urdu_title,
+                    'phone_number' => $order->customer->phone_number,
+                    'address' => $order->customer->address,
+                    'date' => $order->customer->date?->format('Y-m-d'),
+                    'city' => [
+                        'id' => $order->customer->city?->id,
+                        'title' => $order->customer->city?->title,
+                        'short_title' => $order->customer->city?->short_title,
+                    ],
+                ],
+            ],
+        ];
+    @endphp
     <!-- Main Content -->
     <!-- Progress Bar -->
     <div class="mb-5 max-w-4xl mx-auto">
@@ -20,16 +42,16 @@
             <div class="flex justify-between gap-4">
                 {{-- order date --}}
                 <div class="w-1/3">
-                    <x-input label="Date" name="date" id="date" value="{{ $order->date->format('d-M-Y, D') }}" disabled />
+                    @if ($isDeveloper)
+                        <x-input label="Date" name="date" id="date" type="date" value="{{ $order->date->format('Y-m-d') }}" onchange="getDataByDate(this)" validateMax max='{{ now()->toDateString() }}' validateMin min="2024-01-01" required />
+                    @else
+                        <x-input label="Date" name="date" id="date" value="{{ $order->date->format('d-M-Y, D') }}" disabled />
+                    @endif
                 </div>
 
                 {{-- title --}}
                 <div class="grow">
-                    <x-select label="Customer" name="customer_id" id="customer_id" :options="[
-                        $order->customer->id => [
-                            'text' => $order->customer->customer_name . ' | ' . $order->customer->city->title,
-                        ]
-                    ]" disabled onchange="trackCustomerState(this)"
+                    <x-select label="Customer" name="customer_id" id="customer_id" :options="$currentCustomerOption" :value="$order->customer->id" :disabled="!$isDeveloper" onchange="trackCustomerState(this)"
                         class="grow" withButton btnId="generateOrderBtn" btnText="Select Articles" />
                 </div>
             </div>
@@ -74,7 +96,7 @@
         <!-- Step 2: view order -->
         <div class="step2 hidden space-y-4 text-black h-[35rem] overflow-y-auto my-scrollbar-2 bg-white rounded-md py-10">
             <div id="preview-container" class="w-[148mm] h-[210mm] mx-auto overflow-hidden relative ">
-                <div id="preview" class="preview w-[148mm] h-[210mm] gos-a5-document overflow-hidden flex flex-col">
+                <div id="preview" class="preview w-[148mm] h-[210mm] gos-a5-document gos-a5-invoice overflow-hidden flex flex-col">
                     <h1 class="text-[var(--border-error)] font-medium text-center mt-5">No Preview avalaible.</h1>
                 </div>
             </div>
@@ -92,6 +114,7 @@
             companyData: @json($branchBranding ?? $client_company),
             ordersCreateUrl: '{{ route("orders.create") }}',
             companyLogoBase: '{{ asset("images") }}',
+            isDeveloper: @json($isDeveloper),
             maxArticlesAlertHtml: @json('<div class="bg-[var(--danger-color)]/10 border border-[var(--danger-color)] text-[var(--danger-color)] text-xs px-3 py-2 rounded-lg">You have reached the maximum allowed number of 500 articles.</div>'),
         };
     </script>

@@ -1,6 +1,7 @@
 (function () {
     let pendingOpenOrderId = null;
     const canEditOrderRoles = ['developer', 'owner', 'admin', 'accountant'];
+    const isDeveloper = () => window.__currentUserRole === 'developer';
 
     function setAuthLayout(data) {
         if (data?.authLayout) {
@@ -70,26 +71,25 @@
                         <style>
                             @page {
                                 size: A5 portrait;
-                                margin: 0.25in;
+                                margin: 0;
                             }
 
                             @media print {
                                 body {
                                     margin: 0;
                                     padding: 0;
-                                    width: calc(148mm - 0.5in);
-                                    height: calc(210mm - 0.5in);
+                                    width: 148mm;
+                                    height: 210mm;
                                 }
 
                                 #preview-container,
                                 #preview-container > .preview,
                                 .preview-container,
                                 .preview {
-                                    width: calc(148mm - 0.5in) !important;
-                                    height: calc(210mm - 0.5in) !important;
-                                    max-width: calc(148mm - 0.5in) !important;
-                                    max-height: calc(210mm - 0.5in) !important;
-                                    padding: 0 !important;
+                                    width: 148mm !important;
+                                    height: 210mm !important;
+                                    max-width: 148mm !important;
+                                    max-height: 210mm !important;
                                 }
 
                                 .preview-container, .preview-container * {
@@ -129,6 +129,21 @@
         };
     };
 
+    window.deleteOrder = function deleteOrder(orderId) {
+        if (!isDeveloper() || !orderId) return;
+
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = `${(window.__ordersIndex?.ordersBaseUrl || '/orders').replace(/\/+$/, '')}/${orderId}`;
+        form.className = 'hidden';
+        form.innerHTML = `
+            <input type="hidden" name="_token" value="${document.querySelector('meta[name="csrf-token"]')?.content || ''}">
+            <input type="hidden" name="_method" value="DELETE">
+        `;
+        document.body.appendChild(form);
+        form.submit();
+    };
+
     window.generateContextMenu = function generateContextMenu(e) {
         e.preventDefault();
         const item = e.target.closest('.item');
@@ -143,8 +158,11 @@
             actions: [{ id: 'print', text: 'Print Order', onclick: 'printOrder(this)' }],
         };
 
-        if (data.status == 'pending' && canEditOrderRoles.includes(window.__currentUserRole)) {
+        if ((data.status == 'pending' && canEditOrderRoles.includes(window.__currentUserRole)) || isDeveloper()) {
             contextMenuData.actions.push({ id: 'edit', text: 'Edit', dataId: data.id });
+        }
+        if (isDeveloper()) {
+            contextMenuData.actions.push({ id: 'delete-order', text: 'Delete', onclick: `deleteOrder(${data.id})` });
         }
 
         createContextMenu(contextMenuData);
@@ -159,8 +177,11 @@
             bottomActions: [{ id: 'print', text: 'Print Order', onclick: 'printOrder(this)' }],
         };
 
-        if (data.status == 'pending' && canEditOrderRoles.includes(window.__currentUserRole)) {
+        if ((data.status == 'pending' && canEditOrderRoles.includes(window.__currentUserRole)) || isDeveloper()) {
             modalData.bottomActions.push({ id: 'edit', text: 'Edit', dataId: data.id });
+        }
+        if (isDeveloper()) {
+            modalData.bottomActions.push({ id: 'delete-order', text: 'Delete', onclick: `deleteOrder(${data.id})` });
         }
 
         createModal(modalData);

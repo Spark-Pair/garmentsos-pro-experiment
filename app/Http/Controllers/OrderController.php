@@ -375,6 +375,7 @@ class OrderController extends Controller
             'date' => $order->date?->format('Y-m-d'),
             'netAmount' => $order->netAmount,
             'customer' => [
+                'id' => $order->customer?->id,
                 'customer_name' => $order->customer?->customer_name,
                 'urdu_title' => $order->customer?->urdu_title,
                 'address' => $order->customer?->address,
@@ -396,6 +397,7 @@ class OrderController extends Controller
                         'pcs_per_packet' => $orderArticle->article?->pcs_per_packet,
                         'image' => $orderArticle->article?->image,
                         'category' => $orderArticle->article?->category,
+                        'fabric_type' => $orderArticle->article?->fabric_type,
                         'season' => $orderArticle->article?->season,
                         'size' => $orderArticle->article?->size,
                     ],
@@ -416,17 +418,20 @@ class OrderController extends Controller
         }
         app(ModuleBranchService::class)->assertRecordInAllowedBranch($order, 'orders');
 
+        $isDeveloper = Auth::user()?->role === 'developer';
         $validator = Validator::make($request->all(), [
             'discount'   => 'required|integer|min:0|max:100',
             'netAmount'  => 'required|string',
             'articles'   => 'required',
+            'date' => $isDeveloper ? 'required|date' : 'nullable',
+            'customer_id' => $isDeveloper ? 'required|integer|exists:customers,id' : 'nullable',
         ]);
 
         if ($validator->fails()) {
             return redirect()->back()->withErrors($validator)->withInput();
         }
 
-        DB::transaction(function () use ($request, $order) {
+        DB::transaction(function () use ($request, $order, $isDeveloper) {
 
             $netAmount = (int) str_replace(',', '', $request->netAmount);
             $articles = is_string($request->articles) ? json_decode($request->articles, true) : $request->articles;
@@ -439,10 +444,17 @@ class OrderController extends Controller
             $this->validateOrderArticleStock($articles, $order->id, $existingDispatched);
 
             // Update order
-            $order->update([
+            $orderUpdates = [
                 'netAmount' => $netAmount,
                 'discount'  => $request->discount,
-            ]);
+            ];
+
+            if ($isDeveloper) {
+                $orderUpdates['date'] = $request->date;
+                $orderUpdates['customer_id'] = $request->customer_id;
+            }
+
+            $order->update($orderUpdates);
 
             // Reset order articles
             $order->articles()->delete();
@@ -474,7 +486,12 @@ class OrderController extends Controller
                 : ($dispatchedPcs < $orderedPcs ? 'partially_invoiced' : 'invoiced');
             $order->save();
 
-            $order->paymentPrograms()->update(['amount' => $netAmount,]);
+            $paymentProgramUpdates = ['amount' => $netAmount];
+            if ($isDeveloper) {
+                $paymentProgramUpdates['date'] = $order->date;
+                $paymentProgramUpdates['customer_id'] = $order->customer_id;
+            }
+            $order->paymentPrograms()->update($paymentProgramUpdates);
         });
 
         return redirect()->route('orders.index')->with('success', 'Order updated successfully. Order No: ' . $order->order_no);
@@ -485,7 +502,17 @@ class OrderController extends Controller
      */
     public function destroy(Order $order)
     {
+        if (Auth::user()?->role !== 'developer') {
+            return redirect(route('orders.index'))->with('error', 'Only Developer can delete orders.');
+        }
+
         app(ModuleBranchService::class)->assertRecordInAllowedBranch($order, 'orders');
+
+        DB::transaction(function () use ($order) {
+            $order->delete();
+        });
+
+        return redirect()->route('orders.index')->with('success', 'Order deleted successfully.');
     }
 
     private function validateOrderArticleStock(array $articles, ?int $excludeOrderId = null, $existingDispatched = null): void
