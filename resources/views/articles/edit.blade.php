@@ -7,6 +7,9 @@
     $seasons_options = app('article')->seasons;
 
     $sizes_options = app('article')->sizes;
+
+    $isDeveloper = Auth::user()?->role === 'developer';
+    $connectedCount = collect($developerImpact ?? [])->sum('count');
 @endphp
     <!-- Main Content -->
     <!-- Progress Bar -->
@@ -33,10 +36,12 @@
                     <x-input
                         label="Article No"
                         value="{{ $article->article_no }}"
-                        disabled
+                        :disabled="!$isDeveloper"
                         name="article_no"
                     />
-                    <input type="hidden" name="article_no" id="article_no" value="{{ $article->article_no }}" />
+                    @unless($isDeveloper)
+                        <input type="hidden" name="article_no" id="article_no" value="{{ $article->article_no }}" />
+                    @endunless
 
                     <!-- date -->
                     <x-input
@@ -111,6 +116,23 @@
                         required
                     />
                 </div>
+
+                @if ($isDeveloper)
+                    <div class="rounded-xl border border-gray-600 bg-[var(--h-bg-color)] p-4 text-sm text-left">
+                        <div class="font-semibold text-[var(--text-color)]">Developer edit override</div>
+                        <p class="mt-1 text-[var(--secondary-text)]">
+                            This article can be edited by developer even when connected records exist. Review linked usage before changing article identity or deleting it.
+                        </p>
+                        <div class="mt-3 grid grid-cols-2 gap-2">
+                            @foreach (($developerImpact ?? []) as $impact)
+                                <div class="flex justify-between rounded-lg border border-gray-600 px-3 py-2">
+                                    <span>{{ $impact['label'] }}</span>
+                                    <strong>{{ $impact['count'] }}</strong>
+                                </div>
+                            @endforeach
+                        </div>
+                    </div>
+                @endif
             </div>
 
             <!-- Step 2: Production Details -->
@@ -215,6 +237,32 @@
                 @endif
             </div>
         </form>
+
+        @if ($isDeveloper)
+            <form action="{{ route('articles.destroy', $article) }}" method="POST"
+                class="bg-[var(--secondary-bg-color)] text-sm rounded-xl shadow-lg p-5 border border-[var(--glass-border-color)]/20 h-fit w-72">
+                @csrf
+                @method('DELETE')
+                <div class="font-semibold text-[var(--text-color)]">Developer delete</div>
+                <p class="mt-2 text-[var(--secondary-text)]">
+                    @if ($connectedCount > 0)
+                        This article has connected records. Force delete may remove related line records through database relationships.
+                    @else
+                        No connected records were found for this article.
+                    @endif
+                </p>
+                @if ($connectedCount > 0)
+                    <label class="mt-4 flex items-start gap-2 text-[var(--secondary-text)]">
+                        <input type="checkbox" name="confirm_delete_connected" value="1" class="mt-1">
+                        <span>I reviewed connected records and want to force delete.</span>
+                    </label>
+                @endif
+                <button type="submit"
+                    class="mt-4 w-full rounded-lg bg-[var(--danger-color)] px-4 py-2 font-semibold text-white transition hover:bg-[var(--h-danger-color)]">
+                    Delete Article
+                </button>
+            </form>
+        @endif
     </div>
 
 @endsection

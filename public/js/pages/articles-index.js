@@ -47,6 +47,14 @@
                 });
             }
 
+            if (config.currentUserRole === "developer") {
+                contextMenuData.actions.push({
+                    id: "delete",
+                    text: "Delete Article",
+                    onclick: `submitDeveloperArticleDelete(${data.id})`,
+                });
+            }
+
             createContextMenu(contextMenuData);
         };
 
@@ -96,7 +104,7 @@
                 ],
             };
 
-            if (data.ordered_quantity == 0) {
+            if (data.ordered_quantity == 0 || config.currentUserRole === "developer") {
                 modalData.bottomActions.push({
                     id: "edit",
                     text: "Edit Article",
@@ -334,6 +342,20 @@
             };
 
             createModal(modalData);
+        };
+
+        window.submitDeveloperArticleDelete = function submitDeveloperArticleDelete(articleId) {
+            const token = document.querySelector('meta[name="csrf-token"]')?.content || "";
+            const form = document.createElement("form");
+            form.method = "POST";
+            form.action = `/articles/${articleId}`;
+            form.className = "hidden";
+            form.innerHTML = `
+                <input type="hidden" name="_token" value="${token}">
+                <input type="hidden" name="_method" value="DELETE">
+            `;
+            document.body.appendChild(form);
+            form.submit();
         };
     }
 

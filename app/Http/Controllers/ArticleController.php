@@ -195,11 +195,15 @@ class ArticleController extends Controller
         }
         app(ModuleBranchService::class)->assertRecordInAllowedBranch($article, 'articles');
 
-        if ($article->ordered_quantity != 0) {
+        if (Auth::user()?->role !== 'developer' && $article->ordered_quantity != 0) {
             return redirect(route('articles.index'))->with("error", "This article can't be edited.");
         }
 
-        return view('articles.edit', compact('article'));
+        $developerImpact = Auth::user()?->role === 'developer'
+            ? $this->articleDeveloperImpact($article)
+            : [];
+
+        return view('articles.edit', compact('article', 'developerImpact'));
     }
 
     /**
@@ -211,6 +215,10 @@ class ArticleController extends Controller
             return $resp;
         }
         app(ModuleBranchService::class)->assertRecordInAllowedBranch($article, 'articles');
+
+        if (Auth::user()?->role !== 'developer' && $article->ordered_quantity != 0) {
+            return redirect(route('articles.index'))->with("error", "This article can't be edited.");
+        }
 
         $validator = Validator::make($request->all(), [
             'article_no' => 'required|string|unique:articles,article_no,' . $article->id,
@@ -274,7 +282,55 @@ class ArticleController extends Controller
      */
     public function destroy(Article $article)
     {
+        if ($resp = $this->denyIfNoRole(['developer'])) {
+            return $resp;
+        }
+
         app(ModuleBranchService::class)->assertRecordInAllowedBranch($article, 'articles');
+
+        $impact = $this->articleDeveloperImpact($article);
+        $hasConnections = collect($impact)->sum('count') > 0;
+
+        if ($hasConnections && !request()->boolean('confirm_delete_connected')) {
+            return redirect()
+                ->route('articles.edit', $article)
+                ->with('error', 'This article is connected with other records. Review the usage summary, then confirm force delete if needed.')
+                ->with('developer_delete_impact', $impact);
+        }
+
+        if ($article->image && $article->image !== 'no_image_icon.png' && Storage::disk('public')->exists('uploads/images/' . $article->image)) {
+            Storage::disk('public')->delete('uploads/images/' . $article->image);
+        }
+
+        $article->delete();
+
+        return redirect()->route('articles.index')->with('success', 'Article deleted successfully.');
+    }
+
+    private function articleDeveloperImpact(Article $article): array
+    {
+        $relations = [
+            'orderArticles' => 'Orders',
+            'invoiceArticles' => 'Invoices',
+            'shipmentArticles' => 'Shipments',
+            'physicalQuantity' => 'Physical Quantity',
+            'production' => 'Productions',
+            'salesReturns' => 'Sales Returns',
+        ];
+
+        $impact = [];
+        foreach ($relations as $relation => $label) {
+            $count = method_exists($article, $relation)
+                ? (int) $article->{$relation}()->count()
+                : 0;
+
+            $impact[] = [
+                'label' => $label,
+                'count' => $count,
+            ];
+        }
+
+        return $impact;
     }
 
     public function updateImage(Request $request)
