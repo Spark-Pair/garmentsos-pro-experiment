@@ -46,6 +46,7 @@ trait UtilityBillComputed
             'is_paid' => $this->is_paid,
             'status' => $this->status,
             'oncontextmenu' => 'generateContextMenu(event)',
+            'onclick' => 'generateModal(this)',
         ];
     }
 

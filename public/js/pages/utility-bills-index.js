@@ -23,6 +23,47 @@ function initUtilityBillsIndex() {
         </div>`;
     }
 
+    window.generateModal = function(item) {
+        const data = JSON.parse(item.dataset.json);
+        const details = {
+            "Bill Type": data.bill_type,
+            Location: data.location,
+            "Account Title": data.account_title,
+            "Account No.": data.account_no,
+            Month: data.month,
+            Units: data.units ?? "-",
+            Amount: formatMoney(data.amount),
+            "Due Date": data.due_date,
+            Status: data.status,
+        };
+
+        const bottomActions = [
+            {
+                id: "edit",
+                text: "Edit",
+                link: `/utility-bills/${data.id}/edit`,
+            },
+        ];
+
+        if (!data.is_paid) {
+            bottomActions.push({
+                id: "mark-paid",
+                text: "Mark Paid",
+                onclick: `markThisPaid(${data.id})`,
+            });
+        }
+
+        createModal({
+            id: "utilityBillDetailsModal",
+            method: "GET",
+            class: "p-5 max-w-2xl h-auto",
+            name: `${data.bill_type} Bill`,
+            status: data.is_paid ? "active" : "pending",
+            details,
+            bottomActions,
+        });
+    }
+
     window.generateContextMenu = function(e) {
         e.preventDefault();
         let item = e.target.closest('.item');

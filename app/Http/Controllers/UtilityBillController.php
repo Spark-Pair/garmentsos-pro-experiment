@@ -57,6 +57,10 @@ class UtilityBillController extends Controller
             return $resp;
         }
 
+        $request->merge([
+            'amount' => $this->normalizeAmount($request->input('amount')),
+        ]);
+
         $request->validate([
             'account_id' => 'required|integer|exists:utility_accounts,id',
             'month' => 'required|date_format:Y-m',
@@ -75,7 +79,7 @@ class UtilityBillController extends Controller
             'account_id' => $request->account_id,
             'month' => $request->month,
             'units' => $request->units,
-            'amount' => $request->amount,
+            'amount' => $request->input('amount'),
             'due_date' => $request->due_date,
         ], 'utility_bills'));
 
@@ -108,6 +112,10 @@ class UtilityBillController extends Controller
 
         app(ModuleBranchService::class)->assertRecordInAllowedBranch($utilityBill, 'utility_bills');
 
+        $request->merge([
+            'amount' => $this->normalizeAmount($request->input('amount')),
+        ]);
+
         $request->validate([
             'account_id' => 'required|integer|exists:utility_accounts,id',
             'month' => 'required|date_format:Y-m',
@@ -126,11 +134,22 @@ class UtilityBillController extends Controller
             'account_id' => $request->account_id,
             'month' => $request->month,
             'units' => $request->units,
-            'amount' => $request->amount,
+            'amount' => $request->input('amount'),
             'due_date' => $request->due_date,
         ]);
 
         return redirect()->route('utility-bills.index')->with('success', 'Utility Bill updated successfully.');
+    }
+
+    private function normalizeAmount(mixed $amount): mixed
+    {
+        if ($amount === null) {
+            return null;
+        }
+
+        $normalized = str_replace(',', '', trim((string) $amount));
+
+        return $normalized === '' ? $amount : $normalized;
     }
 
     public function markPaid(Request $request, UtilityBill $utilityBill)

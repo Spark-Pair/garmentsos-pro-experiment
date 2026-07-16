@@ -273,8 +273,10 @@ class OrderController extends Controller
             $customer = Customer::find($order['customer_id']);
 
             if ($customer && $customer['category'] == 'cash') {
-                $lastProgram = $branches->applyScope(PaymentProgram::orderBy('id', 'desc'), 'payment_programs')->first();
-                $nextProgramNo = $lastProgram ? $lastProgram->program_no + 1 : 1;
+                $nextProgramNo = ((int) PaymentProgram::query()->lockForUpdate()->max('program_no')) + 1;
+                while (PaymentProgram::query()->where('program_no', $nextProgramNo)->exists()) {
+                    $nextProgramNo++;
+                }
 
                 PaymentProgram::create([
                     'program_no' => $nextProgramNo,

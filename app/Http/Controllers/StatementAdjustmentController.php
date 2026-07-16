@@ -48,8 +48,6 @@ class StatementAdjustmentController extends Controller
             return $resp;
         }
 
-        app(ModuleBranchService::class)->assertRecordInAllowedBranch($statementAdjustment, 'statement_adjustments');
-
         $categoryOptions = $this->categoryOptions();
         $entryTypeOptions = $this->entryTypeOptions();
         $directionOptions = $this->directionOptions();
