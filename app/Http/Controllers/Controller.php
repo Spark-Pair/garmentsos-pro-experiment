@@ -568,6 +568,7 @@ class Controller extends BaseController
             'pcs_per_packet' => $article->pcs_per_packet,
             'sales_rate' => $article->sales_rate,
             'category' => $article->category,
+            'fabric_type' => $article->fabric_type,
             'season' => $article->season,
             'size' => $article->size,
             'image' => $article->image,

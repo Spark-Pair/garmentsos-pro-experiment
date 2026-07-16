@@ -30,7 +30,7 @@
 
         function invoiceDetailLine(orderedArticle, article) {
             const description = String(orderedArticle?.description ?? '').trim();
-            const fabricType = String(article?.fabric_type ?? orderedArticle?.fabric_type ?? '').trim();
+            const fabricType = String(article?.fabric_type ?? orderedArticle?.fabric_type ?? orderedArticle?.article?.fabric_type ?? '').trim();
             const parts = [description, fabricType].filter((part, index, list) => (
                 part && list.findIndex(item => item.toLowerCase() === part.toLowerCase()) === index
             ));
@@ -180,17 +180,17 @@
 
                     return `
                         <div class="invoice-item-row">
-                            <div class="tr invoice-item-main grid grid-cols-7 justify-between w-full px-4 gap-0.5">
+                            <div class="tr invoice-item-main grid grid-cols-8 justify-between w-full px-4 gap-0.5">
                                 <div class="td text-sm font-semibold truncate">${serial}</div>
                                 <div class="td invoice-article-cell text-sm font-semibold">
                                     <div class="invoice-article-code">${article.article_no ?? ''}</div>
-                                    ${detailLine ? `<div class="invoice-article-desc">${detailLine}</div>` : ''}
                                 </div>
+                                <div class="td invoice-description-cell text-sm font-semibold">${detailLine}</div>
                                 <div class="td text-sm font-semibold truncate">${article?.pcs_per_packet ?? 0}</div>
                                 <div class="td text-sm font-semibold truncate">${article?.pcs_per_packet ? Math.floor(qty / article.pcs_per_packet) : 0}</div>
                                 <div class="td text-sm font-semibold truncate">${qty}</div>
-                                <div class="td text-sm font-semibold truncate">${formatNumbersWithDigits(salesRate, 1, 1)}</div>
-                                <div class="td text-sm font-semibold truncate">${formatNumbersWithDigits(total, 1, 1)}</div>
+                                <div class="td text-sm font-semibold truncate">${formatNumbersDigitLess(salesRate)}</div>
+                                <div class="td text-sm font-semibold truncate">${formatNumbersDigitLess(total)}</div>
                             </div>
                         </div>
                     `;
@@ -199,14 +199,14 @@
                 const invoiceBottom = isLastPage ? `
                     <div class="total flex justify-between items-center border border-black rounded-lg py-1.5 px-4 w-full">
                         <div class="text-nowrap">Total Quantity</div>
-                        <div class="w-1/4 text-right grow">${formatNumbersDigitLess(totalPcs)} | ${formatNumbersDigitLess(totalPackets)}</div>
+                        <div class="w-1/4 text-right grow">${formatNumbersDigitLess(totalPackets)} | ${formatNumbersDigitLess(totalPcs)}</div>
                     </div>
                     <div class="total flex justify-between items-center border border-black rounded-lg py-1.5 px-4 w-full">
                         <div class="text-nowrap">Gross Amount</div>
                         <div class="w-1/4 text-right grow">${formatNumbersWithDigits(totalAmount, 1, 1)}</div>
                     </div>
                     <div class="total flex justify-between items-center border border-black rounded-lg py-1.5 px-4 w-full">
-                        <div class="text-nowrap">Discount - ${discountVal}%</div>
+                        <div class="text-nowrap">Discount ${discountVal}%</div>
                         <div class="w-1/4 text-right grow">${formatNumbersWithDigits(discountAmount, 1, 1)}</div>
                     </div>
                     <div class="total flex justify-between items-center border border-black rounded-lg py-1.5 px-4 w-full">
@@ -236,9 +236,7 @@
                                     <div class="right">
                                         <div class="logo text-right">
                                             <h1 class="text-2xl font-medium text-[var(--h-primary-color)]">Sales Invoice</h1>
-                                            ${options.showCotton && previewData.cotton_count ? `<div class="mt-1 text-right">Cotton: ${previewData.cotton_count}</div>` : ''}
-                                            ${options.showShipmentNo && previewData.shipment_no ? `<div class="mt-1 text-right">Shipment No.: ${previewData.shipment_no}</div>` : ''}
-                                            ${options.showOrderNo && previewData.order_no ? `<div class="mt-1 text-right">Order No.: ${previewData.order_no}</div>` : ''}
+                                            <div class="mt-1 text-right">Invoice No.: ${previewData.invoice_no}</div>
                                         </div>
                                     </div>
                                 </div>
@@ -252,10 +250,10 @@
                                     </div>
                                     <div class="right w-50 my-auto text-right text-sm text-black space-y-1.5">
                                         <div class="date leading-none">Date: ${formatDate(previewData.date)}</div>
-                                        <div class="number leading-none capitalize font-medium">Invoice No.: ${previewData.invoice_no}</div>
+                                        ${options.showOrderNo && previewData.order_no ? `<div class="number leading-none capitalize">Order No.: ${previewData.order_no}</div>` : options.showShipmentNo && previewData.shipment_no ? `<div class="number leading-none capitalize">Shipment No.: ${previewData.shipment_no}</div>` : ''}
                                         <input type="hidden" name="invoice_no" value="${previewData.invoice_no}" />
                                         <div class="preview-copy leading-none capitalize">Invoice Copy: ${copyLabel}</div>
-                                        <div class="copy leading-none">Document: Sales Invoice</div>
+                                        <div class="number leading-none capitalize">Cotton: ${previewData.cotton_count || '-'}</div>
                                     </div>
                                 </div>
                                 <hr class="w-full my-3 border-black">
@@ -263,9 +261,10 @@
                                     <div class="table w-full">
                                         <div class="table w-full border border-black rounded-lg pb-2.5 overflow-hidden">
                                             <div class="thead w-full">
-                                                <div class="tr grid grid-cols-7 w-full px-4 py-1.5 bg-[var(--primary-color)] text-white">
+                                                <div class="tr grid grid-cols-8 w-full px-4 py-1.5 bg-[var(--primary-color)] text-white">
                                                     <div class="th text-sm font-medium">S.#</div>
-                                                    <div class="th text-sm font-medium">Article / Description</div>
+                                                    <div class="th text-sm font-medium">Article</div>
+                                                    <div class="th text-sm font-medium">Description</div>
                                                     <div class="th text-sm font-medium">Unit</div>
                                                     <div class="th text-sm font-medium">Pkts</div>
                                                     <div class="th text-sm font-medium">Pcs.</div>
@@ -939,6 +938,7 @@
                         invoice_articles: shipmentArticles.map((article) => ({
                             article: article.article,
                             description: article.description,
+                            fabric_type: article.article?.fabric_type ?? article.fabric_type ?? '',
                             shipment_pcs: article.shipment_pcs,
                             invoice_pcs: article.shipment_pcs * cottonCount,
                         })),
@@ -973,7 +973,8 @@
 
                 const invoiceTableHeader = `
                     <div class="th text-sm font-medium">S.#</div>
-                    <div class="th text-sm font-medium">Article / Description</div>
+                    <div class="th text-sm font-medium">Article</div>
+                    <div class="th text-sm font-medium">Description</div>
                     <div class="th text-sm font-medium">Unit</div>
                     <div class="th text-sm font-medium">Pkts</div>
                     <div class="th text-sm font-medium">Pcs.</div>
@@ -997,17 +998,17 @@
                         return `
                             <div class="invoice-item-row">
                                 <hr class="w-full ${hrClass} border-black">
-                                <div class="tr invoice-item-main grid grid-cols-7 justify-between w-full px-4 gap-0.5">
+                                <div class="tr invoice-item-main grid grid-cols-8 justify-between w-full px-4 gap-0.5">
                                     <div class="td text-sm font-semibold truncate">${String(index + 1).padStart(2, '0')}</div>
                                     <div class="td invoice-article-cell text-sm font-semibold">
                                         <div class="invoice-article-code">${article.article_no ?? ''}</div>
-                                        ${detailLine ? `<div class="invoice-article-desc">${detailLine}</div>` : ''}
                                     </div>
+                                    <div class="td invoice-description-cell text-sm font-semibold">${detailLine}</div>
                                     <div class="td text-sm font-semibold truncate">${article?.pcs_per_packet ?? 0}</div>
                                     <div class="td text-sm font-semibold truncate">${article?.pcs_per_packet ? Math.floor(qty / article.pcs_per_packet) : 0}</div>
                                     <div class="td text-sm font-semibold truncate">${qty}</div>
-                                    <div class="td text-sm font-semibold truncate">${formatNumbersWithDigits(salesRate, 1, 1)}</div>
-                                    <div class="td text-sm font-semibold truncate">${formatNumbersWithDigits(total, 1, 1)}</div>
+                                    <div class="td text-sm font-semibold truncate">${formatNumbersDigitLess(salesRate)}</div>
+                                    <div class="td text-sm font-semibold truncate">${formatNumbersDigitLess(total)}</div>
                                 </div>
                             </div>
                         `;
@@ -1020,14 +1021,14 @@
                 const invoiceBottom = `
                     <div class="total flex justify-between items-center border border-black rounded-lg py-1.5 px-4 w-full">
                         <div class="text-nowrap">Total Quantity</div>
-                        <div class="w-1/4 text-right grow">${formatNumbersDigitLess(totalPcs)} | ${formatNumbersDigitLess(totalPackets)}</div>
+                        <div class="w-1/4 text-right grow">${formatNumbersDigitLess(totalPackets)} | ${formatNumbersDigitLess(totalPcs)}</div>
                     </div>
                     <div class="total flex justify-between items-center border border-black rounded-lg py-1.5 px-4 w-full">
                         <div class="text-nowrap">Gross Amount</div>
                         <div class="w-1/4 text-right grow">${formatNumbersWithDigits(totalAmount, 1, 1)}</div>
                     </div>
                     <div class="total flex justify-between items-center border border-black rounded-lg py-1.5 px-4 w-full">
-                        <div class="text-nowrap">Discount - ${discountVal}%</div>
+                        <div class="text-nowrap">Discount ${discountVal}%</div>
                         <div class="w-1/4 text-right grow">${formatNumbersWithDigits(discountAmount, 1, 1)}</div>
                     </div>
                     <div class="total flex justify-between items-center border border-black rounded-lg py-1.5 px-4 w-full">
@@ -1065,8 +1066,7 @@
                                     <div class="right">
                                         <div class="logo text-right">
                                             <h1 class="text-2xl font-medium text-[var(--h-primary-color)]">Sales Invoice</h1>
-                                            <div class="mt-1 text-right ${cotton === 0 ? 'hidden' : ''}">Cotton: ${cotton}</div>
-                                            ${previewData.shipment_no ? `<div class="mt-1 text-right">Shipment No.: ${previewData.shipment_no}</div>` : ''}
+                                            <div class="mt-1 text-right">Invoice No.: ${previewData.invoice_no}</div>
                                         </div>
                                     </div>
                                 </div>
@@ -1080,10 +1080,10 @@
                                     </div>
                                     <div class="right w-50 my-auto text-right text-sm text-black space-y-1.5">
                                         <div class="date leading-none">Date: ${formatDate(previewData.date)}</div>
-                                        <div class="number leading-none capitalize font-medium">invoice No.: ${previewData.invoice_no}</div>
+                                        ${previewData.order_no ? `<div class="number leading-none capitalize">Order No.: ${previewData.order_no}</div>` : previewData.shipment_no ? `<div class="number leading-none capitalize">Shipment No.: ${previewData.shipment_no}</div>` : ''}
                                         <input type="hidden" name="invoice_no" value="${previewData.invoice_no}" />
                                         <div class="preview-copy leading-none capitalize">invoice Copy: ${copyLabel}</div>
-                                        <div class="copy leading-none">Document: Sales Invoice</div>
+                                        <div class="number leading-none capitalize">Cotton: ${cotton || '-'}</div>
                                     </div>
                                 </div>
                                 <hr class="w-full my-3 border-black">
@@ -1091,7 +1091,7 @@
                                     <div class="table w-full">
                                         <div class="table w-full border border-black rounded-lg pb-2.5 overflow-hidden">
                                             <div class="thead w-full">
-                                                <div class="tr grid grid-cols-7 w-full px-4 py-1.5 bg-[var(--primary-color)] text-white">
+                                                <div class="tr grid grid-cols-8 w-full px-4 py-1.5 bg-[var(--primary-color)] text-white">
                                                     ${invoiceTableHeader}
                                                 </div>
                                             </div>
@@ -1430,6 +1430,7 @@
                         invoice_articles: orderedArticles.map((article) => ({
                             article: article.article,
                             description: article.description,
+                            fabric_type: article.article?.fabric_type ?? article.fabric_type ?? '',
                             ordered_pcs: article.ordered_quantity,
                             invoice_pcs: article.ordered_quantity,
                         })),
@@ -1462,7 +1463,8 @@
 
                 const invoiceTableHeader = `
                     <div class="th text-sm font-medium">S.#</div>
-                    <div class="th text-sm font-medium">Article / Description</div>
+                    <div class="th text-sm font-medium">Article</div>
+                    <div class="th text-sm font-medium">Description</div>
                     <div class="th text-sm font-medium">Unit</div>
                     <div class="th text-sm font-medium">Pkts</div>
                     <div class="th text-sm font-medium">Pcs.</div>
@@ -1486,17 +1488,17 @@
                         return `
                             <div class="invoice-item-row">
                                 <hr class="w-full ${hrClass} border-black">
-                                <div class="tr invoice-item-main grid grid-cols-7 justify-between w-full px-4 gap-0.5">
+                                <div class="tr invoice-item-main grid grid-cols-8 justify-between w-full px-4 gap-0.5">
                                     <div class="td text-sm font-semibold truncate">${String(index + 1).padStart(2, '0')}</div>
                                     <div class="td invoice-article-cell text-sm font-semibold">
                                         <div class="invoice-article-code">${article.article_no ?? ''}</div>
-                                        ${detailLine ? `<div class="invoice-article-desc">${detailLine}</div>` : ''}
                                     </div>
+                                    <div class="td invoice-description-cell text-sm font-semibold">${detailLine}</div>
                                     <div class="td text-sm font-semibold truncate">${article?.pcs_per_packet ?? 0}</div>
                                     <div class="td text-sm font-semibold truncate">${article?.pcs_per_packet ? Math.floor(qty / article.pcs_per_packet) : 0}</div>
                                     <div class="td text-sm font-semibold truncate">${qty}</div>
-                                    <div class="td text-sm font-semibold truncate">${formatNumbersWithDigits(salesRate, 1, 1)}</div>
-                                    <div class="td text-sm font-semibold truncate">${formatNumbersWithDigits(total, 1, 1)}</div>
+                                    <div class="td text-sm font-semibold truncate">${formatNumbersDigitLess(salesRate)}</div>
+                                    <div class="td text-sm font-semibold truncate">${formatNumbersDigitLess(total)}</div>
                                 </div>
                             </div>
                         `;
@@ -1509,14 +1511,14 @@
                 const invoiceBottom = `
                     <div class="total flex justify-between items-center border border-black rounded-lg py-1.5 px-4 w-full">
                         <div class="text-nowrap">Total Quantity</div>
-                        <div class="w-1/4 text-right grow">${formatNumbersDigitLess(totalPcsCalc)} | ${formatNumbersDigitLess(totalPacketsCalc)}</div>
+                        <div class="w-1/4 text-right grow">${formatNumbersDigitLess(totalPacketsCalc)} | ${formatNumbersDigitLess(totalPcsCalc)}</div>
                     </div>
                     <div class="total flex justify-between items-center border border-black rounded-lg py-1.5 px-4 w-full">
                         <div class="text-nowrap">Gross Amount</div>
                         <div class="w-1/4 text-right grow">${formatNumbersWithDigits(totalAmountCalc, 1, 1)}</div>
                     </div>
                     <div class="total flex justify-between items-center border border-black rounded-lg py-1.5 px-4 w-full">
-                        <div class="text-nowrap">Discount - ${discountVal}%</div>
+                        <div class="text-nowrap">Discount ${discountVal}%</div>
                         <div class="w-1/4 text-right grow">${formatNumbersWithDigits(discountAmount, 1, 1)}</div>
                     </div>
                     <div class="total flex justify-between items-center border border-black rounded-lg py-1.5 px-4 w-full">
@@ -1554,7 +1556,7 @@
                                     <div class="right">
                                         <div class="logo text-right">
                                             <h1 class="text-2xl font-medium text-[var(--h-primary-color)]">Sales Invoice</h1>
-                                            ${previewData.order_no ? `<div class="mt-1 text-right">Order No.: ${previewData.order_no}</div>` : ''}
+                                            <div class="mt-1 text-right">Invoice No.: ${previewData.invoice_no}</div>
                                         </div>
                                     </div>
                                 </div>
@@ -1568,10 +1570,10 @@
                                     </div>
                                     <div class="right w-50 my-auto text-right text-sm text-black space-y-1.5">
                                         <div class="date leading-none">Date: ${formatDate(previewData.date)}</div>
-                                        <div class="number leading-none capitalize font-medium">invoice No.: ${previewData.invoice_no}</div>
+                                        ${previewData.order_no ? `<div class="number leading-none capitalize">Order No.: ${previewData.order_no}</div>` : previewData.shipment_no ? `<div class="number leading-none capitalize">Shipment No.: ${previewData.shipment_no}</div>` : ''}
                                         <input type="hidden" name="invoice_no" value="${previewData.invoice_no}" />
                                         <div class="preview-copy leading-none capitalize">invoice Copy: ${copyLabel}</div>
-                                        <div class="copy leading-none">Document: Sales Invoice</div>
+                                        <div class="number leading-none capitalize">Cotton: ${previewData.cotton_count || '-'}</div>
                                     </div>
                                 </div>
                                 <hr class="w-full my-3 border-black">
@@ -1579,7 +1581,7 @@
                                     <div class="table w-full">
                                         <div class="table w-full border border-black rounded-lg pb-2.5 overflow-hidden">
                                             <div class="thead w-full">
-                                                <div class="tr grid grid-cols-7 w-full px-4 py-1.5 bg-[var(--primary-color)] text-white">
+                                                <div class="tr grid grid-cols-8 w-full px-4 py-1.5 bg-[var(--primary-color)] text-white">
                                                     ${invoiceTableHeader}
                                                 </div>
                                             </div>

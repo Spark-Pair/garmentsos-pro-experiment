@@ -1,12 +1,21 @@
 function createModal(data, animate = 'animate') {
     const invoiceDetailLine = (orderedArticle, article) => {
         const description = String(orderedArticle?.description ?? '').trim();
-        const fabricType = String(article?.fabric_type ?? orderedArticle?.fabric_type ?? '').trim();
+        const fabricType = String(article?.fabric_type ?? orderedArticle?.fabric_type ?? orderedArticle?.article?.fabric_type ?? orderedArticle?.articles?.fabric_type ?? '').trim();
         const parts = [description, fabricType].filter((part, index, list) => (
             part && list.findIndex(item => item.toLowerCase() === part.toLowerCase()) === index
         ));
 
         return parts.length ? parts.join(' | ') : '';
+    };
+
+    const dispatchText = (orderedArticle, article) => {
+        const dispatchedPcs = Number(orderedArticle?.dispatched_pcs || 0);
+        const pcsPerPacket = Number(article?.pcs_per_packet || 0);
+        if (!dispatchedPcs) return '';
+
+        const packets = pcsPerPacket ? Math.floor(dispatchedPcs / pcsPerPacket) : 0;
+        return packets ? formatNumbersDigitLess(packets) : '';
     };
 
     const statusColor = {
@@ -18,6 +27,9 @@ function createModal(data, animate = 'animate') {
     const companyData = data.companyData || window.companyData || {};
     const companyLogoBase = (data.companyLogoBase || window.companyLogoBase || '/').replace(/\/+$/, '/') ;
     const explicitMaxWidth = (data.class || '').includes('max-w-');
+    const isA5Preview = data.preview && (
+        data.preview.size == "A5" || ['invoice', 'order', 'shipment'].includes(data.preview.type)
+    );
 
     const contextMenu = document.getElementById('context-menu');
     if (contextMenu) {
@@ -35,7 +47,7 @@ function createModal(data, animate = 'animate') {
     let clutter = `
         <form id="${data.id}" method="${data.method ?? 'POST'}" action="${data.action}" enctype="multipart/form-data" class="w-full h-full flex flex-col space-y-4 relative items-center justify-center ${animate == 'animate' ? 'scale-in' : ''} ${data.class}">
             <input type="hidden" name="_token" value="${document.querySelector('meta[name=\'csrf-token\']')?.content}">
-            <div class="${data.class} ${data.preview ? `bg-white text-black ${data.preview.size == "A5" ? "w-[148mm]" : "max-w-4xl"} h-[35rem] py-0` : 'bg-[var(--secondary-bg-color)]'} ${data.cards ? 'h-[40rem] max-w-6xl' : (explicitMaxWidth ? '' : 'max-w-2xl')} rounded-2xl shadow-lg w-full p-6 flex relative">
+            <div class="${data.class} ${data.preview ? `bg-white text-black ${isA5Preview ? "w-[calc(148mm+3rem)] max-w-[calc(100vw-2rem)]" : "max-w-4xl"} h-[35rem] py-0` : 'bg-[var(--secondary-bg-color)]'} ${data.cards ? 'h-[40rem] max-w-6xl' : (explicitMaxWidth || isA5Preview ? '' : 'max-w-2xl')} rounded-2xl shadow-lg ${isA5Preview ? '' : 'w-full'} p-6 flex relative">
                 <div id="modal-close" onclick="closeModal('${data.id}')"
                     class="absolute top-0 -right-4 translate-x-full bg-[var(--secondary-bg-color)] rounded-2xl shadow-lg w-auto p-3 text-sm transition-all duration-300 ease-in-out hover:scale-[0.95] cursor-pointer">
                     <button type="button"
@@ -645,14 +657,16 @@ function createModal(data, animate = 'animate') {
             let rowSerial = 1;
 
             articlePages.forEach((articlesChunk, pageIndex) => {
-                invoiceTableHeader = data.preview.type == 'invoice' ? `
+                invoiceTableHeader = data.preview.type == 'invoice' || data.preview.type == 'order' || data.preview.type == 'shipment' ? `
                     <div class="th text-sm font-medium ">S.#</div>
-                    <div class="th text-sm font-medium ">Article / Description</div>
+                    <div class="th text-sm font-medium ">Article</div>
+                    <div class="th text-sm font-medium ">Description</div>
                     <div class="th text-sm font-medium ">Unit</div>
                     <div class="th text-sm font-medium ">Pkts</div>
                     <div class="th text-sm font-medium ">Pcs.</div>
                     <div class="th text-sm font-medium ">Rate</div>
                     <div class="th text-sm font-medium ">Amt.</div>
+                    ${data.preview.type == 'order' ? '<div class="th text-sm font-medium text-center">Dispatch</div>' : ''}
                 ` : `
                     <div class="th text-sm font-medium ">S.No</div>
                     <div class="th text-sm font-medium ">Article</div>
@@ -674,6 +688,7 @@ function createModal(data, animate = 'animate') {
                             const salesRate = article.sales_rate;
                             const qtyPriority = {
                                 order: ['ordered_pcs', 'invoice_pcs', 'shipment_pcs'],
+                                shipment: ['shipment_pcs', 'ordered_pcs', 'invoice_pcs'],
                                 default: ['invoice_pcs', 'ordered_pcs', 'shipment_pcs'],
                             };
                             const qty = (qtyPriority[data.preview.type] || qtyPriority.default)
@@ -686,23 +701,26 @@ function createModal(data, animate = 'animate') {
                             totalPcs += qty;
                             totalPackets += article?.pcs_per_packet ? Math.floor(qty / article.pcs_per_packet) : 0;
 
-                            if (data.preview.type == 'invoice') {
+                            if (data.preview.type == 'invoice' || data.preview.type == 'order' || data.preview.type == 'shipment') {
                                 const detailLine = invoiceDetailLine(orderedArticle, article);
+                                const rowGridClass = data.preview.type == 'order' ? 'grid-cols-9' : 'grid-cols-8';
+                                const dispatched = dispatchText(orderedArticle, article);
 
                                 return `
                                     <div class="invoice-item-row">
                                         <hr class="w-full ${hrClass} border-black">
-                                        <div class="tr invoice-item-main grid grid-cols-7 justify-between w-full px-4 gap-0.5">
+                                        <div class="tr invoice-item-main grid ${rowGridClass} justify-between w-full px-4 gap-0.5">
                                             <div class="td text-sm font-semibold truncate">${String(rowSerial++).padStart(2, '0')}</div>
                                             <div class="td invoice-article-cell text-sm font-semibold">
                                                 <div class="invoice-article-code">${article.article_no}</div>
-                                                ${detailLine ? `<div class="invoice-article-desc">${detailLine}</div>` : ''}
                                             </div>
+                                            <div class="td invoice-description-cell text-sm font-semibold">${detailLine}</div>
                                             <div class="td text-sm font-semibold truncate">${article?.pcs_per_packet}</div>
                                             <div class="td text-sm font-semibold truncate">${article?.pcs_per_packet ? Math.floor(qty / article.pcs_per_packet) : 0}</div>
                                             <div class="td text-sm font-semibold truncate">${qty}</div>
-                                            <div class="td text-sm font-semibold truncate">${formatNumbersWithDigits(salesRate, 1, 1)}</div>
-                                            <div class="td text-sm font-semibold truncate">${formatNumbersWithDigits(total, 1, 1)}</div>
+                                            <div class="td text-sm font-semibold truncate">${formatNumbersDigitLess(salesRate)}</div>
+                                            <div class="td text-sm font-semibold truncate">${formatNumbersDigitLess(total)}</div>
+                                            ${data.preview.type == 'order' ? `<div class="td text-sm font-semibold text-center">${dispatched}</div>` : ''}
                                         </div>
                                     </div>
                                 `;
@@ -718,8 +736,8 @@ function createModal(data, animate = 'animate') {
                                         ${data.preview.type == 'invoice' ? `<div class="td text-sm font-semibold truncate">${article?.pcs_per_packet}</div>` : ''}
                                         <div class="td text-sm font-semibold truncate">${article?.pcs_per_packet ? Math.floor(qty / article.pcs_per_packet) : 0}</div>
                                         <div class="td text-sm font-semibold truncate">${qty}</div>
-                                        <div class="td text-sm font-semibold truncate">${formatNumbersWithDigits(salesRate, 1, 1)}</div>
-                                        <div class="td text-sm font-semibold truncate">${formatNumbersWithDigits(total, 1, 1)}</div>
+                                        <div class="td text-sm font-semibold truncate">${formatNumbersDigitLess(salesRate)}</div>
+                                        <div class="td text-sm font-semibold truncate">${formatNumbersDigitLess(total)}</div>
                                         ${data.preview.type == 'order' ? `<div class="td text-sm text-center font-semibold truncate">${orderedArticle.dispatched_pcs > 0 ? orderedArticle.dispatched_pcs : ''}</div>` : ''}
                                     </div>
                                 </div>
@@ -736,14 +754,14 @@ function createModal(data, animate = 'animate') {
                     invoiceBottom = `
                         <div class="total flex justify-between items-center border border-black rounded-lg py-1.5 px-4 w-full">
                             <div class="text-nowrap">Total Quantity</div>
-                            <div class="w-1/4 text-right grow">${formatNumbersDigitLess(totalPcs)} | ${formatNumbersDigitLess(totalPackets)}</div>
+                            <div class="w-1/4 text-right grow">${formatNumbersDigitLess(totalPackets)} | ${formatNumbersDigitLess(totalPcs)}</div>
                         </div>
                         <div class="total flex justify-between items-center border border-black rounded-lg py-1.5 px-4 w-full">
                             <div class="text-nowrap">Gross Amount</div>
                             <div class="w-1/4 text-right grow">${formatNumbersWithDigits(totalAmount, 1, 1)}</div>
                         </div>
                         <div class="total flex justify-between items-center border border-black rounded-lg py-1.5 px-4 w-full">
-                            <div class="text-nowrap">Discount - ${discount}%</div>
+                            <div class="text-nowrap">Discount ${discount}%</div>
                             <div class="w-1/4 text-right grow">${formatNumbersWithDigits(discountAmount, 1, 1)}</div>
                         </div>
                         <div class="total flex justify-between items-center border border-black rounded-lg py-1.5 px-4 w-full">
@@ -770,9 +788,28 @@ function createModal(data, animate = 'animate') {
     function renderPreviewPage(data, previewData, cottonCount, invoiceTableHeader, invoiceTableBody, invoiceBottom, pageIndex, totalPages = 1) {
         const previewCompany = previewData?.branch_branding || companyData;
         const previewLogoUrl = previewCompany.logo_url || (previewCompany.logo ? `${companyLogoBase}images/${previewCompany.logo}` : '');
-        const isCompactDocument = data.preview.size == "A5" || data.preview.type == "order" || data.preview.type == "invoice";
+        const isCompactDocument = data.preview.size == "A5" || data.preview.type == "order" || data.preview.type == "invoice" || data.preview.type == "shipment";
         const pageSizeClass = isCompactDocument ? "w-[148mm] h-[210mm]" : "w-[208mm] h-[302mm]";
-        const pageTextClass = isCompactDocument ? `gos-a5-document ${data.preview.type == "invoice" ? "gos-a5-invoice" : ""}` : "";
+        const pageTextClass = isCompactDocument ? `gos-a5-document ${data.preview.type == "invoice" || data.preview.type == "order" || data.preview.type == "shipment" ? "gos-a5-invoice" : ""}` : "";
+        const documentNo = data.preview.type == 'order'
+            ? previewData.order_no
+            : data.preview.type == 'invoice'
+                ? previewData.invoice_no
+                : data.preview.type == 'shipment'
+                    ? previewData.shipment_no
+                    : '';
+        const documentNoLabel = data.preview.type == 'order'
+            ? 'Order No.'
+            : data.preview.type == 'invoice'
+                ? 'Invoice No.'
+                : data.preview.type == 'shipment'
+                    ? 'Shipment No.'
+                    : '';
+        const invoiceSourceNo = previewData.order_no
+            ? `Order No.: ${previewData.order_no}`
+            : previewData.shipment_no
+                ? `Shipment No.: ${previewData.shipment_no}`
+                : '';
         return `
             <div id="preview" class="preview ${pageSizeClass} ${pageTextClass} overflow-hidden flex flex-col">
                 <div class="flex flex-col h-full">
@@ -807,9 +844,8 @@ function createModal(data, animate = 'animate') {
                         <div class="right">
                             <div class="logo text-right">
                                 <h1 class="text-2xl font-medium text-[var(--h-primary-color)]">${data.preview.document}</h1>
-                                <div class="mt-1 text-right ${cottonCount == 0 ? 'hidden' : ''}">Cotton: ${cottonCount}</div>
-                                ${previewData.shipment_no ? '<div class="mt-1 text-right">Shipment No.: ' + previewData.shipment_no + '</div>' : ''}
-                                ${previewData.order_no ? '<div class="mt-1 text-right">Order No.: ' + previewData.order_no + '</div>' : ''}
+                                ${documentNo ? `<div class="mt-1 text-right">${documentNoLabel}: ${documentNo}</div>` : ''}
+                                ${!['invoice', 'order', 'shipment'].includes(data.preview.type) && previewData.order_no ? '<div class="mt-1 text-right">Order No.: ' + previewData.order_no + '</div>' : ''}
                                 ${data.preview.type == 'form' ? `<div class='mt-1 text-sm'>${previewCompany.phone_number || ''}</div>` : ''}
                             </div>
                         </div>
@@ -820,9 +856,11 @@ function createModal(data, animate = 'animate') {
                             <div class="left w-50 space-y-1">
                                 ${data.preview.type == "order" || data.preview.type == "invoice" ? `
                                     <div class="customer text-lg leading-none capitalize font-medium text-nowrap">M/s: ${previewData.customer.customer_name}</div>
-                                    <div class="person text-md text-lg leading-none">${previewData.customer.urdu_title}</div>
-                                    <div class="address text-md leading-none">${previewData.customer.address}, ${previewData.customer.city.title}</div>
-                                    <div class="phone text-md leading-none">${previewData.customer.phone_number}</div>
+                                    <div class="person text-md text-lg leading-none">${previewData.customer.urdu_title ?? ''}</div>
+                                    <div class="address text-md leading-none">${previewData.customer.address ?? ''}${previewData.customer.city?.title ? ', ' + previewData.customer.city.title : ''}</div>
+                                    <div class="phone text-md leading-none">${previewData.customer.phone_number ?? ''}</div>
+                                ` : data.preview.type == "shipment" ? `
+                                    <div class="address text-md leading-none capitalize">${previewData.city ? 'City: ' + previewData.city : ''}</div>
                                 ` : `
                                     <div class="date leading-none">Date: ${formatDate(previewData.date)}</div>
                                     <div class="number leading-none capitalize">${data.preview.type.replace('_', ' ')} No.: ${data.preview.type == 'shipment' ? previewData.shipment_no : data.preview.type == 'voucher' ? previewData.voucher_no : data.preview.type == 'cargo_list' ? previewData.cargo_no : ''}</div>
@@ -834,12 +872,13 @@ function createModal(data, animate = 'animate') {
                                 </div>
                             ` : ''}
                             <div class="right w-50 my-auto text-right text-sm text-black space-y-1.5">
-                                ${data.preview.type == "order" || data.preview.type == "invoice" ? `
+                                ${data.preview.type == "order" || data.preview.type == "invoice" || data.preview.type == "shipment" ? `
                                     <div class="date leading-none">Date: ${formatDate(previewData.date)}</div>
-                                    <div class="number leading-none capitalize font-medium">${data.preview.type} No.: ${data.preview.type == 'order' ? previewData.order_no : data.preview.type == 'invoice' ? previewData.invoice_no : ''}</div>
+                                    ${data.preview.type == 'invoice' && invoiceSourceNo ? `<div class="number leading-none capitalize">${invoiceSourceNo}</div>` : ''}
                                 ` : ''}
-                                <div class="preview-copy leading-none capitalize">${data.preview.type.replace('_', ' ')} Copy: ${data.preview.type == 'shipment' || (data.preview.type == 'voucher' && !previewData.supplier) ? 'Staff' : (data.preview.type == 'voucher' && previewData.supplier) ? 'Supplier' : data.preview.type == 'cargo_list' ? 'Cargo' : 'Customer'}</div>
-                                <div class="copy leading-none">Document: ${data.preview.document}</div>
+                                ${data.preview.type != 'shipment' ? `<div class="preview-copy leading-none capitalize">${data.preview.type.replace('_', ' ')} Copy: ${(data.preview.type == 'voucher' && !previewData.supplier) ? 'Staff' : (data.preview.type == 'voucher' && previewData.supplier) ? 'Supplier' : data.preview.type == 'cargo_list' ? 'Cargo' : 'Customer'}</div>` : ''}
+                                ${data.preview.type == 'invoice' ? `<div class="number leading-none capitalize">Cotton: ${cottonCount || '-'}</div>` : ''}
+                                ${!['invoice', 'order', 'shipment'].includes(data.preview.type) ? `<div class="copy leading-none">Document: ${data.preview.document}</div>` : ''}
                             </div>
                         </div>
                         <hr class="w-full my-3 border-black">
@@ -847,7 +886,7 @@ function createModal(data, animate = 'animate') {
                             <div class="table w-full">
                                 <div class="table w-full border border-black rounded-lg pb-2.5 overflow-hidden">
                                     <div class="thead w-full">
-                                        <div class="tr ${data.preview.type == 'voucher' || data.preview.type == 'cargo_list' ? 'flex justify-between' : 'grid'} ${data.preview.type == 'invoice' ? 'grid-cols-7' : data.preview.type == 'shipment' ? 'grid-cols-8' : 'grid-cols-9'} w-full px-4 py-1.5 bg-[var(--primary-color)] text-white">
+                                        <div class="tr ${data.preview.type == 'voucher' || data.preview.type == 'cargo_list' ? 'flex justify-between' : 'grid'} ${data.preview.type == 'order' ? 'grid-cols-9' : data.preview.type == 'invoice' ? 'grid-cols-8' : data.preview.type == 'shipment' ? 'grid-cols-8' : 'grid-cols-9'} w-full px-4 py-1.5 bg-[var(--primary-color)] text-white">
                                             ${invoiceTableHeader}
                                         </div>
                                     </div>

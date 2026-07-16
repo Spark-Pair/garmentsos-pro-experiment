@@ -74,7 +74,7 @@
         <!-- Step 2: view order -->
         <div class="step2 hidden space-y-4 text-black h-[35rem] overflow-y-auto my-scrollbar-2 bg-white rounded-md py-10">
             <div id="preview-container" class="w-[148mm] h-[210mm] mx-auto overflow-hidden relative ">
-                <div id="preview" class="preview w-[148mm] h-[210mm] gos-a5-document overflow-hidden flex flex-col">
+                <div id="preview" class="preview w-[148mm] h-[210mm] gos-a5-document gos-a5-invoice overflow-hidden flex flex-col">
                     <h1 class="text-[var(--border-error)] font-medium text-center mt-5">No Preview avalaible.</h1>
                 </div>
             </div>

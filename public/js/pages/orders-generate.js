@@ -83,6 +83,36 @@
         renderFinals();
     }
 
+    function orderDetailLine(article) {
+        const description = String(article?.description ?? '').trim();
+        const fabricType = String(article?.fabric_type ?? '').trim();
+        const parts = [description, fabricType].filter((part, index, list) => (
+            part && list.findIndex(item => item.toLowerCase() === part.toLowerCase()) === index
+        ));
+
+        return parts.join(' | ');
+    }
+
+    function orderDispatchText(article) {
+        const dispatchedPcs = Number(article?.dispatched_pcs || 0);
+        const pcsPerPacket = Number(article?.pcs_per_packet || 0);
+        if (!dispatchedPcs) return '';
+
+        const packets = pcsPerPacket ? Math.floor(dispatchedPcs / pcsPerPacket) : 0;
+        return packets ? formatNumbersDigitLess(packets) : '';
+    }
+
+    function orderQuantitySummary() {
+        const pcs = parseFormattedNumber(totalQuantityDOM?.value || totalOrderedQuantity || 0);
+        const packets = selectedArticles.reduce((sum, article) => {
+            const qty = parseFormattedNumber(article?.orderedQuantity || 0);
+            const unit = parseFormattedNumber(article?.pcs_per_packet || 0);
+            return sum + (unit ? Math.floor(qty / unit) : 0);
+        }, 0);
+
+        return `${formatNumbersDigitLess(packets)} | ${formatNumbersDigitLess(pcs)}`;
+    }
+
     window.generateArticlesModal = function generateArticlesModal() {
         const data = articles || [];
 
@@ -448,68 +478,71 @@
         if (selectedArticles.length > 0) {
             previewDom.innerHTML = `
                     <div id="order" class="order flex flex-col h-full">
-                        <div id="order-banner" class="order-banner w-full flex justify-between items-center px-5">
+                        <div id="banner" class="banner w-full flex justify-between items-center px-5">
                             <div class="left">
-                                <div class="order-logo">
+                                <div class="logo">
                                     <img src="${companyData.logo_url || `${window.__ordersGenerate.companyLogoBase}/${companyData.logo}`}" alt="garmentsos-pro"
                                         class="w-[12rem]" />
                                     <div class='mt-1'>${companyData.phone_number || companyData.phone || ""}</div>
                                 </div>
                             </div>
-                            <h1 class="text-2xl font-medium text-[var(--primary-color)]">Sales Order</h1>
+                            <div class="logo text-right">
+                                <h1 class="text-2xl font-medium text-[var(--h-primary-color)]">Sales Order</h1>
+                                <div class="mt-1 text-right">Order No.: ${orderNo}</div>
+                            </div>
                         </div>
                         <hr class="w-full my-3 border-gray-600">
-                        <div id="order-header" class="order-header w-full flex justify-between px-5">
+                        <div id="header" class="header w-full flex justify-between px-5">
                             <div class="left w-50 space-y-1">
-                                <div class="order-customer text-lg leading-none capitalize font-medium text-nowrap">M/s: ${customerData.customer_name}</div>
-                                <div class="order-person text-md text-lg leading-none">${customerData.urdu_title}</div>
-                                <div class="order-address text-md leading-none">${customerData.address}, ${customerData.city.title}</div>
-                                <div class="order-phone text-md leading-none">${customerData.phone_number}</div>
+                                <div class="customer text-lg leading-none capitalize font-medium text-nowrap">M/s: ${customerData.customer_name}</div>
+                                <div class="person text-md text-lg leading-none">${customerData.urdu_title}</div>
+                                <div class="address text-md leading-none">${customerData.address}, ${customerData.city.title}</div>
+                                <div class="phone text-md leading-none">${customerData.phone_number}</div>
                             </div>
                             <div class="right w-50 my-auto text-right text-sm text-gray-600 space-y-1.5">
-                                <div class="order-date leading-none">Date: ${orderDate}</div>
-                                <div class="order-number leading-none capitalize font-medium">Order No.: ${orderNo}</div>
+                                <div class="date leading-none">Date: ${orderDate}</div>
                                 <input type="hidden" name="order_no" value="${orderNo}" />
-                                <div class="order-copy leading-none">Order Copy: Customer</div>
-                                <div class="order-copy leading-none">Document: Sales Order</div>
+                                <div class="preview-copy leading-none">Order Copy: Customer</div>
                             </div>
                         </div>
                         <hr class="w-full my-3 border-gray-600">
-                        <div id="order-body" class="order-body w-[95%] grow mx-auto">
+                        <div id="body" class="body w-[95%] grow mx-auto">
                             <div class="order-table w-full">
                                 <div class="table w-full border border-gray-600 rounded-lg pb-2.5 overflow-hidden">
                                     <div class="thead w-full">
-                                        <div class="tr flex justify-between w-full px-4 py-1.5 bg-[var(--primary-color)] text-white">
-                                            <div class="th text-sm font-medium w-[7%]">S.No</div>
-                                            <div class="th text-sm font-medium w-[13%]">Article</div>
-                                            <div class="th text-sm font-medium grow">Description</div>
-                                            <div class="th text-sm font-medium w-[10%]">Pcs.</div>
-                                            <div class="th text-sm font-medium w-[10%]">Packets</div>
-                                            <div class="th text-sm font-medium w-[10%]">Rate</div>
-                                            <div class="th text-sm font-medium w-[10%]">Amount</div>
-                                            <div class="th text-sm font-medium text-center w-[8%]">Dispatch</div>
+                                        <div class="tr grid grid-cols-9 w-full px-4 py-1.5 bg-[var(--primary-color)] text-white">
+                                            <div class="th text-sm font-medium">S.#</div>
+                                            <div class="th text-sm font-medium">Article</div>
+                                            <div class="th text-sm font-medium">Description</div>
+                                            <div class="th text-sm font-medium">Unit</div>
+                                            <div class="th text-sm font-medium">Pkts</div>
+                                            <div class="th text-sm font-medium">Pcs.</div>
+                                            <div class="th text-sm font-medium">Rate</div>
+                                            <div class="th text-sm font-medium">Amt.</div>
+                                            <div class="th text-sm font-medium text-center">Dispatch</div>
                                         </div>
                                     </div>
                                     <div id="tbody" class="tbody w-full">
                                         ${selectedArticles
                                             .map((article, index) => {
                                                 const hrClass = index === 0 ? 'mb-2.5' : 'my-2.5';
+                                                const detailLine = orderDetailLine(article);
+                                                const dispatched = orderDispatchText(article);
                                                 return `
-                                                    <div>
+                                                    <div class="invoice-item-row">
                                                         <hr class="w-full ${hrClass} border-gray-600">
-                                                        <div class="tr flex justify-between w-full px-4">
-                                                            <div class="td text-sm font-semibold w-[7%]">${index + 1}.</div>
-                                                            <div class="td text-sm font-semibold w-[13%]">${article.article_no}</div>
-                                                            <div class="td text-sm font-semibold grow">${article.description}</div>
-                                                            <div class="td text-sm font-semibold w-[10%]">${article.orderedQuantity}</div>
-                                                            <div class="td text-sm font-semibold w-[10%]">${article?.pcs_per_packet ? Math.floor(article.orderedQuantity / article.pcs_per_packet) : 0}</div>
-                                                            <div class="td text-sm font-semibold w-[10%]">
-                                                                ${formatMoney(article.sales_rate)}
+                                                        <div class="tr invoice-item-main grid grid-cols-9 justify-between w-full px-4 gap-0.5">
+                                                            <div class="td text-sm font-semibold truncate">${String(index + 1).padStart(2, '0')}</div>
+                                                            <div class="td invoice-article-cell text-sm font-semibold">
+                                                                <div class="invoice-article-code">${article.article_no}</div>
                                                             </div>
-                                                            <div class="td text-sm font-semibold w-[10%]">
-                                                                ${formatMoney(parseFormattedNumber(article.sales_rate) * article.orderedQuantity)}
-                                                            </div>
-                                                            <div class="td text-sm font-semibold text-center w-[8%]"></div>
+                                                            <div class="td invoice-description-cell text-sm font-semibold">${detailLine}</div>
+                                                            <div class="td text-sm font-semibold truncate">${article?.pcs_per_packet ?? 0}</div>
+                                                            <div class="td text-sm font-semibold truncate">${article?.pcs_per_packet ? Math.floor(article.orderedQuantity / article.pcs_per_packet) : 0}</div>
+                                                            <div class="td text-sm font-semibold truncate">${article.orderedQuantity}</div>
+                                                            <div class="td text-sm font-semibold truncate">${formatNumbersDigitLess(article.sales_rate)}</div>
+                                                            <div class="td text-sm font-semibold truncate">${formatNumbersDigitLess(parseFormattedNumber(article.sales_rate) * article.orderedQuantity)}</div>
+                                                            <div class="td text-sm font-semibold text-center">${dispatched}</div>
                                                         </div>
                                                     </div>
                                                     `;
@@ -524,7 +557,7 @@
                             <div id="order-total" class="tr flex justify-between w-full px-2 gap-2 text-sm">
                                 <div class="total flex justify-between items-center border border-gray-600 rounded-lg py-2 px-4 w-full">
                                     <div class="text-nowrap">Total Quantity</div>
-                                    <div class="w-1/4 text-right grow">${totalQuantityDOM.value}</div>
+                                    <div class="w-1/4 text-right grow">${orderQuantitySummary()}</div>
                                 </div>
                                 <div class="total flex justify-between items-center border border-gray-600 rounded-lg py-2 px-4 w-full">
                                     <div class="text-nowrap">Total Amount</div>
@@ -533,7 +566,7 @@
                             </div>
                             <div id="order-total" class="tr flex justify-between w-full px-2 gap-2 text-sm">
                                 <div class="total flex justify-between items-center border border-gray-600 rounded-lg py-2 px-4 w-full">
-                                    <div class="text-nowrap">Discount - %</div>
+                                    <div class="text-nowrap">Discount %</div>
                                     <div class="w-1/4 text-right grow">${discountDOM?.value || 0}</div>
                                 </div>
                                 <div

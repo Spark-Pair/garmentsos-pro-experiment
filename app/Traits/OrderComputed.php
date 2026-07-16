@@ -22,6 +22,7 @@ trait OrderComputed
                     'id' => $orderArticle->article->id,
                     'article_no' => $orderArticle->article->article_no,
                     'description' => $orderArticle->article->description,
+                    'fabric_type' => $orderArticle->article->fabric_type,
                     'pcs_per_packet' => $orderArticle->article->pcs_per_packet,
                     'sales_rate' => $orderArticle->article->sales_rate,
                 ] : null,

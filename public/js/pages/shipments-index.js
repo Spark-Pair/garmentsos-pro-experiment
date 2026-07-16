@@ -57,12 +57,24 @@
                         <title>Print Shipment</title>
                         ${headContent}
                         <style>
+                            @page {
+                                size: A5 portrait;
+                                margin: 0;
+                            }
+
                             @media print {
+                                html,
                                 body {
                                     margin: 0;
                                     padding: 0;
-                                    width: 210mm;
-                                    height: 302.5mm;
+                                    width: 148mm;
+                                    height: 210mm;
+                                }
+
+                                .preview,
+                                .preview-container {
+                                    width: 148mm !important;
+                                    height: 210mm !important;
                                 }
 
                                 .preview-container, .preview-container * {
@@ -72,7 +84,6 @@
                         </style>
                     </head>
                     <body>
-                        <div class="preview-container">${preview.innerHTML}</div>
                         <div id="preview-container" class="preview-container">${preview.innerHTML}</div>
                     </body>
                 </html>
@@ -84,11 +95,6 @@
             printDocument.querySelectorAll('.preview').forEach(p => p.classList.remove('py-6'));
             printDocument.querySelectorAll('#banner').forEach(p => p.classList.remove('mt-8'));
             printDocument.querySelectorAll('.footer').forEach(p => p.classList.remove('mb-4'));
-
-            const shipmentCopy = printDocument.querySelector('#preview-container .preview-copy');
-            if (shipmentCopy) {
-                shipmentCopy.textContent = 'Shipment Copy: Office';
-            }
 
             printIframe.contentWindow.onafterprint = () => {};
 
@@ -127,7 +133,7 @@
 
         const modalData = {
             id: 'modalForm',
-            preview: { type: 'shipment', data: data.data, document: 'Shipment' },
+            preview: { type: 'shipment', size: 'A5', data: data.data, document: 'Shipment' },
             bottomActions: [{ id: 'print', text: 'Print Shipment', onclick: 'printShipment(this)' }],
         };
 

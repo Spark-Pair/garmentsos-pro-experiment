@@ -255,7 +255,8 @@
     }
 
     .gos-a5-invoice .text-2xl {
-        font-size: 18.5px !important;
+        font-size: 22px !important;
+        font-weight: 700 !important;
         line-height: 1.12 !important;
     }
 
@@ -277,23 +278,38 @@
         line-height: 1.22 !important;
     }
 
-    .gos-a5-invoice .grid-cols-9 {
-        grid-template-columns:
-            minmax(24px, 0.45fr)
-            minmax(48px, 0.9fr)
-            minmax(0, 1.35fr)
-            minmax(0, 1.55fr)
-            minmax(26px, 0.5fr)
-            minmax(34px, 0.62fr)
-            minmax(28px, 0.48fr)
-            minmax(48px, 0.85fr)
-            minmax(58px, 1fr) !important;
+    .gos-a5-invoice #header .right.space-y-1\.5 > :not([hidden]) ~ :not([hidden]),
+    .gos-a5-invoice .header .right.space-y-1\.5 > :not([hidden]) ~ :not([hidden]) {
+        margin-top: 0.5px !important;
     }
 
-    .gos-a5-invoice .grid-cols-7 {
+    .gos-a5-invoice #header .right .date,
+    .gos-a5-invoice #header .right .number,
+    .gos-a5-invoice #header .right .preview-copy,
+    .gos-a5-invoice .header .right .date,
+    .gos-a5-invoice .header .right .number,
+    .gos-a5-invoice .header .right .preview-copy {
+        line-height: 1.08 !important;
+    }
+
+    .gos-a5-invoice .grid-cols-9 {
         grid-template-columns:
             18px
-            minmax(0, 4.2fr)
+            minmax(54px, 1fr)
+            minmax(0, 2.3fr)
+            28px
+            30px
+            30px
+            45px
+            55px
+            54px !important;
+    }
+
+    .gos-a5-invoice .grid-cols-8 {
+        grid-template-columns:
+            18px
+            minmax(58px, 1.1fr)
+            minmax(0, 2.8fr)
             28px
             32px
             32px
@@ -338,35 +354,55 @@
         padding-top: 0 !important;
     }
 
-    .gos-a5-invoice .grid-cols-7 .th:first-child,
-    .gos-a5-invoice .grid-cols-7 .td:first-child {
+    .gos-a5-invoice .grid-cols-8 .th:first-child,
+    .gos-a5-invoice .grid-cols-8 .td:first-child,
+    .gos-a5-invoice .grid-cols-9 .th:first-child,
+    .gos-a5-invoice .grid-cols-9 .td:first-child {
         justify-content: center;
         padding-left: 0 !important;
         padding-right: 2px !important;
         text-align: center;
     }
 
-    .gos-a5-invoice .grid-cols-7 .th:nth-child(2),
-    .gos-a5-invoice .grid-cols-7 .td:nth-child(2) {
+    .gos-a5-invoice .grid-cols-8 .th:nth-child(2),
+    .gos-a5-invoice .grid-cols-8 .td:nth-child(2),
+    .gos-a5-invoice .grid-cols-8 .th:nth-child(3),
+    .gos-a5-invoice .grid-cols-8 .td:nth-child(3),
+    .gos-a5-invoice .grid-cols-9 .th:nth-child(2),
+    .gos-a5-invoice .grid-cols-9 .td:nth-child(2),
+    .gos-a5-invoice .grid-cols-9 .th:nth-child(3),
+    .gos-a5-invoice .grid-cols-9 .td:nth-child(3) {
         justify-content: flex-start;
         padding-left: 6px !important;
         text-align: left;
     }
 
-    .gos-a5-invoice .grid-cols-7 .td:nth-child(5),
-    .gos-a5-invoice .grid-cols-7 .td:nth-child(6),
-    .gos-a5-invoice .grid-cols-7 .td:nth-child(7) {
+    .gos-a5-invoice .grid-cols-8 .td:nth-child(6),
+    .gos-a5-invoice .grid-cols-8 .td:nth-child(7),
+    .gos-a5-invoice .grid-cols-8 .td:nth-child(8),
+    .gos-a5-invoice .grid-cols-9 .td:nth-child(6),
+    .gos-a5-invoice .grid-cols-9 .td:nth-child(7),
+    .gos-a5-invoice .grid-cols-9 .td:nth-child(8),
+    .gos-a5-invoice .grid-cols-9 .td:nth-child(9) {
         font-weight: 600 !important;
     }
 
-    .gos-a5-invoice .grid-cols-7 .th:nth-child(3),
-    .gos-a5-invoice .grid-cols-7 .td:nth-child(3) {
+    .gos-a5-invoice .grid-cols-8 .th:nth-child(4),
+    .gos-a5-invoice .grid-cols-8 .td:nth-child(4),
+    .gos-a5-invoice .grid-cols-9 .th:nth-child(4),
+    .gos-a5-invoice .grid-cols-9 .td:nth-child(4),
+    .gos-a5-invoice .grid-cols-9 .th:nth-child(9),
+    .gos-a5-invoice .grid-cols-9 .td:nth-child(9) {
         justify-content: center;
         text-align: center;
     }
 
-    .gos-a5-invoice .grid-cols-7 .th:nth-last-child(-n + 2),
-    .gos-a5-invoice .grid-cols-7 .td:nth-last-child(-n + 2) {
+    .gos-a5-invoice .grid-cols-8 .th:nth-last-child(-n + 2),
+    .gos-a5-invoice .grid-cols-8 .td:nth-last-child(-n + 2),
+    .gos-a5-invoice .grid-cols-9 .th:nth-child(7),
+    .gos-a5-invoice .grid-cols-9 .td:nth-child(7),
+    .gos-a5-invoice .grid-cols-9 .th:nth-child(8),
+    .gos-a5-invoice .grid-cols-9 .td:nth-child(8) {
         justify-content: flex-end;
         text-align: right;
     }
@@ -393,7 +429,7 @@
         align-items: flex-start !important;
         display: flex !important;
         flex-direction: column;
-        gap: 3px;
+        gap: 2px;
         justify-content: center !important;
         min-height: 37px;
         overflow: visible !important;
@@ -418,12 +454,41 @@
         color: #666;
         font-size: 10.4px;
         font-weight: 500;
-        line-height: 1.12;
+        line-height: 1.16;
         margin-top: 0;
         max-width: 100%;
-        overflow: hidden;
+        overflow: visible;
+        overflow-wrap: anywhere;
         text-overflow: clip;
-        white-space: nowrap;
+        white-space: normal;
+        word-break: normal;
+    }
+
+    .gos-a5-invoice .invoice-description-cell {
+        align-items: center !important;
+        color: #111827;
+        display: flex !important;
+        font-size: 11px !important;
+        font-weight: 700 !important;
+        justify-content: flex-start !important;
+        line-height: 1.12 !important;
+        overflow: visible !important;
+        overflow-wrap: anywhere;
+        padding-left: 6px !important;
+        padding-right: 5px !important;
+        text-align: left !important;
+        white-space: normal !important;
+        word-break: normal;
+    }
+
+    #preview-container .gos-a5-invoice .invoice-description-cell,
+    .preview.gos-a5-invoice .invoice-description-cell,
+    .preview-document.gos-a5-invoice .invoice-description-cell {
+        overflow: visible !important;
+        overflow-wrap: anywhere !important;
+        text-overflow: clip !important;
+        white-space: normal !important;
+        word-break: normal !important;
     }
 
     .gos-a5-invoice .invoice-item-desc {

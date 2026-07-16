@@ -28,6 +28,7 @@ trait InvoiceComputed
                     'id' => $invoiceArticle->article->id,
                     'article_no' => $invoiceArticle->article->article_no,
                     'description' => $invoiceArticle->article->description,
+                    'fabric_type' => $invoiceArticle->article->fabric_type,
                     'pcs_per_packet' => $invoiceArticle->article->pcs_per_packet,
                     'sales_rate' => $invoiceArticle->article->sales_rate,
                 ] : null,

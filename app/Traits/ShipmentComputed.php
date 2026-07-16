@@ -21,6 +21,7 @@ trait ShipmentComputed
                     'id' => $shipmentArticle->article->id,
                     'article_no' => $shipmentArticle->article->article_no,
                     'description' => $shipmentArticle->article->description,
+                    'fabric_type' => $shipmentArticle->article->fabric_type,
                     'pcs_per_packet' => $shipmentArticle->article->pcs_per_packet,
                     'sales_rate' => $shipmentArticle->article->sales_rate,
                 ] : null,

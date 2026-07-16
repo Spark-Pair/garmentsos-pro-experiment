@@ -390,6 +390,30 @@
         return `${day}-${month}-${year}, ${weekDays[dayOfWeek]}`;
     }
 
+    function getShipmentCityLabel() {
+        const cityDom = document.getElementById('city');
+        const selectedOption = cityDom?.options?.[cityDom.selectedIndex];
+        return (selectedOption?.text || cityDom?.value || '').trim();
+    }
+
+    function shipmentDetailLine(article) {
+        const description = String(article?.description ?? '').trim();
+        const fabricType = String(article?.fabric_type ?? article?.article?.fabric_type ?? '').trim();
+        const parts = [description, fabricType].filter((part, index, list) => (
+            part && list.findIndex(item => item.toLowerCase() === part.toLowerCase()) === index
+        ));
+
+        return parts.join(' | ');
+    }
+
+    function totalShipmentPackets() {
+        return selectedArticles.reduce((total, article) => {
+            const pcsPerPacket = Number(article?.pcs_per_packet || 0);
+            const qty = Number(article?.shipmentQuantity || 0);
+            return total + (pcsPerPacket ? Math.floor(qty / pcsPerPacket) : 0);
+        }, 0);
+    }
+
     window.generateShipment = function generateShipment() {
         shipmentNo = generateShipmentNo();
         shipmentDate = getShipmentDate();
@@ -398,66 +422,66 @@
         if (selectedArticles.length > 0) {
             previewDom.innerHTML = `
                     <div id="shipment" class="shipment flex flex-col h-full">
-                        <div id="shipment-banner" class="shipment-banner w-full flex justify-between items-center px-5">
+                        <div id="banner" class="banner w-full flex justify-between items-center px-5">
                             <div class="left">
-                                <div class="shipment-logo">
+                                <div class="logo flex flex-col">
                                     <img src="${window.__shipmentsGenerate.companyLogoBase}/${companyData.logo}" alt="garmentsos-pro"
                                         class="w-[12rem]" />
+                                    <div class="mt-2 text-sm text-gray-600">${companyData.phone_number || ''}</div>
                                 </div>
                             </div>
                             <div class="right">
-                                <div class="text-right">
-                                    <h1 class="text-2xl font-medium text-[var(--primary-color)]">Shipment</h1>
-                                    <div class='mt-1'>${companyData.phone_number}</div>
+                                <div class="logo text-right">
+                                    <h1 class="text-2xl font-medium text-[var(--h-primary-color)]">Shipment</h1>
+                                    <div class="mt-1 text-right">Shipment No.: ${shipmentNo}</div>
                                 </div>
                             </div>
                         </div>
-                        <hr class="w-full my-3 border-gray-600">
-                        <div id="shipment-header" class="shipment-header w-full flex justify-between px-5">
-                            <div class="left w-50 my-auto text-sm text-gray-600 space-y-1.5">
-                                <div class="shipment-date leading-none">Date: ${shipmentDate}</div>
-                                <div class="shipment-number leading-none">Shipment No.: ${shipmentNo}</div>
+                        <hr class="w-full my-3 border-black">
+                        <div id="header" class="header w-full flex justify-between px-5">
+                            <div class="left w-50 space-y-1">
+                                <div class="address text-md leading-none capitalize">City: ${getShipmentCityLabel()}</div>
                                 <input type="hidden" name="shipment_no" value="${shipmentNo}" />
                             </div>
-                            <div class="right w-50 my-auto text-right text-sm text-gray-600 space-y-1.5">
-                                <div class="shipment-copy leading-none">Shipment Copy: Office</div>
-                                <div class="shipment-copy leading-none">Document: Shipment</div>
+                            <div class="right w-50 my-auto text-right text-sm text-black space-y-1.5">
+                                <div class="date leading-none">Date: ${shipmentDate}</div>
                             </div>
                         </div>
-                        <hr class="w-full my-3 border-gray-600">
-                        <div id="shipment-body" class="shipment-body w-[95%] grow mx-auto">
-                            <div class="shipment-table w-full">
-                                <div class="table w-full border border-gray-600 rounded-lg pb-2.5 overflow-hidden">
+                        <hr class="w-full my-3 border-black">
+                        <div id="shipment-body" class="body w-full px-5 grow mx-auto">
+                            <div class="table w-full">
+                                <div class="table w-full border border-black rounded-lg pb-2.5 overflow-hidden">
                                     <div class="thead w-full">
-                                        <div class="tr flex justify-between w-full px-4 py-1.5 bg-[var(--primary-color)] text-white">
-                                            <div class="th text-sm font-medium w-[7%]">S.No</div>
-                                            <div class="th text-sm font-medium w-[10%]">Article</div>
-                                            <div class="th text-sm font-medium grow">Description</div>
-                                            <div class="th text-sm font-medium w-[10%]">Pcs.</div>
-                                            <div class="th text-sm font-medium w-[10%]">Packets</div>
-                                            <div class="th text-sm font-medium w-[10%]">Rate</div>
-                                            <div class="th text-sm font-medium w-[10%]">Amount</div>
+                                        <div class="tr grid grid-cols-8 w-full px-4 py-1.5 bg-[var(--primary-color)] text-white">
+                                            <div class="th text-sm font-medium">S.#</div>
+                                            <div class="th text-sm font-medium">Article</div>
+                                            <div class="th text-sm font-medium">Description</div>
+                                            <div class="th text-sm font-medium">Unit</div>
+                                            <div class="th text-sm font-medium">Pkts</div>
+                                            <div class="th text-sm font-medium">Pcs.</div>
+                                            <div class="th text-sm font-medium">Rate</div>
+                                            <div class="th text-sm font-medium">Amt.</div>
                                         </div>
                                     </div>
                                     <div id="tbody" class="tbody w-full">
                                         ${selectedArticles
                                             .map((article, index) => {
                                                 const hrClass = index === 0 ? 'mb-2.5' : 'my-2.5';
+                                                const packets = article.pcs_per_packet ? Math.floor(article.shipmentQuantity / article.pcs_per_packet) : 0;
                                                 return `
-                                                <div>
-                                                    <hr class="w-full ${hrClass} border-gray-600">
-                                                    <div class="tr flex justify-between w-full px-4">
-                                                        <div class="td text-sm font-semibold w-[7%]">${index + 1}.</div>
-                                                        <div class="td text-sm font-semibold w-[10%]">${article.article_no}</div>
-                                                        <div class="td text-sm font-semibold grow">${article.description}</div>
-                                                        <div class="td text-sm font-semibold w-[10%]">${article.shipmentQuantity}</div>
-                                                        <div class="td text-sm font-semibold w-[10%]">${article.pcs_per_packet ? Math.floor(article.shipmentQuantity / article.pcs_per_packet) : 0}</div>
-                                                        <div class="td text-sm font-semibold w-[10%]">
-                                                            ${formatMoney(article.sales_rate)}
+                                                <div class="invoice-item-row">
+                                                    <hr class="w-full ${hrClass} border-black">
+                                                    <div class="tr invoice-item-main grid grid-cols-8 justify-between w-full px-4 gap-0.5">
+                                                        <div class="td text-sm font-semibold truncate">${String(index + 1).padStart(2, '0')}</div>
+                                                        <div class="td invoice-article-cell text-sm font-semibold">
+                                                            <div class="invoice-article-code">${article.article_no}</div>
                                                         </div>
-                                                        <div class="td text-sm font-semibold w-[10%]">
-                                                            ${formatMoney(parseFormattedNumber(article.sales_rate) * article.shipmentQuantity)}
-                                                        </div>
+                                                        <div class="td invoice-description-cell text-sm font-semibold">${shipmentDetailLine(article)}</div>
+                                                        <div class="td text-sm font-semibold truncate">${article.pcs_per_packet || 0}</div>
+                                                        <div class="td text-sm font-semibold truncate">${formatNumbersDigitLess(packets)}</div>
+                                                        <div class="td text-sm font-semibold truncate">${formatNumbersDigitLess(article.shipmentQuantity)}</div>
+                                                        <div class="td text-sm font-semibold truncate">${formatNumbersDigitLess(article.sales_rate)}</div>
+                                                        <div class="td text-sm font-semibold truncate">${formatNumbersDigitLess(parseFormattedNumber(article.sales_rate) * article.shipmentQuantity)}</div>
                                                     </div>
                                                 </div>
                                             `;
@@ -467,33 +491,28 @@
                                 </div>
                             </div>
                         </div>
-                        <hr class="w-full my-3 border-gray-600">
-                        <div class="flex flex-col space-y-2">
-                            <div id="shipment-total" class="tr flex justify-between w-full px-2 gap-2 text-sm">
-                                <div class="total flex justify-between items-center border border-gray-600 rounded-lg py-2 px-4 w-full">
-                                    <div class="text-nowrap">Total Quantity - Pcs</div>
-                                    <div class="w-1/4 text-right grow">${totalQuantityDOM.value}</div>
-                                </div>
-                                <div class="total flex justify-between items-center border border-gray-600 rounded-lg py-2 px-4 w-full">
-                                    <div class="text-nowrap">Total Amount</div>
-                                    <div class="w-1/4 text-right grow">${totalAmountDOM.value}</div>
-                                </div>
+                        <hr class="w-full my-3 border-black">
+                        <div class="grid grid-cols-2 gap-2 px-5">
+                            <div class="total flex justify-between items-center border border-black rounded-lg py-2 px-4 w-full">
+                                <div class="text-nowrap">Total Quantity</div>
+                                <div class="w-1/4 text-right grow">${formatNumbersDigitLess(totalShipmentPackets())} | ${formatNumbersDigitLess(parseFormattedNumber(totalShipmentQuantity))}</div>
                             </div>
-                            <div id="shipment-total" class="tr flex justify-between w-full px-2 gap-2 text-sm">
-                                <div class="total flex justify-between items-center border border-gray-600 rounded-lg py-2 px-4 w-full">
-                                    <div class="text-nowrap">Discount - %</div>
-                                    <div class="w-1/4 text-right grow">${discountDOM?.value || 0}</div>
-                                </div>
-                                <div
-                                    class="total flex justify-between items-center border border-gray-600 rounded-lg py-2 px-4 w-full">
-                                    <div class="text-nowrap">Net Amount</div>
-                                    <div class="w-1/4 text-right grow">${finalNetAmount.value}</div>
-                                </div>
+                            <div class="total flex justify-between items-center border border-black rounded-lg py-2 px-4 w-full">
+                                <div class="text-nowrap">Gross Amount</div>
+                                <div class="w-1/4 text-right grow">${formatNumbersWithDigits(totalShipmentAmount, 1, 1)}</div>
+                            </div>
+                            <div class="total flex justify-between items-center border border-black rounded-lg py-2 px-4 w-full">
+                                <div class="text-nowrap">Discount ${discountDOM?.value || 0}%</div>
+                                <div class="w-1/4 text-right grow">${formatNumbersWithDigits((totalShipmentAmount * Number(discountDOM?.value || 0)) / 100, 1, 1)}</div>
+                            </div>
+                            <div class="total flex justify-between items-center border border-black rounded-lg py-2 px-4 w-full">
+                                <div class="text-nowrap">Net Amount</div>
+                                <div class="w-1/4 text-right grow">${finalNetAmount.value}</div>
                             </div>
                         </div>
-                        <hr class="w-full my-3 border-gray-600">
-                        <div class="tfooter flex w-full text-sm px-4 justify-between text-gray-600">
-                            <P class="leading-none">Powered by SparkPair</P>
+                        <hr class="w-full my-3 border-black">
+                        <div class="footer flex w-full text-sm px-5 justify-between text-black">
+                            <p class="leading-none">Powered by SparkPair</p>
                             <p class="leading-none text-sm">&copy; ${new Date().getFullYear()} SparkPair | +92 316 5825495</p>
                         </div>
                     </div>
