@@ -3,36 +3,6 @@
 @section('content')
 @php
     $dailyLedgerType = Auth::user()->daily_ledger_type;
-
-    $case_options = [
-        'Add Copy A/c' => ['text' => 'Add Copy A/c'],
-        'Big Box (Bara Dbba)' => ['text' => 'Big Box (Bara Dbba)'],
-        'Zakat' => ['text' => 'Zakat'],
-        'Sadqa' => ['text' => 'Sadqa'],
-        'Charity' => ['text' => 'Charity'],
-        'Daily Expenses' => ['text' => 'Daily Expenses'],
-        'Exp 25# Plot' => ['text' => 'Exp 25# Plot'],
-        'Home Expenses' => ['text' => 'Home Expenses'],
-        'Personal Zubair bhai' => ['text' => 'Personal Zubair bhai'],
-        'Personal Ali bhai' => ['text' => 'Personal Ali bhai'],
-        'Personal Abdullah' => ['text' => 'Personal Abdullah'],
-        'Personal Basit' => ['text' => 'Personal Basit'],
-        'Rent Zubair Bhai' => ['text' => 'Rent Zubair Bhai'],
-        'Rent Ali Bhai' => ['text' => 'Rent Ali Bhai'],
-        'Return Amount' => ['text' => 'Return Amount'],
-        'Staff Salary' => ['text' => 'Staff Salary'],
-        'Utility Bill' => ['text' => 'Utility Bill'],
-        'Weekly Payment' => ['text' => 'Weekly Payment'],
-        'adjustment' => ['text' => 'Adjustment'],
-    ];
-
-    $method_options = [
-        'cash' => ['text' => 'Cash'],
-        'cheque' => ['text' => 'Cheque'],
-        'less_copy_a_c' => ['text' => 'Less Copy A/c'],
-        'online' => ['text' => 'Online'],
-        'adjustment' => ['text' => 'Adjustment']
-    ];
 @endphp
 
     <div class="switch-btn-container flex absolute top-3 md:top-17 left-3 md:left-5 z-4">

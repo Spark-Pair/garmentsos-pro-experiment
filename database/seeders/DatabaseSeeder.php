@@ -14,6 +14,8 @@ class DatabaseSeeder extends Seeder
     {
         $this->call(DefaultDataSeeder::class);
 
+        $this->call(DailyLedgerSetupSeeder::class);
+
         // $this->call(UserSeeder::class);
 
         // $this->call(CustomerSeeder::class);

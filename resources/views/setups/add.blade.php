@@ -29,6 +29,8 @@
                         'staff_type' => ['text' => 'Staff Type'],
                         'utility_bill_type' => ['text' => 'Utility Bill Type'],
                         'utility_bill_location' => ['text' => 'Utility Bill Location'],
+                        'daily_ledger_method' => ['text' => 'Daily Ledger Method'],
+                        'daily_ledger_case' => ['text' => 'Daily Ledger Case'],
                     ]"
                     showDefault
                 />

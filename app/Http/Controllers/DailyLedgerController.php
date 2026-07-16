@@ -4,9 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Models\DailyLedgerDeposit;
 use App\Models\DailyLedgerUse;
+use App\Models\Setup;
 use App\Services\Branches\ModuleBranchService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\Rule;
 
 class DailyLedgerController extends Controller
 {
@@ -155,7 +157,10 @@ class DailyLedgerController extends Controller
         $totalDeposit = $branches->applyScope(DailyLedgerDeposit::query(), 'daily_ledger')->sum('amount');
         $totalUse = $branches->applyScope(DailyLedgerUse::query(), 'daily_ledger')->sum('amount');
         $balance = $totalDeposit - $totalUse;
-        return view('daily-ledger.create', compact('balance'));
+        $method_options = $this->setupOptions('daily_ledger_method');
+        $case_options = $this->setupOptions('daily_ledger_case');
+
+        return view('daily-ledger.create', compact('balance', 'method_options', 'case_options'));
     }
 
     /**
@@ -172,7 +177,11 @@ class DailyLedgerController extends Controller
 
         if ($type === 'deposit') {
             $rules = array_merge($commonRules, [
-                'method'  => 'required|string',
+                'method'  => [
+                    'required',
+                    'string',
+                    Rule::in(array_keys($this->setupOptions('daily_ledger_method'))),
+                ],
                 'reff_no' => 'nullable|string',
             ]);
 
@@ -185,7 +194,11 @@ class DailyLedgerController extends Controller
             $message = 'Amount Deposit successfully.';
         } else {
             $rules = array_merge($commonRules, [
-                'case'    => 'required|string',
+                'case'    => [
+                    'required',
+                    'string',
+                    Rule::in(array_keys($this->setupOptions('daily_ledger_case'))),
+                ],
                 'remarks' => 'nullable|string',
             ]);
 
@@ -231,5 +244,16 @@ class DailyLedgerController extends Controller
     public function destroy(Request $Request)
     {
         //
+    }
+
+    private function setupOptions(string $type): array
+    {
+        return app(ModuleBranchService::class)
+            ->applyRelatedScope(Setup::where('type', $type)->orderBy('title'), 'setups', 'daily_ledger')
+            ->get()
+            ->mapWithKeys(fn (Setup $setup) => [
+                $setup->title => ['text' => $setup->title],
+            ])
+            ->toArray();
     }
 }
