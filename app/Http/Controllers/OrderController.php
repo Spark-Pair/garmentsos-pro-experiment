@@ -234,6 +234,7 @@ class OrderController extends Controller
             'netAmount' => 'required|string',
             'articles' => 'required|json',
             'order_no' => 'required|string',
+            'deliver_to' => 'nullable|string|max:255',
         ]);
 
         if ($validator->fails()) {
@@ -258,6 +259,7 @@ class OrderController extends Controller
                 'netAmount' => str_replace(',', '', $request->netAmount),
                 'articles' => $request->articles,
                 'order_no' => $orderNo,
+                'deliver_to' => $request->deliver_to,
                 'branch_id' => $branchId,
             ]);
 
@@ -374,6 +376,7 @@ class OrderController extends Controller
             'branch_branding' => app(ModuleBranchService::class)->documentBranding('orders', $order),
             'date' => $order->date?->format('Y-m-d'),
             'netAmount' => $order->netAmount,
+            'deliver_to' => $order->deliver_to,
             'customer' => [
                 'id' => $order->customer?->id,
                 'customer_name' => $order->customer?->customer_name,
@@ -425,6 +428,7 @@ class OrderController extends Controller
             'articles'   => 'required',
             'date' => $isDeveloper ? 'required|date' : 'nullable',
             'customer_id' => $isDeveloper ? 'required|integer|exists:customers,id' : 'nullable',
+            'deliver_to' => 'nullable|string|max:255',
         ]);
 
         if ($validator->fails()) {
@@ -447,6 +451,7 @@ class OrderController extends Controller
             $orderUpdates = [
                 'netAmount' => $netAmount,
                 'discount'  => $request->discount,
+                'deliver_to' => $request->deliver_to,
             ];
 
             if ($isDeveloper) {

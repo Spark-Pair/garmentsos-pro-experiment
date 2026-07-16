@@ -63,6 +63,7 @@ trait OrderComputed
                 'date' => $this->date,
                 'discount' => (float) ($this->discount ?? 0),
                 'netAmount' => (float) ($this->netAmount ?? 0),
+                'deliver_to' => $this->deliver_to,
                 'customer' => $this->customer ? [
                     'id' => $this->customer->id,
                     'customer_name' => $this->customer->customer_name,

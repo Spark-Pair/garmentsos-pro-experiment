@@ -22,6 +22,17 @@
         return selectedArticles.some(a => a.id == articleId);
     }
 
+    function customerTitlePhoneLine(customer = {}) {
+        const title = String(customer?.urdu_title ?? '').trim();
+        const phone = String(customer?.phone_number ?? '').trim();
+        return [title, phone].filter(Boolean).join(' | ');
+    }
+
+    function deliverToLine() {
+        const deliverTo = String(document.getElementById('deliver_to')?.value ?? '').trim();
+        return deliverTo ? `Deliver To: ${deliverTo}` : '';
+    }
+
     window.trackCustomerState = function trackCustomerState(elem) {
         if (elem.value != '') {
             const customerDataDom = elem.parentElement
@@ -59,6 +70,10 @@
             generateArticlesModal();
         });
     }
+
+    document.getElementById('deliver_to')?.addEventListener('input', () => {
+        generateOrder();
+    });
 
     function safeDocumentNumberPreview(value, fallback = 'Will be generated on save') {
         const text = String(value ?? '').trim();
@@ -495,9 +510,9 @@
                         <div id="header" class="header w-full flex justify-between px-5">
                             <div class="left w-50 space-y-1">
                                 <div class="customer text-lg leading-none capitalize font-medium text-nowrap">M/s: ${customerData.customer_name}</div>
-                                <div class="person text-md text-lg leading-none">${customerData.urdu_title}</div>
+                                <div class="person text-md text-lg leading-none">${customerTitlePhoneLine(customerData)}</div>
                                 <div class="address text-md leading-none">${customerData.address}, ${customerData.city.title}</div>
-                                <div class="phone text-md leading-none">${customerData.phone_number}</div>
+                                <div class="phone text-md leading-none">${deliverToLine()}</div>
                             </div>
                             <div class="right w-50 my-auto text-right text-sm text-gray-600 space-y-1.5">
                                 <div class="date leading-none">Date: ${orderDate}</div>

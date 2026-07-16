@@ -33,6 +33,7 @@
                         class="grow" withButton btnId="generateOrderBtn" btnText="Select Articles" />
                 </div>
             </div>
+            <x-input label="Deliver To" name="deliver_to" id="deliver_to" placeholder="Optional delivery address / person" />
             {{-- rate showing --}}
             <div id="order-table" class="w-full text-left text-sm">
                 <div class="flex justify-between items-center bg-[var(--h-bg-color)] rounded-lg py-2 px-4 mb-4">

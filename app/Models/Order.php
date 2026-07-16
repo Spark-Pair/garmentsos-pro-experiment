@@ -27,6 +27,7 @@ class Order extends Model
         'discount',
         'netAmount',
         'order_no',
+        'deliver_to',
         'status',
     ];
 

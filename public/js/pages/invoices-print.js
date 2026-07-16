@@ -15,6 +15,17 @@
         return parts.length ? parts.join(' | ') : '';
     }
 
+    function customerTitlePhoneLine(customer = {}) {
+        const title = String(customer?.urdu_title ?? '').trim();
+        const phone = String(customer?.phone_number ?? '').trim();
+        return [title, phone].filter(Boolean).join(' | ');
+    }
+
+    function deliverToLine(previewData = {}) {
+        const deliverTo = String(previewData?.deliver_to ?? previewData?.order?.deliver_to ?? '').trim();
+        return deliverTo ? `Deliver To: ${deliverTo}` : '';
+    }
+
     function renderInvoices() {
         if (!invoiceContainer) return;
         invoiceContainer.classList.remove('hidden');
@@ -49,6 +60,7 @@
                     invoice_no: invoice.invoice_no,
                     shipment_no: invoice.shipment_no || null,
                     order_no: invoice.order_no || null,
+                    deliver_to: invoice.deliver_to || invoice.order?.deliver_to || '',
                     cotton_count: cottonCount,
                     discount: discount,
                     netAmount: invoice.net_amount ?? null,
@@ -208,9 +220,9 @@
                         <div id="header" class="header w-full flex justify-between px-5">
                             <div class="left w-50 space-y-1">
                                 <div class="customer text-lg leading-none capitalize font-medium text-nowrap">M/s: ${previewData.customer.customer_name}</div>
-                                <div class="person text-md text-lg leading-none">${previewData.customer.urdu_title ?? ''}</div>
+                                <div class="person text-md text-lg leading-none">${customerTitlePhoneLine(previewData.customer)}</div>
                                 <div class="address text-md leading-none">${previewData.customer.address ?? ''}, ${previewData.customer.city?.title ?? ''}</div>
-                                <div class="phone text-md leading-none">${previewData.customer.phone_number ?? ''}</div>
+                                <div class="phone text-md leading-none">${deliverToLine(previewData)}</div>
                             </div>
                             <div class="right w-50 my-auto text-right text-sm text-black space-y-1.5">
                                 <div class="date leading-none">Date: ${formatDate(previewData.date)}</div>

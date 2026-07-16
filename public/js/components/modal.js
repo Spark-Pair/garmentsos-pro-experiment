@@ -18,6 +18,17 @@ function createModal(data, animate = 'animate') {
         return packets ? formatNumbersDigitLess(packets) : '';
     };
 
+    const customerTitlePhoneLine = (customer = {}) => {
+        const title = String(customer?.urdu_title ?? '').trim();
+        const phone = String(customer?.phone_number ?? '').trim();
+        return [title, phone].filter(Boolean).join(' | ');
+    };
+
+    const deliverToLine = previewData => {
+        const deliverTo = String(previewData?.deliver_to ?? previewData?.order?.deliver_to ?? '').trim();
+        return deliverTo ? `Deliver To: ${deliverTo}` : '';
+    };
+
     const statusColor = {
         active: ['[var(--bg-success)]', '[var(--h-bg-success)]', '[var(--border-success)]'],
         transparent: ['transparent', 'transparent', 'transparent'],
@@ -856,9 +867,9 @@ function createModal(data, animate = 'animate') {
                             <div class="left w-50 space-y-1">
                                 ${data.preview.type == "order" || data.preview.type == "invoice" ? `
                                     <div class="customer text-lg leading-none capitalize font-medium text-nowrap">M/s: ${previewData.customer.customer_name}</div>
-                                    <div class="person text-md text-lg leading-none">${previewData.customer.urdu_title ?? ''}</div>
+                                    <div class="person text-md text-lg leading-none">${customerTitlePhoneLine(previewData.customer)}</div>
                                     <div class="address text-md leading-none">${previewData.customer.address ?? ''}${previewData.customer.city?.title ? ', ' + previewData.customer.city.title : ''}</div>
-                                    <div class="phone text-md leading-none">${previewData.customer.phone_number ?? ''}</div>
+                                    <div class="phone text-md leading-none">${deliverToLine(previewData)}</div>
                                 ` : data.preview.type == "shipment" ? `
                                     <div class="address text-md leading-none capitalize">${previewData.city ? 'City: ' + previewData.city : ''}</div>
                                 ` : `

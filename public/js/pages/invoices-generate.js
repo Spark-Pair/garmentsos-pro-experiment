@@ -38,6 +38,17 @@
             return parts.length ? parts.join(' | ') : '';
         }
 
+        function customerTitlePhoneLine(customer = {}) {
+            const title = String(customer?.urdu_title ?? '').trim();
+            const phone = String(customer?.phone_number ?? '').trim();
+            return [title, phone].filter(Boolean).join(' | ');
+        }
+
+        function deliverToLine(previewData = {}) {
+            const deliverTo = String(previewData?.deliver_to ?? previewData?.order?.deliver_to ?? '').trim();
+            return deliverTo ? `Deliver To: ${deliverTo}` : '';
+        }
+
         function chunkInvoiceRows(rows) {
             const source = Array.isArray(rows) ? rows : [];
             const chunks = [];
@@ -244,9 +255,9 @@
                                 <div id="header" class="header w-full flex justify-between px-5">
                                     <div class="left w-50 space-y-1">
                                         <div class="customer text-lg leading-none capitalize font-medium text-nowrap">M/s: ${previewData.customer.customer_name}</div>
-                                        <div class="person text-md text-lg leading-none">${previewData.customer.urdu_title ?? ''}</div>
+                                        <div class="person text-md text-lg leading-none">${customerTitlePhoneLine(previewData.customer)}</div>
                                         <div class="address text-md leading-none">${previewData.customer.address ?? ''}, ${previewData.customer.city?.title ?? ''}</div>
-                                        <div class="phone text-md leading-none">${previewData.customer.phone_number ?? ''}</div>
+                                        <div class="phone text-md leading-none">${deliverToLine(previewData)}</div>
                                     </div>
                                     <div class="right w-50 my-auto text-right text-sm text-black space-y-1.5">
                                         <div class="date leading-none">Date: ${formatDate(previewData.date)}</div>
@@ -1074,9 +1085,9 @@
                                 <div id="header" class="header w-full flex justify-between px-5">
                                     <div class="left w-50 space-y-1">
                                         <div class="customer text-lg leading-none capitalize font-medium text-nowrap">M/s: ${previewData.customer.customer_name}</div>
-                                        <div class="person text-md text-lg leading-none">${previewData.customer.urdu_title ?? ''}</div>
+                                        <div class="person text-md text-lg leading-none">${customerTitlePhoneLine(previewData.customer)}</div>
                                         <div class="address text-md leading-none">${previewData.customer.address ?? ''}, ${previewData.customer.city?.title ?? ''}</div>
-                                        <div class="phone text-md leading-none">${previewData.customer.phone_number ?? ''}</div>
+                                        <div class="phone text-md leading-none">${deliverToLine(previewData)}</div>
                                     </div>
                                     <div class="right w-50 my-auto text-right text-sm text-black space-y-1.5">
                                         <div class="date leading-none">Date: ${formatDate(previewData.date)}</div>
@@ -1149,6 +1160,7 @@
         } else {
             let orderedArticles = [];
             let customerData;
+            let orderDeliverTo = '';
             const articleModalDom = document.getElementById("articleModal");
             const quantityModalDom = document.getElementById("quantityModal");
             const orderNoDom = document.getElementById("order_no");
@@ -1207,10 +1219,12 @@
                             orderedArticles = response.articles;
                             discount = response.discount ?? 0;
                             customerData = response.customer;
+                            orderDeliverTo = response.deliver_to || '';
                         } else {
                             orderedArticles = [];
                             discount = 0;
                             customerData = "";
+                            orderDeliverTo = '';
                             renderError(response.error);
                         }
                         renderList();
@@ -1424,6 +1438,7 @@
                         date: invoiceDate,
                         invoice_no: invoiceNo,
                         order_no: orderNoDom.value,
+                        deliver_to: orderDeliverTo,
                         cotton_count: 0,
                         discount: discount || 0,
                         netAmount: netAmount || null,
@@ -1564,9 +1579,9 @@
                                 <div id="header" class="header w-full flex justify-between px-5">
                                     <div class="left w-50 space-y-1">
                                         <div class="customer text-lg leading-none capitalize font-medium text-nowrap">M/s: ${previewData.customer.customer_name}</div>
-                                        <div class="person text-md text-lg leading-none">${previewData.customer.urdu_title ?? ''}</div>
+                                        <div class="person text-md text-lg leading-none">${customerTitlePhoneLine(previewData.customer)}</div>
                                         <div class="address text-md leading-none">${previewData.customer.address ?? ''}, ${previewData.customer.city?.title ?? ''}</div>
-                                        <div class="phone text-md leading-none">${previewData.customer.phone_number ?? ''}</div>
+                                        <div class="phone text-md leading-none">${deliverToLine(previewData)}</div>
                                     </div>
                                     <div class="right w-50 my-auto text-right text-sm text-black space-y-1.5">
                                         <div class="date leading-none">Date: ${formatDate(previewData.date)}</div>

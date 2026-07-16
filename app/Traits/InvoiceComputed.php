@@ -51,6 +51,7 @@ trait InvoiceComputed
                 'branch_branding' => app(\App\Services\Branches\ModuleBranchService::class)->documentBranding('invoices', $this),
                 'order_no' => $this->order_no,
                 'shipment_no' => $this->shipment_no,
+                'deliver_to' => $this->order?->deliver_to,
                 'date' => $this->date,
                 'netAmount' => (float) ($this->netAmount ?? 0),
                 'cotton_count' => (int) ($this->cotton_count ?? 0),
@@ -69,6 +70,7 @@ trait InvoiceComputed
                 'order' => $this->order ? [
                     'id' => $this->order->id,
                     'order_no' => $this->order->order_no,
+                    'deliver_to' => $this->order->deliver_to,
                     'discount' => (float) ($this->order->discount ?? 0),
                     'netAmount' => (float) ($this->order->netAmount ?? 0),
                 ] : null,

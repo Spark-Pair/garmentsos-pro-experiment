@@ -522,6 +522,7 @@ class Controller extends BaseController
             'date' => $order->date?->format('Y-m-d'),
             'discount' => $order->discount,
             'netAmount' => $order->netAmount,
+            'deliver_to' => $order->deliver_to,
             'customer' => $this->formatInvoiceCustomerPayload($order->customer),
             'articles' => $order->articles->map(fn ($item) => [
                 'id' => $item->id,
