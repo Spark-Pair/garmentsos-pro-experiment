@@ -555,7 +555,7 @@ function createModal(data, animate = 'animate') {
         // Check if totals will be shown
         const hasTotal = ['order', 'invoice', 'shipment'].includes(data.preview.type);
         const articlePages = (previewData.articles || previewData.invoice_articles)
-            ? (data.preview.type == 'invoice'
+            ? (['invoice', 'order', 'shipment'].includes(data.preview.type)
                 ? chunkInvoiceRows(previewData.articles || previewData.invoice_articles)
                 : chunkArray((previewData.articles || previewData.invoice_articles), 21, hasTotal))
             : [];
@@ -869,7 +869,7 @@ function createModal(data, animate = 'animate') {
                                     <div class="customer text-lg leading-none capitalize font-medium text-nowrap">M/s: ${previewData.customer.customer_name}</div>
                                     <div class="person text-md text-lg leading-none">${customerTitlePhoneLine(previewData.customer)}</div>
                                     <div class="address text-md leading-none">${previewData.customer.address ?? ''}${previewData.customer.city?.title ? ', ' + previewData.customer.city.title : ''}</div>
-                                    <div class="phone text-md leading-none">${deliverToLine(previewData)}</div>
+                                    <div class="phone deliver-to text-md leading-none">${deliverToLine(previewData)}</div>
                                 ` : data.preview.type == "shipment" ? `
                                     <div class="address text-md leading-none capitalize">${previewData.city ? 'City: ' + previewData.city : ''}</div>
                                 ` : `

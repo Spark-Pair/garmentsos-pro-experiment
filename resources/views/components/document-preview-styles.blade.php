@@ -278,6 +278,12 @@
         line-height: 1.22 !important;
     }
 
+    .gos-a5-invoice .deliver-to {
+        font-size: 12px !important;
+        font-weight: 700 !important;
+        line-height: 1.18 !important;
+    }
+
     .gos-a5-invoice #header .right.space-y-1\.5 > :not([hidden]) ~ :not([hidden]),
     .gos-a5-invoice .header .right.space-y-1\.5 > :not([hidden]) ~ :not([hidden]) {
         margin-top: 0.5px !important;

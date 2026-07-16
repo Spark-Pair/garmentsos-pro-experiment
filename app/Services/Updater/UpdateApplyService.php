@@ -107,6 +107,8 @@ class UpdateApplyService
                 }
             }
 
+            $maintenance = $this->runPostUpdateMaintenance();
+
             $this->logs->record('apply_succeeded', [
                 'version' => $manifest['latest_version'],
                 'channel' => $manifest['update_channel'],
@@ -115,12 +117,14 @@ class UpdateApplyService
                 'snapshot' => basename($snapshot),
                 'migration_required' => (bool) ($manifest['migration_required'] ?? false),
                 'migration_exit_code' => $migrationCode,
+                'post_update_maintenance' => $maintenance,
             ]);
 
             return $this->result(true, 'applied', 'Update applied safely. Review the app and keep the pre-update backup/snapshot until verified.', [
                 'backup_log_id' => $backup['backup_log']->id ?? null,
                 'snapshot' => basename($snapshot),
                 'file_count' => count($plannedFiles),
+                'post_update_maintenance' => $maintenance,
             ]);
         } catch (Throwable $e) {
             $rollback = $this->rollbackFiles($snapshot);
@@ -271,6 +275,55 @@ class UpdateApplyService
             return ['code' => 'rollback_succeeded', 'message' => 'Code files were rolled back from the pre-update snapshot.'];
         } catch (Throwable) {
             return ['code' => 'rollback_failed', 'message' => 'Code rollback failed. Manual recovery from snapshot is required.'];
+        }
+    }
+
+    protected function runPostUpdateMaintenance(): array
+    {
+        return [
+            'storage_link' => $this->callArtisanSafely('storage:link', ['--force' => true], retryWithoutOptions: true),
+            'optimize_clear' => $this->callArtisanSafely('optimize:clear'),
+        ];
+    }
+
+    protected function callArtisanSafely(string $command, array $parameters = [], bool $retryWithoutOptions = false): array
+    {
+        try {
+            $exitCode = Artisan::call($command, $parameters);
+
+            return [
+                'success' => $exitCode === 0,
+                'exit_code' => $exitCode,
+                'output' => trim(Artisan::output()),
+            ];
+        } catch (Throwable $exception) {
+            if ($retryWithoutOptions && $parameters !== []) {
+                try {
+                    $exitCode = Artisan::call($command);
+
+                    return [
+                        'success' => $exitCode === 0,
+                        'exit_code' => $exitCode,
+                        'output' => trim(Artisan::output()),
+                        'retried_without_options' => true,
+                    ];
+                } catch (Throwable $retryException) {
+                    return [
+                        'success' => false,
+                        'exit_code' => null,
+                        'output' => '',
+                        'error' => $retryException->getMessage(),
+                        'retried_without_options' => true,
+                    ];
+                }
+            }
+
+            return [
+                'success' => false,
+                'exit_code' => null,
+                'output' => '',
+                'error' => $exception->getMessage(),
+            ];
         }
     }
 

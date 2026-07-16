@@ -15,6 +15,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 
@@ -227,15 +228,20 @@ class OrderController extends Controller
             $request->merge(['customer_id' => $customer->id]);
         }
 
-        $validator = Validator::make($request->all(), [
+        $rules = [
             'date' => 'required|date',
             'customer_id' => 'required|integer|exists:customers,id',
             'discount' => 'required|integer|min:0|max:100',
             'netAmount' => 'required|string',
             'articles' => 'required|json',
             'order_no' => 'required|string',
-            'deliver_to' => 'nullable|string|max:255',
-        ]);
+        ];
+
+        if ($this->supportsOrderDeliverToColumn()) {
+            $rules['deliver_to'] = 'nullable|string|max:255';
+        }
+
+        $validator = Validator::make($request->all(), $rules);
 
         if ($validator->fails()) {
             return redirect()->back()->withErrors($validator)->withInput();
@@ -252,16 +258,21 @@ class OrderController extends Controller
                 ? app(BranchSerialService::class)->next('orders', Order::class, 'order_no')
                 : $request->order_no;
 
-            $order = Order::create([
+            $orderData = [
                 'date' => $request->date,
                 'customer_id' => $request->customer_id,
                 'discount' => $discount,
                 'netAmount' => str_replace(',', '', $request->netAmount),
                 'articles' => $request->articles,
                 'order_no' => $orderNo,
-                'deliver_to' => $request->deliver_to,
                 'branch_id' => $branchId,
-            ]);
+            ];
+
+            if ($this->supportsOrderDeliverToColumn()) {
+                $orderData['deliver_to'] = $request->deliver_to;
+            }
+
+            $order = Order::create($orderData);
 
             foreach ($articles as $articleData) {
                 OrderArticles::create([
@@ -422,14 +433,19 @@ class OrderController extends Controller
         app(ModuleBranchService::class)->assertRecordInAllowedBranch($order, 'orders');
 
         $isDeveloper = Auth::user()?->role === 'developer';
-        $validator = Validator::make($request->all(), [
+        $rules = [
             'discount'   => 'required|integer|min:0|max:100',
             'netAmount'  => 'required|string',
             'articles'   => 'required',
             'date' => $isDeveloper ? 'required|date' : 'nullable',
             'customer_id' => $isDeveloper ? 'required|integer|exists:customers,id' : 'nullable',
-            'deliver_to' => 'nullable|string|max:255',
-        ]);
+        ];
+
+        if ($this->supportsOrderDeliverToColumn()) {
+            $rules['deliver_to'] = 'nullable|string|max:255';
+        }
+
+        $validator = Validator::make($request->all(), $rules);
 
         if ($validator->fails()) {
             return redirect()->back()->withErrors($validator)->withInput();
@@ -451,8 +467,11 @@ class OrderController extends Controller
             $orderUpdates = [
                 'netAmount' => $netAmount,
                 'discount'  => $request->discount,
-                'deliver_to' => $request->deliver_to,
             ];
+
+            if ($this->supportsOrderDeliverToColumn()) {
+                $orderUpdates['deliver_to'] = $request->deliver_to;
+            }
 
             if ($isDeveloper) {
                 $orderUpdates['date'] = $request->date;
@@ -571,5 +590,12 @@ class OrderController extends Controller
                 ]);
             }
         }
+    }
+
+    private function supportsOrderDeliverToColumn(): bool
+    {
+        static $supports = null;
+
+        return $supports ??= Schema::hasColumn('orders', 'deliver_to');
     }
 }
