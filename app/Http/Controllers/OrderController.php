@@ -131,24 +131,18 @@ class OrderController extends Controller
                     ->get();
             }
 
+            if ($request->filled('include_customer_id')) {
+                $includedCustomer = Customer::with('city')
+                    ->whereKey((int) $request->include_customer_id)
+                    ->first();
+
+                if ($includedCustomer && !$customers->contains('id', $includedCustomer->id)) {
+                    $customers->push($includedCustomer);
+                }
+            }
+
             foreach ($customers as $customer) {
-                $customers_options[(int)$customer->id] = [
-                    'text' => $customer->customer_name . ' | ' . $customer->city->title,
-                    'data_option' => [
-                        'id' => $customer->id,
-                        'customer_name' => $customer->customer_name,
-                        'person_name' => $customer->person_name,
-                        'urdu_title' => $customer->urdu_title,
-                        'phone_number' => $customer->phone_number,
-                        'address' => $customer->address,
-                        'date' => $customer->date?->format('Y-m-d'),
-                        'city' => [
-                            'id' => $customer->city?->id,
-                            'title' => $customer->city?->title,
-                            'short_title' => $customer->city?->short_title,
-                        ],
-                    ],
-                ];
+                $customers_options[(int) $customer->id] = $this->customerOption($customer);
             }
 
             $articles = $branches->applyRelatedScope(Article::where('date', '<=', $request->date), 'articles', 'orders')
@@ -419,9 +413,29 @@ class OrderController extends Controller
             })->toArray(),
         ];
 
+        $customers_options = [];
+        if ($order->customer) {
+            $customers_options[(int) $order->customer->id] = $this->customerOption($order->customer);
+        }
+
+        if (Auth::user()?->role === 'developer') {
+            $branches = app(ModuleBranchService::class);
+            $customers = $branches->applyRelatedScope(Customer::with('city'), 'customers', 'orders')
+                ->whereHas('user', function ($query) {
+                    $query->where('status', 'active');
+                })
+                ->where('date', '<=', $order->date?->format('Y-m-d') ?? now()->toDateString())
+                ->select('id', 'customer_name', 'person_name', 'urdu_title', 'phone_number', 'date', 'city_id', 'address')
+                ->get();
+
+            foreach ($customers->sortBy('customer_name') as $customer) {
+                $customers_options[(int) $customer->id] = $this->customerOption($customer);
+            }
+        }
+
         $branchBranding = app(ModuleBranchService::class)->documentBranding('orders', $order);
 
-        return view('orders.edit', compact('order', 'orderPayload', 'branchBranding'));
+        return view('orders.edit', compact('order', 'orderPayload', 'branchBranding', 'customers_options'));
     }
 
     public function update(Request $request, Order $order)
@@ -576,20 +590,51 @@ class OrderController extends Controller
         $stockMap = $this->articleStockMap($lines->keys(), $excludeOrderId, $branchId);
         $articlesById = Article::query()
             ->whereIn('id', $lines->keys())
-            ->get(['id', 'article_no'])
+            ->get(['id', 'article_no', 'pcs_per_packet'])
             ->keyBy('id');
 
         foreach ($lines as $articleId => $orderedPcs) {
+            $article = $articlesById->get((int) $articleId);
+            $pcsPerPacket = (int) ($article?->pcs_per_packet ?? 0);
+            if ($pcsPerPacket > 0 && $orderedPcs % $pcsPerPacket !== 0) {
+                throw ValidationException::withMessages([
+                    'articles' => "Order quantity for {$article?->article_no} must make whole packets of {$pcsPerPacket} pcs.",
+                ]);
+            }
+
             $dispatchedPcs = (int) ($existingDispatched->get((int) $articleId) ?? 0);
             $maxOrderPcs = (int) ($stockMap->get((int) $articleId)['orderable_quantity_pcs'] ?? 0);
 
             if ($orderedPcs > $maxOrderPcs) {
-                $articleNo = $articlesById->get((int) $articleId)?->article_no ?? $articleId;
+                $articleNo = $article?->article_no ?? $articleId;
                 throw ValidationException::withMessages([
                     'articles' => "Order quantity exceeds the remaining article quantity for {$articleNo}. Available: {$maxOrderPcs} pcs.",
                 ]);
             }
         }
+    }
+
+    private function customerOption(Customer $customer): array
+    {
+        $customer->loadMissing('city');
+
+        return [
+            'text' => trim($customer->customer_name . ' | ' . ($customer->city?->title ?? '-')),
+            'data_option' => [
+                'id' => $customer->id,
+                'customer_name' => $customer->customer_name,
+                'person_name' => $customer->person_name,
+                'urdu_title' => $customer->urdu_title,
+                'phone_number' => $customer->phone_number,
+                'address' => $customer->address,
+                'date' => $customer->date?->format('Y-m-d'),
+                'city' => [
+                    'id' => $customer->city?->id,
+                    'title' => $customer->city?->title,
+                    'short_title' => $customer->city?->short_title,
+                ],
+            ],
+        ];
     }
 
     private function supportsOrderDeliverToColumn(): bool

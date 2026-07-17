@@ -106,9 +106,22 @@ class InvoiceController extends Controller
             $query->where('status', 'active');
         })->get();
 
+        $ordersOptions = $branches->applyRelatedScope(Order::query(), 'orders', 'invoices')
+            ->where('status', '!=', 'invoiced')
+            ->orderByDesc('id')
+            ->pluck('order_no', 'order_no')
+            ->map(fn ($orderNo) => ['text' => $orderNo])
+            ->toArray();
+
+        $shipmentsOptions = $branches->applyRelatedScope(Shipment::query(), 'shipments', 'invoices')
+            ->orderByDesc('id')
+            ->pluck('shipment_no', 'shipment_no')
+            ->map(fn ($shipmentNo) => ['text' => $shipmentNo])
+            ->toArray();
+
         $branchBranding = app(ModuleBranchService::class)->documentBranding('invoices');
 
-        return view("invoices.generate", compact("last_Invoice", 'customers', 'orderNumber', 'branchBranding', 'nextInvoiceNo'));
+        return view("invoices.generate", compact("last_Invoice", 'customers', 'orderNumber', 'branchBranding', 'nextInvoiceNo', 'ordersOptions', 'shipmentsOptions'));
     }
 
     /**

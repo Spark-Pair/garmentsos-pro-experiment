@@ -16,6 +16,36 @@
         return selectedArticles.some(a => a.id == articleId);
     }
 
+    function articleSortValue(article = {}) {
+        return String(article?.article_no ?? article?.article?.article_no ?? '').trim();
+    }
+
+    function sortedSelectedArticles() {
+        return [...selectedArticles].sort((left, right) => (
+            articleSortValue(left).localeCompare(articleSortValue(right), undefined, {
+                numeric: true,
+                sensitivity: 'base',
+            })
+        ));
+    }
+
+    function companyLogoUrl() {
+        if (companyData?.logo_url) return companyData.logo_url;
+        if (companyData?.logo) return `${window.__shipmentsGenerate.companyLogoBase}/${companyData.logo}`;
+        return '';
+    }
+
+    function printDateTime() {
+        return new Date().toLocaleString('en-GB', {
+            day: '2-digit',
+            month: 'short',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: true,
+        }).replace(',', '');
+    }
+
     window.trackStateOfgenerateBtn = function trackStateOfgenerateBtn(value) {
         if (generateShipmentBtn) {
             generateShipmentBtn.disabled = value == '';
@@ -42,7 +72,12 @@
     }
 
     window.generateArticlesModal = function generateArticlesModal() {
-        const data = articles || [];
+        const data = [...(articles || [])].sort((left, right) => (
+            articleSortValue(left).localeCompare(articleSortValue(right), undefined, {
+                numeric: true,
+                sensitivity: 'base',
+            })
+        ));
 
         if (data.length > 0) {
             cardData = data.map(item => {
@@ -130,24 +165,28 @@
                         category: 'input',
                         value: `${data.article_no} | ${data.season} | ${data.size} | ${data.category} | ${data.fabric_type} | ${data.quantity} | ${formatMoney(data.sales_rate)} - Rs.`,
                         disabled: true,
+                        full: true,
                     },
                     {
                         category: 'input',
                         label: 'Orderable Quantity',
                         value: `${formatNumbersDigitLess(data.orderable_quantity)} Pcs | ${formatNumbersWithDigits(data.orderable_quantity_packets)} Pkts`,
                         disabled: true,
+                        full: true,
                     },
                     {
                         category: 'input',
                         label: 'Invoiceable Quantity (Current Stock)',
                         value: `${formatNumbersDigitLess(data.current_stock)} Pcs | ${formatNumbersWithDigits(data.current_stock_packets)} Pkts`,
                         disabled: true,
+                        full: true,
                     },
                     {
                         category: 'input',
                         label: 'Unit',
                         value: `${formatNumbersDigitLess(data.pcs_per_packet)} Pcs per Packet`,
                         disabled: true,
+                        full: true,
                     },
                     {
                         category: 'input',
@@ -158,10 +197,22 @@
                         placeholder: 'Enter quantity in pcs.',
                         max: Number(data.orderable_quantity || 0),
                         required: true,
-                        oninput: 'checkMax(this)',
+                        oninput: `syncArticleQuantityPair('pcs', ${Number(data.pcs_per_packet || 0)}, ${Number(data.orderable_quantity || 0)})`,
+                    },
+                    {
+                        category: 'input',
+                        name: 'quantity_packets',
+                        id: 'quantity_packets',
+                        type: 'number',
+                        label: 'Quantity - Pckts.',
+                        placeholder: 'Enter packets.',
+                        min: 0,
+                        max: Number(data.pcs_per_packet || 0) ? Math.floor(Number(data.orderable_quantity || 0) / Number(data.pcs_per_packet || 0)) : 0,
+                        required: true,
+                        oninput: `syncArticleQuantityPair('packets', ${Number(data.pcs_per_packet || 0)}, ${Number(data.orderable_quantity || 0)})`,
                     },
                 ],
-                fieldsGridCount: '1',
+                fieldsGridCount: '2',
                 bottomActions: [{ id: 'setQuantityBtn', text: 'Set Quantity', onclick: `setQuantity(${data.id})` }],
             };
 
@@ -169,14 +220,17 @@
 
             const quantityLabel = elem.querySelector('.quantity-label');
             if (quantityLabel) {
-                document.getElementById('quantity').value = parseInt(quantityLabel.textContent.replace(/\D/g, ''));
+                initializeArticleQuantityPair(data.pcs_per_packet, data.orderable_quantity, parseInt(quantityLabel.textContent.replace(/\D/g, '')));
             }
+            syncArticleQuantityPair('pcs', data.pcs_per_packet, data.orderable_quantity);
 
             document.getElementById('quantity').focus();
-            document.getElementById('quantity').addEventListener('keydown', e => {
-                if (e.key == 'Enter') {
-                    document.getElementById('setQuantityBtn-in-modal').click();
-                }
+            ['quantity', 'quantity_packets'].forEach(inputId => {
+                document.getElementById(inputId)?.addEventListener('keydown', e => {
+                    if (e.key === 'Enter') {
+                        document.getElementById('setQuantityBtn-in-modal')?.click();
+                    }
+                });
             });
         } else if (typeof messageBox !== 'undefined') {
             messageBox.innerHTML = window.__shipmentsGenerate?.maxArticlesAlertHtml || '';
@@ -191,9 +245,14 @@
         const alreadySelected = isArticleAlreadySelected(cardData.id);
 
         if (limitOfArticles > 0 || alreadySelected) {
-            closeModal('QuantityModalForm');
             const alreadySelectedArticle = selectedArticles.filter(c => c.id == cardData.id);
             const quantityInputDOM = document.getElementById('quantity');
+            if (!syncArticleQuantityPair('pcs', cardData.pcs_per_packet, cardData.orderable_quantity)) {
+                quantityInputDOM?.focus();
+                return;
+            }
+
+            closeModal('QuantityModalForm');
             const quantity = quantityInputDOM.value;
             const quantityLabel = targetCard.querySelector('.quantity-label');
 
@@ -321,7 +380,8 @@
         if (!orderListDOM) return;
         if (selectedArticles.length > 0) {
             let clutter = '';
-            selectedArticles.forEach((selectedArticle, index) => {
+            sortedSelectedArticles().forEach((selectedArticle) => {
+                const selectedIndex = selectedArticles.findIndex(article => article.id == selectedArticle.id);
                 clutter += `
                         <div class="flex justify-between items-center border-t border-gray-600 py-3 px-4">
                             <div class="w-[10%]">${selectedArticle.article_no}</div>
@@ -330,7 +390,7 @@
                             <div class="w-1/6">${formatMoney(selectedArticle.sales_rate)}</div>
                             <div class="w-1/5">${formatMoney(selectedArticle.sales_rate * selectedArticle.shipmentQuantity)}</div>
                             <div class="w-[10%] text-center">
-                                <button onclick="deselectThisArticle(${index})" type="button" class="text-[var(--danger-color)] text-xs px-2 py-1 rounded-lg hover:text-[var(--h-danger-color)] transition-all duration-300 ease-in-out cursor-pointer">
+                                <button onclick="deselectThisArticle(${selectedIndex})" type="button" class="text-[var(--danger-color)] text-xs px-2 py-1 rounded-lg hover:text-[var(--h-danger-color)] transition-all duration-300 ease-in-out cursor-pointer">
                                     <i class="fas fa-trash"></i>
                                 </button>
                             </div>
@@ -357,7 +417,7 @@
 
     function updateInputShipmentedArticles() {
         const inputShipmentedArticles = document.getElementById('articles');
-        const finalArticlesArray = selectedArticles.map(article => {
+        const finalArticlesArray = sortedSelectedArticles().map(article => {
             return {
                 id: article.id,
                 description: article.description,
@@ -425,15 +485,15 @@
                         <div id="banner" class="banner w-full flex justify-between items-center px-5">
                             <div class="left">
                                 <div class="logo flex flex-col">
-                                    <img src="${window.__shipmentsGenerate.companyLogoBase}/${companyData.logo}" alt="garmentsos-pro"
-                                        class="w-[12rem]" />
+                                    ${companyLogoUrl() ? `<img src="${companyLogoUrl()}" alt="garmentsos-pro"
+                                        class="w-[12rem]" />` : ''}
                                     <div class="mt-2 text-sm text-gray-600">${companyData.phone_number || ''}</div>
                                 </div>
                             </div>
                             <div class="right">
                                 <div class="logo text-right">
                                     <h1 class="text-2xl font-medium text-[var(--h-primary-color)]">Shipment</h1>
-                                    <div class="mt-1 text-right">Shipment No.: ${shipmentNo}</div>
+                                    <div class="document-number mt-1 text-right">Shipment No.: ${shipmentNo}</div>
                                 </div>
                             </div>
                         </div>
@@ -460,11 +520,11 @@
                                             <div class="th text-sm font-medium">Pkts</div>
                                             <div class="th text-sm font-medium">Pcs.</div>
                                             <div class="th text-sm font-medium">Rate</div>
-                                            <div class="th text-sm font-medium">Amt.</div>
+                                            <div class="th text-sm font-medium">Amount</div>
                                         </div>
                                     </div>
                                     <div id="tbody" class="tbody w-full">
-                                        ${selectedArticles
+                                        ${sortedSelectedArticles()
                                             .map((article, index) => {
                                                 const hrClass = index === 0 ? 'mb-2.5' : 'my-2.5';
                                                 const packets = article.pcs_per_packet ? Math.floor(article.shipmentQuantity / article.pcs_per_packet) : 0;
@@ -513,6 +573,8 @@
                         <hr class="w-full my-3 border-black">
                         <div class="footer flex w-full text-sm px-5 justify-between text-black">
                             <p class="leading-none">Powered by SparkPair</p>
+                            <p class="leading-none text-sm">Page 1 of 1</p>
+                            <p class="leading-none text-sm">Printed: ${printDateTime()}</p>
                             <p class="leading-none text-sm">&copy; ${new Date().getFullYear()} SparkPair | +92 316 5825495</p>
                         </div>
                     </div>

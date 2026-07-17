@@ -13,6 +13,10 @@
         const units = config.units || [];
         const rates = config.rates || [];
         const tickets = config.tickets || [];
+        const printTicket = config.printTicket || null;
+        if (config.companyData) {
+            window.companyData = config.companyData;
+        }
 
         function renderTemplate(template, replacements) {
             if (!template) return "";
@@ -70,6 +74,10 @@
                 : document.querySelector("#receiveBtn");
         moveHighlight(initialBtn, productionType === "issue" ? "issue" : "receive");
 
+        if (printTicket && typeof window.showProductionTicket === "function") {
+            setTimeout(() => window.showProductionTicket(printTicket, true), 300);
+        }
+
         if (productionType === "issue") {
             let cardData = [];
             let ArticleModalData = {};
@@ -81,6 +89,7 @@
             let materialModalData = {};
             let materialsArray = [];
             let selectedPartsArray = [];
+            let tagCardData = [];
             const articleSelectInputDOM = document.getElementById("article");
             const articleIdInputDOM = document.getElementById("article_id");
 
@@ -103,23 +112,26 @@
                 );
                 const filteredArticles = articles.filter((a) => !articlesIssuedOnCMT.includes(a));
 
-                cardData = filteredArticles.map((item) => {
-                    return {
-                        id: item.id,
-                        name: item.article_no,
-                        image:
-                            item.image === "no_image_icon.png"
-                                ? "/images/no_image_icon.png"
-                                : `/storage/uploads/images/${item.image}`,
-                        details: {
-                            Category: item.category,
-                            Season: item.season,
-                            Size: item.size,
-                        },
-                        data: item,
-                        onclick: "selectThisArticle(this)",
-                    };
-                });
+                cardData =
+                    articles.length > 0
+                        ? filteredArticles.map((item) => {
+                            return {
+                                id: item.id,
+                                name: item.article_no,
+                                image:
+                                    item.image === "no_image_icon.png"
+                                        ? "/images/no_image_icon.png"
+                                        : `/storage/uploads/images/${item.image}`,
+                                details: {
+                                    Category: item.category,
+                                    Season: item.season,
+                                    Size: item.size,
+                                },
+                                data: item,
+                                onclick: "selectThisArticle(this)",
+                            };
+                        })
+                        : [];
 
                 ArticleModalData = {
                     id: "modalForm",
@@ -567,47 +579,41 @@
             };
 
             window.generateSelectTagModal = function generateSelectTagModal(animate = "animate") {
-                const tagCardData = tags.map((item) => {
-                    return {
-                        id: item.tag,
-                        name: item.tag,
-                        details: {
-                            Supplier: item.supplier_name,
-                            "Available Quantity": item.available_quantity,
-                            "Selected Quantity": item.selected_quantity || 0,
-                        },
-                        data: item,
-                        onclick: `generateQuantityModal(${JSON.stringify(item)})`,
-                    };
-                });
+                const data = tags;
+                tagCardData =
+                    data.length > 0
+                        ? data.map((item) => {
+                            return {
+                                id: item.tag,
+                                name: item.tag,
+                                details: {
+                                    Supplier: item.supplier_name,
+                                    "Available Quantity": item.available_quantity,
+                                    "Selected Quantity": item.selected_quantity || 0,
+                                },
+                                data: item,
+                                onclick: `generateQuantityModal(${JSON.stringify(item)})`,
+                            };
+                        })
+                        : [];
 
                 materialModalData = {
                     id: "tagModalForm",
                     basicSearch: true,
-                    onBasicSearch: "basicSearchTags(this.value)",
+                    onBasicSearch: "searchProductionTags(this.value)",
                     cards: { name: "Tags", count: 3, data: tagCardData },
                 };
 
                 createModal(materialModalData, animate);
             };
 
-            window.basicSearchTags = function basicSearchTags(searchValue) {
-                const normalized = searchValue.toLowerCase();
-                materialModalData.cards.data = tags
-                    .map((item) => {
-                        return {
-                            id: item.tag,
-                            name: item.tag,
-                            details: {
-                                Supplier: item.supplier_name,
-                                "Available Quantity": item.available_quantity,
-                                "Selected Quantity": item.selected_quantity || 0,
-                            },
-                            data: item,
-                            onclick: `generateQuantityModal(${JSON.stringify(item)})`,
-                        };
-                    })
-                    .filter((item) => item.name.toLowerCase().includes(normalized));
+            window.searchProductionTags = function searchProductionTags(searchValue) {
+                const query = searchValue.toLowerCase();
+                materialModalData.cards.data = tagCardData.filter((item) =>
+                    [item.name, item.details?.Supplier]
+                        .filter(Boolean)
+                        .some((value) => String(value).toLowerCase().includes(query))
+                );
                 renderCardsInModal(materialModalData);
             };
 
@@ -726,6 +732,7 @@
             let allParts = Object.entries(partsByCategorySeason);
             let allRates = rates;
             let materialModalData = {};
+            let tagCardData = [];
             const articleSelectInputDOM = document.getElementById("article");
             const articleIdInputDOM = document.getElementById("article_id");
 
@@ -756,23 +763,26 @@
                     return cuttingParts.length !== allPartsForArticle.length;
                 });
 
-                cardData = filteredArticles.map((item) => {
-                    return {
-                        id: item.id,
-                        name: item.article_no,
-                        image:
-                            item.image === "no_image_icon.png"
-                                ? "/images/no_image_icon.png"
-                                : `/storage/uploads/images/${item.image}`,
-                        details: {
-                            Category: item.category,
-                            Season: item.season,
-                            Size: item.size,
-                        },
-                        data: item,
-                        onclick: "selectThisArticle(this)",
-                    };
-                });
+                cardData =
+                    articles.length > 0
+                        ? filteredArticles.map((item) => {
+                            return {
+                                id: item.id,
+                                name: item.article_no,
+                                image:
+                                    item.image === "no_image_icon.png"
+                                        ? "/images/no_image_icon.png"
+                                        : `/storage/uploads/images/${item.image}`,
+                                details: {
+                                    Category: item.category,
+                                    Season: item.season,
+                                    Size: item.size,
+                                },
+                                data: item,
+                                onclick: "selectThisArticle(this)",
+                            };
+                        })
+                        : [];
 
                 ArticleModalData = {
                     id: "modalForm",
@@ -972,47 +982,41 @@
             };
 
             window.generateSelectTagModal = function generateSelectTagModal(animate = "animate") {
-                const tagCardData = tags.map((item) => {
-                    return {
-                        id: item.tag,
-                        name: item.tag,
-                        details: {
-                            Supplier: item.supplier_name,
-                            "Available Quantity": item.available_quantity,
-                            "Selected Quantity": item.selected_quantity || 0,
-                        },
-                        data: item,
-                        onclick: `generateQuantityModal(${JSON.stringify(item)})`,
-                    };
-                });
+                const data = tags;
+                tagCardData =
+                    data.length > 0
+                        ? data.map((item) => {
+                            return {
+                                id: item.tag,
+                                name: item.tag,
+                                details: {
+                                    Supplier: item.supplier_name,
+                                    "Available Quantity": item.available_quantity,
+                                    "Selected Quantity": item.selected_quantity || 0,
+                                },
+                                data: item,
+                                onclick: `generateQuantityModal(${JSON.stringify(item)})`,
+                            };
+                        })
+                        : [];
 
                 materialModalData = {
                     id: "tagModalForm",
                     basicSearch: true,
-                    onBasicSearch: "basicSearchTags(this.value)",
+                    onBasicSearch: "searchProductionTags(this.value)",
                     cards: { name: "Tags", count: 3, data: tagCardData },
                 };
 
                 createModal(materialModalData, animate);
             };
 
-            window.basicSearchTags = function basicSearchTags(searchValue) {
-                const normalized = searchValue.toLowerCase();
-                materialModalData.cards.data = tags
-                    .map((item) => {
-                        return {
-                            id: item.tag,
-                            name: item.tag,
-                            details: {
-                                Supplier: item.supplier_name,
-                                "Available Quantity": item.available_quantity,
-                                "Selected Quantity": item.selected_quantity || 0,
-                            },
-                            data: item,
-                            onclick: `generateQuantityModal(${JSON.stringify(item)})`,
-                        };
-                    })
-                    .filter((item) => item.name.toLowerCase().includes(normalized));
+            window.searchProductionTags = function searchProductionTags(searchValue) {
+                const query = searchValue.toLowerCase();
+                materialModalData.cards.data = tagCardData.filter((item) =>
+                    [item.name, item.details?.Supplier]
+                        .filter(Boolean)
+                        .some((value) => String(value).toLowerCase().includes(query))
+                );
                 renderCardsInModal(materialModalData);
             };
 
@@ -1248,8 +1252,8 @@
                 if (elem.value != "") {
                     let selectedTicket = JSON.parse(elem.parentElement.querySelector("li.selected").dataset.option);
                     selectThisArticle(selectedTicket.article);
-                    selectThisOption(document.querySelector(`ul[data-for="work"] li[data-value="${selectedTicket.work_id}"]`));
-                    selectThisOption(document.querySelector(`ul[data-for="worker"] li[data-value="${selectedTicket.worker_id}"]`));
+                    selectThisOption(document.querySelector(`li[data-value="${selectedTicket.work_id}"]`));
+                    selectThisOption(document.querySelector(`li[data-value="${selectedTicket.worker_id}"]`));
                 }
             };
 

@@ -276,13 +276,8 @@ class CustomerPaymentController extends Controller
                         ->with('error', 'Selected payment program is already cleared.');
                 }
 
-                $customerPayload = [
-                    'id' => $program->customer->id,
-                    'customer_name' => $program->customer->customer_name,
-                    'date' => $program->customer->date?->format('Y-m-d'),
-                    'balance' => 0,
-                    'payment_programs' => $programPayload,
-                ];
+                $customerPayload = $this->customerOptionPayload($program->customer);
+                $customerPayload['payment_programs'] = $programPayload;
 
                 $customers_options = [
                     (int)$program->customer->id => [
@@ -318,23 +313,14 @@ class CustomerPaymentController extends Controller
             ->get();
 
         $customers_options = $customers->mapWithKeys(function ($customer) {
-            $balance = (float) ($customer->total_invoice_amount ?? 0)
-                - (float) ($customer->total_paid_amount ?? 0)
-                + (float) ($customer->adjustment_plus_amount ?? 0)
-                - (float) ($customer->adjustment_minus_amount ?? 0);
             $programs = $customer->paymentPrograms
                 ->map(fn($program) => $this->formatProgramPayload($program))
                 ->filter(fn($program) => ($program['balance'] ?? 0) > 0)
                 ->values()
                 ->all();
 
-            $customerPayload = [
-                'id' => $customer->id,
-                'customer_name' => $customer->customer_name,
-                'date' => $customer->date?->format('Y-m-d'),
-                'balance' => $balance,
-                'payment_programs' => $programs,
-            ];
+            $customerPayload = $this->customerOptionPayload($customer);
+            $customerPayload['payment_programs'] = $programs;
 
             return [(int)$customer->id => [
                 'text' => $customer->customer_name . ' | ' . $customer->city->title,

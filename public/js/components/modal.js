@@ -26,7 +26,64 @@ function createModal(data, animate = 'animate') {
 
     const deliverToLine = previewData => {
         const deliverTo = String(previewData?.deliver_to ?? previewData?.order?.deliver_to ?? '').trim();
-        return deliverTo ? `Deliver To: ${deliverTo}` : '';
+        return `Deliver To: ${deliverTo || '-'}`;
+    };
+
+    const previewText = value => String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+
+    const truthySetting = value => value === true || value === 1 || value === '1' || value === 'true';
+
+    const documentSettings = previewData => previewData?.branch_branding || {};
+
+    const documentDiscountDisabled = (type, previewData) => (
+        ['order', 'invoice'].includes(type) && truthySetting(documentSettings(previewData).discount_disabled)
+    );
+
+    const documentNote = previewData => String(documentSettings(previewData).document_note || '').trim();
+
+    const documentTotalsHtml = (type, previewData, totalPackets, totalPcs, totalAmount, discount, discountAmount, netAmount) => {
+        if (documentDiscountDisabled(type, previewData)) {
+            const note = documentNote(previewData);
+            return `
+                ${note ? `
+                    <div class="total col-span-2 flex justify-center items-center border border-black rounded-lg py-1.5 px-4 w-full text-center font-semibold">
+                        ${previewText(note)}
+                    </div>
+                ` : ''}
+                <div class="total flex justify-between items-center border border-black rounded-lg py-1.5 px-4 w-full">
+                    <div class="text-nowrap">Total Quantity</div>
+                    <div class="w-1/4 text-right grow">${formatNumbersDigitLess(totalPackets)} | ${formatNumbersDigitLess(totalPcs)}</div>
+                </div>
+                <div class="total flex justify-between items-center border border-black rounded-lg py-1.5 px-4 w-full">
+                    <div class="text-nowrap font-semibold">Net Amount</div>
+                    <div class="w-1/4 text-right grow font-semibold">${formatNumbersWithDigits(totalAmount, 1, 1)}</div>
+                </div>
+            `;
+        }
+
+        return `
+            <div class="total flex justify-between items-center border border-black rounded-lg py-1.5 px-4 w-full">
+                <div class="text-nowrap">Total Quantity</div>
+                <div class="w-1/4 text-right grow">${formatNumbersDigitLess(totalPackets)} | ${formatNumbersDigitLess(totalPcs)}</div>
+            </div>
+            <div class="total flex justify-between items-center border border-black rounded-lg py-1.5 px-4 w-full">
+                <div class="text-nowrap">Gross Amount</div>
+                <div class="w-1/4 text-right grow">${formatNumbersWithDigits(totalAmount, 1, 1)}</div>
+            </div>
+            <div class="total flex justify-between items-center border border-black rounded-lg py-1.5 px-4 w-full">
+                <div class="text-nowrap">Discount ${discount}%</div>
+                <div class="w-1/4 text-right grow">${formatNumbersWithDigits(discountAmount, 1, 1)}</div>
+            </div>
+            <div class="total flex justify-between items-center border border-black rounded-lg py-1.5 px-4 w-full">
+                <div class="text-nowrap">Net Amount</div>
+                <div class="w-1/4 text-right grow">${formatNumbersWithDigits(netAmount, 1, 1)}</div>
+            </div>
+        `;
     };
 
     const statusColor = {
@@ -541,6 +598,30 @@ function createModal(data, animate = 'animate') {
         return chunks;
     }
 
+    function articleSortValue(row = {}) {
+        return String(row?.article?.article_no ?? row?.article_no ?? '').trim();
+    }
+
+    function sortArticleRows(rows) {
+        return [...(Array.isArray(rows) ? rows : [])].sort((left, right) => (
+            articleSortValue(left).localeCompare(articleSortValue(right), undefined, {
+                numeric: true,
+                sensitivity: 'base',
+            })
+        ));
+    }
+
+    function printDateTime() {
+        return new Date().toLocaleString('en-GB', {
+            day: '2-digit',
+            month: 'short',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: true,
+        }).replace(',', '');
+    }
+
     // Preview section ko clean karo
     if (data.preview) {
         let previewData = data.preview.data;
@@ -554,10 +635,11 @@ function createModal(data, animate = 'animate') {
 
         // Check if totals will be shown
         const hasTotal = ['order', 'invoice', 'shipment'].includes(data.preview.type);
-        const articlePages = (previewData.articles || previewData.invoice_articles)
+        const previewArticles = sortArticleRows(previewData.articles || previewData.invoice_articles || []);
+        const articlePages = previewArticles.length
             ? (['invoice', 'order', 'shipment'].includes(data.preview.type)
-                ? chunkInvoiceRows(previewData.articles || previewData.invoice_articles)
-                : chunkArray((previewData.articles || previewData.invoice_articles), 21, hasTotal))
+                ? chunkInvoiceRows(previewArticles)
+                : chunkArray(previewArticles, 21, hasTotal))
             : [];
 
         // Preview container start
@@ -676,7 +758,7 @@ function createModal(data, animate = 'animate') {
                     <div class="th text-sm font-medium ">Pkts</div>
                     <div class="th text-sm font-medium ">Pcs.</div>
                     <div class="th text-sm font-medium ">Rate</div>
-                    <div class="th text-sm font-medium ">Amt.</div>
+                    <div class="th text-sm font-medium ">Amount</div>
                     ${data.preview.type == 'order' ? '<div class="th text-sm font-medium text-center">Dispatch</div>' : ''}
                 ` : `
                     <div class="th text-sm font-medium ">S.No</div>
@@ -762,29 +844,7 @@ function createModal(data, animate = 'animate') {
                 // Totals sirf last page par
                 invoiceBottom = '';
                 if (pageIndex === articlePages.length - 1) {
-                    invoiceBottom = `
-                        <div class="total flex justify-between items-center border border-black rounded-lg py-1.5 px-4 w-full">
-                            <div class="text-nowrap">Total Quantity</div>
-                            <div class="w-1/4 text-right grow">${formatNumbersDigitLess(totalPackets)} | ${formatNumbersDigitLess(totalPcs)}</div>
-                        </div>
-                        <div class="total flex justify-between items-center border border-black rounded-lg py-1.5 px-4 w-full">
-                            <div class="text-nowrap">Gross Amount</div>
-                            <div class="w-1/4 text-right grow">${formatNumbersWithDigits(totalAmount, 1, 1)}</div>
-                        </div>
-                        <div class="total flex justify-between items-center border border-black rounded-lg py-1.5 px-4 w-full">
-                            <div class="text-nowrap">Discount ${discount}%</div>
-                            <div class="w-1/4 text-right grow">${formatNumbersWithDigits(discountAmount, 1, 1)}</div>
-                        </div>
-                        <div class="total flex justify-between items-center border border-black rounded-lg py-1.5 px-4 w-full">
-                            <div class="text-nowrap">Net Amount</div>
-                            <div class="w-1/4 text-right grow">${formatNumbersWithDigits(netAmount, 1, 1)}</div>
-                        </div>
-                    `;
-                }
-
-                // Page divider (sirf pehle page ke baad)
-                if (pageIndex > 0) {
-                    clutter += '<div class="page-break"></div>';
+                    invoiceBottom = documentTotalsHtml(data.preview.type, previewData, totalPackets, totalPcs, totalAmount, discount, discountAmount, netAmount);
                 }
 
                 clutter += renderPreviewPage(data, previewData, cottonCount, invoiceTableHeader, invoiceTableBody, invoiceBottom, pageIndex, articlePages.length);
@@ -855,7 +915,7 @@ function createModal(data, animate = 'animate') {
                         <div class="right">
                             <div class="logo text-right">
                                 <h1 class="text-2xl font-medium text-[var(--h-primary-color)]">${data.preview.document}</h1>
-                                ${documentNo ? `<div class="mt-1 text-right">${documentNoLabel}: ${documentNo}</div>` : ''}
+                                ${documentNo ? `<div class="document-number mt-1 text-right">${documentNoLabel}: ${documentNo}</div>` : ''}
                                 ${!['invoice', 'order', 'shipment'].includes(data.preview.type) && previewData.order_no ? '<div class="mt-1 text-right">Order No.: ' + previewData.order_no + '</div>' : ''}
                                 ${data.preview.type == 'form' ? `<div class='mt-1 text-sm'>${previewCompany.phone_number || ''}</div>` : ''}
                             </div>
@@ -864,7 +924,7 @@ function createModal(data, animate = 'animate') {
                     <hr class="w-full my-3 border-black">
                     ${data.preview.type != 'form' ? `
                         <div id="header" class="header w-full flex justify-between px-5">
-                            <div class="left w-50 space-y-1">
+                            <div class="left ${data.preview.type == "order" || data.preview.type == "invoice" ? 'grow min-w-0 pr-3' : 'w-50'} space-y-1">
                                 ${data.preview.type == "order" || data.preview.type == "invoice" ? `
                                     <div class="customer text-lg leading-none capitalize font-medium text-nowrap">M/s: ${previewData.customer.customer_name}</div>
                                     <div class="person text-md text-lg leading-none">${customerTitlePhoneLine(previewData.customer)}</div>
@@ -882,7 +942,7 @@ function createModal(data, animate = 'animate') {
                                     <div class="supplier-name capitalize font-semibold text-md">Supplier Name: ${previewData.supplier?.supplier_name || previewData.cargo_name}</div>
                                 </div>
                             ` : ''}
-                            <div class="right w-50 my-auto text-right text-sm text-black space-y-1.5">
+                            <div class="right ${data.preview.type == "order" || data.preview.type == "invoice" ? 'shrink-0 min-w-[38%]' : 'w-50'} my-auto text-right text-sm text-black space-y-1.5">
                                 ${data.preview.type == "order" || data.preview.type == "invoice" || data.preview.type == "shipment" ? `
                                     <div class="date leading-none">Date: ${formatDate(previewData.date)}</div>
                                     ${data.preview.type == 'invoice' && invoiceSourceNo ? `<div class="number leading-none capitalize">${invoiceSourceNo}</div>` : ''}
@@ -936,7 +996,8 @@ function createModal(data, animate = 'animate') {
                     <hr class="w-full my-3 border-black">
                     <div class="footer flex w-full text-sm px-5 justify-between text-black">
                         <p class="leading-none">Powered by SparkPair</p>
-                        ${data.preview.type == 'invoice' && totalPages > 1 ? `<p class="leading-none text-sm">Page ${pageIndex + 1} of ${totalPages}</p>` : ''}
+                        ${['invoice', 'order', 'shipment'].includes(data.preview.type) ? `<p class="leading-none text-sm">Page ${pageIndex + 1} of ${totalPages}</p>` : ''}
+                        ${['invoice', 'order', 'shipment'].includes(data.preview.type) ? `<p class="leading-none text-sm">Printed: ${printDateTime()}</p>` : ''}
                         <p class="leading-none text-sm">&copy; ${new Date().getFullYear()} SparkPair | +92 316 5825495</p>
                     </div>
                 </div>

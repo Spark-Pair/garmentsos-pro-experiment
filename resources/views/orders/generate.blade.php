@@ -2,18 +2,21 @@
 @section('title', 'Generate Order | ' . $client_company->name)
 @section('content')
     @php
+        $hideDocumentDiscount = (bool) ($branchBranding['discount_disabled'] ?? false);
+    @endphp
+    @php
         $isCustomerPortalOrder = Auth::user()?->role === 'customer';
     @endphp
     <!-- Main Content -->
     <!-- Progress Bar -->
-    <div class="mb-5 max-w-4xl mx-auto">
+    <div class="mb-5 max-w-5xl mx-auto">
         <x-search-header heading="Generate Order" link linkText="Show Orders" linkHref="{{ route('orders.index') }}"/>
         <x-progress-bar :steps="['Generate Order', 'Preview']" :currentStep="1" />
     </div>
 
     <!-- Form -->
     <form id="form" action="{{ route('orders.store') }}" method="post" enctype="multipart/form-data"
-        class="bg-[var(--secondary-bg-color)] text-sm rounded-xl shadow-lg p-8 border border-[var(--glass-border-color)]/20 pt-14 max-w-4xl mx-auto  relative overflow-hidden">
+        class="bg-[var(--secondary-bg-color)] text-sm rounded-xl shadow-lg p-8 border border-[var(--glass-border-color)]/20 pt-14 max-w-5xl mx-auto  relative overflow-hidden">
         @csrf
         <x-form-title-bar title="Generate Order" />
 
@@ -21,8 +24,10 @@
         <div class="step1 space-y-4 ">
             <div class="flex justify-between gap-4">
                 {{-- order date --}}
-                <div class="w-1/3">
+                <div class="w-1/2 grid grid-cols-2 gap-2">
                     <x-input label="Date" name="date" id="date" type="date" onchange="getDataByDate(this)" validateMax max='{{ now()->toDateString() }}' validateMin min="2024-01-01" required />
+
+                    <x-input label="Deliver To" name="deliver_to" id="deliver_to" placeholder="Optional delivery address / person" />
                 </div>
 
                 <input type="hidden" name="generateInvoiceAfterSave" id="generateInvoiceAfterSave" value="0">
@@ -33,7 +38,6 @@
                         class="grow" withButton btnId="generateOrderBtn" btnText="Select Articles" />
                 </div>
             </div>
-            <x-input label="Deliver To" name="deliver_to" id="deliver_to" placeholder="Optional delivery address / person" />
             {{-- rate showing --}}
             <div id="order-table" class="w-full text-left text-sm">
                 <div class="flex justify-between items-center bg-[var(--h-bg-color)] rounded-lg py-2 px-4 mb-4">
@@ -44,7 +48,7 @@
                     <div class="w-1/5">Amount</div>
                     <div class="w-[10%] text-center">Action</div>
                 </div>
-                <div id="order-list" class="h-[20rem] overflow-y-auto my-scrollbar-2">
+                <div id="order-list" class="h-[19rem] overflow-y-auto my-scrollbar-2">
                     <div class="text-center bg-[var(--h-bg-color)] rounded-lg py-3 px-4">No Rates Added</div>
                 </div>
             </div>
@@ -54,15 +58,19 @@
                     <div class="grow">Total Quantity</div>
                     <div id="finalOrderedQuantity">0</div>
                 </div>
-                <div class="final flex justify-between items-center border border-gray-600 rounded-lg py-2 px-4 w-full">
+                <div class="final {{ $hideDocumentDiscount ? 'hidden' : '' }} flex justify-between items-center border border-gray-600 rounded-lg py-2 px-4 w-full">
                     <div class="grow">Total Amount - Rs.</div>
                     <div id="finalOrderAmount">0.0</div>
                 </div>
-                <div class="final flex justify-between items-center bg-[var(--h-bg-color)] border border-gray-600 rounded-lg py-2 px-4 w-full">
-                    <label for="discount" class="grow">Discount - %</label>
-                    <input type="number" name="discount" id="discount" value="{{ old('discount', $defaultOrderDiscount ?? 0) }}" min="0" max="100" step="1"
-                        class="text-right bg-transparent outline-none w-1/2 border-none" />
-                </div>
+                @if ($hideDocumentDiscount)
+                    <input type="hidden" name="discount" id="discount" value="0">
+                @else
+                    <div class="final flex justify-between items-center bg-[var(--h-bg-color)] border border-gray-600 rounded-lg py-2 px-4 w-full">
+                        <label for="discount" class="grow">Discount - %</label>
+                        <input type="number" name="discount" id="discount" value="{{ old('discount', $defaultOrderDiscount ?? 0) }}" min="0" max="100" step="1"
+                            class="text-right bg-transparent outline-none w-1/2 border-none" />
+                    </div>
+                @endif
                 <div class="final flex justify-between items-center border border-gray-600 rounded-lg py-2 px-4 w-full">
                     <div class="grow">Net Amount - Rs.</div>
                     <input type="text" name="netAmount" id="finalNetAmount" value="0.0" readonly

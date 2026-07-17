@@ -106,6 +106,7 @@ class ProductionController extends Controller
             )
             ->get();
         foreach($workers as $worker) {
+            $employeePayload = $this->employeeOptionPayload($worker);
             $worker['taags'] = $worker['tags']
                 ->groupBy('tag')
                 ->map(function ($items, $tag) use ($articles) {
@@ -137,10 +138,13 @@ class ProductionController extends Controller
                 })
                 ->filter() // removes all nulls
                 ->values();
+            $workerPayload = $worker->makeHidden('tags')->toArray();
+            $workerPayload['balance'] = $employeePayload['balance'];
+            $workerPayload['balance_formatted'] = $employeePayload['balance_formatted'];
 
             $worker_options[(int)$worker->id] = [
-                'text' => $worker->employee_name . ' | ' . Money::format((float) $worker->balance),
-                'data_option' => $worker->makeHidden('tags'),
+                'text' => $worker->employee_name . ' | ' . $employeePayload['balance_formatted'],
+                'data_option' => $workerPayload,
             ];
         }
 

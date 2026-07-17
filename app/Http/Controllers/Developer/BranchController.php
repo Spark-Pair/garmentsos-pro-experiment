@@ -166,13 +166,22 @@ class BranchController extends Controller
             'modules' => ['array'],
             'modules.*.branch_enabled' => ['nullable', 'boolean'],
             'modules.*.allow_user_switching' => ['nullable', 'boolean'],
+            'modules.*.supports_multi_branch_selector' => ['nullable', 'boolean'],
             'modules.*.record_filtering_enabled' => ['nullable', 'boolean'],
+            'modules.*.has_branch_id_support' => ['nullable', 'boolean'],
+            'modules.*.supports_branch_branding' => ['nullable', 'boolean'],
+            'modules.*.supports_branch_serial_prefix' => ['nullable', 'boolean'],
+            'modules.*.supports_doc_identity_prefix' => ['nullable', 'boolean'],
             'modules.*.default_order_discount_percent' => ['nullable', 'integer', 'min:0', 'max:100'],
+            'modules.*.discount_disabled' => ['nullable', 'boolean'],
+            'modules.*.document_note' => ['nullable', 'string', 'max:300'],
+            'modules.*.doc_identity_prefix' => ['nullable', 'string', 'max:20'],
             'modules.*.default_branch_id' => ['nullable', 'integer', 'exists:branches,id'],
             'modules.*.status' => ['nullable', 'in:active,inactive'],
         ]);
 
         $branchId = $validated['branch_id'] ?? null;
+        $branch = $branchId ? Branch::query()->find($branchId) : null;
         foreach (($validated['modules'] ?? []) as $moduleKey => $data) {
             $moduleKey = $branches->canonicalModuleKey((string) $moduleKey);
             if (!array_key_exists($moduleKey, $branches->moduleRegistry())) {
@@ -184,28 +193,59 @@ class BranchController extends Controller
                 ->where('module_key', $moduleKey)
                 ->first();
             $metadata = is_array($setting?->metadata) ? $setting->metadata : [];
-            $metadata['record_filtering_enabled'] = (bool) (
-                ($data['record_filtering_enabled'] ?? false)
-                && ($module['supports_record_filtering'] ?? false)
-                && ($module['has_branch_id_support'] ?? false)
-            );
+            $metadata['record_filtering_enabled'] = (bool) ($data['record_filtering_enabled'] ?? false);
+            foreach ([
+                'branchable',
+                'supports_branch_selector',
+                'supports_record_filtering',
+                'can_filter_records',
+                'has_branch_id_support',
+                'supports_multi_branch_selector',
+                'supports_branch_branding',
+                'can_use_branch_branding',
+                'supports_branch_serial_prefix',
+                'supports_serial_prefix',
+                'supports_doc_identity_prefix',
+            ] as $key) {
+                $metadata[$key] = match ($key) {
+                    'branchable',
+                    'supports_branch_selector' => (bool) ($data['allow_user_switching'] ?? false),
+                    'supports_record_filtering',
+                    'can_filter_records' => (bool) ($data['record_filtering_enabled'] ?? false),
+                    'can_use_branch_branding' => (bool) ($data['supports_branch_branding'] ?? false),
+                    'supports_serial_prefix' => (bool) ($data['supports_branch_serial_prefix'] ?? false),
+                    default => (bool) ($data[$key] ?? false),
+                };
+            }
+            $metadata['is_system_module'] = !(bool) ($data['allow_user_switching'] ?? false);
+            $metadata['doc_identity_prefix'] = strtoupper(preg_replace('/[^A-Z0-9]+/', '', (string) ($data['doc_identity_prefix'] ?? '')));
             if ($moduleKey === 'orders') {
                 $metadata['default_order_discount_percent'] = max(
                     0,
                     min(100, (int) ($data['default_order_discount_percent'] ?? 0))
                 );
             }
+            if (in_array($moduleKey, ['orders', 'invoices'], true)) {
+                $metadata['discount_disabled'] = (bool) ($data['discount_disabled'] ?? false);
+                $metadata['document_note'] = trim((string) ($data['document_note'] ?? ''));
+            } else {
+                unset($metadata['discount_disabled'], $metadata['document_note']);
+            }
 
-            BranchModuleSetting::query()->updateOrCreate(
-                ['branch_id' => $branchId, 'module_key' => $moduleKey],
-                [
-                    'branch_enabled' => (bool) ($data['branch_enabled'] ?? false),
-                    'allow_user_switching' => (bool) ($data['allow_user_switching'] ?? false),
-                    'default_branch_id' => $data['default_branch_id'] ?? null,
-                    'status' => $data['status'] ?? 'active',
-                    'metadata' => $metadata,
-                ],
-            );
+            $values = [
+                'branch_enabled' => (bool) ($data['branch_enabled'] ?? false),
+                'allow_user_switching' => (bool) ($data['allow_user_switching'] ?? false),
+                'default_branch_id' => $data['default_branch_id'] ?? null,
+                'status' => $data['status'] ?? 'active',
+                'metadata' => $metadata,
+            ];
+
+            foreach (array_unique([$branchId, $branch?->is_main ? null : $branchId], SORT_REGULAR) as $targetBranchId) {
+                BranchModuleSetting::query()->updateOrCreate(
+                    ['branch_id' => $targetBranchId, 'module_key' => $moduleKey],
+                    $values,
+                );
+            }
         }
 
         return redirect()->back()->with('success', 'Module branch settings saved.');

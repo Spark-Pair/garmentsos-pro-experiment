@@ -13,7 +13,6 @@
             'S.No': 'S.#',
             'Packets': 'Pkts',
             'Rate/Pc.': 'Rate',
-            'Amount': 'Amt.',
         };
 
         printDocument.querySelectorAll('.gos-a5-invoice .thead .th').forEach(header => {

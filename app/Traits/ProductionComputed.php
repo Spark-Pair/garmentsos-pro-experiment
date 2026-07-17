@@ -23,6 +23,8 @@ trait ProductionComputed
             'parts' => $this->parts,
             'materials' => $this->materials,
             'tags' => $this->tags,
+            'oncontextmenu' => 'generateContextMenu(event)',
+            'onclick' => 'generateModal(this)',
             'data' => [
                 'id' => $this->id,
                 'ticket' => $this->ticket,

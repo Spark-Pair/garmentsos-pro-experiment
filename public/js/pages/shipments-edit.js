@@ -116,24 +116,28 @@
                         category: 'input',
                         value: `${data.article_no} | ${data.season} | ${data.size} | ${data.category} | ${data.fabric_type} | ${data.quantity} | ${formatMoney(data.sales_rate)} - Rs.`,
                         disabled: true,
+                        full: true,
                     },
                     {
                         category: 'input',
                         label: 'Orderable Quantity',
                         value: `${formatNumbersDigitLess(maxShipmentQuantity)} Pcs | ${formatNumbersWithDigits(data.orderable_quantity_packets)} Pkts`,
                         disabled: true,
+                        full: true,
                     },
                     {
                         category: 'input',
                         label: 'Invoiceable Quantity (Current Stock)',
                         value: `${formatNumbersDigitLess(data.current_stock)} Pcs | ${formatNumbersWithDigits(data.current_stock_packets)} Pkts`,
                         disabled: true,
+                        full: true,
                     },
                     {
                         category: 'input',
                         label: 'Unit',
                         value: `${formatNumbersDigitLess(data.pcs_per_packet)} Pcs per Packet`,
                         disabled: true,
+                        full: true,
                     },
                     {
                         category: 'input',
@@ -144,10 +148,22 @@
                         placeholder: 'Enter quantity in pcs.',
                         max: maxShipmentQuantity,
                         required: true,
-                        oninput: 'checkMax(this)',
+                        oninput: `syncArticleQuantityPair('pcs', ${Number(data.pcs_per_packet || 0)}, ${Number(maxShipmentQuantity || 0)})`,
+                    },
+                    {
+                        category: 'input',
+                        name: 'quantity_packets',
+                        id: 'quantity_packets',
+                        type: 'number',
+                        label: 'Quantity - Pckts.',
+                        placeholder: 'Enter packets.',
+                        min: 0,
+                        max: Number(data.pcs_per_packet || 0) ? Math.floor(Number(maxShipmentQuantity || 0) / Number(data.pcs_per_packet || 0)) : 0,
+                        required: true,
+                        oninput: `syncArticleQuantityPair('packets', ${Number(data.pcs_per_packet || 0)}, ${Number(maxShipmentQuantity || 0)})`,
                     },
                 ],
-                fieldsGridCount: '1',
+                fieldsGridCount: '2',
                 bottomActions: [{ id: 'setQuantityBtn', text: 'Set Quantity', onclick: `setQuantity(${data.id})` }],
             };
 
@@ -156,14 +172,17 @@
             const quantityLabel = elem.querySelector('.quantity-label');
 
             if (quantityLabel) {
-                document.getElementById('quantity').value = parseInt(quantityLabel.textContent.replace(/\D/g, ''));
+                initializeArticleQuantityPair(data.pcs_per_packet, maxShipmentQuantity, parseInt(quantityLabel.textContent.replace(/\D/g, '')));
             }
+            syncArticleQuantityPair('pcs', data.pcs_per_packet, maxShipmentQuantity);
 
             document.getElementById('quantity').focus();
-            document.getElementById('quantity').addEventListener('keydown', e => {
-                if (e.key == 'Enter') {
-                    document.getElementById('setQuantityBtn-in-modal').click();
-                }
+            ['quantity', 'quantity_packets'].forEach(inputId => {
+                document.getElementById(inputId)?.addEventListener('keydown', e => {
+                    if (e.key === 'Enter') {
+                        document.getElementById('setQuantityBtn-in-modal')?.click();
+                    }
+                });
             });
         } else if (typeof messageBox !== 'undefined') {
             messageBox.innerHTML = window.__shipmentsEdit?.maxArticlesAlertHtml || '';
@@ -178,9 +197,16 @@
         const alreadySelected = isArticleAlreadySelected(cardData.id);
 
         if (limitOfArticles > 0 || alreadySelected) {
-            closeModal('QuantityModalForm');
             const alreadySelectedArticle = selectedArticles.filter(c => c.id == cardData.id);
             const quantityInputDOM = document.getElementById('quantity');
+            const selectedArticle = selectedArticles.find(article => article.id == cardData.id);
+            const maxShipmentQuantity = Math.max(Number(cardData.orderable_quantity || 0), Number(selectedArticle?.shipmentQuantity || 0));
+            if (!syncArticleQuantityPair('pcs', cardData.pcs_per_packet, maxShipmentQuantity)) {
+                quantityInputDOM?.focus();
+                return;
+            }
+
+            closeModal('QuantityModalForm');
             const quantity = quantityInputDOM.value;
             const quantityLabel = targetCard.querySelector('.quantity-label');
 

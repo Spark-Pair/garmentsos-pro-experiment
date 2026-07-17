@@ -805,6 +805,21 @@ class ModuleBranchService
     private array $selectedBranchCache = [];
     private bool $branchReadinessWarningLogged = false;
 
+    private const DEVELOPER_MODULE_OVERRIDE_KEYS = [
+        'branchable',
+        'supports_branch_selector',
+        'supports_multi_branch_selector',
+        'supports_record_filtering',
+        'can_filter_records',
+        'has_branch_id_support',
+        'supports_branch_branding',
+        'can_use_branch_branding',
+        'supports_serial_prefix',
+        'supports_branch_serial_prefix',
+        'supports_doc_identity_prefix',
+        'is_system_module',
+    ];
+
     public function moduleRegistry(): array
     {
         return $this->moduleRegistryCache ??= app(BranchModuleRegistryService::class)->registry();
@@ -819,6 +834,38 @@ class ModuleBranchService
         }
 
         return $this->moduleConfigCache[$moduleKey];
+    }
+
+    public function runtimeModuleConfig(string $moduleKey, ?int $branchId = null): array
+    {
+        $moduleKey = $this->canonicalModuleKey($moduleKey);
+        $config = $this->moduleConfig($moduleKey) ?? [];
+        $setting = null;
+
+        if ($branchId) {
+            $setting = $this->branchSetting($moduleKey, $branchId);
+        }
+
+        $setting ??= $this->setting($moduleKey);
+
+        return $this->applyDeveloperModuleOverrides($config, $setting);
+    }
+
+    private function applyDeveloperModuleOverrides(array $config, ?BranchModuleSetting $setting): array
+    {
+        $metadata = is_array($setting?->metadata) ? $setting->metadata : [];
+
+        foreach (self::DEVELOPER_MODULE_OVERRIDE_KEYS as $key) {
+            if (array_key_exists($key, $metadata)) {
+                $config[$key] = (bool) $metadata[$key];
+            }
+        }
+
+        if (array_key_exists('doc_identity_prefix', $metadata)) {
+            $config['doc_identity_prefix'] = (string) $metadata['doc_identity_prefix'];
+        }
+
+        return $config;
     }
 
     public function isRegisteredModule(string $moduleKey): bool
@@ -1242,7 +1289,7 @@ class ModuleBranchService
             return $this->availableBranchesCache[$cacheKey] = collect();
         }
 
-        if (!$user || !$this->isRegisteredModule($moduleKey) || !($this->moduleConfig($moduleKey)['supports_branch_selector'] ?? false)) {
+        if (!$user || !$this->isRegisteredModule($moduleKey)) {
             return $this->availableBranchesCache[$cacheKey] = collect();
         }
 
@@ -1301,13 +1348,13 @@ class ModuleBranchService
             return false;
         }
 
-        $config = $this->moduleConfig($moduleKey) ?? [];
         $setting = null;
         $selectedBranchId = $this->selectedBranchIdForModule($moduleKey, $user);
         if ($selectedBranchId) {
             $setting = $this->branchSetting($moduleKey, $selectedBranchId);
         }
         $setting ??= $this->setting($moduleKey);
+        $config = $this->runtimeModuleConfig($moduleKey, $selectedBranchId);
         $metadata = is_array($setting?->metadata) ? $setting->metadata : [];
         $recordFilteringEnabled = array_key_exists('record_filtering_enabled', $metadata)
             ? (bool) $metadata['record_filtering_enabled']
@@ -1317,7 +1364,6 @@ class ModuleBranchService
             $user
             && $this->isEnabled($moduleKey)
             && $selectedBranchId
-            && ($config['supports_record_filtering'] ?? false)
             && $recordFilteringEnabled
             && ($config['has_branch_id_support'] ?? false)
         );
@@ -1351,18 +1397,13 @@ class ModuleBranchService
             return false;
         }
 
-        $config = $this->moduleConfig($moduleKey);
-        if (!($config['supports_branch_selector'] ?? false)) {
-            return false;
-        }
-
         return $this->availableBranchesForModule($moduleKey, $user)->count() > 1;
     }
 
     public function supportsMultiBranchSelector(string $moduleKey): bool
     {
         return $this->branchTablesReadyForSelectors()
-            && (bool) ($this->moduleConfig($moduleKey)['supports_multi_branch_selector'] ?? false);
+            && (bool) ($this->runtimeModuleConfig($moduleKey)['supports_multi_branch_selector'] ?? false);
     }
 
     public function selectedBranchIdsForModule(string $moduleKey, ?User $user = null): array
@@ -1478,7 +1519,7 @@ class ModuleBranchService
     public function setPreference(string $moduleKey, int $branchId, User $user): void
     {
         $moduleKey = $this->canonicalModuleKey($moduleKey);
-        if (!$this->isRegisteredModule($moduleKey) || !($this->moduleConfig($moduleKey)['supports_branch_selector'] ?? false)) {
+        if (!$this->isRegisteredModule($moduleKey) || !($this->runtimeModuleConfig($moduleKey, $branchId)['supports_branch_selector'] ?? false)) {
             abort(422, 'Unknown or non-branchable module.');
         }
 
@@ -1636,6 +1677,15 @@ class ModuleBranchService
         $discount = (int) $metadata['default_order_discount_percent'];
 
         return max(0, min(100, $discount));
+    }
+
+    public function documentModuleOptions(string $moduleKey, ?object $record = null): array
+    {
+        $moduleKey = $this->canonicalModuleKey($moduleKey);
+        $branch = $record ? $this->branchForRecord($record, $moduleKey) : $this->selectedBranch($moduleKey);
+        $branch ??= $this->mainBranch();
+
+        return $this->documentModuleOptionsForBranch($moduleKey, $branch?->id);
     }
 
     public function assignBranchOnCreate(object|array $modelOrData, string $moduleKey, string $branchColumn = 'branch_id'): object|array
@@ -1918,6 +1968,7 @@ class ModuleBranchService
         $branch ??= $this->mainBranch();
         $app = app(BrandingSettingsService::class)->clientCompany();
         $branchLogoUrl = null;
+        $documentOptions = $this->documentModuleOptionsForBranch($moduleKey, $branch?->id);
 
         if ($branch?->logo_path) {
             $publicLogo = public_path('storage/' . ltrim($branch->logo_path, '/'));
@@ -1946,6 +1997,21 @@ class ModuleBranchService
             'logo' => $branch?->logo_path ?: ($app->logo ?? null),
             'logo_text' => $branch?->header_text ?: ($app->logo_text ?? null),
             'logo_url' => $branchLogoUrl ?: (!empty($app->logo) ? asset('images/' . $app->logo) : null),
+            'discount_disabled' => $documentOptions['discount_disabled'],
+            'document_note' => $documentOptions['document_note'],
+        ];
+    }
+
+    protected function documentModuleOptionsForBranch(string $moduleKey, ?int $branchId): array
+    {
+        $moduleKey = $this->canonicalModuleKey($moduleKey);
+        $setting = $branchId ? $this->branchSetting($moduleKey, $branchId) : null;
+        $metadata = is_array($setting?->metadata) ? $setting->metadata : [];
+        $supportsDocumentOptions = in_array($moduleKey, ['orders', 'invoices'], true);
+
+        return [
+            'discount_disabled' => $supportsDocumentOptions && (bool) ($metadata['discount_disabled'] ?? false),
+            'document_note' => $supportsDocumentOptions ? trim((string) ($metadata['document_note'] ?? '')) : '',
         ];
     }
 

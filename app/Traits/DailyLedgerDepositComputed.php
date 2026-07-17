@@ -11,11 +11,17 @@ trait DailyLedgerDepositComputed
     {
         return [
             'id' => $this->id,
+            'ledger_type' => 'deposit',
             'date' => $this->date->format('d-M-Y, D'),
+            'date_raw' => $this->date->toDateString(),
             'description' => ucfirst($this->method) . ' | ' . ($this->reff_no ?? '-'),
+            'method' => $this->method,
+            'reff_no' => $this->reff_no,
             'deposit' => $this->amount,
             'use' => 0,
             'created_at' => $this->created_at,
+            'oncontextmenu' => "generateContextMenu(event)",
+            'onclick' => "generateModal(this)",
         ];
     }
 

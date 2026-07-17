@@ -93,4 +93,10 @@
 
 @push('page-scripts')
 <script defer src="{{ asset('js/pages/daily-ledger-index.js') }}"></script>
+<script>
+    window.__dailyLedgerIndex = {
+        csrfToken: @json(csrf_token()),
+        currentUserRole: @json(Auth::user()->role),
+    };
+</script>
 @endpush

@@ -11,11 +11,17 @@ trait DailyLedgerUseComputed
     {
         return [
             'id' => $this->id,
+            'ledger_type' => 'use',
             'date' => $this->date->format('d-M-Y, D'),
+            'date_raw' => $this->date->toDateString(),
             'description' => ucfirst($this->case) . ' | ' . ($this->remarks ?? '-'),
+            'case' => $this->case,
+            'remarks' => $this->remarks,
             'deposit' => 0,
             'use' => $this->amount,
             'created_at' => $this->created_at,
+            'oncontextmenu' => "generateContextMenu(event)",
+            'onclick' => "generateModal(this)",
         ];
     }
 

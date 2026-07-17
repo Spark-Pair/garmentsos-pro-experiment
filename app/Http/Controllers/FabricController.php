@@ -96,7 +96,12 @@ class FabricController extends Controller
 
         $suppliers_options = [];
         foreach ($suppliers as $supplier) {
-            $suppliers_options[$supplier->id] = ["text" => $supplier->supplier_name, "data_option" => $supplier];
+            $supplierPayload = $this->supplierOptionPayload($supplier);
+            $supplierPayload['categories_array'] = $supplier->categories_array;
+            $suppliers_options[$supplier->id] = [
+                "text" => $supplier->supplier_name,
+                "data_option" => $supplierPayload,
+            ];
         }
 
         $fabrics_options = [];

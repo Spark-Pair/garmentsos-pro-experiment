@@ -4,7 +4,6 @@
 
 @section('content')
     @php
-        $routeBlockedModules = ['articles', 'customers', 'suppliers', 'reports', 'rates'];
         $panel = 'bg-[var(--secondary-bg-color)] text-sm rounded-xl shadow-lg p-7 border border-[var(--h-bg-color)] pt-12 relative overflow-hidden';
         $softPanel = 'rounded-lg border border-[var(--h-bg-color)] bg-[var(--h-bg-color)]/50 p-4';
         $badge = 'inline-flex items-center rounded-lg border px-2.5 py-1 text-xs font-semibold';
@@ -106,13 +105,12 @@
             <x-form-title-bar title="Modules" />
 
             <p class="mb-4 text-sm text-[var(--secondary-text)]">
-                Only reviewed modules have active route blocking. Foundation-only modules are shown for planning and are not enforced yet.
+                Developer can control module visibility and local enablement from here.
             </p>
 
             <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
                 @foreach ($modules as $module)
                     @php
-                        $isGuarded = in_array($module['key'], $routeBlockedModules, true);
                         $enabledClass = $module['effective_enabled']
                             ? 'border-[var(--border-success)] bg-[var(--bg-success)] text-[var(--text-success)]'
                             : 'border-[var(--border-error)] bg-[var(--bg-error)] text-[var(--text-error)]';
@@ -142,34 +140,28 @@
                                 <dd>{{ is_null($module['local_enabled']) ? 'Default' : ($module['local_enabled'] ? 'Enabled' : 'Disabled') }}</dd>
                             </div>
                             <div>
-                                <dt class="text-[var(--secondary-text)]">Route block</dt>
-                                <dd>{{ $isGuarded ? 'Reviewed: route blocking active' : 'Foundation only' }}</dd>
+                                <dt class="text-[var(--secondary-text)]">Control</dt>
+                                <dd>Developer controlled</dd>
                             </div>
                         </dl>
 
                         <p class="mt-3 text-xs text-[var(--secondary-text)]">Reason: {{ str_replace('_', ' ', $module['reason']) }}</p>
 
-                        @if ($isGuarded)
-                            <form method="POST" action="{{ route('developer.settings.modules.save') }}" class="mt-4 space-y-3">
-                                @csrf
-                                <input type="hidden" name="module_key" value="{{ $module['key'] }}">
-                                <input type="hidden" name="enabled" value="0">
-                                <input type="hidden" name="visible_in_sidebar" value="0">
-                                <label class="flex items-center gap-2 text-sm">
-                                    <input type="checkbox" name="enabled" value="1" @checked($module['enabled']) class="h-4 w-4 rounded border-gray-600 bg-[var(--bg-color)]">
-                                    Enabled
-                                </label>
-                                <label class="flex items-center gap-2 text-sm">
-                                    <input type="checkbox" name="visible_in_sidebar" value="1" @checked($module['visible_in_sidebar']) class="h-4 w-4 rounded border-gray-600 bg-[var(--bg-color)]">
-                                    Show in sidebar
-                                </label>
-                                <button type="submit" class="{{ $primaryButton }}">Save {{ $module['label'] }}</button>
-                            </form>
-                        @else
-                            <p class="mt-4 rounded-lg border border-gray-600 px-3 py-2 text-xs text-[var(--secondary-text)]">
-                                Foundation only / not enforced yet.
-                            </p>
-                        @endif
+                        <form method="POST" action="{{ route('developer.settings.modules.save') }}" class="mt-4 space-y-3">
+                            @csrf
+                            <input type="hidden" name="module_key" value="{{ $module['key'] }}">
+                            <input type="hidden" name="enabled" value="0">
+                            <input type="hidden" name="visible_in_sidebar" value="0">
+                            <label class="flex items-center gap-2 text-sm">
+                                <input type="checkbox" name="enabled" value="1" @checked($module['enabled']) class="h-4 w-4 rounded border-gray-600 bg-[var(--bg-color)]">
+                                Enabled
+                            </label>
+                            <label class="flex items-center gap-2 text-sm">
+                                <input type="checkbox" name="visible_in_sidebar" value="1" @checked($module['visible_in_sidebar']) class="h-4 w-4 rounded border-gray-600 bg-[var(--bg-color)]">
+                                Show in sidebar
+                            </label>
+                            <button type="submit" class="{{ $primaryButton }}">Save {{ $module['label'] }}</button>
+                        </form>
                     </article>
                 @endforeach
             </div>

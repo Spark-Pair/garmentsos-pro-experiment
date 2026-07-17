@@ -225,25 +225,93 @@ class DailyLedgerController extends Controller
     /**
      * Show the form for editing the specified resource.
      */
-    public function edit(Request $Request)
+    public function edit(Request $request, string $dailyLedger)
     {
-        //
+        if ($resp = $this->denyIfNoRole(['developer'])) {
+            return $resp;
+        }
+
+        [$ledgerEntry, $entryType] = $this->findLedgerEntryOrFail($dailyLedger, $request->query('type'));
+        app(ModuleBranchService::class)->assertRecordInAllowedBranch($ledgerEntry, 'daily_ledger');
+
+        $branches = app(ModuleBranchService::class);
+        $totalDeposit = $branches->applyScope(DailyLedgerDeposit::query(), 'daily_ledger')->sum('amount');
+        $totalUse = $branches->applyScope(DailyLedgerUse::query(), 'daily_ledger')->sum('amount');
+        $balance = $totalDeposit - $totalUse;
+        $method_options = $this->setupOptions('daily_ledger_method');
+        $case_options = $this->setupOptions('daily_ledger_case');
+
+        return view('daily-ledger.create', compact('balance', 'method_options', 'case_options', 'ledgerEntry', 'entryType'));
     }
 
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, Request $Request)
+    public function update(Request $request, string $dailyLedger)
     {
-        //
+        if ($resp = $this->denyIfNoRole(['developer'])) {
+            return $resp;
+        }
+
+        [$ledgerEntry, $entryType] = $this->findLedgerEntryOrFail($dailyLedger, $request->input('ledger_type', $request->query('type')));
+        app(ModuleBranchService::class)->assertRecordInAllowedBranch($ledgerEntry, 'daily_ledger');
+
+        $commonRules = [
+            'date'   => 'required|date',
+            'amount' => 'required|integer',
+        ];
+
+        if ($entryType === 'deposit') {
+            $request->validate(array_merge($commonRules, [
+                'method'  => [
+                    'required',
+                    'string',
+                    Rule::in(array_keys($this->setupOptions('daily_ledger_method'))),
+                ],
+                'reff_no' => 'nullable|string',
+            ]));
+
+            $ledgerEntry->update($request->only(['date', 'method', 'amount', 'reff_no']));
+            $message = 'Daily ledger deposit updated successfully.';
+        } else {
+            $request->validate(array_merge($commonRules, [
+                'case'    => [
+                    'required',
+                    'string',
+                    Rule::in(array_keys($this->setupOptions('daily_ledger_case'))),
+                ],
+                'remarks' => 'nullable|string',
+            ]));
+
+            $ledgerEntry->update($request->only(['date', 'case', 'amount', 'remarks']));
+            $message = 'Daily ledger use updated successfully.';
+        }
+
+        return redirect()->route('daily-ledger.index')->with('success', $message);
     }
 
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(Request $Request)
+    public function destroy(Request $request, string $dailyLedger)
     {
-        //
+        if ($resp = $this->denyIfNoRole(['developer'])) {
+            return $resp;
+        }
+
+        [$ledgerEntry, $entryType] = $this->findLedgerEntryOrFail($dailyLedger, $request->input('ledger_type', $request->query('type')));
+        app(ModuleBranchService::class)->assertRecordInAllowedBranch($ledgerEntry, 'daily_ledger');
+
+        $ledgerEntry->delete();
+
+        if ($request->ajax() || $request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Daily ledger record deleted successfully.',
+            ]);
+        }
+
+        return redirect()->route('daily-ledger.index')->with('success', 'Daily ledger record deleted successfully.');
     }
 
     private function setupOptions(string $type): array
@@ -255,5 +323,17 @@ class DailyLedgerController extends Controller
                 $setup->title => ['text' => $setup->title],
             ])
             ->toArray();
+    }
+
+    private function findLedgerEntryOrFail(string|int $id, ?string $type): array
+    {
+        $type = strtolower((string) $type);
+        abort_unless(in_array($type, ['deposit', 'use'], true), 404);
+
+        $entry = $type === 'deposit'
+            ? DailyLedgerDeposit::query()->findOrFail($id)
+            : DailyLedgerUse::query()->findOrFail($id);
+
+        return [$entry, $type];
     }
 }

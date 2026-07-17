@@ -46,7 +46,92 @@
 
         function deliverToLine(previewData = {}) {
             const deliverTo = String(previewData?.deliver_to ?? previewData?.order?.deliver_to ?? '').trim();
-            return deliverTo ? `Deliver To: ${deliverTo}` : '';
+            return `Deliver To: ${deliverTo || '-'}`;
+        }
+
+        function articleSortValue(row = {}) {
+            return String(row?.article?.article_no ?? row?.article_no ?? '').trim();
+        }
+
+        function sortArticleRows(rows) {
+            return [...(Array.isArray(rows) ? rows : [])].sort((left, right) => (
+                articleSortValue(left).localeCompare(articleSortValue(right), undefined, {
+                    numeric: true,
+                    sensitivity: 'base',
+                })
+            ));
+        }
+
+        function printDateTime() {
+            return new Date().toLocaleString('en-GB', {
+                day: '2-digit',
+                month: 'short',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: true,
+            }).replace(',', '');
+        }
+
+        function previewText(value) {
+            return String(value ?? '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        function truthySetting(value) {
+            return value === true || value === 1 || value === '1' || value === 'true';
+        }
+
+        function invoiceDocumentSettings(previewData = {}) {
+            return previewData.branch_branding || companyData || {};
+        }
+
+        function invoiceDiscountDisabled(previewData = {}) {
+            return truthySetting(invoiceDocumentSettings(previewData).discount_disabled);
+        }
+
+        function invoiceDocumentTotalsHtml(previewData, totalPackets, totalPcs, totalAmount, discountVal, discountAmount, netAmount) {
+            if (invoiceDiscountDisabled(previewData)) {
+                const note = String(invoiceDocumentSettings(previewData).document_note || '').trim();
+                return `
+                    ${note ? `
+                        <div class="total col-span-2 flex justify-center items-center border border-black rounded-lg py-1.5 px-4 w-full text-center font-semibold">
+                            ${previewText(note)}
+                        </div>
+                    ` : ''}
+                    <div class="total flex justify-between items-center border border-black rounded-lg py-1.5 px-4 w-full">
+                        <div class="text-nowrap">Total Quantity</div>
+                        <div class="w-1/4 text-right grow">${formatNumbersDigitLess(totalPackets)} | ${formatNumbersDigitLess(totalPcs)}</div>
+                    </div>
+                    <div class="total flex justify-between items-center border border-black rounded-lg py-1.5 px-4 w-full">
+                        <div class="text-nowrap font-semibold">Net Amount</div>
+                        <div class="w-1/4 text-right grow font-semibold">${formatNumbersWithDigits(totalAmount, 1, 1)}</div>
+                    </div>
+                `;
+            }
+
+            return `
+                <div class="total flex justify-between items-center border border-black rounded-lg py-1.5 px-4 w-full">
+                    <div class="text-nowrap">Total Quantity</div>
+                    <div class="w-1/4 text-right grow">${formatNumbersDigitLess(totalPackets)} | ${formatNumbersDigitLess(totalPcs)}</div>
+                </div>
+                <div class="total flex justify-between items-center border border-black rounded-lg py-1.5 px-4 w-full">
+                    <div class="text-nowrap">Gross Amount</div>
+                    <div class="w-1/4 text-right grow">${formatNumbersWithDigits(totalAmount, 1, 1)}</div>
+                </div>
+                <div class="total flex justify-between items-center border border-black rounded-lg py-1.5 px-4 w-full">
+                    <div class="text-nowrap">Discount ${discountVal}%</div>
+                    <div class="w-1/4 text-right grow">${formatNumbersWithDigits(discountAmount, 1, 1)}</div>
+                </div>
+                <div class="total flex justify-between items-center border border-black rounded-lg py-1.5 px-4 w-full">
+                    <div class="text-nowrap">Net Amount</div>
+                    <div class="w-1/4 text-right grow">${formatNumbersWithDigits(netAmount, 1, 1)}</div>
+                </div>
+            `;
         }
 
         function chunkInvoiceRows(rows) {
@@ -77,7 +162,6 @@
                 'S.No': 'S.#',
                 'Packets': 'Pkts',
                 'Rate/Pc.': 'Rate',
-                'Amount': 'Amt.',
             };
 
             printDocument.querySelectorAll('.gos-a5-invoice .thead .th').forEach(header => {
@@ -159,7 +243,7 @@
         }
 
         function buildA5InvoicePreviewPages(previewData, copyLabel, articles, options = {}) {
-            const invoiceRows = Array.isArray(articles) ? articles : [];
+            const invoiceRows = sortArticleRows(articles);
             const pages = chunkInvoiceRows(invoiceRows);
             const discountVal = Number(previewData.discount || 0);
             let totalAmount = 0;
@@ -207,24 +291,9 @@
                     `;
                 }).join('');
 
-                const invoiceBottom = isLastPage ? `
-                    <div class="total flex justify-between items-center border border-black rounded-lg py-1.5 px-4 w-full">
-                        <div class="text-nowrap">Total Quantity</div>
-                        <div class="w-1/4 text-right grow">${formatNumbersDigitLess(totalPackets)} | ${formatNumbersDigitLess(totalPcs)}</div>
-                    </div>
-                    <div class="total flex justify-between items-center border border-black rounded-lg py-1.5 px-4 w-full">
-                        <div class="text-nowrap">Gross Amount</div>
-                        <div class="w-1/4 text-right grow">${formatNumbersWithDigits(totalAmount, 1, 1)}</div>
-                    </div>
-                    <div class="total flex justify-between items-center border border-black rounded-lg py-1.5 px-4 w-full">
-                        <div class="text-nowrap">Discount ${discountVal}%</div>
-                        <div class="w-1/4 text-right grow">${formatNumbersWithDigits(discountAmount, 1, 1)}</div>
-                    </div>
-                    <div class="total flex justify-between items-center border border-black rounded-lg py-1.5 px-4 w-full">
-                        <div class="text-nowrap">Net Amount</div>
-                        <div class="w-1/4 text-right grow">${formatNumbersWithDigits(netAmount, 1, 1)}</div>
-                    </div>
-                ` : '';
+                const invoiceBottom = isLastPage
+                    ? invoiceDocumentTotalsHtml(previewData, totalPackets, totalPcs, totalAmount, discountVal, discountAmount, netAmount)
+                    : '';
 
                 return `
                     <div id="preview-container" class="h-auto mx-auto relative flex flex-col">
@@ -244,22 +313,22 @@
                                             ${(companyData.phone_number || companyData.phone) ? `<div class="mt-2 text-sm text-gray-600">${companyData.phone_number || companyData.phone}</div>` : ''}
                                         </div>
                                     </div>
-                                    <div class="right">
+                                            <div class="right">
                                         <div class="logo text-right">
                                             <h1 class="text-2xl font-medium text-[var(--h-primary-color)]">Sales Invoice</h1>
-                                            <div class="mt-1 text-right">Invoice No.: ${previewData.invoice_no}</div>
+                                            <div class="document-number mt-1 text-right">Invoice No.: ${previewData.invoice_no}</div>
                                         </div>
                                     </div>
                                 </div>
                                 <hr class="w-full my-3 border-black">
                                 <div id="header" class="header w-full flex justify-between px-5">
-                                    <div class="left w-50 space-y-1">
+                                    <div class="left grow min-w-0 pr-3 space-y-1">
                                         <div class="customer text-lg leading-none capitalize font-medium text-nowrap">M/s: ${previewData.customer.customer_name}</div>
                                         <div class="person text-md text-lg leading-none">${customerTitlePhoneLine(previewData.customer)}</div>
                                         <div class="address text-md leading-none">${previewData.customer.address ?? ''}, ${previewData.customer.city?.title ?? ''}</div>
                                         <div class="phone text-md leading-none">${deliverToLine(previewData)}</div>
                                     </div>
-                                    <div class="right w-50 my-auto text-right text-sm text-black space-y-1.5">
+                                    <div class="right shrink-0 min-w-[38%] my-auto text-right text-sm text-black space-y-1.5">
                                         <div class="date leading-none">Date: ${formatDate(previewData.date)}</div>
                                         ${options.showOrderNo && previewData.order_no ? `<div class="number leading-none capitalize">Order No.: ${previewData.order_no}</div>` : options.showShipmentNo && previewData.shipment_no ? `<div class="number leading-none capitalize">Shipment No.: ${previewData.shipment_no}</div>` : ''}
                                         <input type="hidden" name="invoice_no" value="${previewData.invoice_no}" />
@@ -280,7 +349,7 @@
                                                     <div class="th text-sm font-medium">Pkts</div>
                                                     <div class="th text-sm font-medium">Pcs.</div>
                                                     <div class="th text-sm font-medium">Rate</div>
-                                                    <div class="th text-sm font-medium">Amt.</div>
+                                                    <div class="th text-sm font-medium">Amount</div>
                                                 </div>
                                             </div>
                                             <div id="tbody" class="tbody w-full">${invoiceTableBody}</div>
@@ -291,7 +360,8 @@
                                 <hr class="w-full my-3 border-black">
                                 <div class="tfooter flex w-full text-sm px-4 justify-between text-black">
                                     <p class="leading-none">Powered by SparkPair</p>
-                                    ${pages.length > 1 ? `<p class="leading-none text-sm">Page ${pageIndex + 1} of ${pages.length}</p>` : ''}
+                                    <p class="leading-none text-sm">Page ${pageIndex + 1} of ${pages.length}</p>
+                                    <p class="leading-none text-sm">Printed: ${printDateTime()}</p>
                                     <p class="leading-none text-sm">&copy; ${new Date().getFullYear()} SparkPair | +92 316 5825495</p>
                                 </div>
                             </div>
@@ -304,6 +374,7 @@
         if (invoiceType === "shipment") {
             let shipmentArticles = [];
             const shipmentNoDom = document.getElementById("shipment_no");
+            const shipmentNoValueDom = document.querySelector('.dbInput[data-for="shipment_no"]');
             const selectCustomersBtn = document.getElementById("selectCustomersBtn");
             if (!shipmentNoDom || !selectCustomersBtn) return;
             selectCustomersBtn.disabled = true;
@@ -344,6 +415,10 @@
 
             function getCustomerFilterMenu() {
                 return getCustomerFilterTrigger()?.nextElementSibling || null;
+            }
+
+            function selectedShipmentNo() {
+                return (shipmentNoValueDom?.value || shipmentNoDom.value || "").trim();
             }
 
             function isCustomerFilterMenuOpen() {
@@ -528,7 +603,7 @@
                     type: "POST",
                     data: {
                         _token: csrfToken,
-                        shipment_no: shipmentNoDom.value,
+                        shipment_no: selectedShipmentNo(),
                     },
                     success: function (response) {
                         if (!response.error) {
@@ -655,15 +730,10 @@
                 customersArrayInput.value = JSON.stringify(finalCustomersArray);
             }
 
-            shipmentNoDom.addEventListener("input", (e) => {
-                let value = e.target.value;
-
-                value = value.replace(/\D/g, "");
-
-                e.target.value = value;
-
-                trackStateOfShipmentNo(e.target.value);
+            shipmentNoDom.addEventListener("input", () => {
+                trackStateOfShipmentNo(selectedShipmentNo());
             });
+            shipmentNoValueDom?.addEventListener("change", () => trackStateOfShipmentNo(selectedShipmentNo()));
 
             function trackStateOfShipmentNo(value) {
                 if (value !== "") {
@@ -680,7 +750,7 @@
                     totalQuantityPcs = 0;
 
                     let clutter = "";
-                    shipmentArticles.forEach((selectedArticle, index) => {
+                    sortArticleRows(shipmentArticles).forEach((selectedArticle, index) => {
                         if (selectedArticle.available_stock > selectedArticle.shipment_pcs) {
                             totalQuantityPcs += selectedArticle.shipment_pcs;
 
@@ -734,10 +804,10 @@
             let netAmountInFormDom = document.getElementById("netAmountInForm");
 
             function renderCalcBottom() {
-                netAmount = totalAmount - totalAmount * (discount / 100);
+                netAmount = invoiceDiscountDisabled() ? totalAmount : totalAmount - totalAmount * (discount / 100);
                 totalQuantityInFormDom.textContent = formatNumbersDigitLess(totalQuantityPcs);
                 totalAmountInFormDom.textContent = formatNumbersWithDigits(totalAmount, 1, 1);
-                dicountInFormDom.textContent = discount;
+                dicountInFormDom.textContent = invoiceDiscountDisabled() ? 0 : discount;
                 netAmountInFormDom.value = formatNumbersWithDigits(netAmount, 1, 1);
             }
 
@@ -943,10 +1013,11 @@
                         customer: normalizedCustomer,
                         date: invoiceDate,
                         invoice_no: invoiceNo,
-                        shipment_no: shipmentNoDom.value,
+                        shipment_no: selectedShipmentNo(),
                         cotton_count: cottonCount,
                         discount: discount || 0,
-                        invoice_articles: shipmentArticles.map((article) => ({
+                        branch_branding: companyData,
+                        invoice_articles: sortArticleRows(shipmentArticles).map((article) => ({
                             article: article.article,
                             description: article.description,
                             fabric_type: article.article?.fabric_type ?? article.fabric_type ?? '',
@@ -990,7 +1061,7 @@
                     <div class="th text-sm font-medium">Pkts</div>
                     <div class="th text-sm font-medium">Pcs.</div>
                     <div class="th text-sm font-medium">Rate</div>
-                    <div class="th text-sm font-medium">Amt.</div>
+                    <div class="th text-sm font-medium">Amount</div>
                 `;
 
                 const invoiceTableBody = `
@@ -1029,24 +1100,7 @@
                 const discountAmount = discountVal ? (totalAmount * discountVal) / 100 : 0;
                 const netAmount = previewData.netAmount ?? (totalAmount - discountAmount);
 
-                const invoiceBottom = `
-                    <div class="total flex justify-between items-center border border-black rounded-lg py-1.5 px-4 w-full">
-                        <div class="text-nowrap">Total Quantity</div>
-                        <div class="w-1/4 text-right grow">${formatNumbersDigitLess(totalPackets)} | ${formatNumbersDigitLess(totalPcs)}</div>
-                    </div>
-                    <div class="total flex justify-between items-center border border-black rounded-lg py-1.5 px-4 w-full">
-                        <div class="text-nowrap">Gross Amount</div>
-                        <div class="w-1/4 text-right grow">${formatNumbersWithDigits(totalAmount, 1, 1)}</div>
-                    </div>
-                    <div class="total flex justify-between items-center border border-black rounded-lg py-1.5 px-4 w-full">
-                        <div class="text-nowrap">Discount ${discountVal}%</div>
-                        <div class="w-1/4 text-right grow">${formatNumbersWithDigits(discountAmount, 1, 1)}</div>
-                    </div>
-                    <div class="total flex justify-between items-center border border-black rounded-lg py-1.5 px-4 w-full">
-                        <div class="text-nowrap">Net Amount</div>
-                        <div class="w-1/4 text-right grow">${formatNumbersWithDigits(netAmount, 1, 1)}</div>
-                    </div>
-                `;
+                const invoiceBottom = invoiceDocumentTotalsHtml(previewData, totalPackets, totalPcs, totalAmount, discountVal, discountAmount, netAmount);
 
                 return `
                     <div id="preview-container" class="h-auto mx-auto relative flex flex-col">
@@ -1077,19 +1131,19 @@
                                     <div class="right">
                                         <div class="logo text-right">
                                             <h1 class="text-2xl font-medium text-[var(--h-primary-color)]">Sales Invoice</h1>
-                                            <div class="mt-1 text-right">Invoice No.: ${previewData.invoice_no}</div>
+                                            <div class="document-number mt-1 text-right">Invoice No.: ${previewData.invoice_no}</div>
                                         </div>
                                     </div>
                                 </div>
                                 <hr class="w-full my-3 border-black">
                                 <div id="header" class="header w-full flex justify-between px-5">
-                                    <div class="left w-50 space-y-1">
+                                    <div class="left grow min-w-0 pr-3 space-y-1">
                                         <div class="customer text-lg leading-none capitalize font-medium text-nowrap">M/s: ${previewData.customer.customer_name}</div>
                                         <div class="person text-md text-lg leading-none">${customerTitlePhoneLine(previewData.customer)}</div>
                                         <div class="address text-md leading-none">${previewData.customer.address ?? ''}, ${previewData.customer.city?.title ?? ''}</div>
                                         <div class="phone text-md leading-none">${deliverToLine(previewData)}</div>
                                     </div>
-                                    <div class="right w-50 my-auto text-right text-sm text-black space-y-1.5">
+                                    <div class="right shrink-0 min-w-[38%] my-auto text-right text-sm text-black space-y-1.5">
                                         <div class="date leading-none">Date: ${formatDate(previewData.date)}</div>
                                         ${previewData.order_no ? `<div class="number leading-none capitalize">Order No.: ${previewData.order_no}</div>` : previewData.shipment_no ? `<div class="number leading-none capitalize">Shipment No.: ${previewData.shipment_no}</div>` : ''}
                                         <input type="hidden" name="invoice_no" value="${previewData.invoice_no}" />
@@ -1118,6 +1172,8 @@
                                 <hr class="w-full my-3 border-black">
                                 <div class="tfooter flex w-full text-sm px-4 justify-between text-black">
                                     <p class="leading-none">Powered by SparkPair</p>
+                                    <p class="leading-none text-sm">Page 1 of 1</p>
+                                    <p class="leading-none text-sm">Printed: ${printDateTime()}</p>
                                     <p class="leading-none text-sm">&copy; ${new Date().getFullYear()} SparkPair | +92 316 5825495</p>
                                 </div>
                             </div>
@@ -1164,6 +1220,7 @@
             const articleModalDom = document.getElementById("articleModal");
             const quantityModalDom = document.getElementById("quantityModal");
             const orderNoDom = document.getElementById("order_no");
+            const orderNoValueDom = document.querySelector('.dbInput[data-for="order_no"]');
             const generateInvoiceBtn = document.getElementById("generateInvoiceBtn");
             if (!orderNoDom || !generateInvoiceBtn) return;
             generateInvoiceBtn.disabled = true;
@@ -1176,19 +1233,14 @@
             let totalQuantityDOM;
             let totalAmountDOM;
 
-            orderNoDom.addEventListener("input", (e) => {
-                let value = e.target.value.replace(/\D/g, "");
+            function selectedOrderNo() {
+                return (orderNoValueDom?.value || orderNoDom.value || "").trim();
+            }
 
-                value = value.slice(0, 6);
-
-                if (value.length > 2) {
-                    value = value.slice(0, 2) + "-" + value.slice(2);
-                }
-
-                e.target.value = value;
-
-                trackStateOfOrderNo(e.target.value);
+            orderNoDom.addEventListener("input", () => {
+                trackStateOfOrderNo(selectedOrderNo());
             });
+            orderNoValueDom?.addEventListener("change", () => trackStateOfOrderNo(selectedOrderNo()));
 
             orderNoDom.addEventListener("keydown", (e) => {
                 if (e.key === "Enter") {
@@ -1202,7 +1254,8 @@
 
             if (orderNumber) {
                 orderNoDom.value = orderNumber;
-                trackStateOfOrderNo(orderNoDom.value);
+                if (orderNoValueDom) orderNoValueDom.value = orderNumber;
+                trackStateOfOrderNo(selectedOrderNo());
                 getOrderDetails();
             }
 
@@ -1212,7 +1265,7 @@
                     type: "POST",
                     data: {
                         _token: csrfToken,
-                        order_no: orderNoDom.value,
+                        order_no: selectedOrderNo(),
                     },
                     success: function (response) {
                         if (!response.error) {
@@ -1249,7 +1302,7 @@
                     totalQuantityPcs = 0;
 
                     let clutter = "";
-                    orderedArticles.forEach((selectedArticle, index) => {
+                    sortArticleRows(orderedArticles).forEach((selectedArticle, index) => {
                         if (selectedArticle.total_quantity_in_packets > 0) {
                             let totalQuantityInPackets = selectedArticle.total_quantity_in_packets;
 
@@ -1320,7 +1373,7 @@
 
             function updateInputArticlesInInvoice() {
                 const articlesInInvoiceInpDom = document.getElementById("articles_in_invoice");
-                let finalArticlesArray = orderedArticles.map((article) => {
+                let finalArticlesArray = sortArticleRows(orderedArticles).map((article) => {
                     return {
                         id: article.article_id,
                         order_article_id: article.id,
@@ -1332,10 +1385,10 @@
             }
 
             function renderCalcBottom() {
-                netAmount = totalAmount - totalAmount * (discount / 100);
+                netAmount = invoiceDiscountDisabled() ? totalAmount : totalAmount - totalAmount * (discount / 100);
                 totalQuantityInFormDom.textContent = formatNumbersDigitLess(totalQuantityPcs);
                 totalAmountInFormDom.textContent = formatNumbersWithDigits(totalAmount, 1, 1);
-                dicountInFormDom.textContent = discount;
+                dicountInFormDom.textContent = invoiceDiscountDisabled() ? 0 : discount;
                 netAmountInFormDom.value = formatNumbersWithDigits(netAmount, 1, 1);
             }
 
@@ -1437,12 +1490,13 @@
                         customer: normalizedCustomer,
                         date: invoiceDate,
                         invoice_no: invoiceNo,
-                        order_no: orderNoDom.value,
+                        order_no: selectedOrderNo(),
                         deliver_to: orderDeliverTo,
                         cotton_count: 0,
                         discount: discount || 0,
                         netAmount: netAmount || null,
-                        invoice_articles: orderedArticles.map((article) => ({
+                        branch_branding: companyData,
+                        invoice_articles: sortArticleRows(orderedArticles).map((article) => ({
                             article: article.article,
                             description: article.description,
                             fabric_type: article.article?.fabric_type ?? article.fabric_type ?? '',
@@ -1484,7 +1538,7 @@
                     <div class="th text-sm font-medium">Pkts</div>
                     <div class="th text-sm font-medium">Pcs.</div>
                     <div class="th text-sm font-medium">Rate</div>
-                    <div class="th text-sm font-medium">Amt.</div>
+                    <div class="th text-sm font-medium">Amount</div>
                 `;
 
                 const invoiceTableBody = `
@@ -1523,24 +1577,7 @@
                 const discountAmount = discountVal ? (totalAmountCalc * discountVal) / 100 : 0;
                 const netAmountCalc = previewData.netAmount ?? (totalAmountCalc - discountAmount);
 
-                const invoiceBottom = `
-                    <div class="total flex justify-between items-center border border-black rounded-lg py-1.5 px-4 w-full">
-                        <div class="text-nowrap">Total Quantity</div>
-                        <div class="w-1/4 text-right grow">${formatNumbersDigitLess(totalPacketsCalc)} | ${formatNumbersDigitLess(totalPcsCalc)}</div>
-                    </div>
-                    <div class="total flex justify-between items-center border border-black rounded-lg py-1.5 px-4 w-full">
-                        <div class="text-nowrap">Gross Amount</div>
-                        <div class="w-1/4 text-right grow">${formatNumbersWithDigits(totalAmountCalc, 1, 1)}</div>
-                    </div>
-                    <div class="total flex justify-between items-center border border-black rounded-lg py-1.5 px-4 w-full">
-                        <div class="text-nowrap">Discount ${discountVal}%</div>
-                        <div class="w-1/4 text-right grow">${formatNumbersWithDigits(discountAmount, 1, 1)}</div>
-                    </div>
-                    <div class="total flex justify-between items-center border border-black rounded-lg py-1.5 px-4 w-full">
-                        <div class="text-nowrap">Net Amount</div>
-                        <div class="w-1/4 text-right grow">${formatNumbersWithDigits(netAmountCalc, 1, 1)}</div>
-                    </div>
-                `;
+                const invoiceBottom = invoiceDocumentTotalsHtml(previewData, totalPacketsCalc, totalPcsCalc, totalAmountCalc, discountVal, discountAmount, netAmountCalc);
 
                 return `
                     <div id="preview-container" class="h-auto mx-auto relative flex flex-col">
@@ -1571,19 +1608,19 @@
                                     <div class="right">
                                         <div class="logo text-right">
                                             <h1 class="text-2xl font-medium text-[var(--h-primary-color)]">Sales Invoice</h1>
-                                            <div class="mt-1 text-right">Invoice No.: ${previewData.invoice_no}</div>
+                                            <div class="document-number mt-1 text-right">Invoice No.: ${previewData.invoice_no}</div>
                                         </div>
                                     </div>
                                 </div>
                                 <hr class="w-full my-3 border-black">
                                 <div id="header" class="header w-full flex justify-between px-5">
-                                    <div class="left w-50 space-y-1">
+                                    <div class="left grow min-w-0 pr-3 space-y-1">
                                         <div class="customer text-lg leading-none capitalize font-medium text-nowrap">M/s: ${previewData.customer.customer_name}</div>
                                         <div class="person text-md text-lg leading-none">${customerTitlePhoneLine(previewData.customer)}</div>
                                         <div class="address text-md leading-none">${previewData.customer.address ?? ''}, ${previewData.customer.city?.title ?? ''}</div>
                                         <div class="phone text-md leading-none">${deliverToLine(previewData)}</div>
                                     </div>
-                                    <div class="right w-50 my-auto text-right text-sm text-black space-y-1.5">
+                                    <div class="right shrink-0 min-w-[38%] my-auto text-right text-sm text-black space-y-1.5">
                                         <div class="date leading-none">Date: ${formatDate(previewData.date)}</div>
                                         ${previewData.order_no ? `<div class="number leading-none capitalize">Order No.: ${previewData.order_no}</div>` : previewData.shipment_no ? `<div class="number leading-none capitalize">Shipment No.: ${previewData.shipment_no}</div>` : ''}
                                         <input type="hidden" name="invoice_no" value="${previewData.invoice_no}" />
@@ -1612,6 +1649,8 @@
                                 <hr class="w-full my-3 border-black">
                                 <div class="tfooter flex w-full text-sm px-4 justify-between text-black">
                                     <p class="leading-none">Powered by SparkPair</p>
+                                    <p class="leading-none text-sm">Page 1 of 1</p>
+                                    <p class="leading-none text-sm">Printed: ${printDateTime()}</p>
                                     <p class="leading-none text-sm">&copy; ${new Date().getFullYear()} SparkPair | +92 316 5825495</p>
                                 </div>
                             </div>

@@ -30,7 +30,7 @@
 
                             allEmployees.forEach((employee) => {
                                 employeeUL.innerHTML += `
-                                    <li data-for="employee" data-value="${employee.id}" data-option='${jsonAttr(employee)}' onmousedown="selectThisOption(this)" class="py-2 px-3 cursor-pointer rounded-lg transition hover:bg-[var(--h-bg-color)] text-nowrap overflow-x-auto scrollbar-hidden capitalize">${employee.employee_name} | ${formatNumbersWithDigits(
+                                    <li data-for="employee" data-value="${employee.id}" data-option='${jsonAttr(employee)}' onmousedown="selectThisOption(this)" class="py-2 px-3 cursor-pointer rounded-lg transition hover:bg-[var(--h-bg-color)] text-nowrap overflow-x-auto scrollbar-hidden capitalize">${employee.employee_name} | ${employee.balance_formatted || formatNumbersWithDigits(
                                     employee.balance,
                                     1,
                                     1
@@ -54,7 +54,7 @@
                 let selectedEmployee = JSON.parse(
                     elem.closest(".selectParent").querySelector("ul li.selected").dataset.option || "{}"
                 );
-                balanceDom.value = selectedEmployee.balance;
+                balanceDom.value = selectedEmployee.balance_formatted || formatNumbersWithDigits(selectedEmployee.balance || 0, 1, 1);
                 dateSelectDom.disabled = false;
                 dateSelectDom.min = selectedEmployee.joining_date;
                 methodSelectDom.disabled = false;

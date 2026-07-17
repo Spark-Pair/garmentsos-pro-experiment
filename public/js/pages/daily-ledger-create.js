@@ -3,10 +3,15 @@ function initDailyLedgerCreate() {
     const config = window.__dailyLedgerCreate || {};
     const dailyLedgerType = config.dailyLedgerType;
     const csrfToken = config.csrfToken;
+    const isEdit = Boolean(config.isEdit);
 
     let btnTypeGlobal = dailyLedgerType === 'deposit' ? 'deposit' : 'use';
 
     function setVoucherType(btn, btnType) {
+        if (isEdit) {
+            return;
+        }
+
         if (btnTypeGlobal == btnType) {
             return;
         }

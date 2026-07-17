@@ -94,28 +94,19 @@ class Controller extends BaseController
     {
         switch ($request->category) {
             case 'supplier':
-                return Cache::remember('category_data:supplier', now()->addMinutes(5), function () {
-                    $suppliers = Supplier::whereHas('user', function ($query) {
-                        $query->where('status', 'active');
-                    })->select('id', 'supplier_name')->get()->makeHidden('creator', 'categories');
+                $suppliers = Supplier::whereHas('user', function ($query) {
+                    $query->where('status', 'active');
+                })->select('id', 'supplier_name', 'date')->get()->makeHidden('creator', 'categories');
 
-                    foreach ($suppliers as $supplier) {
-                        $supplier['balance'] = 0;
-                        $supplier['balance'] = \App\Support\Money::format($supplier['balance']);
-                    }
-
-                    return $suppliers;
-                });
+                return $suppliers->map(fn (Supplier $supplier) => $this->supplierOptionPayload($supplier));
                 break;
 
             case 'customer':
-                return Cache::remember('category_data:customer', now()->addMinutes(5), function () {
-                    $customers = Customer::with('city:id,title')->whereHas('user', function ($query) {
-                        $query->where('status', 'active');
-                    })->select('id', 'customer_name', 'city_id')->get()->makeHidden('creator');
+                $customers = Customer::with('city:id,title')->whereHas('user', function ($query) {
+                    $query->where('status', 'active');
+                })->select('id', 'customer_name', 'date', 'city_id')->get()->makeHidden('creator');
 
-                    return $customers;
-                });
+                return $customers->map(fn (Customer $customer) => $this->customerOptionPayload($customer));
                 break;
 
             case 'self_account':
@@ -582,10 +573,7 @@ class Controller extends BaseController
             return null;
         }
 
-        $balance = (float) ($customer->total_invoice_amount ?? 0)
-            - (float) ($customer->total_paid_amount ?? 0)
-            + (float) ($customer->adjustment_plus_amount ?? 0)
-            - (float) ($customer->adjustment_minus_amount ?? 0);
+        $balance = $this->customerBalance($customer);
 
         return [
             'id' => $customer->id,
@@ -594,6 +582,7 @@ class Controller extends BaseController
             'category' => $customer->category,
             'phone_number' => $customer->phone_number,
             'balance' => $balance,
+            'balance_formatted' => \App\Support\Money::format($balance),
             'user' => $customer->user ? [
                 'id' => $customer->user->id,
                 'status' => $customer->user->status,
@@ -603,6 +592,67 @@ class Controller extends BaseController
                 'title' => $customer->city->title,
                 'short_title' => $customer->city->short_title,
             ] : null,
+        ];
+    }
+
+    protected function customerBalance(Customer $customer): float
+    {
+        return (float) $customer->calculateBalance();
+    }
+
+    protected function customerOptionPayload(Customer $customer): array
+    {
+        $balance = $this->customerBalance($customer);
+
+        return [
+            'id' => $customer->id,
+            'customer_name' => $customer->customer_name,
+            'date' => $customer->date?->format('Y-m-d'),
+            'balance' => $balance,
+            'balance_formatted' => \App\Support\Money::format($balance),
+            'city' => $customer->city ? [
+                'id' => $customer->city->id,
+                'title' => $customer->city->title,
+                'short_title' => $customer->city->short_title,
+            ] : null,
+        ];
+    }
+
+    protected function supplierBalance(Supplier $supplier, mixed $toDate = null): float
+    {
+        return (float) ($toDate
+            ? $supplier->calculateBalance(null, $toDate, false, true)
+            : $supplier->calculateBalance());
+    }
+
+    protected function supplierOptionPayload(Supplier $supplier, mixed $toDate = null): array
+    {
+        $balance = $this->supplierBalance($supplier);
+        $balanceAtDate = $toDate ? $this->supplierBalance($supplier, $toDate) : $balance;
+
+        return [
+            'id' => $supplier->id,
+            'supplier_name' => $supplier->supplier_name,
+            'date' => optional($supplier->date)->toJSON(),
+            'balance' => $balance,
+            'balance_formatted' => \App\Support\Money::format($balance),
+            'balance_at_date' => $balanceAtDate,
+            'balance_at_date_formatted' => \App\Support\Money::format($balanceAtDate),
+        ];
+    }
+
+    protected function employeeOptionPayload(Employee $employee): array
+    {
+        $balance = (float) $employee->calculateBalance();
+
+        return [
+            'id' => $employee->id,
+            'employee_name' => $employee->employee_name,
+            'category' => $employee->category,
+            'joining_date' => $employee->joining_date?->format('Y-m-d'),
+            'type' => $employee->type,
+            'balance' => $balance,
+            'balance_formatted' => \App\Support\Money::format($balance),
         ];
     }
 
@@ -718,7 +768,8 @@ class Controller extends BaseController
             ->whereHas('type', function ($query) {
                 $query->where('title', 'not like', '% | E%');
             })
-            ->get();
+            ->get()
+            ->map(fn (Employee $employee) => $this->employeeOptionPayload($employee));
         return response()->json([
             'status' => 'success',
             'data' => $employees

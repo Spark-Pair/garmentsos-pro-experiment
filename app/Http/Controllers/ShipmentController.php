@@ -123,7 +123,9 @@ class ShipmentController extends Controller
             ]);
         }
 
-        return view('shipments.generate', compact('customers_options', 'last_shipment'));
+        $branchBranding = $branches->documentBranding('shipments');
+
+        return view('shipments.generate', compact('customers_options', 'last_shipment', 'branchBranding'));
         // return $articles;
     }
 
@@ -319,10 +321,18 @@ class ShipmentController extends Controller
         $stockMap = $this->articleStockMap($lines->keys(), null, $branchId);
         $articlesById = Article::query()
             ->whereIn('id', $lines->keys())
-            ->get(['id', 'article_no'])
+            ->get(['id', 'article_no', 'pcs_per_packet'])
             ->keyBy('id');
 
         foreach ($lines as $articleId => $shipmentPcs) {
+            $article = $articlesById->get((int) $articleId);
+            $pcsPerPacket = (int) ($article?->pcs_per_packet ?? 0);
+            if ($pcsPerPacket > 0 && $shipmentPcs % $pcsPerPacket !== 0) {
+                throw ValidationException::withMessages([
+                    'articles' => "Shipment quantity for {$article?->article_no} must make whole packets of {$pcsPerPacket} pcs.",
+                ]);
+            }
+
             $availablePcs = (int) ($stockMap->get((int) $articleId)['orderable_quantity_pcs'] ?? 0);
             $maxShipmentPcs = max(
                 $availablePcs,
@@ -330,7 +340,7 @@ class ShipmentController extends Controller
             );
 
             if ($shipmentPcs > $maxShipmentPcs) {
-                $articleNo = $articlesById->get((int) $articleId)?->article_no ?? $articleId;
+                $articleNo = $article?->article_no ?? $articleId;
                 throw ValidationException::withMessages([
                     'articles' => "Shipment quantity exceeds the remaining article quantity for {$articleNo}. Available: {$maxShipmentPcs} pcs.",
                 ]);

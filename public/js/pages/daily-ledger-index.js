@@ -1,12 +1,15 @@
 (() => {
 function initDailyLedgerIndex() {
+    const config = window.__dailyLedgerIndex || {};
+    const csrfToken = config.csrfToken || document.querySelector('meta[name="csrf-token"]')?.content || "";
+    const isDeveloper = config.currentUserRole === "developer";
     let totalDepositAmount = 0;
     let totalUseAmount = 0;
     let authLayout = 'table';
 
     window.createRow = function(data) {
         return `
-            <div id="${data.id}" oncontextmenu='${htmlAttr(data.oncontextmenu || "")}' onclick='${htmlAttr(data.onclick || "")}'
+            <div id="${data.ledger_type}-${data.id}" oncontextmenu='${htmlAttr(data.oncontextmenu || "")}' onclick='${htmlAttr(data.onclick || "")}'
                 class="item row relative group grid grid-cols-5 text-center border-b border-[var(--h-bg-color)] items-center py-2 cursor-pointer hover:bg-[var(--h-secondary-bg-color)] transition-all fade-in ease-in-out"
                 data-json='${jsonAttr(data)}'>
 
@@ -17,6 +20,111 @@ function initDailyLedgerIndex() {
                 <span>${formatNumbersWithDigits(data.balance, 1, 1)}</span>
             </div>
         `;
+    }
+
+    window.generateModal = function(item) {
+        const data = JSON.parse(item.dataset.json);
+        const isDeposit = data.ledger_type === "deposit";
+        const details = {
+            Type: isDeposit ? "Deposit" : "Use",
+            Date: data.date,
+            Description: data.description,
+            Amount: formatNumbersWithDigits(isDeposit ? data.deposit : data.use, 1, 1),
+            Balance: formatNumbersWithDigits(data.balance, 1, 1),
+        };
+
+        if (isDeposit) {
+            details.Method = data.method || "-";
+            details["Reff. No"] = data.reff_no || "-";
+        } else {
+            details.Case = data.case || "-";
+            details.Remarks = data.remarks || "-";
+        }
+
+        const bottomActions = [];
+        if (isDeveloper) {
+            bottomActions.push({
+                id: "daily-ledger-change",
+                text: "Edit Record",
+                link: `/daily-ledger/${data.id}/edit?type=${encodeURIComponent(data.ledger_type)}`,
+            });
+            bottomActions.push({
+                id: "delete-daily-ledger",
+                text: "Delete Record",
+                onclick: `deleteDailyLedgerRecord(${data.id}, '${data.ledger_type}')`,
+            });
+        }
+
+        createModal({
+            id: "dailyLedgerDetailsModal",
+            method: "GET",
+            class: "p-5 max-w-2xl h-auto",
+            name: isDeposit ? "Daily Ledger Deposit" : "Daily Ledger Use",
+            status: isDeposit ? "active" : "transparent",
+            details,
+            bottomActions,
+        });
+    }
+
+    window.generateContextMenu = function(e) {
+        e.preventDefault();
+        const item = e.target.closest(".item");
+        if (!item) return;
+
+        const data = JSON.parse(item.dataset.json);
+        const actions = [];
+        if (isDeveloper) {
+            actions.push({
+                id: "daily-ledger-change",
+                text: "Edit Record",
+                link: `/daily-ledger/${data.id}/edit?type=${encodeURIComponent(data.ledger_type)}`,
+            });
+            actions.push({
+                id: "delete-daily-ledger",
+                text: "Delete Record",
+                onclick: `deleteDailyLedgerRecord(${data.id}, '${data.ledger_type}')`,
+            });
+        }
+
+        createContextMenu({
+            item,
+            data,
+            x: e.pageX,
+            y: e.pageY,
+            actions,
+        });
+    }
+
+    window.deleteDailyLedgerRecord = function(id, ledgerType) {
+        if (!isDeveloper) {
+            return;
+        }
+
+        $.ajax({
+            url: `/daily-ledger/${id}`,
+            type: "POST",
+            data: {
+                _token: csrfToken,
+                _method: "DELETE",
+                ledger_type: ledgerType,
+            },
+            success: function(response) {
+                if (typeof showToast === "function") {
+                    showToast("success", response?.message || "Daily ledger record deleted successfully.");
+                }
+                setTimeout(() => location.reload(), 350);
+            },
+            error: function(xhr) {
+                const message = xhr?.responseJSON?.message || "Failed to delete daily ledger record.";
+                if (typeof showToast === "function") {
+                    showToast("error", message);
+                } else if (typeof showMessageBox === "function") {
+                    showMessageBox("error", message);
+                } else {
+                    console.error(message);
+                }
+            }
+        });
     }
 
     let allDataArray = window.allDataArray || [];

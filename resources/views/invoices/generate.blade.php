@@ -1,6 +1,9 @@
 @extends('app')
 @section('title', 'Generate Invoice | ' . $client_company->name)
 @section('content')
+    @php
+        $hideDocumentDiscount = (bool) ($branchBranding['discount_disabled'] ?? false);
+    @endphp
 
 @php
     $invoiceType = Auth::user()->invoice_type;
@@ -112,7 +115,7 @@
                     <input type="hidden" name="date" value='{{ now()->toDateString() }}'>
                     {{-- order_no --}}
                     <div class="grow">
-                        <x-input label="Order Number" name="order_no" id="order_no" autocomplete="off" placeholder="Enter order number" required withButton btnId="generateInvoiceBtn" btnText="Generate Invoice" value="{{ date('y') }}-"/>
+                        <x-select label="Order Number" name="order_no" id="order_no" :options="$ordersOptions" :value="$orderNumber ?? ''" required showDefault withButton btnId="generateInvoiceBtn" btnText="Generate Invoice" />
                     </div>
                 </div>
                 {{-- rate showing --}}
@@ -140,11 +143,11 @@
                         <div class="grow">Total Quantity - Pcs</div>
                         <div id="totalQuantityInForm">0</div>
                     </div>
-                    <div class="final flex justify-between items-center border border-gray-600 cursor-not-allowed rounded-lg py-2 px-4 w-full">
+                    <div class="final {{ $hideDocumentDiscount ? 'hidden' : '' }} flex justify-between items-center border border-gray-600 cursor-not-allowed rounded-lg py-2 px-4 w-full">
                         <div class="grow">Gross Amount - Rs.</div>
                         <div id="totalAmountInForm">0.0</div>
                     </div>
-                    <div class="final flex justify-between items-center border border-gray-600 cursor-not-allowed rounded-lg py-2 px-4 w-full">
+                    <div class="final {{ $hideDocumentDiscount ? 'hidden' : '' }} flex justify-between items-center border border-gray-600 cursor-not-allowed rounded-lg py-2 px-4 w-full">
                         <div class="grow">Discount - %</div>
                         <div id="dicountInForm">0</div>
                     </div>
@@ -161,7 +164,7 @@
                     <input type="hidden" name="date" value='{{ now()->toDateString() }}'>
                     {{-- shipment_no --}}
                     <div class="grow">
-                        <x-input label="Shipment Number" type="number" name="shipment_no" id="shipment_no" placeholder="Enter shipment number" required withButton btnId="selectCustomersBtn" btnText="Select Customers" value=""/>
+                        <x-select label="Shipment Number" name="shipment_no" id="shipment_no" :options="$shipmentsOptions" required showDefault withButton btnId="selectCustomersBtn" btnText="Select Customers" />
                     </div>
                 </div>
                 {{-- rate showing --}}
@@ -190,11 +193,11 @@
                         <div class="grow">Total Quantity - Pcs</div>
                         <div id="totalQuantityInForm">0</div>
                     </div>
-                    <div class="final flex justify-between items-center border border-gray-600 cursor-not-allowed rounded-lg py-2 px-4 w-full">
+                    <div class="final {{ $hideDocumentDiscount ? 'hidden' : '' }} flex justify-between items-center border border-gray-600 cursor-not-allowed rounded-lg py-2 px-4 w-full">
                         <div class="grow">Gross Amount - Rs.</div>
                         <div id="totalAmountInForm">0.0</div>
                     </div>
-                    <div class="final flex justify-between items-center border border-gray-600 cursor-not-allowed rounded-lg py-2 px-4 w-full">
+                    <div class="final {{ $hideDocumentDiscount ? 'hidden' : '' }} flex justify-between items-center border border-gray-600 cursor-not-allowed rounded-lg py-2 px-4 w-full">
                         <div class="grow">Discount - %</div>
                         <div id="dicountInForm">0</div>
                     </div>

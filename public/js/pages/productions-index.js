@@ -2,11 +2,11 @@
     function initProductionsIndex() {
         const config = window.__productionsIndex || {};
         window.authLayout = config.authLayout || "table";
-        let activeProductionTicketContext = null;
+        if (config.companyData) {
+            window.companyData = config.companyData;
+        }
 
         window.createRow = function createRow(data) {
-            data.onclick = "generateProductionTicketModal(this)";
-            data.oncontextmenu = "generateProductionContextMenu(event)";
             return `
             <div id="${data.id}" oncontextmenu='${htmlAttr(data.oncontextmenu || "")}' onclick='${htmlAttr(data.onclick || "")}'
                 class="item row relative group grid grid-cols-6 text-center border-b border-[var(--h-bg-color)] items-center py-2 cursor-pointer hover:bg-[var(--h-secondary-bg-color)] transition-all fade-in ease-in-out"
@@ -20,17 +20,11 @@
             </div>`;
         };
 
-        window.generateProductionTicketModal = function generateProductionTicketModal(item) {
-            const data = JSON.parse(item.dataset.json);
-            activeProductionTicketContext = data;
-            window.previewProductionTicket(data, false);
-        };
-
-        window.generateProductionContextMenu = function generateProductionContextMenu(e) {
+        window.generateContextMenu = function generateContextMenu(e) {
             e.preventDefault();
             const item = e.target.closest(".item");
-            if (!item) return;
-            const data = JSON.parse(item.dataset.json);
+            const rowData = JSON.parse(item.dataset.json);
+            const data = rowData.data || rowData;
 
             createContextMenu({
                 item,
@@ -39,18 +33,47 @@
                 y: e.pageY,
                 actions: [
                     {
-                        id: "print-production-ticket",
-                        text: "Preview / Print Ticket",
-                        onclick: "printProductionTicketFromContext(this)",
+                        id: "print-ticket",
+                        text: "Print Ticket",
+                        onclick: `printProductionTicket(${JSON.stringify(data)})`,
                     },
                 ],
             });
         };
 
-        window.printProductionTicketFromContext = function printProductionTicketFromContext(elem) {
-            if (activeProductionTicketContext) {
-                window.printProductionTicket(activeProductionTicketContext);
-            }
+        window.generateModal = function generateModal(item) {
+            const rowData = JSON.parse(item.dataset.json);
+            const data = rowData.data || rowData;
+            const article = data.article || {};
+            const worker = data.worker || {};
+            const work = data.work || {};
+
+            createModal({
+                id: "modalForm",
+                name: `Ticket ${data.ticket || "-"}`,
+                class: "max-w-3xl h-auto",
+                details: {
+                    Article: article.article_no || data.article_no,
+                    Work: work.title || "-",
+                    Worker: worker.employee_name || "-",
+                    "Issue Date": data.issue_date,
+                    "Receive Date": data.receive_date,
+                    Rate: data.rate ? formatMoney(data.rate) : "-",
+                    Amount: data.amount ? formatMoney(data.amount) : "-",
+                },
+                bottomActions: [
+                    {
+                        id: "preview-ticket",
+                        text: "Preview Ticket",
+                        onclick: `showProductionTicket(${JSON.stringify(data)})`,
+                    },
+                    {
+                        id: "print-ticket",
+                        text: "Print Ticket",
+                        onclick: `printProductionTicket(${JSON.stringify(data)})`,
+                    },
+                ],
+            });
         };
     }
 

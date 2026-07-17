@@ -90,6 +90,7 @@
     .gos-a5-document .right,
     .gos-a5-document .date,
     .gos-a5-document .number,
+    .gos-a5-document .document-number,
     .gos-a5-document .preview-copy,
     .gos-a5-document .copy,
     .gos-a5-document .person,
@@ -97,6 +98,12 @@
     .gos-a5-document .phone {
         font-size: 11.6px !important;
         line-height: 1.22 !important;
+    }
+
+    .gos-a5-document .document-number {
+        font-size: 12.8px !important;
+        font-weight: 700 !important;
+        line-height: 1.16 !important;
     }
 
     .gos-a5-document .right.space-y-1\.5 > :not([hidden]) ~ :not([hidden]),
@@ -216,6 +223,66 @@
         line-height: 1.2 !important;
     }
 
+    .gos-a5-document hr:has(+ .footer),
+    .gos-a5-document hr:has(+ .tfooter) {
+        margin-top: 3px !important;
+        margin-bottom: 2px !important;
+    }
+
+    .gos-a5-document .footer:has(> :nth-child(4)),
+    .gos-a5-document .tfooter:has(> :nth-child(4)) {
+        align-items: end !important;
+        column-gap: 12px !important;
+        display: grid !important;
+        grid-template-columns: minmax(0, 1fr) auto !important;
+        min-height: 19px !important;
+        padding-top: 2px !important;
+        padding-bottom: 3px !important;
+        row-gap: 2px !important;
+    }
+
+    .gos-a5-document .footer:has(> :nth-child(4)) > :nth-child(1),
+    .gos-a5-document .tfooter:has(> :nth-child(4)) > :nth-child(1) {
+        align-self: end;
+        font-size: 8.8px !important;
+        grid-column: 1;
+        grid-row: 1;
+        line-height: 1.08 !important;
+        min-width: 0;
+        text-align: left;
+    }
+
+    .gos-a5-document .footer:has(> :nth-child(4)) > :nth-child(2),
+    .gos-a5-document .tfooter:has(> :nth-child(4)) > :nth-child(2) {
+        align-self: end;
+        grid-column: 2;
+        grid-row: 1;
+        font-size: 8px !important;
+        line-height: 1.05 !important;
+        text-align: right;
+        white-space: nowrap;
+    }
+
+    .gos-a5-document .footer:has(> :nth-child(4)) > :nth-child(3),
+    .gos-a5-document .tfooter:has(> :nth-child(4)) > :nth-child(3) {
+        grid-column: 2;
+        grid-row: 2;
+        font-size: 8px !important;
+        line-height: 1.05 !important;
+        text-align: right;
+        white-space: nowrap;
+    }
+
+    .gos-a5-document .footer:has(> :nth-child(4)) > :nth-child(4),
+    .gos-a5-document .tfooter:has(> :nth-child(4)) > :nth-child(4) {
+        grid-column: 1;
+        grid-row: 2;
+        font-size: 8px !important;
+        line-height: 1.05 !important;
+        text-align: left;
+        white-space: nowrap;
+    }
+
     .gos-a5-document.gos-a5-invoice {
         --gos-invoice-border: #4b5563;
         --gos-invoice-detail-bg: #f8fafc;
@@ -269,6 +336,7 @@
     .gos-a5-invoice .right,
     .gos-a5-invoice .date,
     .gos-a5-invoice .number,
+    .gos-a5-invoice .document-number,
     .gos-a5-invoice .preview-copy,
     .gos-a5-invoice .copy,
     .gos-a5-invoice .person,
@@ -276,6 +344,12 @@
     .gos-a5-invoice .phone {
         font-size: 10.7px !important;
         line-height: 1.22 !important;
+    }
+
+    .gos-a5-invoice .document-number {
+        font-size: 12.8px !important;
+        font-weight: 700 !important;
+        line-height: 1.12 !important;
     }
 
     .gos-a5-invoice .deliver-to {

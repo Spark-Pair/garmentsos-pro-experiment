@@ -85,19 +85,19 @@ class ExpenseController extends Controller
 
         $suppliers_options = [];
         foreach ($suppliers as $supplier) {
-            $suppliers_options[$supplier->id] = ["text" => $supplier->supplier_name, "data_option" => $supplier];
-        }
-
-        foreach ($suppliers as $supplier) {
             $categoriesIdArray = json_decode($supplier->categories_array, true);
 
             $categories = Setup::whereIn('id', $categoriesIdArray)
                 ->where('type', 'supplier_category')
                 ->get();
 
-            $supplier["categories"] = $categories;
-
-            $supplier["balance"] = 0.00;
+            $supplierPayload = $this->supplierOptionPayload($supplier);
+            $supplierPayload['categories'] = $categories;
+            $supplierPayload['categories_array'] = $supplier->categories_array;
+            $suppliers_options[$supplier->id] = [
+                "text" => $supplier->supplier_name,
+                "data_option" => $supplierPayload,
+            ];
         }
 
         return view('expenses.add', compact('suppliers_options', 'lastExpense', 'adjustmentSetup'));

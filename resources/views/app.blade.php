@@ -565,7 +565,7 @@
                 @endif
                 @stack('left-actions-after')
             </div>
-            <div class="main-child w-full grow pb-10">
+            <div class="main-child w-full grow">
                 @yield('content')
             </div>
         </main>
@@ -582,7 +582,11 @@
             $releaseNotes = $developerUpdateStatus['notes'] ?? data_get($developerUpdateStatus, 'feed.notes') ?? data_get($developerUpdateStatus, 'feed.body') ?? 'Laravel prepares the update handoff. The Windows launcher applies the update outside the running app.';
             $mandatoryUpdate = (bool) ($developerUpdateStatus['mandatory'] ?? data_get($developerUpdateStatus, 'feed.mandatory', false));
         @endphp
-        <div id="developer-update-modal" class="fixed inset-0 z-[9998] flex items-center justify-center bg-[var(--overlay-color)] px-4">
+        <div id="developer-update-modal"
+            class="fixed inset-0 z-[9998] flex items-center justify-center bg-[var(--overlay-color)] px-4"
+            data-update-version="{{ $latestVersion }}"
+            data-update-mandatory="{{ $mandatoryUpdate ? '1' : '0' }}"
+            data-update-session="{{ substr(hash('sha256', session()->getId()), 0, 16) }}">
             <div class="flex max-h-[90vh] w-full max-w-xl flex-col overflow-hidden rounded-xl border border-[var(--glass-border-color)]/20 bg-[var(--secondary-bg-color)] text-[var(--text-color)] shadow-2xl">
                 <div class="flex shrink-0 items-start justify-between gap-4 border-b border-[var(--glass-border-color)]/10 px-5 py-4">
                     <div>
@@ -662,6 +666,7 @@
             const updateLockStatusUrl = @json(Auth::check() ? route('developer.updater.update-lock-status') : null);
             const updatingUrl = @json(route('updating'));
             const launchGuardKey = 'garmentsos_update_launching';
+            const updateModal = document.getElementById('developer-update-modal');
             let updateLockPoll = null;
             let closeFallbackStarted = false;
 
@@ -789,9 +794,47 @@
                 }
             };
 
+            const updateModalDismissKey = () => {
+                if (!updateModal) {
+                    return null;
+                }
+
+                const version = updateModal.dataset.updateVersion || 'latest';
+                const sessionKey = updateModal.dataset.updateSession || 'session';
+                return `garmentsos_update_modal_dismissed:${sessionKey}:${version}`;
+            };
+
+            const updateModalIsMandatory = () => updateModal?.dataset.updateMandatory === '1';
+
+            const removeUpdateModal = (rememberDismissal = false) => {
+                if (rememberDismissal && updateModal && !updateModalIsMandatory()) {
+                    const dismissKey = updateModalDismissKey();
+                    if (dismissKey) {
+                        try {
+                            sessionStorage.setItem(dismissKey, JSON.stringify({
+                                dismissedAt: Date.now(),
+                            }));
+                        } catch (error) {
+                        }
+                    }
+                }
+
+                updateModal?.remove();
+            };
+
+            if (updateModal && !updateModalIsMandatory()) {
+                const dismissKey = updateModalDismissKey();
+                try {
+                    if (dismissKey && sessionStorage.getItem(dismissKey)) {
+                        removeUpdateModal(false);
+                    }
+                } catch (error) {
+                }
+            }
+
             document.querySelectorAll('[data-update-modal-close]').forEach((button) => {
                 button.addEventListener('click', () => {
-                    document.getElementById('developer-update-modal')?.remove();
+                    removeUpdateModal(true);
                 });
             });
 

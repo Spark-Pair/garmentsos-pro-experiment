@@ -30,7 +30,100 @@
 
     function deliverToLine() {
         const deliverTo = String(document.getElementById('deliver_to')?.value ?? '').trim();
-        return deliverTo ? `Deliver To: ${deliverTo}` : '';
+        return `Deliver To: ${deliverTo || '-'}`;
+    }
+
+    function articleSortValue(article = {}) {
+        return String(article?.article_no ?? article?.article?.article_no ?? '').trim();
+    }
+
+    function sortedSelectedArticles() {
+        return [...selectedArticles].sort((left, right) => (
+            articleSortValue(left).localeCompare(articleSortValue(right), undefined, {
+                numeric: true,
+                sensitivity: 'base',
+            })
+        ));
+    }
+
+    function printDateTime() {
+        return new Date().toLocaleString('en-GB', {
+            day: '2-digit',
+            month: 'short',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: true,
+        }).replace(',', '');
+    }
+
+    function previewText(value) {
+        return String(value ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
+    function truthySetting(value) {
+        return value === true || value === 1 || value === '1' || value === 'true';
+    }
+
+    function orderDiscountDisabled() {
+        return truthySetting(companyData?.discount_disabled);
+    }
+
+    function orderDocumentTotalsHtml() {
+        if (orderDiscountDisabled()) {
+            const note = String(companyData?.document_note || '').trim();
+            return `
+                <div class="flex flex-col space-y-2">
+                    ${note ? `
+                        <div class="tr flex justify-between w-full px-2 gap-2 text-sm">
+                            <div class="total flex justify-center items-center border border-gray-600 rounded-lg py-2 px-4 w-full text-center font-semibold">
+                                ${previewText(note)}
+                            </div>
+                        </div>
+                    ` : ''}
+                    <div id="order-total" class="tr flex justify-between w-full px-2 gap-2 text-sm">
+                        <div class="total flex justify-between items-center border border-gray-600 rounded-lg py-2 px-4 w-full">
+                            <div class="text-nowrap">Total Quantity</div>
+                            <div class="w-1/4 text-right grow">${orderQuantitySummary()}</div>
+                        </div>
+                        <div class="total flex justify-between items-center border border-gray-600 rounded-lg py-2 px-4 w-full">
+                            <div class="text-nowrap font-semibold">Net Amount</div>
+                            <div class="w-1/4 text-right grow font-semibold">${totalAmountDOM.value}</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        return `
+            <div class="flex flex-col space-y-2">
+                <div id="order-total" class="tr flex justify-between w-full px-2 gap-2 text-sm">
+                    <div class="total flex justify-between items-center border border-gray-600 rounded-lg py-2 px-4 w-full">
+                        <div class="text-nowrap">Total Quantity</div>
+                        <div class="w-1/4 text-right grow">${orderQuantitySummary()}</div>
+                    </div>
+                    <div class="total flex justify-between items-center border border-gray-600 rounded-lg py-2 px-4 w-full">
+                        <div class="text-nowrap">Total Amount</div>
+                        <div class="w-1/4 text-right grow">${totalAmountDOM.value}</div>
+                    </div>
+                </div>
+                <div id="order-total" class="tr flex justify-between w-full px-2 gap-2 text-sm">
+                    <div class="total flex justify-between items-center border border-gray-600 rounded-lg py-2 px-4 w-full">
+                        <div class="text-nowrap">Discount %</div>
+                        <div class="w-1/4 text-right grow">${discountDOM?.value || 0}</div>
+                    </div>
+                    <div class="total flex justify-between items-center border border-gray-600 rounded-lg py-2 px-4 w-full">
+                        <div class="text-nowrap">Net Amount</div>
+                        <div class="w-1/4 text-right grow">${finalNetAmount.value}</div>
+                    </div>
+                </div>
+            </div>
+        `;
     }
 
     window.trackCustomerState = function trackCustomerState(elem) {
@@ -129,7 +222,12 @@
     }
 
     window.generateArticlesModal = function generateArticlesModal() {
-        const data = articles || [];
+        const data = [...(articles || [])].sort((left, right) => (
+            articleSortValue(left).localeCompare(articleSortValue(right), undefined, {
+                numeric: true,
+                sensitivity: 'base',
+            })
+        ));
 
         if (data.length > 0 && cardData.length == 0) {
             cardData.push(
@@ -217,24 +315,28 @@
                         category: 'input',
                         value: `${data.article_no} | ${data.season} | ${data.size} | ${data.category} | ${data.fabric_type} | ${data.quantity} | ${formatMoney(data.sales_rate)} - Rs.`,
                         disabled: true,
+                        full: true,
                     },
                     {
                         category: 'input',
                         label: 'Orderable Quantity',
                         value: `${formatNumbersDigitLess(data.orderable_quantity)} Pcs | ${formatNumbersWithDigits(data.orderable_quantity_packets)} Pkts`,
                         disabled: true,
+                        full: true,
                     },
                     {
                         category: 'input',
                         label: 'Invoiceable Quantity (Current Stock)',
                         value: `${formatNumbersDigitLess(data.current_stock)} Pcs | ${formatNumbersWithDigits(data.current_stock_packets)} Pkts`,
                         disabled: true,
+                        full: true,
                     },
                     {
                         category: 'input',
                         label: 'Unit',
                         value: `${formatNumbersDigitLess(data.pcs_per_packet)} Pcs per Packet`,
                         disabled: true,
+                        full: true,
                     },
                     {
                         category: 'input',
@@ -245,10 +347,22 @@
                         placeholder: 'Enter quantity in pcs.',
                         max: Number(data.orderable_quantity || 0),
                         required: true,
-                        oninput: 'checkMax(this)',
+                        oninput: `syncArticleQuantityPair('pcs', ${Number(data.pcs_per_packet || 0)}, ${Number(data.orderable_quantity || 0)})`,
+                    },
+                    {
+                        category: 'input',
+                        name: 'quantity_packets',
+                        id: 'quantity_packets',
+                        type: 'number',
+                        label: 'Quantity - Pckts.',
+                        placeholder: 'Enter packets.',
+                        min: 0,
+                        max: Number(data.pcs_per_packet || 0) ? Math.floor(Number(data.orderable_quantity || 0) / Number(data.pcs_per_packet || 0)) : 0,
+                        required: true,
+                        oninput: `syncArticleQuantityPair('packets', ${Number(data.pcs_per_packet || 0)}, ${Number(data.orderable_quantity || 0)})`,
                     },
                 ],
-                fieldsGridCount: '1',
+                fieldsGridCount: '2',
                 bottomActions: [{ id: 'setQuantityBtn', text: 'Set Quantity', onclick: `setQuantity(${data.id})` }],
             };
 
@@ -257,14 +371,17 @@
             const quantityLabel = document.getElementById(data.id)?.querySelector('.quantity-label');
 
             if (quantityLabel) {
-                document.getElementById('quantity').value = parseInt(quantityLabel.textContent.replace(/\D/g, ''));
+                initializeArticleQuantityPair(data.pcs_per_packet, data.orderable_quantity, parseInt(quantityLabel.textContent.replace(/\D/g, '')));
             }
+            syncArticleQuantityPair('pcs', data.pcs_per_packet, data.orderable_quantity);
 
             document.getElementById('quantity').focus();
-            document.getElementById('quantity').addEventListener('keydown', e => {
-                if (e.key === 'Enter') {
-                    document.getElementById('setQuantityBtn-in-modal').click();
-                }
+            ['quantity', 'quantity_packets'].forEach(inputId => {
+                document.getElementById(inputId)?.addEventListener('keydown', e => {
+                    if (e.key === 'Enter') {
+                        document.getElementById('setQuantityBtn-in-modal')?.click();
+                    }
+                });
             });
         } else {
             if (typeof messageBox !== 'undefined') {
@@ -281,10 +398,14 @@
         const alreadySelected = isArticleAlreadySelected(cardData.id);
 
         if (limitOfArticles > 0 || alreadySelected) {
-            closeModal('QuantityModalForm');
-
             const alreadySelectedArticle = selectedArticles.filter(c => c.id == cardData.id);
             const quantityInputDOM = document.getElementById('quantity');
+            if (!syncArticleQuantityPair('pcs', cardData.pcs_per_packet, cardData.orderable_quantity)) {
+                quantityInputDOM?.focus();
+                return;
+            }
+
+            closeModal('QuantityModalForm');
             const quantity = quantityInputDOM.value;
             const quantityLabel = targetCard.querySelector('.quantity-label');
 
@@ -383,6 +504,12 @@
 
     function calculateNetAmount() {
         const totalAmount = totalOrderAmount;
+        if (orderDiscountDisabled()) {
+            if (discountDOM) discountDOM.value = 0;
+            netAmount = totalAmount;
+            renderFinals();
+            return;
+        }
         let discount = parseInt(document.getElementById('discount').value || 0, 10);
         if (Number.isNaN(discount)) discount = 0;
         discount = Math.max(0, Math.min(100, discount));
@@ -414,7 +541,8 @@
         if (!orderListDOM) return;
         if (selectedArticles.length > 0) {
             let clutter = '';
-            selectedArticles.forEach((selectedArticle, index) => {
+            sortedSelectedArticles().forEach((selectedArticle) => {
+                const selectedIndex = selectedArticles.findIndex(article => article.id == selectedArticle.id);
                 clutter += `
                         <div class="flex justify-between items-center border-t border-gray-600 py-3 px-4">
                             <div class="w-[10%]">${selectedArticle.article_no}</div>
@@ -423,7 +551,7 @@
                             <div class="w-1/6">${formatNumbersWithDigits(selectedArticle.sales_rate, 1, 1)}</div>
                             <div class="w-1/5">${formatNumbersWithDigits(selectedArticle.sales_rate * selectedArticle.orderedQuantity, 1, 1)}</div>
                             <div class="w-[10%] text-center">
-                                <button onclick="deselectThisArticle(${index})" type="button" class="text-[var(--danger-color)] text-xs px-2 py-1 rounded-lg hover:text-[var(--h-danger-color)] transition-all duration-300 ease-in-out cursor-pointer">
+                                <button onclick="deselectThisArticle(${selectedIndex})" type="button" class="text-[var(--danger-color)] text-xs px-2 py-1 rounded-lg hover:text-[var(--h-danger-color)] transition-all duration-300 ease-in-out cursor-pointer">
                                     <i class="fas fa-trash"></i>
                                 </button>
                             </div>
@@ -450,7 +578,7 @@
 
     function updateInputOrderedArticles() {
         const inputOrderedArticles = document.getElementById('articles');
-        const finalArticlesArray = selectedArticles.map(article => {
+        const finalArticlesArray = sortedSelectedArticles().map(article => {
             return {
                 id: article.id,
                 description: article.description,
@@ -503,18 +631,18 @@
                             </div>
                             <div class="logo text-right">
                                 <h1 class="text-2xl font-medium text-[var(--h-primary-color)]">Sales Order</h1>
-                                <div class="mt-1 text-right">Order No.: ${orderNo}</div>
+                                <div class="document-number mt-1 text-right">Order No.: ${orderNo}</div>
                             </div>
                         </div>
                         <hr class="w-full my-3 border-gray-600">
                         <div id="header" class="header w-full flex justify-between px-5">
-                            <div class="left w-50 space-y-1">
+                            <div class="left grow min-w-0 pr-3 space-y-1">
                                 <div class="customer text-lg leading-none capitalize font-medium text-nowrap">M/s: ${customerData.customer_name}</div>
                                 <div class="person text-md text-lg leading-none">${customerTitlePhoneLine(customerData)}</div>
                                 <div class="address text-md leading-none">${customerData.address}, ${customerData.city.title}</div>
                                 <div class="phone text-md leading-none">${deliverToLine()}</div>
                             </div>
-                            <div class="right w-50 my-auto text-right text-sm text-gray-600 space-y-1.5">
+                            <div class="right shrink-0 min-w-[38%] my-auto text-right text-sm text-gray-600 space-y-1.5">
                                 <div class="date leading-none">Date: ${orderDate}</div>
                                 <input type="hidden" name="order_no" value="${orderNo}" />
                                 <div class="preview-copy leading-none">Order Copy: Customer</div>
@@ -533,12 +661,12 @@
                                             <div class="th text-sm font-medium">Pkts</div>
                                             <div class="th text-sm font-medium">Pcs.</div>
                                             <div class="th text-sm font-medium">Rate</div>
-                                            <div class="th text-sm font-medium">Amt.</div>
+                                            <div class="th text-sm font-medium">Amount</div>
                                             <div class="th text-sm font-medium text-center">Dispatch</div>
                                         </div>
                                     </div>
                                     <div id="tbody" class="tbody w-full">
-                                        ${selectedArticles
+                                        ${sortedSelectedArticles()
                                             .map((article, index) => {
                                                 const hrClass = index === 0 ? 'mb-2.5' : 'my-2.5';
                                                 const detailLine = orderDetailLine(article);
@@ -568,32 +696,12 @@
                             </div>
                         </div>
                         <hr class="w-full my-3 border-gray-600">
-                        <div class="flex flex-col space-y-2">
-                            <div id="order-total" class="tr flex justify-between w-full px-2 gap-2 text-sm">
-                                <div class="total flex justify-between items-center border border-gray-600 rounded-lg py-2 px-4 w-full">
-                                    <div class="text-nowrap">Total Quantity</div>
-                                    <div class="w-1/4 text-right grow">${orderQuantitySummary()}</div>
-                                </div>
-                                <div class="total flex justify-between items-center border border-gray-600 rounded-lg py-2 px-4 w-full">
-                                    <div class="text-nowrap">Total Amount</div>
-                                    <div class="w-1/4 text-right grow">${totalAmountDOM.value}</div>
-                                </div>
-                            </div>
-                            <div id="order-total" class="tr flex justify-between w-full px-2 gap-2 text-sm">
-                                <div class="total flex justify-between items-center border border-gray-600 rounded-lg py-2 px-4 w-full">
-                                    <div class="text-nowrap">Discount %</div>
-                                    <div class="w-1/4 text-right grow">${discountDOM?.value || 0}</div>
-                                </div>
-                                <div
-                                    class="total flex justify-between items-center border border-gray-600 rounded-lg py-2 px-4 w-full">
-                                    <div class="text-nowrap">Net Amount</div>
-                                    <div class="w-1/4 text-right grow">${finalNetAmount.value}</div>
-                                </div>
-                            </div>
-                        </div>
+                        ${orderDocumentTotalsHtml()}
                         <hr class="w-full my-3 border-gray-600">
                         <div class="tfooter flex w-full text-sm px-4 justify-between text-gray-600">
                             <P class="leading-none">Powered by SparkPair</P>
+                            <p class="leading-none text-sm">Page 1 of 1</p>
+                            <p class="leading-none text-sm">Printed: ${printDateTime()}</p>
                             <p class="leading-none text-sm">&copy; ${new Date().getFullYear()} SparkPair | +92 316 5825495</p>
                         </div>
                     </div>

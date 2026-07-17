@@ -103,7 +103,7 @@ class VoucherController extends Controller
             if ($supplier_id && $request->date) {
                 $supplier = Supplier::find($supplier_id);
                 if ($supplier) {
-                    $supplierBalanceAtDate = $supplier->calculateBalance(null, $request->date, false, true);
+                    $supplierBalanceAtDate = $this->supplierBalance($supplier, $request->date);
                 }
             }
 
@@ -244,13 +244,7 @@ class VoucherController extends Controller
                 return [
                     (int)$supplier->id => [
                         'text' => $supplier->supplier_name,
-                        'data_option' => [
-                            'id' => $supplier->id,
-                            'supplier_name' => $supplier->supplier_name,
-                            'date' => optional($supplier->date)->toJSON(),
-                            'balance' => 0,
-                            'balance_at_date' => 0,
-                        ],
+                        'data_option' => $this->supplierOptionPayload($supplier),
                     ]
                 ];
             })->toArray();
@@ -492,7 +486,7 @@ class VoucherController extends Controller
         ]);
 
         if ($voucher->supplier && $voucher->date) {
-            $voucher->supplier->balance_at_date = $voucher->supplier->calculateBalance(null, $voucher->date, false, true);
+            $voucher->supplier->balance_at_date = $this->supplierBalance($voucher->supplier, $voucher->date);
         }
 
         $branches = app(ModuleBranchService::class);
@@ -576,12 +570,14 @@ class VoucherController extends Controller
 
     private function formatVoucherSupplierPayload(Supplier $supplier): array
     {
-        return [
-            'id' => $supplier->id,
-            'supplier_name' => $supplier->supplier_name,
-            'date' => optional($supplier->date)->toJSON(),
-            'balance' => (float) ($supplier->balance_at_date ?? 0),
-            'balance_at_date' => (float) ($supplier->balance_at_date ?? 0),
+        $balance = (float) ($supplier->balance_at_date ?? $this->supplierBalance($supplier));
+        $payload = $this->supplierOptionPayload($supplier);
+        $payload['balance'] = $balance;
+        $payload['balance_formatted'] = \App\Support\Money::format($balance);
+        $payload['balance_at_date'] = $balance;
+        $payload['balance_at_date_formatted'] = \App\Support\Money::format($balance);
+
+        return $payload + [
             'payments' => $supplier->payments
                 ? $supplier->payments->map(fn ($payment) => $this->formatVoucherSupplierPaymentPayload($payment))->values()->all()
                 : [],

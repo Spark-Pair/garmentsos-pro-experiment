@@ -99,10 +99,6 @@ class PaymentProgramController extends Controller
 
         $branches = app(ModuleBranchService::class);
         $customers = $branches->applyRelatedScope(Customer::with('city:id,title'), 'customers', 'payment_programs')
-            ->withSum('invoices as total_invoice_amount', 'netAmount')
-            ->withSum(['payments as total_paid_amount' => fn($q) => $q->where('type', '!=', 'DR')], 'amount')
-            ->withSum(['statementAdjustments as adjustment_plus_amount' => fn($q) => $q->where('direction', 'plus')], 'amount')
-            ->withSum(['statementAdjustments as adjustment_minus_amount' => fn($q) => $q->where('direction', 'minus')], 'amount')
             ->whereHas('user', function ($query) {
                 $query->where('status', 'active');
             })
@@ -112,23 +108,11 @@ class PaymentProgramController extends Controller
         $customers_options = [];
 
         foreach ($customers as $customer) {
-            $balance = (float) ($customer->total_invoice_amount ?? 0)
-                - (float) ($customer->total_paid_amount ?? 0)
-                + (float) ($customer->adjustment_plus_amount ?? 0)
-                - (float) ($customer->adjustment_minus_amount ?? 0);
+            $customerPayload = $this->customerOptionPayload($customer);
 
             $customers_options[(int)$customer->id] = [
-                'text' => $customer->customer_name . ' | ' . ($customer->city->title ?? 'N/A') . ' | Balance: ' . \App\Support\Money::format($balance),
-                'data_option' => [
-                    'id' => $customer->id,
-                    'customer_name' => $customer->customer_name,
-                    'date' => $customer->date?->format('Y-m-d'),
-                    'balance' => $balance,
-                    'city' => [
-                        'id' => $customer->city?->id,
-                        'title' => $customer->city?->title,
-                    ],
-                ],
+                'text' => $customer->customer_name . ' | ' . ($customer->city->title ?? 'N/A') . ' | Balance: ' . $customerPayload['balance_formatted'],
+                'data_option' => $customerPayload,
             ];
         }
 

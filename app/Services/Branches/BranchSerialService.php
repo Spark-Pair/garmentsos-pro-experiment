@@ -67,7 +67,7 @@ class BranchSerialService
     public function formatBranchDocumentNumber(string $baseNumber, string $moduleKey, ?Branch $branch = null): string
     {
         $moduleKey = $this->branches->canonicalModuleKey($moduleKey);
-        $config = $this->branches->moduleConfig($moduleKey) ?? [];
+        $config = $this->branches->runtimeModuleConfig($moduleKey, $branch?->id) ?? [];
 
         if (
             !$branch
@@ -111,11 +111,36 @@ class BranchSerialService
             return '00/150';
         }
 
+        if ($moduleKey === 'vouchers' && $nextVoucherBookNumber = $this->nextVoucherBookNumber($lastBase)) {
+            return $nextVoucherBookNumber;
+        }
+
         if ($lastBase && preg_match('/^(.*?)(\d+)$/', $lastBase, $matches) && $matches[1] !== '') {
             return $matches[1] . str_pad((string) $serial, strlen($matches[2]), '0', STR_PAD_LEFT);
         }
 
         return str_pad((string) $serial, $pad, '0', STR_PAD_LEFT);
+    }
+
+    private function nextVoucherBookNumber(string $lastBase): ?string
+    {
+        if (!preg_match('/^(\d+)\/(\d+)$/', trim($lastBase), $matches)) {
+            return null;
+        }
+
+        $pageNo = (int) $matches[1];
+        $bookNo = (int) $matches[2];
+
+        if ($pageNo >= 100) {
+            $pageNo = 1;
+            $bookNo++;
+        } else {
+            $pageNo++;
+        }
+
+        return str_pad((string) $pageNo, 2, '0', STR_PAD_LEFT)
+            . '/'
+            . str_pad((string) $bookNo, max(3, strlen($matches[2])), '0', STR_PAD_LEFT);
     }
 
     private function numericTail(?string $value): int

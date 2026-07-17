@@ -808,7 +808,7 @@ function initVouchersCreate() {
         }
 
         left += 1;
-        if (parseInt(parts[0], 10) === 100) {
+        if (parseInt(parts[0], 10) >= 100) {
             right += 1;
             left = 1;
         }

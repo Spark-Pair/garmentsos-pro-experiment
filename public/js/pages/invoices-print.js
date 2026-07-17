@@ -26,6 +26,64 @@
         return deliverTo ? `Deliver To: ${deliverTo}` : '';
     }
 
+    function previewText(value) {
+        return String(value ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
+    function truthySetting(value) {
+        return value === true || value === 1 || value === '1' || value === 'true';
+    }
+
+    function invoiceDocumentSettings(previewData = {}) {
+        return previewData.branch_branding || companyData || {};
+    }
+
+    function invoiceDocumentTotalsHtml(previewData, totalPackets, totalPcs, totalAmount, discountVal, discountAmount, netAmount) {
+        const settings = invoiceDocumentSettings(previewData);
+        if (truthySetting(settings.discount_disabled)) {
+            const note = String(settings.document_note || '').trim();
+            return `
+                ${note ? `
+                    <div class="total col-span-2 flex justify-center items-center border border-black rounded-lg py-1.5 px-4 w-full text-center font-semibold">
+                        ${previewText(note)}
+                    </div>
+                ` : ''}
+                <div class="total flex justify-between items-center border border-black rounded-lg py-1.5 px-4 w-full">
+                    <div class="text-nowrap">Total Quantity</div>
+                    <div class="w-1/4 text-right grow">${formatNumbersDigitLess(totalPackets)} | ${formatNumbersDigitLess(totalPcs)}</div>
+                </div>
+                <div class="total flex justify-between items-center border border-black rounded-lg py-1.5 px-4 w-full">
+                    <div class="text-nowrap font-semibold">Net Amount</div>
+                    <div class="w-1/4 text-right grow font-semibold">${formatNumbersWithDigits(totalAmount, 1, 1)}</div>
+                </div>
+            `;
+        }
+
+        return `
+            <div class="total flex justify-between items-center border border-black rounded-lg py-1.5 px-4 w-full">
+                <div class="text-nowrap">Total Quantity</div>
+                <div class="w-1/4 text-right grow">${formatNumbersDigitLess(totalPackets)} | ${formatNumbersDigitLess(totalPcs)}</div>
+            </div>
+            <div class="total flex justify-between items-center border border-black rounded-lg py-1.5 px-4 w-full">
+                <div class="text-nowrap">Gross Amount</div>
+                <div class="w-1/4 text-right grow">${formatNumbersWithDigits(totalAmount, 1, 1)}</div>
+            </div>
+            <div class="total flex justify-between items-center border border-black rounded-lg py-1.5 px-4 w-full">
+                <div class="text-nowrap">Discount ${discountVal}%</div>
+                <div class="w-1/4 text-right grow">${formatNumbersWithDigits(discountAmount, 1, 1)}</div>
+            </div>
+            <div class="total flex justify-between items-center border border-black rounded-lg py-1.5 px-4 w-full">
+                <div class="text-nowrap">Net Amount</div>
+                <div class="w-1/4 text-right grow">${formatNumbersWithDigits(netAmount, 1, 1)}</div>
+            </div>
+        `;
+    }
+
     function renderInvoices() {
         if (!invoiceContainer) return;
         invoiceContainer.classList.remove('hidden');
@@ -164,24 +222,7 @@
         const discountAmount = discountVal ? (totalAmount * discountVal) / 100 : 0;
         const netAmount = previewData.netAmount ?? (totalAmount - discountAmount);
 
-        const invoiceBottom = `
-            <div class="total flex justify-between items-center border border-black rounded-lg py-1.5 px-4 w-full">
-                <div class="text-nowrap">Total Quantity</div>
-                <div class="w-1/4 text-right grow">${formatNumbersDigitLess(totalPackets)} | ${formatNumbersDigitLess(totalPcs)}</div>
-            </div>
-            <div class="total flex justify-between items-center border border-black rounded-lg py-1.5 px-4 w-full">
-                <div class="text-nowrap">Gross Amount</div>
-                <div class="w-1/4 text-right grow">${formatNumbersWithDigits(totalAmount, 1, 1)}</div>
-            </div>
-            <div class="total flex justify-between items-center border border-black rounded-lg py-1.5 px-4 w-full">
-                <div class="text-nowrap">Discount ${discountVal}%</div>
-                <div class="w-1/4 text-right grow">${formatNumbersWithDigits(discountAmount, 1, 1)}</div>
-            </div>
-            <div class="total flex justify-between items-center border border-black rounded-lg py-1.5 px-4 w-full">
-                <div class="text-nowrap">Net Amount</div>
-                <div class="w-1/4 text-right grow">${formatNumbersWithDigits(netAmount, 1, 1)}</div>
-            </div>
-        `;
+        const invoiceBottom = invoiceDocumentTotalsHtml(previewData, totalPackets, totalPcs, totalAmount, discountVal, discountAmount, netAmount);
 
         return `
             <div class="preview-container w-[148mm] h-[210mm] mx-auto overflow-hidden relative">

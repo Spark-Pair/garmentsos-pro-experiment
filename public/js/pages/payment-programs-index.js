@@ -83,7 +83,7 @@ function initPaymentProgramsIndex() {
                             if (response.length > 0) {
                                 items.push(`<li data-for="subCategory" data-value="" onmousedown="selectThisOption(this)" class="py-2 px-3 cursor-pointer rounded-lg hover:bg-[var(--h-bg-color)]">-- Select Supplier --</li>`);
                                 response.forEach(sup => {
-                                    items.push(`<li data-for="subCategory" data-value="${sup.id}" onmousedown="selectThisOption(this)" class="py-2 px-3 cursor-pointer rounded-lg hover:bg-[var(--h-bg-color)]">${sup.supplier_name} | Balance: ${formatNumbersWithDigits(sup.balance, 1, 1)}</li>`);
+                                    items.push(`<li data-for="subCategory" data-value="${sup.id}" onmousedown="selectThisOption(this)" class="py-2 px-3 cursor-pointer rounded-lg hover:bg-[var(--h-bg-color)]">${sup.supplier_name} | Balance: ${sup.balance_formatted || formatNumbersWithDigits(sup.balance, 1, 1)}</li>`);
                                 });
                                 subCategorySearchInput.disabled = false;
                             } else {
@@ -96,7 +96,7 @@ function initPaymentProgramsIndex() {
                             subCategoryLabel.textContent = 'Customer';
                             items.push(`<li data-for="subCategory" data-value="" onmousedown="selectThisOption(this)" class="py-2 px-3 cursor-pointer rounded-lg hover:bg-[var(--h-bg-color)]">-- Select Customer --</li>`);
                             response.forEach(cus => {
-                                items.push(`<li data-for="subCategory" data-value="${cus.id}" onmousedown="selectThisOption(this)" class="py-2 px-3 cursor-pointer rounded-lg hover:bg-[var(--h-bg-color)]">${cus.customer_name} | ${cus.city.title ?? cus.city} | Balance: ${formatNumbersWithDigits(cus.balance, 1, 1)}</li>`);
+                                items.push(`<li data-for="subCategory" data-value="${cus.id}" onmousedown="selectThisOption(this)" class="py-2 px-3 cursor-pointer rounded-lg hover:bg-[var(--h-bg-color)]">${cus.customer_name} | ${cus.city.title ?? cus.city} | Balance: ${cus.balance_formatted || formatNumbersWithDigits(cus.balance, 1, 1)}</li>`);
                             });
                             subCategorySearchInput.disabled = false;
                             break;
