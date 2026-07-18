@@ -255,6 +255,14 @@ function shouldShowRealtimeValidation(input) {
     return touchedValidationFields.has(input) || input?.getAttribute('aria-invalid') === 'true';
 }
 
+function shouldFormatAmountOnInput(input) {
+    if (!input || !input.matches('input')) {
+        return false;
+    }
+
+    return (input.dataset.validate || '').split('|').includes('amount') || input.getAttribute('type') === 'amount';
+}
+
 function visibleValidationFieldForHiddenInput(input) {
     if (!input || !input.classList?.contains('dbInput')) {
         return null;
@@ -269,6 +277,11 @@ function visibleValidationFieldForHiddenInput(input) {
 }
 
 document.addEventListener('input', (event) => {
+    if (shouldFormatAmountOnInput(event.target)) {
+        validateInput(event.target);
+        return;
+    }
+
     if (shouldRealtimeValidate(event.target) && shouldShowRealtimeValidation(event.target)) {
         validateInput(event.target);
     }

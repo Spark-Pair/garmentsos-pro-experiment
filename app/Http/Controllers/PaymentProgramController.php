@@ -275,19 +275,22 @@ class PaymentProgramController extends Controller
                 ->with([
                     'city:id,title,short_title',
 
-                    'paymentPrograms' => fn($q) => $branches->applyScope($q, 'payment_programs')
-                        ->where('status', 'Unpaid')
-                        ->select('id', 'customer_id', 'amount', 'status', 'branch_id')
+                    'paymentPrograms' => function ($q) use ($branches) {
+                        $this->branchScopedPaymentProgramQuery($q, $branches);
 
-                        // customer paid amount
-                        ->withSum('customerPayments as paid_amount', 'amount')
+                        $q->where('status', 'Unpaid')
+                            ->select('id', 'customer_id', 'amount', 'status', 'branch_id')
 
-                        // supplier pending voucher payment
-                        ->withSum([
-                            'supplierPayments as voucher_pending_payment' => fn($sq) => $sq
-                                ->whereIn('method', ['program', 'Program'])
-                                ->whereNull('voucher_id'),
-                        ], 'amount'),
+                            // customer paid amount
+                            ->withSum('customerPayments as paid_amount', 'amount')
+
+                            // supplier pending voucher payment
+                            ->withSum([
+                                'supplierPayments as voucher_pending_payment' => fn($sq) => $sq
+                                    ->whereIn('method', ['program', 'Program'])
+                                    ->whereNull('voucher_id'),
+                            ], 'amount');
+                    },
                 ])
                 ->applyFilters($request, false, true);
 
@@ -344,87 +347,98 @@ class PaymentProgramController extends Controller
         $authLayout = $this->getAuthLayout($request->route()->getName(), 'table');
 
         if ($request->ajax()) {
+            $branches = app(ModuleBranchService::class);
+            $openProgramQuery = function ($q) use ($branches) {
+                $this->branchScopedPaymentProgramQuery($q, $branches);
 
-    $branches = app(ModuleBranchService::class);
-    $openProgramQuery = fn($q) => $branches->applyScope($q, 'payment_programs')->where(function ($qq) {
-        $qq->where('status', 'Unpaid')
-            ->orWhereHas('supplierPayments', fn($sq) => $sq
-                ->whereIn('method', ['program', 'Program'])
-                ->whereNull('voucher_id'));
-    });
+                return $q->where(function ($qq) {
+                    $qq->where('status', 'Unpaid')
+                        ->orWhereHas('supplierPayments', fn($sq) => $sq
+                            ->whereIn('method', ['program', 'Program'])
+                            ->whereNull('voucher_id'));
+                });
+            };
 
-    $suppliersQuery = $branches->applyRelatedScope(Supplier::whereHas('paymentPrograms', $openProgramQuery), 'suppliers', 'payment_programs')
-        ->with([
-            'paymentPrograms' => fn($q) => $openProgramQuery($q)
-                ->select(
-                    'id',
-                    'sub_category_id',
-                    'sub_category_type',
-                    'amount',
-                    'status',
-                    'branch_id'
-                )
+            $suppliersQuery = $branches->applyRelatedScope(Supplier::whereHas('paymentPrograms', $openProgramQuery), 'suppliers', 'payment_programs')
+                ->with([
+                    'paymentPrograms' => fn($q) => $openProgramQuery($q)
+                        ->select(
+                            'id',
+                            'sub_category_id',
+                            'sub_category_type',
+                            'amount',
+                            'status',
+                            'branch_id'
+                        )
 
-                // customer paid amount
-                ->withSum('customerPayments as paid_amount', 'amount')
+                        // customer paid amount
+                        ->withSum('customerPayments as paid_amount', 'amount')
 
-                // ONLY pending supplier payments
-                ->withSum([
-                    'supplierPayments as voucher_pending_payment' => fn($sq) => $sq
-                        ->whereIn('method', ['program', 'Program'])
-                        ->whereNull('voucher_id'),
-                ], 'amount'),
-        ])
-        ->applyFilters($request, false, true);
+                        // ONLY pending supplier payments
+                        ->withSum([
+                            'supplierPayments as voucher_pending_payment' => fn($sq) => $sq
+                                ->whereIn('method', ['program', 'Program'])
+                                ->whereNull('voucher_id'),
+                        ], 'amount'),
+                ])
+                ->applyFilters($request, false, true);
 
-    $suppliers = $suppliersQuery->get()->map(function ($supplier) {
+            $suppliers = $suppliersQuery->get()->map(function ($supplier) {
+                $supplier->paymentPrograms->transform(function ($program) {
+                    $program->setAppends([]);
 
-        $supplier->paymentPrograms->transform(function ($program) {
+                    $originalAmount = (float) $program->getRawOriginal('amount');
+                    $paidAmount = (float) ($program->paid_amount ?? 0);
+                    $pendingPayment = (float) ($program->voucher_pending_payment ?? 0);
+                    $balance = max(0, $originalAmount - $paidAmount);
 
-            $program->setAppends([]);
+                    $program->setAttribute('program_amount', $originalAmount);
+                    $program->setAttribute('payment', $pendingPayment);
+                    $program->setAttribute('balance', $balance);
 
-            $originalAmount = (float) $program->getRawOriginal('amount');
+                    return $program;
+                });
 
-            $paidAmount = (float) ($program->paid_amount ?? 0);
+                return [
+                    'id' => $supplier->id,
+                    'name' => $supplier->supplier_name,
+                    'data' => [
+                        'payment_programs' => $supplier->paymentPrograms->map(fn($program) => [
+                            'id' => $program->id,
+                            'amount' => (float) $program->program_amount,
+                            'payment' => (float) $program->payment,
+                            'balance' => (float) $program->balance,
+                            'status' => $program->status,
+                        ])->values(),
+                    ],
+                ];
+            });
 
-            // ONLY voucher_id null payments
-            $pendingPayment = (float) ($program->voucher_pending_payment ?? 0);
-
-            // unpaid balance after customer payments
-            $balance = max(0, $originalAmount - $paidAmount);
-
-            // custom attributes
-            $program->setAttribute('program_amount', $originalAmount);
-
-            $program->setAttribute('payment', $pendingPayment);
-
-            $program->setAttribute('balance', $balance);
-
-            return $program;
-        });
-
-        return [
-            'id' => $supplier->id,
-            'name' => $supplier->supplier_name,
-            'data' => [
-                'payment_programs' => $supplier->paymentPrograms->map(fn($program) => [
-                    'id' => $program->id,
-                    'amount' => (float) $program->program_amount,
-                    'payment' => (float) $program->payment,
-                    'balance' => (float) $program->balance,
-                    'status' => $program->status,
-                ])->values(),
-            ],
-        ];
-    });
-
-    return response()->json([
-        'data' => $suppliers,
-        'authLayout' => $authLayout
-    ]);
-}
+            return response()->json([
+                'data' => $suppliers,
+                'authLayout' => $authLayout
+            ]);
+        }
 
         return view('payment-programs.supplierSummary', compact('authLayout'));
+    }
+
+    private function branchScopedPaymentProgramQuery(
+        mixed $query,
+        ModuleBranchService $branches,
+    ): \Illuminate\Database\Eloquent\Builder {
+        if ($query instanceof \Illuminate\Database\Eloquent\Builder) {
+            return $branches->applyScope($query, 'payment_programs');
+        }
+
+        if (method_exists($query, 'getQuery')) {
+            $builder = $query->getQuery();
+            if ($builder instanceof \Illuminate\Database\Eloquent\Builder) {
+                return $branches->applyScope($builder, 'payment_programs');
+            }
+        }
+
+        throw new \InvalidArgumentException('Payment program query could not be branch scoped.');
     }
 
     private function resolveSubCategoryModel(string $category, ?int $subCategoryId): Supplier|BankAccount|Customer|null
