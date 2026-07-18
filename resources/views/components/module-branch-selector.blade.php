@@ -2,7 +2,9 @@
 
 @php
     $branchService = app(\App\Services\Branches\ModuleBranchService::class);
-    $isMulti = in_array($mode, ['auto', 'multiple'], true) && $branchService->supportsMultiBranchSelector($moduleKey);
+    $isMulti = $mode === 'multiple'
+        ? $branchService->supportsMultiBranchSelector($moduleKey)
+        : ($mode === 'auto' && $branchService->shouldUseMultiBranchSelector($moduleKey));
     $canRender = $branchService->canShowSelector($moduleKey);
     $branches = $canRender ? $branchService->availableBranchesForModule($moduleKey) : collect();
     $selected = $canRender ? $branchService->selectedBranchForModule($moduleKey) : null;

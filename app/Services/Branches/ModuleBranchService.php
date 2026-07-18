@@ -1406,6 +1406,34 @@ class ModuleBranchService
             && (bool) ($this->runtimeModuleConfig($moduleKey)['supports_multi_branch_selector'] ?? false);
     }
 
+    public function shouldUseMultiBranchSelector(string $moduleKey): bool
+    {
+        if (!$this->supportsMultiBranchSelector($moduleKey)) {
+            return false;
+        }
+
+        $route = request()->route();
+        $routeName = (string) ($route?->getName() ?? '');
+        $action = strtolower((string) ($route?->getActionMethod() ?? ''));
+        $method = strtoupper((string) request()->method());
+
+        if ($method !== 'GET') {
+            return false;
+        }
+
+        foreach (['create', 'store', 'edit', 'update', 'destroy'] as $writeAction) {
+            if ($action === $writeAction || Str::endsWith($routeName, '.' . $writeAction)) {
+                return false;
+            }
+        }
+
+        if (request()->is('*/create') || request()->is('*/*/edit')) {
+            return false;
+        }
+
+        return true;
+    }
+
     public function selectedBranchIdsForModule(string $moduleKey, ?User $user = null): array
     {
         $moduleKey = $this->canonicalModuleKey($moduleKey);
@@ -1597,8 +1625,30 @@ class ModuleBranchService
             return $query;
         }
 
-        $branch = $this->selectedBranch($moduleKey);
         $qualifiedColumn = $model->getTable() . '.' . $branchColumn;
+        $selectedIds = $this->shouldUseMultiBranchSelector($moduleKey)
+            ? collect($this->selectedBranchIdsForModule($moduleKey))
+                ->filter(fn ($id) => is_numeric($id))
+                ->map(fn ($id) => (int) $id)
+                ->values()
+            : collect();
+
+        if ($selectedIds->isNotEmpty()) {
+            $includeNullBranchRecords = Branch::query()
+                ->whereIn('id', $selectedIds->all())
+                ->where('is_main', true)
+                ->exists();
+
+            return $query->where(function (Builder $scoped) use ($qualifiedColumn, $selectedIds, $includeNullBranchRecords) {
+                $scoped->whereIn($qualifiedColumn, $selectedIds->all());
+
+                if ($includeNullBranchRecords) {
+                    $scoped->orWhereNull($qualifiedColumn);
+                }
+            });
+        }
+
+        $branch = $this->selectedBranch($moduleKey);
 
         if (!$branch) {
             return $query->whereRaw('1 = 0');

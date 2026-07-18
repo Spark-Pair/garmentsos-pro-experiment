@@ -46,6 +46,7 @@ $filterReady = array_merge($configurable, [
 $document = array_merge($filterReady, [
     'supports_branch_branding' => true,
     'can_use_branch_branding' => true,
+    'supports_multi_branch_selector' => true,
     'supports_serial_prefix' => true,
     'supports_branch_serial_prefix' => true,
     'supports_doc_identity_prefix' => true,
@@ -154,7 +155,7 @@ return [
 
         'cargos' => array_merge($document, ['label' => 'Cargo', 'group' => 'Cargo / Documents', 'page_reference' => 'cargos', 'doc_identity_prefix' => 'C']),
         'bilties' => array_merge($filterReady, ['label' => 'Bilties', 'group' => 'Cargo / Documents', 'page_reference' => 'bilties', 'supports_serial_prefix' => true, 'supports_branch_serial_prefix' => true, 'supports_doc_identity_prefix' => true, 'doc_identity_prefix' => 'B']),
-        'shipments' => array_merge($document, ['label' => 'Shipments', 'group' => 'Cargo / Documents', 'page_reference' => 'shipments', 'doc_identity_prefix' => 'S']),
+        'shipments' => array_merge($document, ['label' => 'Shipments', 'group' => 'Sales', 'page_reference' => 'shipments', 'doc_identity_prefix' => 'S']),
         'cr' => array_merge($filterReady, ['label' => 'CR', 'group' => 'Cargo / Documents', 'page_reference' => 'cr', 'supports_serial_prefix' => true, 'supports_branch_serial_prefix' => true, 'supports_doc_identity_prefix' => true, 'doc_identity_prefix' => 'CR']),
         'dr' => array_merge($filterReady, ['label' => 'DR', 'group' => 'Cargo / Documents', 'page_reference' => 'dr', 'supports_serial_prefix' => true, 'supports_branch_serial_prefix' => true, 'supports_doc_identity_prefix' => true, 'doc_identity_prefix' => 'DR']),
 
