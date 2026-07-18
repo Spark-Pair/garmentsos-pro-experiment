@@ -17,7 +17,7 @@
             <div class="details h-full z-40">
                 <div class="container-parent h-full">
                     <div class="card_container px-4 h-full flex flex-col">
-                        <div class="overflow-y-auto grow my-scrollbar-2 pb-24 pr-1 text-left">
+                        <div class="overflow-y-auto grow my-scrollbar-2  pr-1 text-left">
                             @include('developer.branches._form', ['branch' => $branch])
                         </div>
                     </div>
