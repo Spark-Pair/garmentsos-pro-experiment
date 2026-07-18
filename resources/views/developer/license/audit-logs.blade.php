@@ -4,23 +4,16 @@
 
 @section('content')
     @php
-        $panel = 'bg-[var(--secondary-bg-color)] border border-[var(--glass-border-color)]/20 rounded-xl shadow-sm';
-        $badge = 'inline-flex items-center rounded-lg border border-[var(--glass-border-color)]/20 bg-[var(--glass-border-color)]/5 px-2.5 py-1 text-xs font-semibold text-[var(--secondary-text)]';
+        $panel = 'rounded-2xl border border-[var(--h-bg-color)] bg-[var(--secondary-bg-color)] shadow-sm';
+        $badge = 'inline-flex items-center rounded-xl border border-[var(--h-bg-color)] bg-[var(--h-bg-color)]/55 px-3 py-1.5 text-xs font-semibold text-[var(--secondary-text)]';
         $foundationReady = $foundationReady ?? true;
     @endphp
 
     <div class="w-full max-w-6xl mx-auto p-4 md:p-6 space-y-6 text-[var(--text-color)]">
         <header class="{{ $panel }} p-5">
-            <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                <div>
-                    <p class="text-xs font-semibold uppercase tracking-wider text-[var(--secondary-text)]">System audit</p>
-                    <h1 class="mt-1 text-2xl font-semibold">Audit Logs</h1>
-                    <p class="mt-2 max-w-3xl text-sm text-[var(--secondary-text)]">
-                        Sanitized developer/admin audit events. Sensitive payloads, secrets, and raw license keys are not displayed here.
-                    </p>
-                </div>
+            <x-developer-panel-title title="Audit Logs" description="Sanitized developer/admin audit events. Sensitive payloads, secrets, and raw license keys are not displayed here." class="mb-0 border-b-0 pb-0">
                 <span class="{{ $badge }}">{{ $logs->count() }} events</span>
-            </div>
+            </x-developer-panel-title>
         </header>
 
         @if (!$foundationReady)

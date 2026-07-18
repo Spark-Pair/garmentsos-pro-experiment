@@ -416,21 +416,57 @@
             pointer-events: all !important;
         }
 
+        .app-toggle,
         .switchBtn {
-            display: flex;
-            justify-content: left;
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            flex-shrink: 0;
+            width: 2.25rem;
+            height: 1.25rem;
+            padding: 0.125rem;
+            border: 1px solid color-mix(in srgb, var(--secondary-text) 22%, transparent);
+            border-radius: 9999px;
+            background: color-mix(in srgb, var(--secondary-text) 12%, var(--h-bg-color));
+            cursor: pointer;
+            transition: background-color 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
         }
 
+        .app-toggle-track {
+            position: absolute;
+            inset: 0;
+            border-radius: 9999px;
+            background: color-mix(in srgb, var(--secondary-text) 12%, var(--h-bg-color));
+            transition: background-color 180ms ease;
+        }
+
+        .app-toggle-thumb,
         .switchBtn .circle {
-            background-color: var(--bg-color);
+            position: relative;
+            z-index: 1;
+            width: 0.875rem;
+            height: 0.875rem;
+            border-radius: 9999px;
+            background: color-mix(in srgb, white 78%, var(--secondary-text));
+            box-shadow: 0 1px 3px rgb(15 23 42 / 0.22);
+            transition: transform 180ms ease, background-color 180ms ease;
         }
 
+        .app-toggle-input:checked ~ .app-toggle-track,
         .switchBtn.active {
-            justify-content: right;
+            border-color: color-mix(in srgb, var(--primary-color) 60%, transparent);
+            background: var(--primary-color);
         }
 
+        .app-toggle-input:focus-visible ~ .app-toggle-track,
+        .switchBtn:focus-visible {
+            box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-color) 25%, transparent);
+        }
+
+        .app-toggle-input:checked ~ .app-toggle-thumb,
         .switchBtn.active .circle {
-            background-color: var(--secondary-text);
+            transform: translateX(1rem);
+            background: white;
         }
 
         .selectParent:has(input:focus) .selectDropdownIcon {

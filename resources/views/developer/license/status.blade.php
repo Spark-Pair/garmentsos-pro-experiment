@@ -4,13 +4,13 @@
 
 @section('content')
     @php
-        $panel = 'bg-[var(--secondary-bg-color)] text-sm rounded-xl shadow-lg p-7 border border-[var(--h-bg-color)] pt-12 relative overflow-hidden';
-        $softPanel = 'rounded-lg border border-[var(--h-bg-color)] bg-[var(--h-bg-color)]/50 p-4';
+        $panel = 'rounded-2xl border border-[var(--h-bg-color)] bg-[var(--secondary-bg-color)] p-5 text-sm shadow-sm';
+        $softPanel = 'rounded-2xl border border-[var(--h-bg-color)] bg-[var(--h-bg-color)]/25 p-4';
         $input = 'w-full rounded-lg border border-[var(--h-bg-color)] bg-[var(--h-bg-color)] px-3 py-2 text-sm text-[var(--text-color)] outline-none focus:border-[var(--primary-color)]';
         $textarea = $input . ' min-h-[86px]';
         $primaryButton = 'px-4 py-2 bg-[var(--primary-color)] text-[var(--text-color)] font-medium text-nowrap rounded-lg hover:bg-[var(--h-primary-color)] hover:scale-95 transition-all duration-300 ease-in-out cursor-pointer';
         $secondaryButton = 'px-4 py-2 bg-[var(--h-bg-color)] border border-gray-600 text-[var(--secondary-text)] font-medium text-nowrap rounded-lg hover:bg-[var(--secondary-bg-color)] hover:scale-95 transition-all duration-300 ease-in-out cursor-pointer';
-        $badge = 'inline-flex items-center rounded-lg border px-2.5 py-1 text-xs font-semibold';
+        $badge = 'inline-flex items-center rounded-xl border px-3 py-1.5 text-xs font-semibold';
         $foundationReady = $foundationReady ?? true;
         $missingTables = $missingTables ?? [];
         $requestCache = $requestCache ?? null;
@@ -56,12 +56,16 @@
                         <div class="overflow-y-auto grow my-scrollbar-2 space-y-4  pr-1 text-left">
 
         <section class="{{ $panel }}">
-            <x-form-title-bar title="License Activation" />
+            <x-developer-panel-title title="License Activation" description="GarmentsOS PRO is activated by SparkPair using this installation ID and device fingerprint.">
+                <span class="{{ $badge }} {{ $isActive ? 'border-[var(--border-success)] bg-[var(--bg-success)] text-[var(--text-success)]' : 'border-[var(--border-warning)] bg-[var(--bg-warning)] text-[var(--text-warning)]' }}">
+                    {{ $isActive ? 'License active' : 'Activation required' }}
+                </span>
+            </x-developer-panel-title>
 
             <div class="mb-4 flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                 <div>
                     <p class="max-w-3xl text-sm text-[var(--secondary-text)]">
-                        GarmentsOS PRO is activated by SparkPair using this installation ID and device fingerprint. No license key is entered in the app.
+                        No license key is entered in the app.
                     </p>
                     @if ($isDevelopmentBypass)
                         <p class="mt-2 text-sm font-semibold text-[var(--text-warning)]">
@@ -69,9 +73,6 @@
                         </p>
                     @endif
                 </div>
-                <span class="{{ $badge }} {{ $isActive ? 'border-[var(--border-success)] bg-[var(--bg-success)] text-[var(--text-success)]' : 'border-[var(--border-warning)] bg-[var(--bg-warning)] text-[var(--text-warning)]' }}">
-                    {{ $isActive ? 'License active' : 'Activation required' }}
-                </span>
             </div>
 
             @if (!$foundationReady)
@@ -227,7 +228,7 @@
 
         @if (!$canManageLicense && !$isActive)
             <section class="{{ $panel }}">
-                <x-form-title-bar title="Activation Required" />
+                <x-developer-panel-title title="Activation Required" description="This device needs SparkPair approval before normal app access can continue." />
                 <p class="text-sm text-[var(--secondary-text)]">
                     This device needs SparkPair approval before normal app access can continue. Please contact your administrator or developer to register/check this device.
                 </p>
@@ -236,7 +237,7 @@
 
         @if ($canManageLicense && !$isActive)
             <section class="{{ $panel }}">
-                <x-form-title-bar title="Request Demo / Trial" />
+                <x-developer-panel-title title="Request Demo / Trial" description="Send business and device details to SparkPair for approval." />
                 <form method="POST" action="{{ route('developer.license.request-demo') }}" class="grid grid-cols-1 gap-4 md:grid-cols-2">
                     @csrf
                     <div>
@@ -279,7 +280,7 @@
 
         @if ($canManageLicense)
             <section class="{{ $panel }}">
-                <x-form-title-bar title="Device Actions" />
+                <x-developer-panel-title title="Device Actions" description="Register, check, or refresh this installation approval." />
                 <div class="flex flex-wrap gap-3">
                     <form method="POST" action="{{ route('developer.license.register') }}">
                         @csrf
@@ -303,16 +304,16 @@
 
         @if ($canManageLicense)
             <section class="{{ $panel }}">
-                <x-form-title-bar title="Developer Maintenance" />
+                <x-developer-panel-title title="Developer Maintenance" description="Recovery actions for migrated or restored local installs." />
                 <div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                     <p class="max-w-3xl text-sm text-[var(--secondary-text)]">
                         Run database migrations only after a verified update or restore. This does not edit license/device identity files.
                     </p>
                     <form method="POST" action="{{ route('developer.license.run-migrations') }}" class="space-y-3">
                         @csrf
-                        <label class="flex items-start gap-2 text-sm text-[var(--secondary-text)]">
-                            <input type="checkbox" name="confirm_migrations" value="1" class="mt-1">
+                        <label class="flex items-center justify-between gap-3 rounded-xl border border-[var(--h-bg-color)] bg-[var(--h-bg-color)]/35 px-3 py-2 text-sm text-[var(--secondary-text)]">
                             <span>I understand this will run pending database migrations on this installation.</span>
+                            <x-toggle-switch name="confirm_migrations" />
                         </label>
                         <button type="submit" class="{{ $secondaryButton }}">
                             Run Database Migrations
@@ -324,7 +325,9 @@
 
         @if ($canManageLicense)
             <details class="{{ $panel }}">
-                <summary class="cursor-pointer font-semibold">License diagnostics</summary>
+                <summary class="cursor-pointer list-none">
+                    <x-developer-panel-title title="License Diagnostics" description="Safe local diagnostics for developer/admin troubleshooting." />
+                </summary>
                 <div class="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
                     @foreach (($diagnostics ?? []) as $key => $value)
                         <div class="{{ $softPanel }}">

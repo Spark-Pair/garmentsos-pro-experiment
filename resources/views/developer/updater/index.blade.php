@@ -4,9 +4,9 @@
 
 @section('content')
     @php
-        $panel = 'bg-[var(--secondary-bg-color)] text-sm rounded-xl shadow-lg p-7 border border-[var(--h-bg-color)] pt-12 relative overflow-hidden';
-        $softPanel = 'rounded-lg border border-[var(--h-bg-color)] bg-[var(--h-bg-color)]/50 p-4';
-        $badge = 'inline-flex items-center rounded-lg border px-2.5 py-1 text-xs font-semibold';
+        $panel = 'rounded-2xl border border-[var(--h-bg-color)] bg-[var(--secondary-bg-color)] p-5 text-sm shadow-sm';
+        $softPanel = 'rounded-2xl border border-[var(--h-bg-color)] bg-[var(--h-bg-color)]/25 p-4';
+        $badge = 'inline-flex items-center rounded-xl border px-3 py-1.5 text-xs font-semibold';
         $primaryButton = 'px-4 py-2 bg-[var(--primary-color)] text-[var(--text-color)] font-medium text-nowrap rounded-lg hover:bg-[var(--h-primary-color)] hover:scale-95 transition-all duration-300 ease-in-out cursor-pointer';
         $secondaryButton = 'px-4 py-2 bg-[var(--h-bg-color)] border border-gray-600 text-[var(--secondary-text)] font-medium text-nowrap rounded-lg hover:bg-[var(--secondary-bg-color)] hover:scale-95 transition-all duration-300 ease-in-out cursor-pointer';
         $disabledButton = 'px-4 py-2 bg-[var(--h-bg-color)] border border-gray-600 text-[var(--secondary-text)] font-medium text-nowrap rounded-lg opacity-60 cursor-not-allowed';
@@ -58,7 +58,9 @@
                         <div class="overflow-y-auto grow my-scrollbar-2 space-y-4  pr-1 text-left">
 
         <section class="{{ $panel }}">
-            <x-form-title-bar title="Release Feed Update" />
+            <x-developer-panel-title title="Release Feed Update" description="Checks the public latest.json feed and hands update work to the Windows launcher.">
+                <span class="{{ $badge }} {{ $statusClass }}">{{ $statusLabel }}</span>
+            </x-developer-panel-title>
 
             @if (!empty($updateLockStatus['updating']))
                 <div class="mb-4 rounded-lg border border-[var(--border-warning)] bg-[var(--bg-warning)] p-4 text-sm text-[var(--text-warning)]">
@@ -82,7 +84,6 @@
                 <p class="max-w-3xl text-sm text-[var(--secondary-text)]">
                     Checks the configured public `latest.json` feed. Laravel only prepares the handoff; the Windows launcher applies updates outside the running app.
                 </p>
-                <span class="{{ $badge }} {{ $statusClass }}">{{ $statusLabel }}</span>
             </div>
 
             <div class="mb-4 rounded-lg border {{ $upToDate ? 'border-[var(--border-success)] bg-[var(--bg-success)] text-[var(--text-success)]' : ($updateAvailable ? 'border-[var(--border-warning)] bg-[var(--bg-warning)] text-[var(--text-warning)]' : 'border-gray-600 bg-[var(--h-bg-color)] text-[var(--secondary-text)]') }} p-4">
@@ -271,15 +272,11 @@
 
         <details class="{{ $panel }}">
             <summary class="cursor-pointer list-none">
-                <x-form-title-bar title="Advanced Update Security" />
-                <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                    <p class="max-w-3xl text-sm text-[var(--secondary-text)]">
-                        Advanced signed-manifest apply is separate from the release feed and Windows launcher flow.
-                    </p>
+                <x-developer-panel-title title="Advanced Update Security" description="Advanced signed-manifest apply is separate from the release feed and Windows launcher flow.">
                     <span class="{{ $badge }} border-gray-600 bg-[var(--h-bg-color)] text-[var(--secondary-text)]">
                         {{ $manifestReady ? 'Signed manifest configured' : 'Signed manifest not configured' }}
                     </span>
-                </div>
+                </x-developer-panel-title>
             </summary>
 
             <div class="mt-6 grid grid-cols-1 gap-3 md:grid-cols-2">

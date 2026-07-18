@@ -4,8 +4,8 @@
 
 @section('content')
     @php
-        $panel = 'bg-[var(--secondary-bg-color)] border border-[var(--glass-border-color)]/20 rounded-xl shadow-sm';
-        $badge = 'inline-flex items-center rounded-lg border px-2.5 py-1 text-xs font-semibold';
+        $panel = 'rounded-2xl border border-[var(--h-bg-color)] bg-[var(--secondary-bg-color)] shadow-sm';
+        $badge = 'inline-flex items-center rounded-xl border px-3 py-1.5 text-xs font-semibold';
         $primaryButton = 'inline-flex items-center justify-center rounded-lg bg-[var(--primary-color)] px-4 py-2 text-sm font-semibold text-white transition-all duration-300 ease-in-out hover:bg-[var(--h-primary-color)] hover:scale-[0.98]';
         $secondaryButton = 'inline-flex items-center justify-center rounded-lg border border-[var(--glass-border-color)]/20 bg-[var(--h-bg-color)] px-4 py-2 text-sm text-[var(--text-color)] transition-all duration-300 ease-in-out hover:bg-[var(--secondary-bg-color)] hover:scale-[0.98]';
         $dangerButton = 'inline-flex items-center justify-center rounded-lg bg-[var(--danger-color)] px-4 py-2 text-sm font-semibold text-white transition-all duration-300 ease-in-out hover:bg-[var(--h-danger-color)] hover:scale-[0.98]';
@@ -14,18 +14,11 @@
 
     <div class="w-full max-w-5xl mx-auto p-4 md:p-6 space-y-6 text-[var(--text-color)]">
         <header class="{{ $panel }} p-5">
-            <div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-                <div>
-                    <p class="text-xs font-semibold uppercase tracking-wider text-[var(--secondary-text)]">Guarded workflow</p>
-                    <h1 class="mt-1 text-2xl font-semibold">Restore Backup</h1>
-                    <p class="mt-2 max-w-3xl text-sm text-[var(--secondary-text)]">
-                        Restore is intentionally disabled unless explicitly enabled for a staged, verified recovery procedure.
-                    </p>
-                </div>
+            <x-developer-panel-title title="Restore Backup" description="Restore is intentionally disabled unless explicitly enabled for a staged, verified recovery procedure." class="mb-0 border-b-0 pb-0">
                 <span class="{{ $badge }} {{ $restoreEnabled ? 'border-[var(--border-warning)] bg-[var(--bg-warning)] text-[var(--text-warning)]' : 'border-[var(--glass-border-color)]/20 bg-[var(--glass-border-color)]/5 text-[var(--secondary-text)]' }}">
                     {{ $restoreEnabled ? 'Restore enabled' : 'Restore disabled' }}
                 </span>
-            </div>
+            </x-developer-panel-title>
         </header>
 
         @if (session('success'))
@@ -41,7 +34,7 @@
         @endif
 
         <section class="rounded-xl border border-[var(--border-warning)] bg-[var(--bg-warning)] p-5 text-[var(--text-warning)]">
-            <h2 class="text-lg font-semibold">Restore safety notice</h2>
+            <h2 class="text-sm font-semibold uppercase tracking-wide">Restore safety notice</h2>
             <p class="mt-2 text-sm">
                 Restoring replaces the current SQLite database only after verification and an emergency backup. Test the backup on a staging/client-copy database before enabling restore.
             </p>
@@ -49,7 +42,7 @@
 
         <div class="grid gap-4 lg:grid-cols-2">
             <section class="{{ $panel }} p-5 space-y-4">
-                <h2 class="text-lg font-semibold">Selected Backup</h2>
+                <h2 class="text-sm font-semibold uppercase tracking-wide">Selected Backup</h2>
                 <dl class="grid grid-cols-1 gap-3 text-sm md:grid-cols-2">
                     <div>
                         <dt class="text-[var(--secondary-text)]">Backup ID</dt>
@@ -77,7 +70,7 @@
             <section class="{{ $panel }} p-5 space-y-4">
                 <div class="flex items-start justify-between gap-3">
                     <div>
-                        <h2 class="text-lg font-semibold">Verification</h2>
+                        <h2 class="text-sm font-semibold uppercase tracking-wide">Verification</h2>
                         <p class="mt-1 text-sm text-[var(--secondary-text)]">The selected backup must verify before restore can proceed.</p>
                     </div>
                     <span class="{{ $badge }} {{ $inspection['valid'] ? 'border-[var(--border-success)] bg-[var(--bg-success)] text-[var(--text-success)]' : 'border-[var(--border-error)] bg-[var(--bg-error)] text-[var(--text-error)]' }}">
@@ -90,7 +83,7 @@
         </div>
 
         <section class="{{ $panel }} p-5">
-            <h2 class="text-lg font-semibold">Restore Requirements</h2>
+            <h2 class="text-sm font-semibold uppercase tracking-wide">Restore Requirements</h2>
             <div class="mt-4 grid gap-3 text-sm md:grid-cols-2">
                 <div class="rounded-lg border border-[var(--glass-border-color)]/10 bg-[var(--glass-border-color)]/5 p-3">Typed confirmation: required</div>
                 <div class="rounded-lg border border-[var(--glass-border-color)]/10 bg-[var(--glass-border-color)]/5 p-3">Staging/copy test: {{ $requirements['staging_tested_required'] ? 'required' : 'not required' }}</div>
@@ -111,9 +104,9 @@
                     autocomplete="off" @disabled(!$restoreEnabled)>
             </div>
 
-            <label class="flex items-start gap-3 text-sm {{ $restoreEnabled ? '' : 'opacity-60' }}">
-                <input type="checkbox" name="staging_tested" value="1" class="mt-1" @disabled(!$restoreEnabled)>
+            <label class="flex items-center justify-between gap-3 rounded-xl border border-[var(--h-bg-color)] bg-[var(--h-bg-color)]/35 px-3 py-2 text-sm {{ $restoreEnabled ? '' : 'opacity-60' }}">
                 <span>I tested this restore on a staging/copy database and confirmed the backup is correct.</span>
+                <x-toggle-switch name="staging_tested" :disabled="!$restoreEnabled" />
             </label>
 
             @if (!$restoreEnabled)

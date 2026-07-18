@@ -3,10 +3,6 @@
 @section('title', 'Edit Branch | ' . $client_company->name)
 
 @section('content')
-    @php
-        $panel = 'bg-[var(--secondary-bg-color)] text-sm rounded-xl shadow-lg p-7 border border-[var(--h-bg-color)] pt-12 relative overflow-hidden';
-    @endphp
-
     <div class="max-w-6xl mx-auto w-full">
         <x-search-header heading="Edit Branch" link linkText="View Branch" linkHref="{{ route('developer.branches.show', $branch) }}" />
     </div>

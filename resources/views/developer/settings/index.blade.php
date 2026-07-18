@@ -4,9 +4,9 @@
 
 @section('content')
     @php
-        $panel = 'bg-[var(--secondary-bg-color)] text-sm rounded-xl shadow-lg p-7 border border-[var(--h-bg-color)] pt-12 relative overflow-hidden';
-        $softPanel = 'rounded-lg border border-[var(--h-bg-color)] bg-[var(--h-bg-color)]/50 p-4';
-        $badge = 'inline-flex items-center rounded-lg border px-2.5 py-1 text-xs font-semibold';
+        $panel = 'rounded-2xl border border-[var(--h-bg-color)] bg-[var(--secondary-bg-color)] p-5 text-sm shadow-sm';
+        $softPanel = 'rounded-2xl border border-[var(--h-bg-color)] bg-[var(--h-bg-color)]/25 p-4';
+        $badge = 'inline-flex items-center rounded-xl border px-3 py-1.5 text-xs font-semibold';
         $primaryButton = 'px-4 py-2 bg-[var(--primary-color)] text-[var(--text-color)] font-medium text-nowrap rounded-lg hover:bg-[var(--h-primary-color)] hover:scale-95 transition-all duration-300 ease-in-out cursor-pointer';
         $secondaryButton = 'px-4 py-2 bg-[var(--h-bg-color)] border border-gray-600 text-[var(--secondary-text)] font-medium text-nowrap rounded-lg hover:bg-[var(--secondary-bg-color)] hover:scale-95 transition-all duration-300 ease-in-out cursor-pointer';
         $inputClass = 'w-full rounded-lg bg-[var(--h-bg-color)] border border-gray-600 text-[var(--text-color)] px-3 py-2 transition-all duration-300 ease-in-out focus:ring-1 focus:ring-primary focus:border-transparent';
@@ -25,12 +25,9 @@
                     <div class="card_container px-4 h-full flex flex-col">
                         <div class="overflow-y-auto grow my-scrollbar-2 space-y-4  pr-1 text-left">
         <section id="branding" class="{{ $panel }}">
-            <x-form-title-bar title="Branding" />
-
-            <div class="mb-4 flex items-center justify-between gap-3">
-                <p class="text-sm text-[var(--secondary-text)]">Text/color values use current config defaults when no override exists.</p>
+            <x-developer-panel-title title="Branding" description="Text and color values use current config defaults when no override exists.">
                 <span class="{{ $badge }} border-[var(--border-success)] bg-[var(--bg-success)] text-[var(--text-success)]">Safe text/color only</span>
-            </div>
+            </x-developer-panel-title>
 
             <div class="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_18rem]">
                 <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -102,11 +99,7 @@
         </section>
 
         <section id="modules" class="{{ $panel }}">
-            <x-form-title-bar title="Modules" />
-
-            <p class="mb-4 text-sm text-[var(--secondary-text)]">
-                Developer can control module visibility and local enablement from here.
-            </p>
+            <x-developer-panel-title title="Modules" description="Developer can control module visibility and local enablement from here." />
 
             <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
                 @foreach ($modules as $module)
@@ -152,13 +145,13 @@
                             <input type="hidden" name="module_key" value="{{ $module['key'] }}">
                             <input type="hidden" name="enabled" value="0">
                             <input type="hidden" name="visible_in_sidebar" value="0">
-                            <label class="flex items-center gap-2 text-sm">
-                                <input type="checkbox" name="enabled" value="1" @checked($module['enabled']) class="h-4 w-4 rounded border-gray-600 bg-[var(--bg-color)]">
-                                Enabled
+                            <label class="flex items-center justify-between gap-3 rounded-xl border border-[var(--h-bg-color)] bg-[var(--h-bg-color)]/35 px-3 py-2 text-sm">
+                                <span>Enabled</span>
+                                <x-toggle-switch name="enabled" :checked="$module['enabled']" />
                             </label>
-                            <label class="flex items-center gap-2 text-sm">
-                                <input type="checkbox" name="visible_in_sidebar" value="1" @checked($module['visible_in_sidebar']) class="h-4 w-4 rounded border-gray-600 bg-[var(--bg-color)]">
-                                Show in sidebar
+                            <label class="flex items-center justify-between gap-3 rounded-xl border border-[var(--h-bg-color)] bg-[var(--h-bg-color)]/35 px-3 py-2 text-sm">
+                                <span>Show in sidebar</span>
+                                <x-toggle-switch name="visible_in_sidebar" :checked="$module['visible_in_sidebar']" />
                             </label>
                             <button type="submit" class="{{ $primaryButton }}">Save {{ $module['label'] }}</button>
                         </form>
@@ -168,7 +161,7 @@
         </section>
 
         <section id="labels" class="{{ $panel }}">
-            <x-form-title-bar title="Labels" />
+            <x-developer-panel-title title="Labels" description="Adjust app wording without changing code." />
 
             <div class="overflow-x-auto">
                 <table class="w-full min-w-[48rem] text-sm">
@@ -208,11 +201,7 @@
         </section>
 
         <section id="features" class="{{ $panel }}">
-            <x-form-title-bar title="Feature Flags" />
-
-            <p class="mb-4 text-sm text-[var(--secondary-text)]">
-                Feature flags are foundation-only unless a route/action explicitly uses them.
-            </p>
+            <x-developer-panel-title title="Feature Flags" description="Feature flags are foundation-only unless a route/action explicitly uses them." />
 
             <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
                 @foreach ($features as $feature)

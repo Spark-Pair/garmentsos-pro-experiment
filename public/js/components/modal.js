@@ -98,6 +98,7 @@ function createModal(data, animate = 'animate') {
     const isA5Preview = data.preview && (
         data.preview.size == "A5" || ['invoice', 'order', 'shipment'].includes(data.preview.type)
     );
+    const isMenuModal = data.menuModal || data.id === 'menuModal';
 
     const contextMenu = document.getElementById('context-menu');
     if (contextMenu) {
@@ -115,7 +116,7 @@ function createModal(data, animate = 'animate') {
     let clutter = `
         <form id="${data.id}" method="${data.method ?? 'POST'}" action="${data.action}" enctype="multipart/form-data" class="w-full h-full flex flex-col space-y-4 relative items-center justify-center ${animate == 'animate' ? 'scale-in' : ''} ${data.class}">
             <input type="hidden" name="_token" value="${document.querySelector('meta[name=\'csrf-token\']')?.content}">
-            <div class="${data.class} ${data.preview ? `bg-white text-black ${isA5Preview ? "w-[calc(148mm+3rem)] max-w-[calc(100vw-2rem)]" : "max-w-4xl"} h-[35rem] py-0` : 'bg-[var(--secondary-bg-color)]'} ${data.cards ? 'h-[40rem] max-w-6xl' : (explicitMaxWidth || isA5Preview ? '' : 'max-w-2xl')} rounded-2xl shadow-lg ${isA5Preview ? '' : 'w-full'} p-6 flex relative">
+            <div class="${data.class} ${data.preview ? `bg-white text-black ${isA5Preview ? "w-[calc(148mm+3rem)] max-w-[calc(100vw-2rem)]" : "max-w-4xl"} h-[35rem] py-0` : 'bg-[var(--secondary-bg-color)]'} ${data.cards ? (isMenuModal ? 'h-[42rem] max-w-6xl' : 'h-[40rem] max-w-6xl') : (explicitMaxWidth || isA5Preview ? '' : 'max-w-2xl')} rounded-2xl shadow-lg ${isA5Preview ? '' : 'w-full'} ${isMenuModal ? 'p-4 sm:p-5' : 'p-6'} flex relative">
                 <div id="modal-close" onclick="closeModal('${data.id}')"
                     class="absolute top-0 -right-4 translate-x-full bg-[var(--secondary-bg-color)] rounded-2xl shadow-lg w-auto p-3 text-sm transition-all duration-300 ease-in-out hover:scale-[0.95] cursor-pointer">
                     <button type="button"
@@ -127,7 +128,7 @@ function createModal(data, animate = 'animate') {
                     </button>
                 </div>
 
-                ${data.info ?
+                ${data.info && !isMenuModal ?
                     `<div class="${data.id}Info absolute z-10 ${data.calcBottom?.length > 0 ? 'bottom-14' : 'bottom-4'}  left-4 border border-[var(--glass-border-color)]/10 group bg-[var(--glass-border-color)]/5 backdrop-blur-md rounded-xl cursor-pointer flex items-center justify-end p-1 overflow-hidden h-auto pr-3 transition-all duration-300 ease-in-out shadow-md pointer-events-auto" >
                         <div class="flex items-center justify-center bg-[var(--bg-color)] border border-[var(--glass-border-color)]/20 rounded-lg p-2" >
                             <div class="transition-all duration-300 ease-in-out size-2.5 relative" >
@@ -405,7 +406,56 @@ function createModal(data, animate = 'animate') {
         `;
     }
 
-    if (data.cards) {
+    if (data.cards && isMenuModal) {
+        clutter += `
+            <div class="flex-1 flex flex-col ${data.image ? 'ml-8' : ''} h-full w-full overflow-hidden">
+                <div class="rounded-2xl border border-[var(--glass-border-color)]/25 bg-[var(--h-secondary-bg-color)]/80 shadow-sm overflow-hidden flex h-full flex-col">
+                    <div class="flex flex-col gap-4 border-b border-[var(--glass-border-color)]/20 px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
+                        <div class="flex items-center gap-3">
+                            <span class="h-10 w-1.5 shrink-0 rounded-full bg-[var(--primary-color)]/80"></span>
+                            <div>
+                                <h5 id="name" class="text-lg font-semibold uppercase tracking-wide text-[var(--text-color)]">${data.cards.name}</h5>
+                                <p class="text-xs text-[var(--secondary-text)]">Choose the modules shown as quick shortcuts in the left menu.</p>
+                            </div>
+                        </div>
+                        <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
+                            <div class="${data.id}Info rounded-xl border border-[var(--glass-border-color)]/20 bg-[var(--h-bg-color)] px-3 py-2 text-xs font-semibold text-[var(--secondary-text)] shadow-sm">
+                                ${data.info || ''}
+                            </div>
+                            ${data.basicSearch ? `<div class="form-group relative" id="basicSearch">
+                                <div class="relative flex gap-2 min-w-[17rem] pt-0.5">
+                                    <input
+                                        type="text"
+                                        placeholder="Search menu..."
+                                        autocomplete="off"
+                                        class="w-full rounded-xl bg-[var(--h-bg-color)] border border-[var(--glass-border-color)]/30 text-[var(--text-color)] px-3 py-2 focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-300 ease-in-out disabled:bg-transparent disabled:opacity-70"
+                                        oninput="${data.onBasicSearch}"
+                                    />
+
+                                    <button
+                                        type="button"
+                                        class="bg-[var(--primary-color)] px-4 rounded-xl hover:bg-[var(--h-primary-color)] transition-all duration-300 ease-in-out cursor-pointer text-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        <i class="text-xs fa-solid fa-magnifying-glass"></i>
+                                    </button>
+                                </div>
+
+                                <div
+                                    id="search_box-error"
+                                    class="text-[var(--border-error)] text-xs mt-1 hidden transition-all duration-300 ease-in-out"
+                                ></div>
+                            </div>` : ''}
+                        </div>
+                    </div>
+                    <div class="flex-1 overflow-y-auto my-scrollbar-2 p-4">
+                        <div class="${data.id}CardsContainer grid grid-cols-1 md:grid-cols-2 xl:grid-cols-${data.cards.count} w-full gap-3 text-sm">
+                            ${returnCardsInModal(data)}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    } else if (data.cards) {
         clutter += `
             <div class="flex-1 flex flex-col ${data.image ? 'ml-8' : ''} h-auto w-full overflow-y-auto my-scrollbar-2">
                 <div class="flex justify-between">
@@ -1010,7 +1060,10 @@ function createModal(data, animate = 'animate') {
                 </div>
             </div>
         </div>
+    `;
 
+    if (!isMenuModal) {
+        clutter += `
         <div id="modal-action"
             class="bg-[var(--secondary-bg-color)] rounded-2xl shadow-lg max-w-3xl w-auto p-3 relative text-sm">
             <div class="flex gap-3">
@@ -1068,6 +1121,10 @@ function createModal(data, animate = 'animate') {
     clutter += `
                 </div>
             </div>
+        `;
+    }
+
+    clutter += `
         </form>
     `;
     modalWrapper.innerHTML = clutter;
@@ -1203,9 +1260,88 @@ function renderTableBody(tableBody) {
     document.getElementById('table-body').innerHTML = bodyHTML;
 }
 
+function modalText(value) {
+    return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+function menuCardDescription(data) {
+    if (!data.details || typeof data.details !== 'object') {
+        return '';
+    }
+
+    const first = Object.values(data.details).find(value => String(value ?? '').trim() !== '');
+    return first ? modalText(first) : '';
+}
+
+function createMenuModalCard(data) {
+    const isEnabled = Boolean(data.switchBtn?.active);
+    const actionCount = Array.isArray(data.subMenu) ? data.subMenu.length : 0;
+    const description = menuCardDescription(data);
+
+    let submenuHtml = '';
+    if (Array.isArray(data.subMenu) && data.subMenu.length) {
+        submenuHtml = `
+            <div class="subMenu text-sm fixed border border-[var(--glass-border-color)]/30 w-56 bg-[var(--h-secondary-bg-color)] text-[var(--text-color)] shadow-xl rounded-2xl transform scale-95 transition-all duration-300 ease-in-out z-50 opacity-100 scale-in hidden" style="top: 0; left: 0;">
+                <ul class="p-2">
+                    ${data.subMenu.map(subMenuAction => `
+                        <li>
+                            <a href="${subMenuAction.href}" class="block px-4 py-2 hover:bg-[var(--h-bg-color)] rounded-xl transition-all duration-200 ease-in-out text-nowrap">
+                                ${modalText(subMenuAction.name)}
+                            </a>
+                        </li>
+                    `).join('')}
+                </ul>
+            </div>
+        `;
+    }
+
+    return `
+        <div id="${data.id}" data-json='${jsonAttr(data)}' oncontextmenu='${htmlAttr(data.oncontextmenu || "")}' role="button" tabindex="0" data-keyboard-action="true"
+            class="item card menu-modal-card no-translate relative overflow-hidden rounded-2xl border border-[var(--glass-border-color)]/25 bg-[var(--secondary-bg-color)] p-4 shadow-sm transition-all duration-200 ease-in-out hover:border-[var(--primary-color)]/40 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-[var(--primary-color)]/40"
+            onclick='${htmlAttr(data.onclick || "")}'>
+            <div class="flex items-start justify-between gap-3">
+                <div class="flex min-w-0 items-start gap-3">
+                    <div class="flex size-11 shrink-0 items-center justify-center rounded-2xl border border-[var(--glass-border-color)]/25 bg-[var(--h-bg-color)] text-[var(--text-color)]">
+                        ${data.svgIcon || `<span class="text-sm font-bold">${modalText(String(data.name || 'M').slice(0, 2).toUpperCase())}</span>`}
+                    </div>
+                    <div class="min-w-0">
+                        <div class="flex flex-wrap items-center gap-2">
+                            <h6 class="truncate text-base font-semibold leading-tight text-[var(--text-color)]">${modalText(data.name || 'Menu')}</h6>
+                            <span class="rounded-full border ${isEnabled ? 'border-[var(--border-success)]/40 bg-[var(--bg-success)] text-[var(--border-success)]' : 'border-[var(--glass-border-color)]/30 bg-[var(--h-bg-color)] text-[var(--secondary-text)]'} px-2.5 py-1 text-[11px] font-semibold">
+                                ${isEnabled ? 'Shortcut' : 'Hidden'}
+                            </span>
+                        </div>
+                        ${description ? `<p class="mt-1 text-xs leading-5 text-[var(--secondary-text)]">${description}</p>` : ''}
+                    </div>
+                </div>
+                <div data-for='${data.id}' onclick='switchBtnTogggle(this)' title="${isEnabled ? 'Remove from menu' : 'Add to menu'}"
+                    class="switchBtn shrink-0 ${isEnabled ? 'active' : ''}">
+                    <div class="circle"></div>
+                </div>
+            </div>
+            <div class="mt-4 flex items-center justify-between border-t border-[var(--glass-border-color)]/15 pt-3">
+                <span class="rounded-full bg-[var(--h-bg-color)] px-2.5 py-1 text-[11px] font-semibold text-[var(--secondary-text)]">
+                    ${actionCount} ${actionCount === 1 ? 'action' : 'actions'}
+                </span>
+                <button type="button" class="rounded-xl border border-[var(--glass-border-color)]/25 bg-[var(--h-bg-color)] px-3 py-1.5 text-xs font-semibold text-[var(--secondary-text)] transition-all duration-200 hover:border-[var(--primary-color)]/40 hover:text-[var(--text-color)]">
+                    Open
+                </button>
+            </div>
+            ${submenuHtml}
+        </div>
+    `;
+}
+
 function returnCardsInModal(data) {
     let cardsHTML = '';
-    const cardRenderer = data.cards.useBaseCard && typeof window.baseCreateCard === 'function'
+    const cardRenderer = data.cards.useMenuCard
+        ? createMenuModalCard
+        : data.cards.useBaseCard && typeof window.baseCreateCard === 'function'
         ? window.baseCreateCard
         : createCard;
 

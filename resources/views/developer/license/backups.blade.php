@@ -4,9 +4,9 @@
 
 @section('content')
     @php
-        $panel = 'bg-[var(--secondary-bg-color)] text-sm rounded-xl shadow-lg p-7 border border-[var(--h-bg-color)] pt-12 relative overflow-hidden';
-        $softPanel = 'rounded-lg border border-[var(--h-bg-color)] bg-[var(--h-bg-color)]/50 p-4';
-        $badge = 'inline-flex items-center rounded-lg border px-2.5 py-1 text-xs font-semibold';
+        $panel = 'rounded-2xl border border-[var(--h-bg-color)] bg-[var(--secondary-bg-color)] p-5 text-sm shadow-sm';
+        $softPanel = 'rounded-2xl border border-[var(--h-bg-color)] bg-[var(--h-bg-color)]/25 p-4';
+        $badge = 'inline-flex items-center rounded-xl border px-3 py-1.5 text-xs font-semibold';
         $primaryButton = 'px-4 py-2 bg-[var(--primary-color)] text-[var(--text-color)] font-medium text-nowrap rounded-lg hover:bg-[var(--h-primary-color)] hover:scale-95 transition-all duration-300 ease-in-out cursor-pointer';
         $secondaryButton = 'px-4 py-2 bg-[var(--h-bg-color)] border border-gray-600 text-[var(--secondary-text)] font-medium text-nowrap rounded-lg hover:bg-[var(--secondary-bg-color)] hover:scale-95 transition-all duration-300 ease-in-out cursor-pointer';
         $disabledButton = 'px-4 py-2 bg-[var(--h-bg-color)] border border-gray-600 text-[var(--secondary-text)] font-medium text-nowrap rounded-lg opacity-60 cursor-not-allowed';
@@ -30,19 +30,14 @@
                         <div class="overflow-y-auto grow my-scrollbar-2 space-y-4  pr-1 text-left">
 
         <section class="{{ $panel }}">
-            <x-form-title-bar title="Backup & Restore" />
-
-            <div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-                <p class="max-w-3xl text-sm text-[var(--secondary-text)]">
-                    Private, verified SQLite backups for developer/admin use. Backup files stay in private storage and downloads are permission protected.
-                </p>
+            <x-developer-panel-title title="Backup & Restore" description="Private, verified SQLite backups for developer/admin use. Backup files stay in private storage.">
                 <form method="POST" action="{{ route('developer.backups.store') }}">
                     @csrf
                     <button type="submit" class="{{ $foundationReady ? $primaryButton : $disabledButton }}" @disabled(!$foundationReady)>
                         <i class="fas fa-database mr-2"></i>Create Backup
                     </button>
                 </form>
-            </div>
+            </x-developer-panel-title>
 
             @if (!$foundationReady)
                 <div class="mt-4 rounded-lg border border-[var(--border-warning)] bg-[var(--bg-warning)] p-4 text-sm text-[var(--text-warning)]">
@@ -53,9 +48,9 @@
                     @endif
                     <form method="POST" action="{{ route('developer.backups.run-migrations') }}" class="mt-4 space-y-3">
                         @csrf
-                        <label class="flex items-start gap-2">
-                            <input type="checkbox" name="confirm_migrations" value="1" class="mt-1">
+                        <label class="flex items-center justify-between gap-3 rounded-xl border border-[var(--h-bg-color)] bg-[var(--h-bg-color)]/35 px-3 py-2">
                             <span>Run database migrations on this local install. Use this only after confirming this is the intended client/developer database.</span>
+                            <x-toggle-switch name="confirm_migrations" />
                         </label>
                         <button type="submit" class="{{ $secondaryButton }}">Run Database Migrations</button>
                     </form>
@@ -172,7 +167,7 @@
         </section>
 
         <section class="{{ $panel }}">
-            <x-form-title-bar title="Database Tools" />
+            <x-developer-panel-title title="Database Tools" description="Repair storage permissions and run local migrations when a copied install needs recovery." />
             <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
                 <div class="{{ $softPanel }}">
                     <h2 class="font-semibold">Run Database Migrations</h2>
@@ -190,9 +185,9 @@
                     </form>
                     <form method="POST" action="{{ route('developer.backups.run-migrations') }}" class="space-y-3">
                         @csrf
-                        <label class="flex items-start gap-2 text-sm text-[var(--secondary-text)]">
-                            <input type="checkbox" name="confirm_migrations" value="1" class="mt-1">
+                        <label class="flex items-center justify-between gap-3 rounded-xl border border-[var(--h-bg-color)] bg-[var(--h-bg-color)]/35 px-3 py-2 text-sm text-[var(--secondary-text)]">
                             <span>I confirm this local database should be migrated now.</span>
+                            <x-toggle-switch name="confirm_migrations" />
                         </label>
                         <button type="submit" class="{{ $secondaryButton }}">Run Database Migrations</button>
                     </form>
@@ -201,7 +196,7 @@
         </section>
 
         <section class="{{ $panel }}">
-            <x-form-title-bar title="Restore Old SQLite Database" />
+            <x-developer-panel-title title="Restore Old SQLite Database" description="Restore business data only. License/device identity remains tied to this install." />
 
             <div class="grid grid-cols-1 gap-5 lg:grid-cols-2">
                 <div class="{{ $softPanel }}">
@@ -226,7 +221,7 @@
                         <input name="confirmation_phrase" placeholder="RESTORE BUSINESS DATA" class="w-full rounded-lg border border-[var(--h-bg-color)] bg-[var(--h-bg-color)] px-3 py-2 text-sm text-[var(--text-color)]" @disabled(!$restoreEnabled)>
                     </div>
                     <label class="flex items-start gap-2 text-sm text-[var(--secondary-text)]">
-                        <input type="checkbox" name="staging_tested" value="1" class="mt-1" @disabled(!$restoreEnabled)>
+                        <x-toggle-switch name="staging_tested" :disabled="!$restoreEnabled" class="mt-0.5" />
                         <span>I tested this restore on a staging/copy database and confirmed this old database is correct.</span>
                     </label>
                     <button type="submit" class="{{ $restoreEnabled ? $primaryButton : $disabledButton }}" @disabled(!$restoreEnabled)>
@@ -237,7 +232,7 @@
         </section>
 
         <section class="{{ $panel }}">
-            <x-form-title-bar title="Backup Logs" />
+            <x-developer-panel-title title="Backup Logs" description="Recent backup records and restore audit information." />
 
             <div class="mb-4 flex items-center justify-between gap-3">
                 <p class="text-sm text-[var(--secondary-text)]">Filenames are shown for identification; private storage paths are not shown.</p>

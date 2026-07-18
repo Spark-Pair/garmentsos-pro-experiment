@@ -8,7 +8,7 @@
         $input = 'w-full rounded-lg border border-[var(--h-bg-color)] bg-[var(--h-bg-color)] px-3 py-2 text-sm text-[var(--text-color)] outline-none focus:border-[var(--primary-color)]';
         $button = 'px-4 py-2 bg-[var(--primary-color)] text-[var(--text-color)] font-medium text-nowrap rounded-lg hover:bg-[var(--h-primary-color)] hover:scale-95 transition-all duration-300 ease-in-out cursor-pointer';
         $secondary = 'px-3 py-1.5 bg-[var(--h-bg-color)]/60 border border-[var(--h-bg-color)] text-[var(--secondary-text)] font-medium text-nowrap rounded-lg hover:border-[var(--primary-color)]/50 hover:bg-[var(--secondary-bg-color)] transition-all duration-300 ease-in-out cursor-pointer';
-        $badge = 'inline-flex items-center rounded-lg border px-2.5 py-1 text-xs font-semibold';
+        $badge = 'inline-flex items-center rounded-xl border px-3 py-1.5 text-xs font-semibold';
         $toggle = 'inline-flex items-center gap-2 rounded-lg border border-[var(--h-bg-color)] bg-[var(--h-bg-color)]/55 px-3 py-2 text-xs text-[var(--secondary-text)]';
         $miniToggle = 'flex items-center justify-between gap-3 rounded-xl border border-[var(--h-bg-color)] bg-[var(--h-bg-color)]/35 px-3 py-2 text-xs text-[var(--secondary-text)] transition hover:border-[var(--primary-color)]/40';
         $moduleGroups = collect($moduleRegistry)->groupBy(fn ($module) => $module['group'] ?? 'Other');
@@ -211,42 +211,26 @@
                                                                 <input type="hidden" name="modules[{{ $moduleKey }}][branch_enabled]" value="0">
                                                                 <label class="{{ $miniToggle }}">
                                                                     <span>Enable module</span>
-                                                                    <span class="relative inline-flex h-5 w-9 shrink-0 items-center">
-                                                                        <input class="peer sr-only" type="checkbox" name="modules[{{ $moduleKey }}][branch_enabled]" value="1" @checked($enabled)>
-                                                                        <span class="absolute inset-0 rounded-full bg-[var(--bg-color)] transition peer-checked:bg-[var(--primary-color)]"></span>
-                                                                        <span class="absolute left-0.5 h-4 w-4 rounded-full bg-slate-200 shadow-sm transition peer-checked:translate-x-4 peer-checked:bg-white"></span>
-                                                                    </span>
+                                                                    <x-toggle-switch name="modules[{{ $moduleKey }}][branch_enabled]" :checked="$enabled" />
                                                                 </label>
 
                                                                 <input type="hidden" name="modules[{{ $moduleKey }}][allow_user_switching]" value="0">
                                                                 <label class="{{ $miniToggle }}">
                                                                     <span>Show switcher</span>
-                                                                    <span class="relative inline-flex h-5 w-9 shrink-0 items-center">
-                                                                        <input class="peer sr-only" type="checkbox" name="modules[{{ $moduleKey }}][allow_user_switching]" value="1" @checked($switching)>
-                                                                        <span class="absolute inset-0 rounded-full bg-[var(--bg-color)] transition peer-checked:bg-[var(--primary-color)]"></span>
-                                                                        <span class="absolute left-0.5 h-4 w-4 rounded-full bg-slate-200 shadow-sm transition peer-checked:translate-x-4 peer-checked:bg-white"></span>
-                                                                    </span>
+                                                                    <x-toggle-switch name="modules[{{ $moduleKey }}][allow_user_switching]" :checked="$switching" />
                                                                 </label>
 
                                                                 <input type="hidden" name="modules[{{ $moduleKey }}][record_filtering_enabled]" value="0">
                                                                 <input type="hidden" name="modules[{{ $moduleKey }}][has_branch_id_support]" value="0">
                                                                 <label class="{{ $miniToggle }}">
                                                                     <span>Filter records</span>
-                                                                    <span class="relative inline-flex h-5 w-9 shrink-0 items-center">
-                                                                        <input class="peer sr-only" type="checkbox" name="modules[{{ $moduleKey }}][record_filtering_enabled]" value="1" @checked($filtering)>
-                                                                        <span class="absolute inset-0 rounded-full bg-[var(--bg-color)] transition peer-checked:bg-[var(--primary-color)]"></span>
-                                                                        <span class="absolute left-0.5 h-4 w-4 rounded-full bg-slate-200 shadow-sm transition peer-checked:translate-x-4 peer-checked:bg-white"></span>
-                                                                    </span>
+                                                                    <x-toggle-switch name="modules[{{ $moduleKey }}][record_filtering_enabled]" :checked="$filtering" />
                                                                 </label>
 
                                                                 <input type="hidden" name="modules[{{ $moduleKey }}][supports_multi_branch_selector]" value="0">
                                                                 <label class="{{ $miniToggle }}">
                                                                     <span>Multi-branch</span>
-                                                                    <span class="relative inline-flex h-5 w-9 shrink-0 items-center">
-                                                                        <input class="peer sr-only" type="checkbox" name="modules[{{ $moduleKey }}][supports_multi_branch_selector]" value="1" @checked($canMulti)>
-                                                                        <span class="absolute inset-0 rounded-full bg-[var(--bg-color)] transition peer-checked:bg-[var(--primary-color)]"></span>
-                                                                        <span class="absolute left-0.5 h-4 w-4 rounded-full bg-slate-200 shadow-sm transition peer-checked:translate-x-4 peer-checked:bg-white"></span>
-                                                                    </span>
+                                                                    <x-toggle-switch name="modules[{{ $moduleKey }}][supports_multi_branch_selector]" :checked="$canMulti" />
                                                                 </label>
                                                             </div>
 
@@ -293,29 +277,17 @@
                                                                                 <div class="grid grid-cols-1 gap-2 md:grid-cols-3">
                                                                                     <label class="{{ $miniToggle }}">
                                                                                         <span>branch_id support</span>
-                                                                                        <span class="relative inline-flex h-5 w-9 shrink-0 items-center">
-                                                                                            <input class="peer sr-only" type="checkbox" name="modules[{{ $moduleKey }}][has_branch_id_support]" value="1" @checked($hasBranchIdSupport)>
-                                                                                            <span class="absolute inset-0 rounded-full bg-[var(--bg-color)] transition peer-checked:bg-[var(--primary-color)]"></span>
-                                                                                            <span class="absolute left-0.5 h-4 w-4 rounded-full bg-slate-200 shadow-sm transition peer-checked:translate-x-4 peer-checked:bg-white"></span>
-                                                                                        </span>
+                                                                                        <x-toggle-switch name="modules[{{ $moduleKey }}][has_branch_id_support]" :checked="$hasBranchIdSupport" />
                                                                                     </label>
                                                                                     <input type="hidden" name="modules[{{ $moduleKey }}][supports_branch_branding]" value="0">
                                                                                     <label class="{{ $miniToggle }}">
                                                                                         <span>Branch branding</span>
-                                                                                        <span class="relative inline-flex h-5 w-9 shrink-0 items-center">
-                                                                                            <input class="peer sr-only" type="checkbox" name="modules[{{ $moduleKey }}][supports_branch_branding]" value="1" @checked($canBrand)>
-                                                                                            <span class="absolute inset-0 rounded-full bg-[var(--bg-color)] transition peer-checked:bg-[var(--primary-color)]"></span>
-                                                                                            <span class="absolute left-0.5 h-4 w-4 rounded-full bg-slate-200 shadow-sm transition peer-checked:translate-x-4 peer-checked:bg-white"></span>
-                                                                                        </span>
+                                                                                        <x-toggle-switch name="modules[{{ $moduleKey }}][supports_branch_branding]" :checked="$canBrand" />
                                                                                     </label>
                                                                                     <input type="hidden" name="modules[{{ $moduleKey }}][supports_branch_serial_prefix]" value="0">
                                                                                     <label class="{{ $miniToggle }}">
                                                                                         <span>Serial prefix</span>
-                                                                                        <span class="relative inline-flex h-5 w-9 shrink-0 items-center">
-                                                                                            <input class="peer sr-only" type="checkbox" name="modules[{{ $moduleKey }}][supports_branch_serial_prefix]" value="1" @checked($canSerialPrefix)>
-                                                                                            <span class="absolute inset-0 rounded-full bg-[var(--bg-color)] transition peer-checked:bg-[var(--primary-color)]"></span>
-                                                                                            <span class="absolute left-0.5 h-4 w-4 rounded-full bg-slate-200 shadow-sm transition peer-checked:translate-x-4 peer-checked:bg-white"></span>
-                                                                                        </span>
+                                                                                        <x-toggle-switch name="modules[{{ $moduleKey }}][supports_branch_serial_prefix]" :checked="$canSerialPrefix" />
                                                                                     </label>
                                                                                 </div>
                                                                             </section>
@@ -328,11 +300,7 @@
                                                                                 <input type="hidden" name="modules[{{ $moduleKey }}][supports_doc_identity_prefix]" value="0">
                                                                                 <label class="{{ $miniToggle }} mb-3">
                                                                                     <span>Document identity prefix</span>
-                                                                                    <span class="relative inline-flex h-5 w-9 shrink-0 items-center">
-                                                                                        <input class="peer sr-only" type="checkbox" name="modules[{{ $moduleKey }}][supports_doc_identity_prefix]" value="1" @checked($canDocPrefix)>
-                                                                                        <span class="absolute inset-0 rounded-full bg-[var(--bg-color)] transition peer-checked:bg-[var(--primary-color)]"></span>
-                                                                                        <span class="absolute left-0.5 h-4 w-4 rounded-full bg-slate-200 shadow-sm transition peer-checked:translate-x-4 peer-checked:bg-white"></span>
-                                                                                    </span>
+                                                                                    <x-toggle-switch name="modules[{{ $moduleKey }}][supports_doc_identity_prefix]" :checked="$canDocPrefix" />
                                                                                 </label>
                                                                                 <x-input
                                                                                     name="modules[{{ $moduleKey }}][doc_identity_prefix]"
@@ -370,11 +338,7 @@
                                                                                                 <input type="hidden" name="modules[{{ $moduleKey }}][discount_disabled]" value="0">
                                                                                                 <label class="{{ $miniToggle }} mb-3">
                                                                                                     <span>Hide discount and gross amount in print</span>
-                                                                                                    <span class="relative inline-flex h-5 w-9 shrink-0 items-center">
-                                                                                                        <input class="peer sr-only" type="checkbox" name="modules[{{ $moduleKey }}][discount_disabled]" value="1" @checked($discountDisabled)>
-                                                                                                        <span class="absolute inset-0 rounded-full bg-[var(--bg-color)] transition peer-checked:bg-[var(--primary-color)]"></span>
-                                                                                                        <span class="absolute left-0.5 h-4 w-4 rounded-full bg-slate-200 shadow-sm transition peer-checked:translate-x-4 peer-checked:bg-white"></span>
-                                                                                                    </span>
+                                                                                                    <x-toggle-switch name="modules[{{ $moduleKey }}][discount_disabled]" :checked="$discountDisabled" />
                                                                                                 </label>
                                                                                                 <textarea name="modules[{{ $moduleKey }}][document_note]" rows="3" maxlength="300" placeholder="Optional note shown above totals" class="{{ $input }}">{{ $documentNote }}</textarea>
                                                                                             </div>
@@ -459,7 +423,7 @@
                                             @foreach (['can_view' => 'View', 'can_create' => 'Create', 'can_update' => 'Update', 'can_delete' => 'Delete', 'can_switch' => 'Switch', 'can_manage' => 'Manage'] as $field => $label)
                                                 <label class="flex items-center justify-between gap-3 rounded-xl border border-[var(--h-bg-color)] bg-[var(--h-bg-color)]/35 px-3 py-2 text-xs text-[var(--secondary-text)] transition hover:border-[var(--primary-color)]/40">
                                                     <span>{{ $label }}</span>
-                                                    <input type="checkbox" name="{{ $field }}" value="1" @checked(in_array($field, ['can_view', 'can_switch'], true))>
+                                                    <x-toggle-switch :name="$field" :checked="in_array($field, ['can_view', 'can_switch'], true)" />
                                                 </label>
                                             @endforeach
                                         </div>
