@@ -283,6 +283,7 @@ class UpdateApplyService
         return [
             'storage_link' => $this->callArtisanSafely('storage:link', ['--force' => true], retryWithoutOptions: true),
             'optimize_clear' => $this->callArtisanSafely('optimize:clear'),
+            'optimize' => $this->callArtisanSafely('optimize'),
         ];
     }
 

@@ -807,17 +807,20 @@ function Remove-InstalledEnvTemplate($InstallDir) {
     }
 }
 
-function Ensure-GarmentsStorageLink($InstallDir) {
+function Invoke-GarmentsLaravelMaintenance($InstallDir) {
     try {
         Push-Location $InstallDir
         try {
-            docker compose exec -T app php artisan storage:link | Out-Host
-            Write-Host "Laravel public storage link ensured for uploaded branch logos."
+            Write-Host "Running Laravel maintenance commands..."
+            docker compose exec -T app sh -lc 'php artisan storage:link --force || php artisan storage:link' | Out-Host
+            docker compose exec -T app php artisan optimize:clear | Out-Host
+            docker compose exec -T app php artisan optimize | Out-Host
+            Write-Host "Laravel maintenance completed: storage:link, optimize:clear, optimize."
         } finally {
             Pop-Location
         }
     } catch {
-        Write-Warning "Could not create Laravel storage link. Branch logo fallback route will be used if needed. $($_.Exception.Message)"
+        Write-Warning "Laravel maintenance warning. App may still run, but cache/storage repair may be needed. $($_.Exception.Message)"
     }
 }
 
@@ -907,7 +910,7 @@ try {
         Pop-Location
     }
 
-    Ensure-GarmentsStorageLink $InstallDir
+    Invoke-GarmentsLaravelMaintenance $InstallDir
 
     $envContent = Get-Content $EnvPath -Raw
     $envContent = Set-EnvLine $envContent "RUN_MIGRATIONS_ON_START" "false"

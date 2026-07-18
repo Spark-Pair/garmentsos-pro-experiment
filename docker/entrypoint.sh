@@ -57,5 +57,9 @@ if [[ "${RUN_MIGRATIONS_ON_START:-false}" == "true" ]]; then
   php artisan migrate --force
 fi
 
+php artisan storage:link --force || php artisan storage:link || true
+php artisan optimize:clear || true
+php artisan optimize || true
+
 php-fpm -D
 exec nginx -g 'daemon off;'

@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Services\AppStorageRepairService;
+use App\Services\AppLaravelMaintenanceService;
 use Illuminate\Console\Command;
 
 class AppRepairStorageCommand extends Command
@@ -11,7 +12,7 @@ class AppRepairStorageCommand extends Command
 
     protected $description = 'Repair GarmentsOS writable storage/cache directories.';
 
-    public function handle(AppStorageRepairService $repair): int
+    public function handle(AppStorageRepairService $repair, AppLaravelMaintenanceService $maintenance): int
     {
         $results = $repair->repair(clearCacheData: !$this->option('no-clear-cache'));
 
@@ -28,6 +29,14 @@ class AppRepairStorageCommand extends Command
         try {
             $repair->guardForBackupRestore();
             $this->info('Storage repair completed. Required restore paths are writable.');
+            $maintenanceResults = $maintenance->run();
+            $this->table(['command', 'success', 'exit_code'], collect($maintenanceResults)->map(
+                fn (array $row, string $command): array => [
+                    $command,
+                    ($row['success'] ?? false) ? 'yes' : 'no',
+                    $row['exit_code'] ?? '-',
+                ]
+            )->values()->all());
 
             return self::SUCCESS;
         } catch (\Throwable $e) {

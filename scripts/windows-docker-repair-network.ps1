@@ -66,4 +66,30 @@ function Ensure-GarmentsFirewallRule($InstallDir, [int]$DefaultPort = 8000) {
     Write-Host "LAN firewall repair complete. Client PCs can use http://SERVER_IP:$port"
 }
 
+function Invoke-GarmentsLaravelMaintenance($InstallDir) {
+    $composePath = Join-Path $InstallDir "docker-compose.yml"
+    if (-not (Test-Path -LiteralPath $composePath)) {
+        Write-Warning "docker-compose.yml was not found; Laravel maintenance commands were skipped."
+        return
+    }
+
+    try {
+        Push-Location $InstallDir
+        try {
+            Write-Host "Starting app service before Laravel maintenance..."
+            docker compose up -d | Out-Host
+            Write-Host "Running Laravel maintenance commands..."
+            docker compose exec -T app sh -lc 'php artisan storage:link --force || php artisan storage:link' | Out-Host
+            docker compose exec -T app php artisan optimize:clear | Out-Host
+            docker compose exec -T app php artisan optimize | Out-Host
+            Write-Host "Laravel maintenance completed: storage:link, optimize:clear, optimize."
+        } finally {
+            Pop-Location
+        }
+    } catch {
+        Write-Warning "Laravel maintenance warning. App may still run, but cache/storage repair may be needed. $($_.Exception.Message)"
+    }
+}
+
 Ensure-GarmentsFirewallRule $InstallDir $Port
+Invoke-GarmentsLaravelMaintenance $InstallDir

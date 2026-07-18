@@ -8,6 +8,7 @@ use App\Services\BackupService;
 use App\Services\BackupStorageService;
 use App\Services\BackupVerifier;
 use App\Services\AppStorageRepairService;
+use App\Services\AppLaravelMaintenanceService;
 use App\Services\RestoreService;
 use App\Services\RestoreUploadJobService;
 use Illuminate\Http\Request;
@@ -111,7 +112,7 @@ class BackupController extends Controller
         }
     }
 
-    public function repairStorage(AppStorageRepairService $repair): RedirectResponse
+    public function repairStorage(AppStorageRepairService $repair, AppLaravelMaintenanceService $maintenance): RedirectResponse
     {
         if ($resp = $this->denyIfNoRole(['developer', 'admin'])) {
             return $resp;
@@ -120,10 +121,11 @@ class BackupController extends Controller
         try {
             $repair->repair();
             $repair->guardForBackupRestore();
+            $maintenance->run();
 
             return redirect()
                 ->route('developer.backups')
-                ->with('success', 'Storage permissions repaired. Backup/restore paths are writable.');
+                ->with('success', 'Storage permissions repaired and Laravel caches/storage link refreshed.');
         } catch (Throwable $e) {
             Log::error('Developer storage permission repair failed.', [
                 'error' => $e->getMessage(),
