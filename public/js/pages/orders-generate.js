@@ -755,6 +755,102 @@
         return true;
     };
 
+    function addListenerToPrintAndSaveBtn() {
+        const printAndSaveBtn = document.getElementById('printAndSaveBtn');
+        if (!printAndSaveBtn) return;
+
+        printAndSaveBtn.addEventListener('click', event => {
+            event.preventDefault();
+            closeAllDropdowns();
+
+            if (typeof validateForNextStep === 'function' && validateForNextStep() === false) {
+                return;
+            }
+
+            const form = document.getElementById('form');
+            const preview = document.getElementById('preview-container');
+            if (!form || !preview) return;
+
+            const oldIframe = document.getElementById('printIframe');
+            if (oldIframe) oldIframe.remove();
+
+            const printIframe = document.createElement('iframe');
+            printIframe.id = 'printIframe';
+            printIframe.style.position = 'absolute';
+            printIframe.style.width = '0px';
+            printIframe.style.height = '0px';
+            printIframe.style.border = 'none';
+            printIframe.style.display = 'none';
+            document.body.appendChild(printIframe);
+
+            const printDocument = printIframe.contentDocument || printIframe.contentWindow.document;
+            printDocument.open();
+            printDocument.write(`
+                <html>
+                    <head>
+                        <title>Print Order</title>
+                        ${document.head.innerHTML}
+                        <style>
+                            @page {
+                                size: A5 portrait;
+                                margin: 0;
+                            }
+
+                            @media print {
+                                html,
+                                body {
+                                    margin: 0;
+                                    padding: 0;
+                                    width: auto;
+                                    min-height: 0;
+                                }
+
+                                #preview-container {
+                                    width: auto !important;
+                                    height: auto !important;
+                                    max-height: none !important;
+                                    overflow: visible !important;
+                                }
+
+                                .preview {
+                                    width: 148mm !important;
+                                    height: 210mm !important;
+                                    max-width: 148mm !important;
+                                    max-height: 210mm !important;
+                                    overflow: hidden !important;
+                                    break-after: page;
+                                    page-break-after: always;
+                                    page-break-inside: avoid;
+                                }
+
+                                #preview-container .preview:last-child {
+                                    break-after: auto;
+                                    page-break-after: auto;
+                                }
+                            }
+                        </style>
+                    </head>
+                    <body>
+                        <div id="preview-container" class="preview-container">${preview.innerHTML}</div>
+                    </body>
+                </html>
+            `);
+            printDocument.close();
+
+            printIframe.onload = () => {
+                const orderCopy = printDocument.querySelector('#preview-container .preview-copy');
+                if (orderCopy) orderCopy.textContent = 'Order Copy: Office';
+
+                printIframe.contentWindow.onafterprint = () => form.submit();
+
+                setTimeout(() => {
+                    printIframe.contentWindow.focus();
+                    printIframe.contentWindow.print();
+                }, 1000);
+            };
+        });
+    }
+
     window.reRenderSelectedState = function reRenderSelectedState() {
         const selectedIds = selectedArticles.map(card => card.id);
 
@@ -784,6 +880,7 @@
         companyData = data?.companyData || null;
         applyDefaultOrderDiscount(data?.defaultOrderDiscountPercent);
         renderList();
+        addListenerToPrintAndSaveBtn();
     }
 
     window.initOrdersGenerate = initOrdersGenerate;

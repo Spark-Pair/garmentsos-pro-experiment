@@ -42,7 +42,7 @@
                 <x-form-title-bar title="{{ $isEdit ? 'Edit Daily Ledger Deposit' : 'Daily Ledger Deposit' }}" />
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <x-input label="Date" name="date" id="date" type="date" validateMax max="{{ now()->toDateString() }}" required value="{{ old('date', $isEdit ? $ledgerEntry->date->toDateString() : now()->toDateString()) }}" />
+                    <x-input label="Date" name="date" id="date" type="date" validateMax max="{{ now()->toDateString() }}" required value="{{ old('date', $isEdit ? $ledgerEntry->date->toDateString() : '') }}" />
 
                     <x-select
                         label="Method"
@@ -77,7 +77,7 @@
                 <x-form-title-bar title="{{ $isEdit ? 'Edit Daily Ledger Use' : 'Daily Ledger Use' }}" />
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <x-input label="Date" name="date" id="date" type="date" validateMax max="{{ now()->toDateString() }}" required value="{{ old('date', $isEdit ? $ledgerEntry->date->toDateString() : now()->toDateString()) }}" />
+                    <x-input label="Date" name="date" id="date" type="date" validateMax max="{{ now()->toDateString() }}" required value="{{ old('date', $isEdit ? $ledgerEntry->date->toDateString() : '') }}" />
 
                     <x-select
                         label="Case"

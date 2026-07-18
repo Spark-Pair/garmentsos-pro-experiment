@@ -260,16 +260,26 @@ class CustomerPaymentController extends Controller
 
         // --- If program_id provided, load specific program and customer ---
         if (!empty($programId)) {
-            $program = $branches->applyRelatedScope(PaymentProgram::with([
+            $program = $branches->applyScope(PaymentProgram::with([
                 'customer:id,customer_name,city_id,date',
                 'customer.city:id,title',
                 'subCategory',
                 'subCategory.bankAccounts.bank:id,short_title',
-            ]), 'payment_programs', 'customer_payments')
+            ]), 'payment_programs')
                 ->withSum('customerPayments as paid_amount', 'amount')
                 ->find($programId);
 
             if ($program && $program->customer) {
+                $programBranchId = (int) ($program->branch_id ?? 0);
+                if ($programBranchId && $branches->isModuleBranchEnabled('customer_payments', $programBranchId)) {
+                    if (!$branches->canSwitch($programBranchId, 'customer_payments', $request->user())) {
+                        return redirect()->route('customer-payments.create')
+                            ->with('error', 'You cannot add a customer payment for this program branch.');
+                    }
+
+                    $branches->setPreference('customer_payments', $programBranchId, $request->user());
+                }
+
                 $programPayload = $this->formatProgramPayload($program);
                 if (($programPayload['balance'] ?? 0) <= 0) {
                     return redirect()->route('customer-payments.create')
@@ -295,14 +305,17 @@ class CustomerPaymentController extends Controller
         // --- Load all active customers with lightweight aggregated payload ---
         $customers = $branches->applyRelatedScope(Customer::with([
             'city:id,title',
-            'paymentPrograms' => fn($q) => $q
-                ->select('id', 'program_no', 'order_no', 'date', 'customer_id', 'category', 'sub_category_id', 'sub_category_type', 'amount', 'remarks', 'status', 'branch_id')
-                ->where('status', 'Unpaid')
-                ->withSum('customerPayments as paid_amount', 'amount')
-                ->with([
-                    'subCategory',
-                    'subCategory.bankAccounts.bank:id,short_title',
-                ]),
+            'paymentPrograms' => function ($query) use ($branches) {
+                $branches->applyRelatedScope($query->getQuery(), 'payment_programs', 'customer_payments');
+
+                $query->select('id', 'program_no', 'order_no', 'date', 'customer_id', 'category', 'sub_category_id', 'sub_category_type', 'amount', 'remarks', 'status', 'branch_id')
+                    ->where('status', 'Unpaid')
+                    ->withSum('customerPayments as paid_amount', 'amount')
+                    ->with([
+                        'subCategory',
+                        'subCategory.bankAccounts.bank:id,short_title',
+                    ]);
+            },
         ]), 'customers', 'customer_payments')
             ->withSum('invoices as total_invoice_amount', 'netAmount')
             ->withSum(['payments as total_paid_amount' => fn($q) => $q->where('type', '!=', 'DR')], 'amount')

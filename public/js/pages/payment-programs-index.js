@@ -363,10 +363,12 @@ function initPaymentProgramsIndex() {
             ];
         });
 
+        console.log(data);
+
         let modalData = {
             id: 'modalForm',
             class: 'max-w-4xl h-[37rem]',
-            name: `Payment Details - ${data.customer_name}`,
+            name: `Payment Details - ${data.customer_name} | ${formatNumbersWithDigits(data.customer_balance, 1, 1)} | ${formatNumbersWithDigits(data.balance, 1, 1)}`,
             table: {
                 name: 'Details',
                 headers: [

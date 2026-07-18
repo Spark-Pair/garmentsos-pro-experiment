@@ -50,6 +50,7 @@ trait PaymentProgramComputed
             'id' => $this->id,
             'date' => $this->date->format('d-M-Y, D'),
             'customer_name' => ($this->customer?->customer_name ?? '-') . ' | ' . ($this->customer?->city?->title ?? '-'),
+            'customer_balance' => $this->customer?->balance ?? 0,
             'o_p_no' => $this->order_no ?? $this->program_no,
             'category' => $this->category,
             'beneficiary' => $this->beneficiary,
