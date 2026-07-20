@@ -109,7 +109,7 @@ class ProductionController extends Controller
             $employeePayload = $this->employeeOptionPayload($worker);
             $worker['taags'] = $worker['tags']
                 ->groupBy('tag')
-                ->map(function ($items, $tag) use ($articles) {
+                ->map(function ($items, $tag) use ($worker, $articles) {
                     $fabric = Fabric::where('tag', $tag)->first();
                     $total_return_fabric = ReturnFabric::where('tag', $tag)->sum('quantity');
 
@@ -118,9 +118,11 @@ class ProductionController extends Controller
                         $supplier = Supplier::find($fabric->supplier_id);
                     }
 
-                    $sum = $articles->flatMap->production
+                    $sum = $articles
+                        ->flatMap->production
+                        ->filter(fn($production) => $production->worker_id == $worker->id)
                         ->flatMap->tags
-                        ->filter(fn($tagObj) => $tagObj['tag'] === $tag)
+                        ->where('tag', $tag)
                         ->sum('quantity');
 
                     $availableQuantity = ($items->sum('quantity') - $sum) - $total_return_fabric;
@@ -128,6 +130,9 @@ class ProductionController extends Controller
                     if ($availableQuantity > 0) {
                         return [
                             'tag' => $tag,
+                            'quantity' => $items->sum('quantity'),
+                            'sumofinproductions' => $sum,
+                            'returned_quantity' => $total_return_fabric,
                             'unit' => ucfirst($fabric->unit),
                             'available_quantity' => $availableQuantity,
                             'supplier_name' => $supplier->supplier_name ?? null,

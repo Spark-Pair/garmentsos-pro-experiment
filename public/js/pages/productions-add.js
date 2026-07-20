@@ -1021,6 +1021,8 @@
             };
 
             window.generateQuantityModal = function generateQuantityModal(item) {
+                console.log(item);
+                
                 let quantityModalData = {
                     id: "quantityModalForm",
                     name: "Enter Quantity",
@@ -1243,8 +1245,8 @@
 
             window.calculateAmount = function calculateAmount() {
                 validateInput(document.getElementById("article_quantity"));
-                let quantity = parseInt(document.getElementById("article_quantity").value);
-                let rate = parseInt(document.getElementById("rate").value);
+                let quantity = parseFloat(document.getElementById("article_quantity").value);
+                let rate = parseFloat(document.getElementById("rate").value);
                 document.getElementById("amount").value = rate * quantity;
             };
 
