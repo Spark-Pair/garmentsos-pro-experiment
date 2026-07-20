@@ -299,7 +299,7 @@
                     'placeholder' => 'Enter Transaction Id',
                     'required' => true,
                     'value' => '__TRANSACTION_ID__',
-                    'dataValidate' => 'required|alphanumeric',
+                    'dataValidate' => 'required|friendly',
                     'oninput' => 'validateInput(this)',
                 ])->render() .
                 view('components.input', [

@@ -326,7 +326,7 @@ function initCustomerPaymentsEdit() {
                     buildInput({ label: 'Program Balance', name: 'program_balance', id: 'program_balance', type: 'number', value: selectedProgramData.balance, disabled: true }),
                     buildInput({ label: 'Amount', name: 'amount', id: 'amount', type: 'amount', placeholder: 'Enter amount', value: customerPayment.amount, dataValidate: 'required|amount', oninput: 'validateInput(this)', required: true }),
                     buildSelect({ label: 'Bank Accounts', name: 'bank_account_id', id: 'bank_accounts', required: true, showDefault: true }),
-                    buildInput({ label: 'Transaction Id', name: 'transaction_id', id: 'transaction_id', placeholder: 'Enter Transaction Id', value: customerPayment.transaction_id, dataValidate: 'required|alphanumeric', oninput: 'validateInput(this)', required: true }),
+                    buildInput({ label: 'Transaction Id', name: 'transaction_id', id: 'transaction_id', placeholder: 'Enter Transaction Id', value: customerPayment.transaction_id, dataValidate: 'required|friendly', oninput: 'validateInput(this)', required: true }),
                     buildInput({ label: 'Remarks', name: 'remarks', id: 'remarks', placeholder: 'Remarks', value: customerPayment.remarks, dataValidate: 'friendly', oninput: 'validateInput(this)' }),
                 ].join('');
 
