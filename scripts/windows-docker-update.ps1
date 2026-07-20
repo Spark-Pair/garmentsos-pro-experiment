@@ -118,21 +118,15 @@ function New-GarmentsShortcut($ShortcutPath, $TargetPath, $WorkingDirectory, $Ar
 
 function Install-GarmentsShortcuts($TargetDir) {
     $setupLauncher = Join-Path $TargetDir "GarmentsOS-PRO.exe"
-    $openLauncher = Join-Path $TargetDir "Open GarmentsOS.bat"
-    $shortcutTarget = if (Test-Path -LiteralPath $setupLauncher) {
-        $setupLauncher
-    } else {
-        $openLauncher
-    }
 
-    if (-not (Test-Path -LiteralPath $shortcutTarget)) {
-        Write-Warning "GarmentsOS launcher was not found. Shortcuts were not created."
+    if (-not (Test-Path -LiteralPath $setupLauncher)) {
+        Write-Warning "GarmentsOS-PRO.exe was not found. Shortcuts were not created."
         return
     }
 
-    $usesExe = (Test-Path -LiteralPath $setupLauncher)
-    $openArguments = if ($usesExe) { "garmentsos://open" } else { "" }
-    $iconPath = if ($usesExe) { "$setupLauncher,0" } else { "" }
+    $shortcutTarget = $setupLauncher
+    $openArguments = "garmentsos://open"
+    $iconPath = "$setupLauncher,0"
 
     try {
         $desktop = [Environment]::GetFolderPath("Desktop")
@@ -151,10 +145,6 @@ function Install-GarmentsShortcuts($TargetDir) {
             New-GarmentsShortcut (Join-Path $startMenuFolder "GarmentsOS PRO.lnk") $shortcutTarget $TargetDir $openArguments "Open GarmentsOS PRO" $iconPath
             Write-Host "Start Menu shortcut created: $(Join-Path $startMenuFolder "GarmentsOS PRO.lnk")"
 
-            if ($usesExe) {
-                New-GarmentsShortcut (Join-Path $startMenuFolder "GarmentsOS PRO Updater.lnk") $setupLauncher $TargetDir "" "Open GarmentsOS PRO Updater" $iconPath
-                Write-Host "Start Menu shortcut created: $(Join-Path $startMenuFolder "GarmentsOS PRO Updater.lnk")"
-            }
 
         }
     } catch {
@@ -372,16 +362,17 @@ exit 1
 '@
 
         Set-Content -Path $helperPath -Value $helperScript -Encoding UTF8
-        Start-Process -FilePath "powershell.exe" -ArgumentList @(
+        $null = Start-Process -FilePath "powershell.exe" -ArgumentList @(
             "-NoProfile",
             "-ExecutionPolicy", "Bypass",
             "-WindowStyle", "Hidden",
             "-File", $helperPath,
             "-MarkerPath", $MarkerPath
-        ) -WindowStyle Hidden
+        ) -WindowStyle Hidden -ErrorAction SilentlyContinue -PassThru
 
-        Write-Host "Pending launcher replacement helper started by update script."
-        Write-Host "Pending launcher helper script: $helperPath"
+        Write-Host "Pending launcher replacement helper started."
+
+        return
     } catch {
         Write-Warning "Could not start pending launcher replacement helper. $($_.Exception.Message)"
     }
@@ -409,7 +400,12 @@ function Stage-GarmentsLauncherUpdate($SourcePath, $DestinationPath, $TargetDir)
     Write-Warning "Launcher EXE is running; staged launcher update will be applied after updater exits."
     Write-Host "Pending launcher update: $pendingPath"
     Write-Host "Pending launcher marker: $markerPath"
-    Start-PendingLauncherReplacementHelper $markerPath $TargetDir
+    try {
+        Start-PendingLauncherReplacementHelper $markerPath $TargetDir
+    }
+    catch {
+        Write-Warning "Launcher replacement helper could not be started."
+    }
 }
 
 function Update-LauncherExeFromRelease($ReleaseDir, $InstallDir) {
@@ -1033,8 +1029,20 @@ try {
 
     Verify-PostUpdateState $InstallDir $TargetVersion
 
-    Register-GarmentsProtocol $InstallDir
-    Install-GarmentsShortcuts $InstallDir
+    try {
+        Register-GarmentsProtocol $InstallDir
+    }
+    catch {
+        Write-Warning $_
+    }
+
+    try {
+        Install-GarmentsShortcuts $InstallDir
+    }
+    catch {
+        Write-Warning $_
+    }
+
     Remove-InstalledEnvTemplate $InstallDir
 
     if ($HideTechnicalFiles) {
