@@ -31,6 +31,7 @@ include_paths=(
   "bootstrap"
   "config"
   "database/migrations"
+  "database/seeders"
   "public"
   "resources"
   "routes"
@@ -47,6 +48,7 @@ include_paths=(
   "docker-compose.yml"
   ".dockerignore"
   "docker"
+  "vendor"
 )
 
 for path in "${include_paths[@]}"; do
@@ -66,8 +68,7 @@ rm -rf \
   "$DEST/.github" \
   "$DEST/node_modules" \
   "$DEST/tests" \
-  "$DEST/storage" \
-  "$DEST/vendor"
+  "$DEST/storage"
 
 find "$DEST" -type f \( \
   -name '.env' -o \( -name '.env.*' ! -name '.env.example' \) -o -name '*.sqlite' -o -name '*.sqlite-wal' -o -name '*.sqlite-shm' \
@@ -88,6 +89,23 @@ for dir in \
   mkdir -p "$DEST/$dir"
   touch "$DEST/$dir/.gitkeep"
 done
+
+if [[ ! -f "$ROOT/public/build/manifest.json" ]]; then
+  echo "Frontend build output is missing: $ROOT/public/build/manifest.json" >&2
+  echo "Run npm ci && npm run build before packaging a production release." >&2
+  exit 1
+fi
+
+if [[ ! -f "$ROOT/vendor/autoload.php" ]]; then
+  echo "Composer autoload is missing: $ROOT/vendor/autoload.php" >&2
+  echo "Run composer install --no-dev --optimize-autoloader before packaging a production release." >&2
+  exit 1
+fi
+
+if [[ ! -d "$ROOT/database/migrations" || ! -d "$ROOT/database/seeders" ]]; then
+  echo "Release build requires both database/migrations and database/seeders to exist." >&2
+  exit 1
+fi
 
 built_at="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
 commit="$(git rev-parse HEAD)"

@@ -17,6 +17,7 @@ class UpdateApplyService
         protected UpdatePackageVerifier $packages,
         protected UpdateLogService $logs,
         protected BackupService $backups,
+        protected InstalledVersionService $versions,
     ) {
     }
 
@@ -93,21 +94,25 @@ class UpdateApplyService
             }
 
             $this->copyAllowedFiles($plannedFiles, $stagedRoot);
+            $this->writeEnvAppVersion((string) ($manifest['latest_version'] ?? ''));
 
-            $migrationCode = null;
-            if (!empty($manifest['migration_required']) && (bool) config('updater.run_migrations', true)) {
-                $migrationCode = Artisan::call('migrate', ['--force' => true]);
-                if ($migrationCode !== 0) {
-                    $this->logs->record('apply_migration_failed', ['exit_code' => $migrationCode]);
+            $migrationCode = $this->runPendingMigrationsOnly();
+            if ($migrationCode !== 0) {
+                $this->logs->record('apply_migration_failed', ['exit_code' => $migrationCode]);
 
-                    return $this->result(false, 'migration_failed', 'Update files were copied, but migrations failed. Use the verified backup and snapshot for manual recovery.', [
-                        'backup_log_id' => $backup['backup_log']->id ?? null,
-                        'snapshot' => basename($snapshot),
-                    ]);
-                }
+                return $this->result(false, 'migration_failed', 'Update files were copied, but migrations failed. Use the verified backup and snapshot for manual recovery.', [
+                    'backup_log_id' => $backup['backup_log']->id ?? null,
+                    'snapshot' => basename($snapshot),
+                ]);
             }
 
+            $this->runRequiredSeeders($manifest);
             $maintenance = $this->runPostUpdateMaintenance();
+
+            $versionCheck = $this->verifyInstalledVersion((string) ($manifest['latest_version'] ?? ''));
+            if (!$versionCheck['success']) {
+                throw new RuntimeException($versionCheck['message']);
+            }
 
             $this->logs->record('apply_succeeded', [
                 'version' => $manifest['latest_version'],
@@ -243,6 +248,11 @@ class UpdateApplyService
                 File::copy($destination, $snapshot . DIRECTORY_SEPARATOR . $relative);
             }
         }
+
+        $envPath = base_path('.env');
+        if (File::isFile($envPath)) {
+            File::copy($envPath, $snapshot . DIRECTORY_SEPARATOR . '.env');
+        }
     }
 
     protected function copyAllowedFiles(array $files, string $stagedRoot): void
@@ -272,19 +282,124 @@ class UpdateApplyService
                 File::copy($file->getPathname(), $destination);
             }
 
-            return ['code' => 'rollback_succeeded', 'message' => 'Code files were rolled back from the pre-update snapshot.'];
+            $envSnapshot = $snapshot . DIRECTORY_SEPARATOR . '.env';
+            if (File::isFile($envSnapshot)) {
+                File::copy($envSnapshot, base_path('.env'));
+            }
+
+            File::deleteDirectory(storage_path('framework/cache'));
+            File::deleteDirectory(storage_path('framework/views'));
+            File::deleteDirectory(storage_path('framework/sessions'));
+            File::ensureDirectoryExists(storage_path('framework/cache'));
+            File::ensureDirectoryExists(storage_path('framework/views'));
+            File::ensureDirectoryExists(storage_path('framework/sessions'));
+
+            Artisan::call('config:clear');
+            Artisan::call('route:clear');
+            Artisan::call('view:clear');
+            Artisan::call('cache:clear');
+            Artisan::call('up');
+
+            return ['code' => 'rollback_succeeded', 'message' => 'Application files, .env, caches, and runtime state were rolled back from the pre-update snapshot.'];
         } catch (Throwable) {
-            return ['code' => 'rollback_failed', 'message' => 'Code rollback failed. Manual recovery from snapshot is required.'];
+            return ['code' => 'rollback_failed', 'message' => 'Rollback failed. Manual recovery from snapshot is required.'];
         }
     }
 
     protected function runPostUpdateMaintenance(): array
     {
         return [
+            'storage_unlink' => $this->callArtisanSafely('storage:unlink'),
             'storage_link' => $this->callArtisanSafely('storage:link', ['--force' => true], retryWithoutOptions: true),
             'optimize_clear' => $this->callArtisanSafely('optimize:clear'),
-            'optimize' => $this->callArtisanSafely('optimize'),
+            'config_cache' => $this->callArtisanSafely('config:cache'),
+            'route_cache' => $this->callArtisanSafely('route:cache'),
+            'view_cache' => $this->callArtisanSafely('view:cache'),
         ];
+    }
+
+    protected function runPendingMigrationsOnly(): int
+    {
+        $statusCode = Artisan::call('migrate:status');
+        $output = trim(Artisan::output());
+        $this->logs->record('migrate_status_checked', ['output' => Str::limit($output, 400)]);
+
+        if ($statusCode !== 0) {
+            return $statusCode;
+        }
+
+        if (str_contains($output, 'No pending migrations') || !str_contains($output, 'Pending')) {
+            $this->logs->record('migrate_skipped', ['message' => 'No pending migrations.']);
+
+            return 0;
+        }
+
+        $this->logs->record('migrate_running', ['message' => 'Pending migrations detected; running migrate --force.']);
+
+        return Artisan::call('migrate', ['--force' => true]);
+    }
+
+    protected function runRequiredSeeders(array $manifest): void
+    {
+        $seeders = $manifest['required_seeders'] ?? [];
+        if (!is_array($seeders) || $seeders === []) {
+            return;
+        }
+
+        foreach ($seeders as $class) {
+            $class = trim((string) $class);
+            if ($class === '' || $class === 'DatabaseSeeder') {
+                continue;
+            }
+
+            $this->logs->record('seeder_running', ['class' => $class]);
+            $exitCode = Artisan::call('db:seed', ['--class' => $class, '--force' => true]);
+            if ($exitCode !== 0) {
+                throw new RuntimeException('Seeder failed: ' . $class);
+            }
+        }
+    }
+
+    protected function writeEnvAppVersion(string $version): void
+    {
+        $version = trim($version);
+        if ($version === '') {
+            return;
+        }
+
+        $envPath = base_path('.env');
+        if (!File::isFile($envPath)) {
+            return;
+        }
+
+        $content = File::get($envPath);
+        $pattern = '/^APP_VERSION=.*$/m';
+        $line = 'APP_VERSION=' . $version;
+        $updated = preg_match($pattern, $content)
+            ? preg_replace($pattern, $line, $content, 1)
+            : rtrim($content, "\r\n") . PHP_EOL . $line . PHP_EOL;
+
+        if ($updated === null) {
+            throw new RuntimeException('Could not update APP_VERSION in .env.');
+        }
+
+        File::put($envPath, $updated);
+    }
+
+    protected function verifyInstalledVersion(string $releaseVersion): array
+    {
+        $envVersion = trim((string) preg_replace('/^APP_VERSION=/m', '', File::get(base_path('.env'))));
+        $installedVersion = trim((string) $this->versions->currentVersion());
+
+        if ($envVersion === '' || $installedVersion === '' || $releaseVersion === '') {
+            return $this->result(false, 'app_version_verify_failed', 'APP_VERSION verification could not complete.');
+        }
+
+        if ($envVersion !== $releaseVersion || $installedVersion !== $releaseVersion) {
+            return $this->result(false, 'app_version_mismatch', 'APP_VERSION mismatch: release manifest version, .env APP_VERSION, and InstalledVersionService::currentVersion() must match.');
+        }
+
+        return $this->result(true, 'app_version_verified', 'APP_VERSION verified.');
     }
 
     protected function callArtisanSafely(string $command, array $parameters = [], bool $retryWithoutOptions = false): array

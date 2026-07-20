@@ -807,20 +807,114 @@ function Remove-InstalledEnvTemplate($InstallDir) {
     }
 }
 
+function Write-UpdateLog($InstallDir, $Message) {
+    try {
+        $updatesDir = Join-Path $InstallDir "updates"
+        New-Item -ItemType Directory -Force -Path $updatesDir | Out-Null
+        $logPath = Join-Path $updatesDir "update.log"
+        $line = "[$(Get-Date -Format o)] $Message"
+        Add-Content -LiteralPath $logPath -Value $line -Encoding UTF8
+        Write-Host $line
+    } catch {
+        Write-Warning "Could not append update log entry: $($_.Exception.Message)"
+    }
+}
+
+function Invoke-ComposeExecSafe($InstallDir, $Command, $Label) {
+    Push-Location $InstallDir
+    try {
+        Write-Host "Running $Label"
+        $output = & docker compose exec -T app sh -lc $Command 2>&1
+        $exitCode = $LASTEXITCODE
+        if ($output) {
+            $output | Out-Host
+        }
+        if ($exitCode -ne 0) {
+            throw "$Label failed with exit code $exitCode."
+        }
+        return $output
+    } finally {
+        Pop-Location
+    }
+}
+
+function Verify-PostUpdateState($InstallDir, $ExpectedVersion) {
+    $checks = [ordered]@{}
+
+    Push-Location $InstallDir
+    try {
+        $envPath = Join-Path $InstallDir ".env"
+        $envContent = Get-Content -LiteralPath $envPath -Raw -ErrorAction Stop
+        $appVersion = Read-EnvValue $envContent "APP_VERSION"
+        $checks["app_version"] = $appVersion
+
+        $dockerHealthy = docker compose ps --status running --filter "name=app" 2>$null
+        $checks["docker_running"] = ($dockerHealthy -match "app")
+
+        $storageLink = docker compose exec -T app sh -lc 'test -L public/storage && echo linked' 2>$null
+        $checks["storage_link"] = ($storageLink -match "linked")
+
+        $manifestFile = docker compose exec -T app sh -lc 'test -f public/build/manifest.json && echo manifest-present' 2>$null
+        $checks["manifest_present"] = ($manifestFile -match "manifest-present")
+
+        $migrationStatus = docker compose exec -T app sh -lc 'php artisan migrate:status --no-interaction' 2>$null
+        $checks["migrations"] = ($migrationStatus -match "Ran")
+
+        $appResponse = docker compose exec -T app sh -lc 'php -r "echo file_exists(\"public/build/manifest.json\") ? \"asset-ok\" : \"asset-missing\";"' 2>$null
+        $checks["asset_ready"] = ($appResponse -match "asset-ok")
+    } finally {
+        Pop-Location
+    }
+
+    $failed = @()
+    if ($checks["app_version"] -ne $ExpectedVersion) {
+        $failed += "APP_VERSION mismatch: expected $ExpectedVersion, found $($checks["app_version"])"
+    }
+    if (-not $checks["docker_running"]) {
+        $failed += "Docker app container did not remain healthy after restart."
+    }
+    if (-not $checks["storage_link"]) {
+        $failed += "Storage link verification failed."
+    }
+    if (-not $checks["manifest_present"]) {
+        $failed += "public/build/manifest.json verification failed."
+    }
+    if (-not $checks["migrations"]) {
+        $failed += "Migration status verification failed."
+    }
+    if (-not $checks["asset_ready"]) {
+        $failed += "Post-update asset verification failed."
+    }
+
+    if ($failed.Count -gt 0) {
+        throw ($failed -join '; ')
+    }
+
+    Write-Host "Post-update verification passed for version $ExpectedVersion."
+    return $checks
+}
+
 function Invoke-GarmentsLaravelMaintenance($InstallDir) {
     try {
         Push-Location $InstallDir
         try {
             Write-Host "Running Laravel maintenance commands..."
-            docker compose exec -T app sh -lc 'php artisan storage:link --force || php artisan storage:link' | Out-Host
-            docker compose exec -T app php artisan optimize:clear | Out-Host
-            docker compose exec -T app php artisan optimize | Out-Host
-            Write-Host "Laravel maintenance completed: storage:link, optimize:clear, optimize."
+            Invoke-ComposeExecSafe $InstallDir 'composer install --no-dev --optimize-autoloader --no-interaction --no-progress || composer install --no-dev --optimize-autoloader --no-interaction --no-progress --prefer-source' 'composer install'
+            Invoke-ComposeExecSafe $InstallDir 'composer dump-autoload -o' 'composer dump-autoload'
+            Invoke-ComposeExecSafe $InstallDir 'php artisan migrate --force' 'migrate'
+            Invoke-ComposeExecSafe $InstallDir 'php artisan storage:unlink || true' 'storage:unlink'
+            Invoke-ComposeExecSafe $InstallDir 'php artisan storage:link' 'storage:link'
+            Invoke-ComposeExecSafe $InstallDir 'php artisan optimize:clear' 'optimize:clear'
+            Invoke-ComposeExecSafe $InstallDir 'php artisan config:cache' 'config:cache'
+            Invoke-ComposeExecSafe $InstallDir 'php artisan route:cache' 'route:cache'
+            Invoke-ComposeExecSafe $InstallDir 'php artisan view:cache' 'view:cache'
+            Write-Host "Laravel maintenance completed: composer install, dump-autoload, migrate, storage relink, optimize:clear, config:cache, route:cache, view:cache."
         } finally {
             Pop-Location
         }
     } catch {
-        Write-Warning "Laravel maintenance warning. App may still run, but cache/storage repair may be needed. $($_.Exception.Message)"
+        Write-Warning "Laravel maintenance failed. App may still run, but cache/storage repair may be needed. $($_.Exception.Message)"
+        throw
     }
 }
 
@@ -904,13 +998,23 @@ try {
 
     Push-Location $InstallDir
     try {
+        Write-UpdateLog $InstallDir "update start version: $TargetVersion"
         docker compose up -d
         $script:EnvWriteStoppedCompose = $false
     } finally {
         Pop-Location
     }
 
+    Write-UpdateLog $InstallDir "docker compose restart: performing post-update maintenance"
     Invoke-GarmentsLaravelMaintenance $InstallDir
+
+    Push-Location $InstallDir
+    try {
+        docker compose restart app | Out-Host
+        Write-UpdateLog $InstallDir "docker compose restart app: completed"
+    } finally {
+        Pop-Location
+    }
 
     $envContent = Get-Content $EnvPath -Raw
     $envContent = Set-EnvLine $envContent "RUN_MIGRATIONS_ON_START" "false"
@@ -927,6 +1031,8 @@ try {
         }
     }
 
+    Verify-PostUpdateState $InstallDir $TargetVersion
+
     Register-GarmentsProtocol $InstallDir
     Install-GarmentsShortcuts $InstallDir
     Remove-InstalledEnvTemplate $InstallDir
@@ -938,10 +1044,12 @@ try {
     }
     Protect-GarmentsInstallFolder $InstallDir
 
+    Write-UpdateLog $InstallDir "update finish version: $TargetVersion"
     Write-Host "Update complete. Volumes were preserved."
     Write-Host "License/device identity state was preserved in the Docker storage volume."
     Write-Host "Rollback: load the previous image tar, set GARMENTSOS_IMAGE in .env to the previous tag, then run docker compose up -d."
 } catch {
+    Write-UpdateLog $InstallDir "rollback reason: $($_.Exception.Message)"
     Write-Warning "Update failed after pre-update backup. Attempting to preserve/restore license device identity. $($_.Exception.Message)"
     Restore-GarmentsLicenseState $InstallDir $LicenseStateBackup
     throw

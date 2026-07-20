@@ -51,9 +51,12 @@ required=(
   "bootstrap"
   "config"
   "database/migrations"
+  "database/seeders"
   "public"
+  "public/build/manifest.json"
   "resources"
   "routes"
+  "vendor/autoload.php"
 )
 
 for path in "${required[@]}"; do
@@ -71,7 +74,8 @@ for dir in \
   "storage/framework/sessions" \
   "storage/framework/views" \
   "storage/logs" \
-  "bootstrap/cache"; do
+  "bootstrap/cache" \
+  "vendor/composer"; do
   if [[ ! -d "$SCAN_ROOT/$dir" ]]; then
     echo "Missing runtime directory: $dir" >&2
     exit 1

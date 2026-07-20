@@ -58,6 +58,19 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Set up Node.js for frontend build
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Set up PHP and Composer runtime
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.2"
+          extensions: sqlite3, pdo_sqlite
+          tools: composer:v2
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -70,6 +83,38 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y zip
+
+      - name: Build frontend and Laravel runtime prerequisites
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          npm ci
+          npm run build
+
+          composer install --no-dev --no-interaction --no-progress --optimize-autoloader
+          composer dump-autoload -o
+
+          php artisan optimize:clear
+          php artisan config:cache
+          php artisan route:cache
+          php artisan view:cache
+          php artisan test
+
+      - name: Verify release build prerequisites
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          test -d public/build
+          test -f public/build/manifest.json
+          test -d database/migrations
+          test -d database/seeders
+          test -d bootstrap/cache
+          test -f vendor/autoload.php
+          test -f composer.lock
+
+          echo "Release prerequisites verified for version ${VERSION}."
 
       - name: Publish Windows GUI launcher
         id: launcher

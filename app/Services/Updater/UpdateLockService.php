@@ -24,6 +24,8 @@ class UpdateLockService
 
     public function activeLock(): ?array
     {
+        $this->pruneStaleState();
+
         $lock = $this->read();
         if ($lock === null) {
             return null;
@@ -39,6 +41,7 @@ class UpdateLockService
 
     public function status(): array
     {
+        $this->pruneStaleState();
         $lock = $this->activeLock();
 
         return [
@@ -54,6 +57,8 @@ class UpdateLockService
 
     public function start(array $context = []): array
     {
+        $this->pruneStaleState();
+
         $now = now()->utc();
         $ttl = max(1, (int) config('updater.update_lock_ttl_minutes', 30));
 
@@ -81,6 +86,18 @@ class UpdateLockService
     {
         if (File::exists($this->path())) {
             File::delete($this->path());
+        }
+    }
+
+    public function pruneStaleState(): void
+    {
+        $lock = $this->read();
+        if ($lock === null) {
+            return;
+        }
+
+        if ($this->isExpired($lock) || $this->targetVersionInstalled($lock)) {
+            $this->clear();
         }
     }
 
@@ -116,10 +133,16 @@ class UpdateLockService
         try {
             $lock = json_decode(File::get($this->path()), true, 512, JSON_THROW_ON_ERROR);
         } catch (\Throwable) {
+            $this->clear();
             return null;
         }
 
-        return is_array($lock) && !empty($lock['locked']) ? $lock : null;
+        if (!is_array($lock) || empty($lock['locked'])) {
+            $this->clear();
+            return null;
+        }
+
+        return $lock;
     }
 
     protected function isExpired(array $lock): bool
