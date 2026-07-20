@@ -330,8 +330,7 @@
                         value: `${formatNumbersDigitLess(data.pcs_per_packet)} Pcs per Packet`,
                         disabled: true,
                         full: true,
-                    },
-                    {
+                    },{
                         category: 'input',
                         name: 'quantity',
                         id: 'quantity',
@@ -340,7 +339,12 @@
                         placeholder: 'Enter quantity in pcs.',
                         max: maxOrderQuantity,
                         required: true,
-                        oninput: `syncArticleQuantityPair('pcs', ${Number(data.pcs_per_packet || 0)}, ${Number(maxOrderQuantity || 0)})`,
+                        oninput: `
+                            if (+this.value > ${Number(maxOrderQuantity || 0)}) {
+                                this.value = ${Number(maxOrderQuantity || 0)};
+                            }
+                            syncArticleQuantityPair('pcs', ${Number(data.pcs_per_packet || 0)}, ${Number(maxOrderQuantity || 0)});
+                        `,
                     },
                     {
                         category: 'input',
@@ -350,9 +354,20 @@
                         label: 'Quantity - Pckts.',
                         placeholder: 'Enter packets.',
                         min: 0,
-                        max: Number(data.pcs_per_packet || 0) ? Math.floor(Number(maxOrderQuantity || 0) / Number(data.pcs_per_packet || 0)) : 0,
+                        max: Number(data.pcs_per_packet || 0)
+                            ? Math.floor(Number(maxOrderQuantity || 0) / Number(data.pcs_per_packet || 0))
+                            : 0,
                         required: true,
-                        oninput: `syncArticleQuantityPair('packets', ${Number(data.pcs_per_packet || 0)}, ${Number(maxOrderQuantity || 0)})`,
+                        oninput: `
+                            if (+this.value > ${Number(data.pcs_per_packet || 0)
+                                ? Math.floor(Number(maxOrderQuantity || 0) / Number(data.pcs_per_packet || 0))
+                                : 0}) {
+                                this.value = ${Number(data.pcs_per_packet || 0)
+                                    ? Math.floor(Number(maxOrderQuantity || 0) / Number(data.pcs_per_packet || 0))
+                                    : 0};
+                            }
+                            syncArticleQuantityPair('packets', ${Number(data.pcs_per_packet || 0)}, ${Number(maxOrderQuantity || 0)});
+                        `,
                     },
                 ],
                 fieldsGridCount: '2',

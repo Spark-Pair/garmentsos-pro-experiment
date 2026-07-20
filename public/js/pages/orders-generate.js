@@ -344,10 +344,14 @@
                         id: 'quantity',
                         type: 'number',
                         label: 'Quantity - Pcs.',
-                        placeholder: 'Enter quantity in pcs.',
                         max: Number(data.orderable_quantity || 0),
                         required: true,
-                        oninput: `syncArticleQuantityPair('pcs', ${Number(data.pcs_per_packet || 0)}, ${Number(data.orderable_quantity || 0)})`,
+                        oninput: `
+                            if (+this.value > ${Number(data.orderable_quantity || 0)}) {
+                                this.value = ${Number(data.orderable_quantity || 0)};
+                            }
+                            syncArticleQuantityPair('pcs', ${Number(data.pcs_per_packet || 0)}, ${Number(data.orderable_quantity || 0)});
+                        `,
                     },
                     {
                         category: 'input',
@@ -355,11 +359,20 @@
                         id: 'quantity_packets',
                         type: 'number',
                         label: 'Quantity - Pckts.',
-                        placeholder: 'Enter packets.',
-                        min: 0,
-                        max: Number(data.pcs_per_packet || 0) ? Math.floor(Number(data.orderable_quantity || 0) / Number(data.pcs_per_packet || 0)) : 0,
+                        max: Number(data.pcs_per_packet || 0)
+                            ? Math.floor(Number(data.orderable_quantity || 0) / Number(data.pcs_per_packet || 0))
+                            : 0,
                         required: true,
-                        oninput: `syncArticleQuantityPair('packets', ${Number(data.pcs_per_packet || 0)}, ${Number(data.orderable_quantity || 0)})`,
+                        oninput: `
+                            if (+this.value > ${Number(data.pcs_per_packet || 0)
+                                ? Math.floor(Number(data.orderable_quantity || 0) / Number(data.pcs_per_packet || 0))
+                                : 0}) {
+                                this.value = ${Number(data.pcs_per_packet || 0)
+                                    ? Math.floor(Number(data.orderable_quantity || 0) / Number(data.pcs_per_packet || 0))
+                                    : 0};
+                            }
+                            syncArticleQuantityPair('packets', ${Number(data.pcs_per_packet || 0)}, ${Number(data.orderable_quantity || 0)});
+                        `,
                     },
                 ],
                 fieldsGridCount: '2',
