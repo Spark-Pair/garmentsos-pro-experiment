@@ -43,7 +43,7 @@ function initPaymentProgramsIndex() {
         const subCategorySearchInput = document.getElementById('subCategory');
         const subCategoryHiddenInput = document.querySelector('input.dbInput[data-for="subCategory"]');
         const subCategoryOptionBox = subCategoryHiddenInput?.parentElement.querySelector('ul');
-        const subCategoryWrapper = subCategorySearchInput?.closest('.form-group')?.parentElement?.closest('.form-group');
+        const subCategoryWrapper = subCategorySearchInput?.closest('.form-group')?.parentElement?.closest('.form-group').parentElement.parentElement;
         const subCategoryLabel = subCategoryWrapper?.querySelector('label');
         const remarksInputDom = document.getElementById('remarks');
 
@@ -115,6 +115,12 @@ function initPaymentProgramsIndex() {
                     } else {
                         subCategorySearchInput.value = '';
                         subCategoryHiddenInput.value = '';
+                    }
+
+                    // Lock category/subcategory if payment already exists
+                    if (window.__lockCategoryFields) {
+                        subCategorySearchInput.disabled = true;
+                        subCategoryHiddenInput.disabled = true;
                     }
                 },
                 error: function (xhr) {
@@ -201,6 +207,8 @@ function initPaymentProgramsIndex() {
 
         createModal(modalData);
 
+        const canEditCategory = Number(item.payment || 0) === 0;
+        window.__lockCategoryFields = !canEditCategory;
         const form = document.getElementById('updateProgramModalForm');
         const li = form.querySelector(`.optionsDropdown[data-for="category"] li[data-value="${item.category}"]`);
         if (li) {
@@ -210,6 +218,20 @@ function initPaymentProgramsIndex() {
         selectedSubCategoryId = item.sub_category?.id || item.data.sub_category_id || item.sub_category || '';
         if (item.category) {
             getCategoryData(item.category);
+        }
+
+        const categoryInput = form.querySelector('#category');
+        const subCategoryInput = form.querySelector('#subCategory');
+
+        const categoryHidden = form.querySelector('input.dbInput[data-for="category"]');
+        const subCategoryHidden = form.querySelector('input.dbInput[data-for="subCategory"]');
+
+        if (!canEditCategory) {
+            categoryInput?.setAttribute('disabled', 'disabled');
+            subCategoryInput?.setAttribute('disabled', 'disabled');
+
+            categoryHidden?.setAttribute('disabled', 'disabled');
+            subCategoryHidden?.setAttribute('disabled', 'disabled');
         }
 
         document.getElementById('updateProgramModalForm').addEventListener('submit', function(e) {
