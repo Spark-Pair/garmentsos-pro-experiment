@@ -63,7 +63,7 @@ cat > "$INSTALLED_MANIFEST" <<JSON
 }
 JSON
 
-- name: Debug migrations
+# - name: Debug migrations
   run: |
     echo "===== MIGRATIONS ====="
     ls -la database/migrations
