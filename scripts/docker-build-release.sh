@@ -64,9 +64,9 @@ cat > "$INSTALLED_MANIFEST" <<JSON
 JSON
 
 # - name: Debug migrations
-  run: |
-    echo "===== MIGRATIONS ====="
-    ls -la database/migrations
+  # run: |
+  #   echo "===== MIGRATIONS ====="
+  #   ls -la database/migrations
 
 docker build -t "$IMAGE" "$ROOT"
 
