@@ -820,7 +820,10 @@ function Invoke-ComposeExecSafe($InstallDir, $Command, $Label) {
     Push-Location $InstallDir
     try {
         Write-Host "Running $Label"
-        $output = & docker compose exec -T app sh -lc $Command 2>&1
+        $output = @(
+            & docker compose exec -T app sh -lc $Command 2>&1
+        )
+
         $exitCode = $LASTEXITCODE
         if ($output) {
             $output | Out-Host
@@ -898,8 +901,13 @@ function Invoke-GarmentsLaravelMaintenance($InstallDir) {
             Invoke-ComposeExecSafe $InstallDir 'composer install --no-dev --optimize-autoloader --no-interaction --no-progress || composer install --no-dev --optimize-autoloader --no-interaction --no-progress --prefer-source' 'composer install'
             Invoke-ComposeExecSafe $InstallDir 'composer dump-autoload -o' 'composer dump-autoload'
             Invoke-ComposeExecSafe $InstallDir 'php artisan migrate --force' 'migrate'
-            Invoke-ComposeExecSafe $InstallDir 'php artisan storage:unlink || true' 'storage:unlink'
-            Invoke-ComposeExecSafe $InstallDir 'php artisan storage:link' 'storage:link'
+            try {
+                Invoke-ComposeExecSafe $InstallDir 'php artisan storage:unlink || true' 'storage:unlink'
+                Invoke-ComposeExecSafe $InstallDir 'php artisan storage:link' 'storage:link'
+            }
+            catch {
+                Write-Warning "storage:link failed: $($_.Exception.Message)"
+            }
             Invoke-ComposeExecSafe $InstallDir 'php artisan optimize:clear' 'optimize:clear'
             Invoke-ComposeExecSafe $InstallDir 'php artisan config:cache' 'config:cache'
             Invoke-ComposeExecSafe $InstallDir 'php artisan route:cache' 'route:cache'

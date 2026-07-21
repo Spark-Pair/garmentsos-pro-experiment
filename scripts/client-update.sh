@@ -78,8 +78,23 @@ rsync -a \
 composer install --no-dev --optimize-autoloader
 composer dump-autoload -o
 php artisan migrate --force
-php artisan storage:unlink || true
-php artisan storage:link
+if [ -L storage/app/public ]; then
+    TARGET="$(readlink storage/app/public)"
+
+    if [ "$TARGET" = "/var/www/html/storage/app/public" ]; then
+        echo "Repairing invalid self-referencing storage/app/public symlink..."
+        rm storage/app/public
+        mkdir -p storage/app/public
+    fi
+fi
+
+mkdir -p storage/app/public
+
+if [ -L public/storage ]; then
+    php artisan storage:unlink || true
+fi
+
+php artisan storage:link || echo "Warning: storage:link failed"
 php artisan optimize:clear
 php artisan config:cache
 php artisan route:cache
@@ -95,8 +110,10 @@ if [[ ! -d database/migrations || ! -d database/seeders ]]; then
   rollback "database migration or seeder directories are missing after update"
 fi
 
-if [[ ! -L public/storage ]]; then
-  rollback "storage link verification failed"
+TARGET="$(readlink public/storage)"
+
+if [[ "$TARGET" != "$(pwd)/storage/app/public" && "$TARGET" != "../storage/app/public" ]]; then
+    rollback "public/storage points to invalid target: $TARGET"
 fi
 
 if php artisan migrate:status --no-interaction | grep -q 'No migrations found'; then
