@@ -58,6 +58,12 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - run: git log --oneline -1
+
+      - run: git status
+
+      - run: ls database/migrations
+
       - name: Set up Node.js for frontend build
         uses: actions/setup-node@v4
         with:

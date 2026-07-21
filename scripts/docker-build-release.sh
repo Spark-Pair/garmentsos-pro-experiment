@@ -63,7 +63,18 @@ cat > "$INSTALLED_MANIFEST" <<JSON
 }
 JSON
 
+- name: Debug migrations
+  run: |
+    echo "===== MIGRATIONS ====="
+    ls -la database/migrations
+
 docker build -t "$IMAGE" "$ROOT"
+
+- name: Check image
+  run: |
+    docker run --rm sparkpair/garmentsos-pro:${{ github.ref_name }} \
+      sh -c "ls -la /var/www/html/database/migrations"
+      
 cleanup_installed_manifest
 docker save "$IMAGE" -o "$IMAGE_TAR"
 
