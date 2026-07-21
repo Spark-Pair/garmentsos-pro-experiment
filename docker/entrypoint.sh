@@ -57,7 +57,10 @@ if [[ "${RUN_MIGRATIONS_ON_START:-false}" == "true" ]]; then
   php artisan migrate --force
 fi
 
-php artisan storage:link --force || php artisan storage:link || true
+if [ ! -L public/storage ]; then
+    mkdir -p storage/app/public
+    php artisan storage:link || true
+fi
 php artisan optimize:clear || true
 php artisan optimize || true
 
