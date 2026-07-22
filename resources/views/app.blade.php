@@ -44,17 +44,23 @@
     ];
     $developerUpdateStatus = null;
     $developerLauncherHandoff = null;
+    $canRunUpdateActions = false;
+    $updateActionDeniedMessage = '';
     $canManageUpdates = Auth::check() && in_array(Auth::user()->role, ['developer', 'admin'], true);
     if (Auth::check() && !request()->is('login') && !request()->is('setup')) {
         try {
+            $updateActionAccess = app(\App\Services\Updater\UpdateActionAccessService::class);
+            $canRunUpdateActions = $updateActionAccess->canRunFrom(request());
+            $updateActionDeniedMessage = $updateActionAccess->denialMessage();
             $releaseFeedService = app(\App\Services\Updater\ReleaseFeedService::class);
             $developerUpdateStatus = $releaseFeedService->checkConfiguredCached((int) config('updater.app_shell_feed_cache_seconds', 0));
-            if ($canManageUpdates && !empty($developerUpdateStatus['update_available'])) {
+            if ($canManageUpdates && $canRunUpdateActions && !empty($developerUpdateStatus['update_available'])) {
                 $developerLauncherHandoff = $releaseFeedService->launcherHandoff($developerUpdateStatus);
             }
         } catch (\Throwable) {
             $developerUpdateStatus = null;
             $developerLauncherHandoff = null;
+            $canRunUpdateActions = false;
         }
     }
 
@@ -452,9 +458,16 @@
             transition: transform 180ms ease, background-color 180ms ease;
         }
 
+        .app-toggle.is-checked,
+        .app-toggle:has(.app-toggle-input:checked),
         .app-toggle-input:checked ~ .app-toggle-track,
         .switchBtn.active {
             border-color: color-mix(in srgb, var(--primary-color) 60%, transparent);
+            background: var(--primary-color);
+        }
+
+        .app-toggle.is-checked .app-toggle-track,
+        .app-toggle:has(.app-toggle-input:checked) .app-toggle-track {
             background: var(--primary-color);
         }
 
@@ -463,6 +476,8 @@
             box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-color) 25%, transparent);
         }
 
+        .app-toggle.is-checked .app-toggle-thumb,
+        .app-toggle:has(.app-toggle-input:checked) .app-toggle-thumb,
         .app-toggle-input:checked ~ .app-toggle-thumb,
         .switchBtn.active .circle {
             transform: translateX(1rem);
@@ -644,6 +659,11 @@
                             Update is available. Please contact an admin or developer to apply it.
                         </div>
                     @endunless
+                    @if ($canManageUpdates && !$canRunUpdateActions)
+                        <div class="rounded-lg border border-[var(--border-warning)] bg-[var(--bg-warning)] p-3 text-sm text-[var(--text-warning)]">
+                            {{ $updateActionDeniedMessage ?: 'Updates can only be started from the server PC.' }}
+                        </div>
+                    @endif
                     <details class="rounded-lg border border-[var(--glass-border-color)]/10 bg-[var(--h-bg-color)] p-3 text-sm" open>
                         <summary class="cursor-pointer font-semibold">Details</summary>
                         <div class="mt-2 max-h-60 overflow-y-auto whitespace-pre-line rounded-lg pr-2 text-[var(--secondary-text)] my-scrollbar-2">{{ $releaseNotes }}</div>
@@ -660,7 +680,7 @@
                             Details
                         </a>
                     @endif
-                    @if ($canManageUpdates && !empty($developerLauncherHandoff['protocol_url']))
+                    @if ($canManageUpdates && $canRunUpdateActions && !empty($developerLauncherHandoff['protocol_url']))
                         <a href="#" data-update-start-url="{{ route('developer.updater.launcher-handoff.start') }}" class="js-update-handoff rounded-lg bg-[var(--primary-color)] px-4 py-2 text-sm font-semibold text-white">
                             Update Now
                         </a>

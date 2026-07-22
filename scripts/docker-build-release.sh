@@ -64,6 +64,15 @@ cat > "$INSTALLED_MANIFEST" <<JSON
 JSON
 
 docker build -t "$IMAGE" "$ROOT"
+
+latest_migration="$(find "$ROOT/database/migrations" -maxdepth 1 -type f -name '*.php' -printf '%f\n' | sort | tail -n 1)"
+if [[ -z "$latest_migration" ]]; then
+  echo "No Laravel migration files found under database/migrations." >&2
+  exit 1
+fi
+
+echo "Validating Docker image contains latest migration: $latest_migration"
+docker run --rm --entrypoint sh "$IMAGE" -lc "test -f 'database/migrations/$latest_migration'"
       
 cleanup_installed_manifest
 docker save "$IMAGE" -o "$IMAGE_TAR"

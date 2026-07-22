@@ -856,8 +856,11 @@ function Verify-PostUpdateState($InstallDir, $ExpectedVersion) {
         $manifestFile = docker compose exec -T app sh -lc 'test -f public/build/manifest.json && echo manifest-present' 2>$null
         $checks["manifest_present"] = ($manifestFile -match "manifest-present")
 
-        $migrationStatus = docker compose exec -T app sh -lc 'php artisan migrate:status --no-interaction' 2>$null
-        $checks["migrations"] = ($migrationStatus -match "Ran")
+        $migrationOutput = docker compose exec -T app sh -lc 'php artisan migrate --force --no-interaction' 2>&1
+        $checks["migrations"] = ($LASTEXITCODE -eq 0)
+        if (-not $checks["migrations"] -and $migrationOutput) {
+            $checks["migration_output"] = ($migrationOutput -join " ")
+        }
 
         $appResponse = docker compose exec -T app sh -lc 'php -r "echo file_exists(\"public/build/manifest.json\") ? \"asset-ok\" : \"asset-missing\";"' 2>$null
         $checks["asset_ready"] = ($appResponse -match "asset-ok")
@@ -879,7 +882,7 @@ function Verify-PostUpdateState($InstallDir, $ExpectedVersion) {
         $failed += "public/build/manifest.json verification failed."
     }
     if (-not $checks["migrations"]) {
-        $failed += "Migration status verification failed."
+        $failed += "Migration verification failed. $($checks["migration_output"])"
     }
     if (-not $checks["asset_ready"]) {
         $failed += "Post-update asset verification failed."
@@ -898,27 +901,56 @@ function Invoke-GarmentsLaravelMaintenance($InstallDir) {
         Push-Location $InstallDir
         try {
             Write-Host "Running Laravel maintenance commands..."
-            Invoke-ComposeExecSafe $InstallDir 'composer install --no-dev --optimize-autoloader --no-interaction --no-progress || composer install --no-dev --optimize-autoloader --no-interaction --no-progress --prefer-source' 'composer install'
-            Invoke-ComposeExecSafe $InstallDir 'composer dump-autoload -o' 'composer dump-autoload'
+            Write-Host "Skipping composer install in client runtime; release Docker image already contains vendor/autoload."
             Invoke-ComposeExecSafe $InstallDir 'php artisan migrate --force' 'migrate'
-            try {
-                Invoke-ComposeExecSafe $InstallDir 'php artisan storage:unlink || true' 'storage:unlink'
-                Invoke-ComposeExecSafe $InstallDir 'php artisan storage:link' 'storage:link'
-            }
-            catch {
-                Write-Warning "storage:link failed: $($_.Exception.Message)"
-            }
-            Invoke-ComposeExecSafe $InstallDir 'php artisan optimize:clear' 'optimize:clear'
-            Invoke-ComposeExecSafe $InstallDir 'php artisan config:cache' 'config:cache'
-            Invoke-ComposeExecSafe $InstallDir 'php artisan route:cache' 'route:cache'
-            Invoke-ComposeExecSafe $InstallDir 'php artisan view:cache' 'view:cache'
-            Write-Host "Laravel maintenance completed: composer install, dump-autoload, migrate, storage relink, optimize:clear, config:cache, route:cache, view:cache."
+            Write-Host "Laravel migration maintenance completed."
         } finally {
             Pop-Location
         }
     } catch {
         Write-Warning "Laravel maintenance failed. App may still run, but cache/storage repair may be needed. $($_.Exception.Message)"
         throw
+    }
+}
+
+function Invoke-GarmentsPostSuccessMaintenance($InstallDir) {
+    Push-Location $InstallDir
+    try {
+        Write-Host "Running final Laravel maintenance after successful update..."
+        try {
+            Invoke-ComposeExecSafe $InstallDir 'php artisan storage:link --force || php artisan storage:link' 'storage:link'
+        }
+        catch {
+            Write-Warning "storage:link failed after successful update: $($_.Exception.Message)"
+        }
+
+        Invoke-ComposeExecSafe $InstallDir 'php artisan optimize:clear' 'optimize:clear'
+        Invoke-ComposeExecSafe $InstallDir 'php artisan optimize' 'optimize'
+        Write-Host "Final Laravel maintenance completed: storage:link, optimize:clear, optimize."
+    } finally {
+        Pop-Location
+    }
+}
+
+function Restart-GarmentsAppContainer($InstallDir, $Reason) {
+    Push-Location $InstallDir
+    try {
+        Write-Host "Restarting GarmentsOS app container: $Reason"
+        docker compose restart app | Out-Host
+        Write-UpdateLog $InstallDir "docker compose restart app: $Reason completed"
+    } finally {
+        Pop-Location
+    }
+}
+
+function Invoke-GarmentsFinalSuccessPass($InstallDir) {
+    try {
+        Invoke-GarmentsPostSuccessMaintenance $InstallDir
+        Restart-GarmentsAppContainer $InstallDir "after final Laravel maintenance"
+    }
+    catch {
+        Write-Warning "Final post-update maintenance failed after update verification. Update remains applied; run Repair if needed. $($_.Exception.Message)"
+        Write-UpdateLog $InstallDir "final post-update maintenance warning: $($_.Exception.Message)"
     }
 }
 
@@ -1036,6 +1068,7 @@ try {
     }
 
     Verify-PostUpdateState $InstallDir $TargetVersion
+    Invoke-GarmentsFinalSuccessPass $InstallDir
 
     try {
         Register-GarmentsProtocol $InstallDir

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Services\Updater\UpdateApplyService;
 use App\Services\Updater\InstalledVersionService;
 use App\Services\Updater\ReleaseFeedService;
+use App\Services\Updater\UpdateActionAccessService;
 use App\Services\Updater\UpdateLockService;
 use App\Services\Updater\UpdateManifestService;
 use Illuminate\Http\JsonResponse;
@@ -19,16 +20,17 @@ class UpdateController extends Controller
 {
     private const SPARKPAIR_STABLE_FEED = 'https://www.sparkpair.dev/api/updates/garmentsos-pro/stable/latest.json';
 
-    public function index(InstalledVersionService $versions, ReleaseFeedService $releaseFeed, UpdateLockService $locks)
+    public function index(InstalledVersionService $versions, ReleaseFeedService $releaseFeed, UpdateLockService $locks, UpdateActionAccessService $actionAccess, Request $request)
     {
         if ($resp = $this->denyIfNoRole(['developer', 'admin'])) {
             return $resp;
         }
 
         $feedUrl = (string) config('updater.feed_url', '');
+        $canRunUpdateActions = $actionAccess->canRunFrom($request);
 
         $releaseFeedStatus = $releaseFeed->checkConfigured();
-        $launcherHandoff = $releaseFeed->launcherHandoff($releaseFeedStatus);
+        $launcherHandoff = $canRunUpdateActions ? $releaseFeed->launcherHandoff($releaseFeedStatus) : null;
 
         return view('developer.updater.index', [
             'enabled' => (bool) config('updater.enabled', false),
@@ -48,6 +50,8 @@ class UpdateController extends Controller
             'curlDiagnostics' => $releaseFeed->curlDiagnostics(),
             'launcherProtocolUrl' => $releaseFeed->launcherProtocolUrl(),
             'launcherHandoff' => $launcherHandoff,
+            'canRunUpdateActions' => $canRunUpdateActions,
+            'updateActionDeniedMessage' => $actionAccess->denialMessage(),
             'manifestUrlConfigured' => (string) config('updater.manifest_url', '') !== '',
             'installedManifestConfigured' => $versions->manifestConfigured(),
             'signatureRequired' => (bool) config('updater.require_signature', true),
@@ -79,10 +83,13 @@ class UpdateController extends Controller
             ->with('updater_result', $result);
     }
 
-    public function apply(UpdateApplyService $updates): RedirectResponse
+    public function apply(UpdateApplyService $updates, UpdateActionAccessService $actionAccess, Request $request): RedirectResponse
     {
         if ($resp = $this->denyIfNoRole(['developer', 'admin'])) {
             return $resp;
+        }
+        if (!$actionAccess->canRunFrom($request)) {
+            return redirect()->route('developer.updater')->with('error', $actionAccess->denialMessage());
         }
 
         $result = $updates->applyConfigured();
@@ -93,10 +100,13 @@ class UpdateController extends Controller
             ->with('updater_apply_result', $result);
     }
 
-    public function updateRequest(ReleaseFeedService $releaseFeed): JsonResponse
+    public function updateRequest(ReleaseFeedService $releaseFeed, UpdateActionAccessService $actionAccess, Request $request): JsonResponse
     {
         if ($resp = $this->denyIfNoRole(['developer', 'admin'])) {
             abort(403);
+        }
+        if (!$actionAccess->canRunFrom($request)) {
+            abort(403, $actionAccess->denialMessage());
         }
 
         $result = $releaseFeed->prepareUpdateRequest();
@@ -129,10 +139,17 @@ class UpdateController extends Controller
         return response()->json($payload, !empty($result['success']) ? 200 : 409);
     }
 
-    public function launcherHandoff(ReleaseFeedService $releaseFeed): JsonResponse
+    public function launcherHandoff(ReleaseFeedService $releaseFeed, UpdateActionAccessService $actionAccess, Request $request): JsonResponse
     {
         if ($resp = $this->denyIfNoRole(['developer', 'admin'])) {
             abort(403);
+        }
+        if (!$actionAccess->canRunFrom($request)) {
+            return response()->json([
+                'success' => false,
+                'code' => 'server_pc_required',
+                'message' => $actionAccess->denialMessage(),
+            ], 403);
         }
 
         $result = $releaseFeed->launcherHandoff();
@@ -140,10 +157,17 @@ class UpdateController extends Controller
         return response()->json($result, !empty($result['success']) ? 200 : 409);
     }
 
-    public function startLauncherHandoff(ReleaseFeedService $releaseFeed, UpdateLockService $locks): JsonResponse
+    public function startLauncherHandoff(ReleaseFeedService $releaseFeed, UpdateLockService $locks, UpdateActionAccessService $actionAccess, Request $request): JsonResponse
     {
         if ($resp = $this->denyIfNoRole(['developer', 'admin'])) {
             abort(403);
+        }
+        if (!$actionAccess->canRunFrom($request)) {
+            return response()->json([
+                'success' => false,
+                'code' => 'server_pc_required',
+                'message' => $actionAccess->denialMessage(),
+            ], 403);
         }
 
         $status = $releaseFeed->checkConfigured();

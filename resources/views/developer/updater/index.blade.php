@@ -27,6 +27,7 @@
             && filter_var($setupUrl, FILTER_VALIDATE_URL);
         $requestUrl = route('developer.updater.update-request');
         $launcherUpdateUrl = $launcherHandoff['protocol_url'] ?? null;
+        $canRunUpdateActions = (bool) ($canRunUpdateActions ?? false);
         $statusClass = $updateAvailable
             ? 'border-[var(--border-warning)] bg-[var(--bg-warning)] text-[var(--text-warning)]'
             : ($upToDate
@@ -34,7 +35,9 @@
                 : 'border-gray-600 bg-[var(--h-bg-color)] text-[var(--secondary-text)]');
         $statusLabel = $updateAvailable ? 'Update available' : ($upToDate ? 'Up to date' : str_replace('_', ' ', $releaseFeedCode));
         $statusMessage = $updateAvailable
-            ? 'A new version is available. Click Update Now to open GarmentsOS PRO Launcher.'
+            ? ($canRunUpdateActions
+                ? 'A new version is available. Click Update Now to open GarmentsOS PRO Launcher.'
+                : 'A new version is available. Update can only be started from the server PC.')
             : ($upToDate
                 ? 'This installation is already on the latest version.'
                 : ($releaseFeedStatus['message'] ?? 'Update feed status is unavailable.'));
@@ -173,45 +176,53 @@
 
             @if ($updateAvailable)
                 <div class="mt-5 rounded-lg border border-[var(--border-warning)] bg-[var(--bg-warning)] p-4 text-sm text-[var(--text-warning)]">
-                    This opens GarmentsOS PRO Updater. Your Update Now click confirms the update; the Windows updater applies it outside the running app.
-                </div>
-
-                <div class="mt-4 flex flex-wrap items-center gap-3">
-                    @if ($launcherUpdateUrl)
-                        <a href="#" data-update-start-url="{{ route('developer.updater.launcher-handoff.start') }}" class="{{ $primaryButton }} js-update-handoff">
-                            Update Now
-                        </a>
+                    @if ($canRunUpdateActions)
+                        This opens GarmentsOS PRO Updater. Your Update Now click confirms the update; the Windows updater applies it outside the running app.
                     @else
-                        <button type="button" class="{{ $disabledButton }}" disabled>
-                            Update Now
-                        </button>
-                        <span class="text-xs text-[var(--secondary-text)]">
-                            GarmentsOS PRO Launcher link is not configured on this PC. Download and run the Windows updater once, then try again.
-                        </span>
+                        {{ $updateActionDeniedMessage ?? 'Updates can only be started from the server PC.' }}
                     @endif
                 </div>
-                @if (!empty($launcherHandoff['expires_at']))
-                    <p class="mt-3 text-xs text-[var(--secondary-text)]">
-                        The signed launcher request expires at {{ $launcherHandoff['expires_at'] }}. Protocol handoff requires garmentsos:// registration on the client machine.
-                    </p>
-                @endif
 
-                <details class="mt-5 rounded-lg border border-[var(--h-bg-color)] bg-[var(--h-bg-color)]/50 p-4">
-                    <summary class="cursor-pointer font-semibold">Troubleshooting / Manual update</summary>
-                    <p class="mt-3 text-sm text-[var(--secondary-text)]">
-                        Use this only if Update Now does not open the launcher.
-                    </p>
-                    <div class="mt-4 flex flex-wrap gap-3">
-                        <a href="{{ $requestUrl }}" class="{{ $secondaryButton }}">
-                            Download Update Request
-                        </a>
-                        @if ($setupUrlAvailable)
-                            <a href="{{ $setupUrl }}" class="{{ $secondaryButton }}">
-                                Download Windows Updater
+                @if ($canRunUpdateActions)
+                    <div class="mt-4 flex flex-wrap items-center gap-3">
+                        @if ($launcherUpdateUrl)
+                            <a href="#" data-update-start-url="{{ route('developer.updater.launcher-handoff.start') }}" class="{{ $primaryButton }} js-update-handoff">
+                                Update Now
                             </a>
+                        @else
+                            <button type="button" class="{{ $disabledButton }}" disabled>
+                                Update Now
+                            </button>
+                            <span class="text-xs text-[var(--secondary-text)]">
+                                GarmentsOS PRO Launcher link is not configured on this PC. Download and run the Windows updater once, then try again.
+                            </span>
                         @endif
                     </div>
-                </details>
+                    @if (!empty($launcherHandoff['expires_at']))
+                        <p class="mt-3 text-xs text-[var(--secondary-text)]">
+                            The signed launcher request expires at {{ $launcherHandoff['expires_at'] }}. Protocol handoff requires garmentsos:// registration on the client machine.
+                        </p>
+                    @endif
+                @endif
+
+                @if ($canRunUpdateActions)
+                    <details class="mt-5 rounded-lg border border-[var(--h-bg-color)] bg-[var(--h-bg-color)]/50 p-4">
+                        <summary class="cursor-pointer font-semibold">Troubleshooting / Manual update</summary>
+                        <p class="mt-3 text-sm text-[var(--secondary-text)]">
+                            Use this only if Update Now does not open the launcher.
+                        </p>
+                        <div class="mt-4 flex flex-wrap gap-3">
+                            <a href="{{ $requestUrl }}" class="{{ $secondaryButton }}">
+                                Download Update Request
+                            </a>
+                            @if ($setupUrlAvailable)
+                                <a href="{{ $setupUrl }}" class="{{ $secondaryButton }}">
+                                    Download Windows Updater
+                                </a>
+                            @endif
+                        </div>
+                    </details>
+                @endif
             @endif
 
             <div class="mt-5 rounded-lg border border-[var(--h-bg-color)] bg-[var(--h-bg-color)]/50 p-4">
@@ -344,12 +355,18 @@
                             Apply creates a verified database backup, validates the package again, stages files privately, snapshots overwritten code files, preserves `.env`, database, backups, logs, and private storage, then runs migrations only when the manifest requires it.
                         </div>
 
-                        <form method="POST" action="{{ route('developer.updater.apply') }}" class="mt-4">
-                            @csrf
-                            <button type="submit" class="{{ $canApply ? $primaryButton : $disabledButton }}" @disabled(!$canApply)>
-                                Apply Verified Update
-                            </button>
-                        </form>
+                        @if ($canRunUpdateActions)
+                            <form method="POST" action="{{ route('developer.updater.apply') }}" class="mt-4">
+                                @csrf
+                                <button type="submit" class="{{ $canApply ? $primaryButton : $disabledButton }}" @disabled(!$canApply)>
+                                    Apply Verified Update
+                                </button>
+                            </form>
+                        @else
+                            <div class="mt-4 rounded-lg border border-[var(--border-warning)] bg-[var(--bg-warning)] p-3 text-sm text-[var(--text-warning)]">
+                                Signed manifest updates can only be applied from the server PC.
+                            </div>
+                        @endif
                     @endif
                 </div>
             @endif
