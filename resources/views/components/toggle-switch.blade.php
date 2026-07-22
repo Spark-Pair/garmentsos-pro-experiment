@@ -5,7 +5,11 @@
     'disabled' => false,
 ])
 
-<span {{ $attributes->merge(['class' => 'app-toggle']) }}>
+<span
+    {{ $attributes->merge(['class' => 'app-toggle' . ($checked ? ' is-checked' : '')]) }}
+    role="switch"
+    aria-checked="{{ $checked ? 'true' : 'false' }}"
+>
     <input
         class="app-toggle-input peer sr-only"
         type="checkbox"

@@ -161,9 +161,19 @@ class BranchController extends Controller
             return $resp;
         }
 
+        if ($request->filled('modules_payload')) {
+            $decodedModules = json_decode((string) $request->input('modules_payload'), true);
+            if (json_last_error() === JSON_ERROR_NONE && is_array($decodedModules)) {
+                $request->merge(['modules' => $decodedModules]);
+            }
+        }
+
         $validated = $request->validate([
             'branch_id' => ['nullable', 'integer', 'exists:branches,id'],
+            'modules_payload' => ['nullable', 'string'],
             'modules' => ['array'],
+            'modules.*._present' => ['nullable', 'boolean'],
+            'modules.*._advanced_present' => ['nullable', 'boolean'],
             'modules.*.branch_enabled' => ['nullable', 'boolean'],
             'modules.*.allow_user_switching' => ['nullable', 'boolean'],
             'modules.*.supports_multi_branch_selector' => ['nullable', 'boolean'],
@@ -188,55 +198,69 @@ class BranchController extends Controller
                 continue;
             }
             $module = $branches->moduleRegistry()[$moduleKey];
+            $multiBranchEnabled = (bool) ($data['supports_multi_branch_selector'] ?? false);
+            $switchingEnabled = (bool) ($data['allow_user_switching'] ?? false) || $multiBranchEnabled;
+            $branchEnabled = (bool) ($data['branch_enabled'] ?? false) || $switchingEnabled;
+            $advancedPresent = array_key_exists('_advanced_present', $data);
             $setting = BranchModuleSetting::query()
                 ->where('branch_id', $branchId)
                 ->where('module_key', $moduleKey)
                 ->first();
             $metadata = is_array($setting?->metadata) ? $setting->metadata : [];
             $metadata['record_filtering_enabled'] = (bool) ($data['record_filtering_enabled'] ?? false);
+
+            $metadata['branchable'] = $switchingEnabled;
+            $metadata['supports_branch_selector'] = $switchingEnabled;
+            $metadata['supports_record_filtering'] = (bool) ($data['record_filtering_enabled'] ?? false);
+            $metadata['can_filter_records'] = (bool) ($data['record_filtering_enabled'] ?? false);
+            $metadata['supports_multi_branch_selector'] = $multiBranchEnabled;
+
             foreach ([
-                'branchable',
-                'supports_branch_selector',
-                'supports_record_filtering',
-                'can_filter_records',
                 'has_branch_id_support',
-                'supports_multi_branch_selector',
                 'supports_branch_branding',
-                'can_use_branch_branding',
                 'supports_branch_serial_prefix',
-                'supports_serial_prefix',
                 'supports_doc_identity_prefix',
             ] as $key) {
-                $metadata[$key] = match ($key) {
-                    'branchable',
-                    'supports_branch_selector' => (bool) ($data['allow_user_switching'] ?? false),
-                    'supports_record_filtering',
-                    'can_filter_records' => (bool) ($data['record_filtering_enabled'] ?? false),
-                    'can_use_branch_branding' => (bool) ($data['supports_branch_branding'] ?? false),
-                    'supports_serial_prefix' => (bool) ($data['supports_branch_serial_prefix'] ?? false),
-                    default => (bool) ($data[$key] ?? false),
-                };
+                if ($advancedPresent || array_key_exists($key, $data)) {
+                    $metadata[$key] = (bool) ($data[$key] ?? false);
+                }
             }
-            $metadata['is_system_module'] = !(bool) ($data['allow_user_switching'] ?? false);
-            $metadata['doc_identity_prefix'] = strtoupper(preg_replace('/[^A-Z0-9]+/', '', (string) ($data['doc_identity_prefix'] ?? '')));
-            if ($moduleKey === 'orders') {
+
+            if ($advancedPresent || array_key_exists('supports_branch_branding', $data)) {
+                $metadata['can_use_branch_branding'] = (bool) ($data['supports_branch_branding'] ?? false);
+            }
+
+            if ($advancedPresent || array_key_exists('supports_branch_serial_prefix', $data)) {
+                $metadata['supports_serial_prefix'] = (bool) ($data['supports_branch_serial_prefix'] ?? false);
+            }
+
+            $metadata['is_system_module'] = ! $switchingEnabled;
+            if (array_key_exists('doc_identity_prefix', $data)) {
+                $metadata['doc_identity_prefix'] = strtoupper(preg_replace('/[^A-Z0-9]+/', '', (string) $data['doc_identity_prefix']));
+            }
+
+            if ($moduleKey === 'orders' && array_key_exists('default_order_discount_percent', $data)) {
                 $metadata['default_order_discount_percent'] = max(
                     0,
-                    min(100, (int) ($data['default_order_discount_percent'] ?? 0))
+                    min(100, (int) $data['default_order_discount_percent'])
                 );
             }
             if (in_array($moduleKey, ['orders', 'invoices'], true)) {
-                $metadata['discount_disabled'] = (bool) ($data['discount_disabled'] ?? false);
-                $metadata['document_note'] = trim((string) ($data['document_note'] ?? ''));
+                if ($advancedPresent || array_key_exists('discount_disabled', $data)) {
+                    $metadata['discount_disabled'] = (bool) ($data['discount_disabled'] ?? false);
+                }
+                if (array_key_exists('document_note', $data)) {
+                    $metadata['document_note'] = trim((string) $data['document_note']);
+                }
             } else {
                 unset($metadata['discount_disabled'], $metadata['document_note']);
             }
 
             $values = [
-                'branch_enabled' => (bool) ($data['branch_enabled'] ?? false),
-                'allow_user_switching' => (bool) ($data['allow_user_switching'] ?? false),
+                'branch_enabled' => $branchEnabled,
+                'allow_user_switching' => $switchingEnabled,
                 'default_branch_id' => $data['default_branch_id'] ?? null,
-                'status' => $data['status'] ?? 'active',
+                'status' => $data['status'] ?? $setting?->status ?? 'active',
                 'metadata' => $metadata,
             ];
 

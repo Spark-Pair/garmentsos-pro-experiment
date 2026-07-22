@@ -855,10 +855,26 @@ class ModuleBranchService
     {
         $metadata = is_array($setting?->metadata) ? $setting->metadata : [];
 
+        if ($setting) {
+            $config['branch_enabled'] = (bool) $setting->branch_enabled;
+            $config['branchable'] = (bool) $setting->allow_user_switching;
+            $config['supports_branch_selector'] = (bool) $setting->allow_user_switching;
+            $config['is_system_module'] = ! (bool) $setting->allow_user_switching;
+            $config['status'] = $setting->status ?? ($config['status'] ?? 'active');
+            $config['default_branch_id'] = $setting->default_branch_id;
+        }
+
         foreach (self::DEVELOPER_MODULE_OVERRIDE_KEYS as $key) {
             if (array_key_exists($key, $metadata)) {
                 $config[$key] = (bool) $metadata[$key];
             }
+        }
+
+        if (array_key_exists('record_filtering_enabled', $metadata)) {
+            $enabled = (bool) $metadata['record_filtering_enabled'];
+            $config['record_filtering_enabled'] = $enabled;
+            $config['supports_record_filtering'] = $enabled;
+            $config['can_filter_records'] = $enabled;
         }
 
         if (array_key_exists('doc_identity_prefix', $metadata)) {

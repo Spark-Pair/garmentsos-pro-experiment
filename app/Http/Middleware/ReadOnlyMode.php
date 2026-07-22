@@ -64,6 +64,16 @@ class ReadOnlyMode
             'developer.license.offline.import',
             'developer.license.refresh',
             'developer.license.reactivation-request',
+            'developer.settings.labels.save',
+            'developer.settings.labels.reset',
+            'developer.settings.branding.save',
+            'developer.settings.branding.reset',
+            'developer.settings.modules.save',
+            'developer.branches.store',
+            'developer.branches.update',
+            'developer.branches.status',
+            'developer.branches.modules',
+            'developer.branches.access',
         ];
 
         $routeName = $request->route()?->getName();

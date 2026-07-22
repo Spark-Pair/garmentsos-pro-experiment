@@ -12,6 +12,7 @@
         $toggle = 'inline-flex items-center gap-2 rounded-lg border border-[var(--h-bg-color)] bg-[var(--h-bg-color)]/55 px-3 py-2 text-xs text-[var(--secondary-text)]';
         $miniToggle = 'flex items-center justify-between gap-3 rounded-xl border border-[var(--h-bg-color)] bg-[var(--h-bg-color)]/35 px-3 py-2 text-xs text-[var(--secondary-text)] transition hover:border-[var(--primary-color)]/40';
         $moduleGroups = collect($moduleRegistry)->groupBy(fn ($module) => $module['group'] ?? 'Other');
+        $branchModuleService = app(\App\Services\Branches\ModuleBranchService::class);
         $enabledCount = $moduleSettings->filter(fn ($setting) => $setting->branch_enabled && $setting->status === 'active')->count();
         $switchingCount = $moduleSettings->filter(fn ($setting) => $setting->allow_user_switching && $setting->status === 'active')->count();
         $filteringCount = $moduleSettings->filter(function ($setting) {
@@ -118,6 +119,7 @@
                                 <form id="branchModuleSettingsForm" method="POST" action="{{ route('developer.branches.modules') }}" class="space-y-4 border-t border-[var(--h-bg-color)] p-5">
                                     @csrf
                                     <input type="hidden" name="branch_id" value="{{ $branch->id }}">
+                                    <input type="hidden" name="modules_payload" id="branchModulesPayload">
 
                                     <div class="flex flex-col gap-2 rounded-2xl border border-[var(--h-bg-color)] bg-[var(--h-bg-color)]/20 p-3 sm:flex-row sm:items-center sm:justify-between">
                                         <x-input id="branchModuleSearch" name="branch_module_search" type="search" placeholder="Search modules..." autocomplete="off" class="min-w-[15rem]" />
@@ -155,31 +157,22 @@
                                                     @foreach ($modules as $moduleKey => $module)
                                                         @php
                                                             $setting = $moduleSettings->get($moduleKey);
-                                                            $supportsSwitching = (bool) ($module['supports_branch_selector'] ?? false);
-                                                            $supportsFiltering = (bool) ($module['supports_record_filtering'] ?? $module['can_filter_records'] ?? false);
-                                                            $hasBranchIdSupport = (bool) ($module['has_branch_id_support'] ?? false);
-                                                            $canBrand = (bool) ($module['supports_branch_branding'] ?? $module['can_use_branch_branding'] ?? false);
-                                                            $canMulti = (bool) ($module['supports_multi_branch_selector'] ?? false);
-                                                            $canSerialPrefix = (bool) ($module['supports_serial_prefix'] ?? $module['supports_branch_serial_prefix'] ?? false);
-                                                            $canDocPrefix = (bool) ($module['supports_doc_identity_prefix'] ?? false);
-                                                            $docIdentityPrefix = $module['doc_identity_prefix'] ?? '';
-                                                            $isSystemModule = (bool) ($module['is_system_module'] ?? false);
-                                                            $isMainDefault = (bool) $branch->is_main;
-                                                            $enabled = $setting ? (bool) $setting->branch_enabled : $isMainDefault;
-                                                            $switching = $setting ? (bool) $setting->allow_user_switching : $isMainDefault;
+                                                            $runtimeModule = $branchModuleService->runtimeModuleConfig($moduleKey, $branch->id);
+                                                            $supportsSwitching = (bool) ($runtimeModule['supports_branch_selector'] ?? false);
+                                                            $supportsFiltering = (bool) ($runtimeModule['record_filtering_enabled'] ?? $runtimeModule['supports_record_filtering'] ?? $runtimeModule['can_filter_records'] ?? false);
+                                                            $hasBranchIdSupport = (bool) ($runtimeModule['has_branch_id_support'] ?? false);
+                                                            $canBrand = (bool) ($runtimeModule['supports_branch_branding'] ?? $runtimeModule['can_use_branch_branding'] ?? false);
+                                                            $canMulti = (bool) ($runtimeModule['supports_multi_branch_selector'] ?? false);
+                                                            $canSerialPrefix = (bool) ($runtimeModule['supports_serial_prefix'] ?? $runtimeModule['supports_branch_serial_prefix'] ?? false);
+                                                            $canDocPrefix = (bool) ($runtimeModule['supports_doc_identity_prefix'] ?? false);
+                                                            $docIdentityPrefix = $runtimeModule['doc_identity_prefix'] ?? '';
+                                                            $isSystemModule = (bool) ($runtimeModule['is_system_module'] ?? false);
+                                                            $enabled = (bool) ($runtimeModule['branch_enabled'] ?? ($setting ? (bool) $setting->branch_enabled : (bool) $branch->is_main));
+                                                            $switching = (bool) ($runtimeModule['supports_branch_selector'] ?? ($setting ? (bool) $setting->allow_user_switching : (bool) $branch->is_main));
                                                             $metadata = is_array($setting?->metadata) ? $setting->metadata : [];
-                                                            $supportsSwitching = array_key_exists('supports_branch_selector', $metadata) ? (bool) $metadata['supports_branch_selector'] : $supportsSwitching;
-                                                            $supportsFiltering = array_key_exists('can_filter_records', $metadata) ? (bool) $metadata['can_filter_records'] : $supportsFiltering;
-                                                            $hasBranchIdSupport = array_key_exists('has_branch_id_support', $metadata) ? (bool) $metadata['has_branch_id_support'] : $hasBranchIdSupport;
-                                                            $canBrand = array_key_exists('supports_branch_branding', $metadata) ? (bool) $metadata['supports_branch_branding'] : $canBrand;
-                                                            $canMulti = array_key_exists('supports_multi_branch_selector', $metadata) ? (bool) $metadata['supports_multi_branch_selector'] : $canMulti;
-                                                            $canSerialPrefix = array_key_exists('supports_branch_serial_prefix', $metadata) ? (bool) $metadata['supports_branch_serial_prefix'] : $canSerialPrefix;
-                                                            $canDocPrefix = array_key_exists('supports_doc_identity_prefix', $metadata) ? (bool) $metadata['supports_doc_identity_prefix'] : $canDocPrefix;
-                                                            $docIdentityPrefix = array_key_exists('doc_identity_prefix', $metadata) ? (string) $metadata['doc_identity_prefix'] : $docIdentityPrefix;
-                                                            $isSystemModule = array_key_exists('is_system_module', $metadata) ? (bool) $metadata['is_system_module'] : $isSystemModule;
                                                             $filtering = array_key_exists('record_filtering_enabled', $metadata)
                                                                 ? (bool) $metadata['record_filtering_enabled']
-                                                                : ($supportsFiltering && $hasBranchIdSupport);
+                                                                : (bool) ($runtimeModule['record_filtering_enabled'] ?? $supportsFiltering);
                                                             $defaultOrderDiscount = max(0, min(100, (int) ($metadata['default_order_discount_percent'] ?? 0)));
                                                             $supportsDocumentOptions = in_array($moduleKey, ['orders', 'invoices'], true);
                                                             $discountDisabled = (bool) ($metadata['discount_disabled'] ?? false);
@@ -187,7 +180,8 @@
                                                             $filterWarning = $filtering && ! $hasBranchIdSupport;
                                                         @endphp
 
-                                                        <div data-module-card data-module-search="{{ strtolower(($module['label'] ?? $moduleKey) . ' ' . $moduleKey . ' ' . ($module['page_reference'] ?? '') . ' ' . ($module['group'] ?? '')) }}" class="rounded-2xl border border-[var(--h-bg-color)] bg-[var(--secondary-bg-color)] p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-[var(--primary-color)]/50 hover:shadow">
+                                                        <div data-module-card data-module-key="{{ $moduleKey }}" data-module-search="{{ strtolower(($module['label'] ?? $moduleKey) . ' ' . $moduleKey . ' ' . ($module['page_reference'] ?? '') . ' ' . ($module['group'] ?? '')) }}" class="rounded-2xl border border-[var(--h-bg-color)] bg-[var(--secondary-bg-color)] p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-[var(--primary-color)]/50 hover:shadow">
+                                                            <input type="hidden" name="modules[{{ $moduleKey }}][_present]" value="1">
                                                             @php
                                                                 $modalId = 'branchModuleSettings_' . preg_replace('/[^A-Za-z0-9_-]/', '_', $moduleKey);
                                                                 $statusText = ($setting?->status ?? 'active') === 'active' ? 'Active' : 'Inactive';
@@ -208,26 +202,21 @@
                                                             </div>
 
                                                             <div class="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                                                                <input type="hidden" name="modules[{{ $moduleKey }}][branch_enabled]" value="0">
                                                                 <label class="{{ $miniToggle }}">
                                                                     <span>Enable module</span>
                                                                     <x-toggle-switch name="modules[{{ $moduleKey }}][branch_enabled]" :checked="$enabled" />
                                                                 </label>
 
-                                                                <input type="hidden" name="modules[{{ $moduleKey }}][allow_user_switching]" value="0">
                                                                 <label class="{{ $miniToggle }}">
                                                                     <span>Show switcher</span>
                                                                     <x-toggle-switch name="modules[{{ $moduleKey }}][allow_user_switching]" :checked="$switching" />
                                                                 </label>
 
-                                                                <input type="hidden" name="modules[{{ $moduleKey }}][record_filtering_enabled]" value="0">
-                                                                <input type="hidden" name="modules[{{ $moduleKey }}][has_branch_id_support]" value="0">
                                                                 <label class="{{ $miniToggle }}">
                                                                     <span>Filter records</span>
                                                                     <x-toggle-switch name="modules[{{ $moduleKey }}][record_filtering_enabled]" :checked="$filtering" />
                                                                 </label>
 
-                                                                <input type="hidden" name="modules[{{ $moduleKey }}][supports_multi_branch_selector]" value="0">
                                                                 <label class="{{ $miniToggle }}">
                                                                     <span>Multi-branch</span>
                                                                     <x-toggle-switch name="modules[{{ $moduleKey }}][supports_multi_branch_selector]" :checked="$canMulti" />
@@ -258,6 +247,7 @@
                                                                         </button>
                                                                     </div>
                                                                     <div class="min-h-0 overflow-y-auto my-scrollbar-2 bg-[var(--secondary-bg-color)] p-5">
+                                                                        <input type="hidden" name="modules[{{ $moduleKey }}][_advanced_present]" value="1">
                                                                         <div class="space-y-4">
                                                                             <section class="rounded-2xl border border-[var(--h-bg-color)] bg-[var(--h-bg-color)]/20 p-4">
                                                                                 <div class="mb-3 flex items-center justify-between gap-3">
@@ -279,12 +269,10 @@
                                                                                         <span>branch_id support</span>
                                                                                         <x-toggle-switch name="modules[{{ $moduleKey }}][has_branch_id_support]" :checked="$hasBranchIdSupport" />
                                                                                     </label>
-                                                                                    <input type="hidden" name="modules[{{ $moduleKey }}][supports_branch_branding]" value="0">
                                                                                     <label class="{{ $miniToggle }}">
                                                                                         <span>Branch branding</span>
                                                                                         <x-toggle-switch name="modules[{{ $moduleKey }}][supports_branch_branding]" :checked="$canBrand" />
                                                                                     </label>
-                                                                                    <input type="hidden" name="modules[{{ $moduleKey }}][supports_branch_serial_prefix]" value="0">
                                                                                     <label class="{{ $miniToggle }}">
                                                                                         <span>Serial prefix</span>
                                                                                         <x-toggle-switch name="modules[{{ $moduleKey }}][supports_branch_serial_prefix]" :checked="$canSerialPrefix" />
@@ -297,7 +285,6 @@
                                                                                     <h4 class="text-sm font-semibold">Document options</h4>
                                                                                     <p class="text-xs text-[var(--secondary-text)]">Optional prefixes and notes used on branch documents.</p>
                                                                                 </div>
-                                                                                <input type="hidden" name="modules[{{ $moduleKey }}][supports_doc_identity_prefix]" value="0">
                                                                                 <label class="{{ $miniToggle }} mb-3">
                                                                                     <span>Document identity prefix</span>
                                                                                     <x-toggle-switch name="modules[{{ $moduleKey }}][supports_doc_identity_prefix]" :checked="$canDocPrefix" />
@@ -335,7 +322,6 @@
                                                                                         @endif
                                                                                         @if ($supportsDocumentOptions)
                                                                                             <div class="md:col-span-2">
-                                                                                                <input type="hidden" name="modules[{{ $moduleKey }}][discount_disabled]" value="0">
                                                                                                 <label class="{{ $miniToggle }} mb-3">
                                                                                                     <span>Hide discount and gross amount in print</span>
                                                                                                     <x-toggle-switch name="modules[{{ $moduleKey }}][discount_disabled]" :checked="$discountDisabled" />
@@ -544,10 +530,21 @@
                 document.body.classList.remove('overflow-hidden');
             };
 
+            const setModalFieldsDisabled = (modal, disabled) => {
+                modal?.querySelectorAll('input, select, textarea').forEach((field) => {
+                    field.disabled = disabled;
+                });
+            };
+
+            document.querySelectorAll('[data-branch-module-modal]').forEach((modal) => {
+                setModalFieldsDisabled(modal, true);
+            });
+
             document.querySelectorAll('[data-branch-module-open]').forEach((button) => {
                 button.addEventListener('click', () => {
                     const modal = document.getElementById(button.dataset.branchModuleOpen);
                     if (!modal) return;
+                    setModalFieldsDisabled(modal, false);
                     portalModal(modal);
                     modal.classList.remove('hidden');
                     modal.classList.add('flex');
@@ -566,6 +563,89 @@
                     restoreModal(modal);
                     document.body.classList.remove('overflow-hidden');
                     document.getElementById('branchModuleSettingsForm')?.requestSubmit();
+                });
+            });
+
+            const moduleFieldName = (name) => {
+                const match = String(name || '').match(/^modules\[[^\]]+\]\[([^\]]+)\]$/);
+                return match ? match[1] : null;
+            };
+
+            const moduleInput = (card, fieldName) => {
+                return card?.querySelector(`[name^="modules["][name$="[${fieldName}]"]`);
+            };
+
+            const syncToggleVisual = (input) => {
+                const toggle = input?.closest('.app-toggle');
+                if (!toggle) return;
+                toggle.classList.toggle('is-checked', Boolean(input.checked));
+                toggle.setAttribute('aria-checked', input.checked ? 'true' : 'false');
+            };
+
+            document.querySelectorAll('.app-toggle-input').forEach((input) => {
+                syncToggleVisual(input);
+                input.addEventListener('change', () => syncToggleVisual(input));
+            });
+
+            document.querySelectorAll('[data-module-card]').forEach((card) => {
+                const enabledInput = moduleInput(card, 'branch_enabled');
+                const switcherInput = moduleInput(card, 'allow_user_switching');
+                const multiInput = moduleInput(card, 'supports_multi_branch_selector');
+
+                switcherInput?.addEventListener('change', () => {
+                    if (switcherInput.checked && enabledInput) {
+                        enabledInput.checked = true;
+                        syncToggleVisual(enabledInput);
+                    }
+                });
+
+                multiInput?.addEventListener('change', () => {
+                    if (!multiInput.checked) return;
+                    if (enabledInput) {
+                        enabledInput.checked = true;
+                        syncToggleVisual(enabledInput);
+                    }
+                    if (switcherInput) {
+                        switcherInput.checked = true;
+                        syncToggleVisual(switcherInput);
+                    }
+                });
+            });
+
+            const collectModuleSettingsPayload = (form) => {
+                const payload = {};
+
+                form.querySelectorAll('[data-module-card]').forEach((card) => {
+                    const moduleKey = card.dataset.moduleKey;
+                    if (!moduleKey) return;
+
+                    payload[moduleKey] = { _present: '1' };
+
+                    card.querySelectorAll('[name^="modules["]:not(:disabled)').forEach((field) => {
+                        const fieldName = moduleFieldName(field.name);
+                        if (!fieldName || fieldName === '_present') return;
+
+                        if (field.type === 'checkbox') {
+                            payload[moduleKey][fieldName] = field.checked ? '1' : '0';
+                            return;
+                        }
+
+                        payload[moduleKey][fieldName] = field.value ?? '';
+                    });
+                });
+
+                return payload;
+            };
+
+            const moduleForm = document.getElementById('branchModuleSettingsForm');
+            moduleForm?.addEventListener('submit', () => {
+                const payloadField = document.getElementById('branchModulesPayload');
+                if (!payloadField) return;
+
+                payloadField.value = JSON.stringify(collectModuleSettingsPayload(moduleForm));
+
+                moduleForm.querySelectorAll('[name^="modules["]').forEach((field) => {
+                    field.disabled = true;
                 });
             });
 
