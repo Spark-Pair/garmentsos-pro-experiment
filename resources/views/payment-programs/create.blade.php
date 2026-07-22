@@ -23,7 +23,7 @@
 
         <div class="grid grid-cols-2 gap-4">
             {{-- date --}}
-            <x-input label="Date" name="date" id="date" type="date" onchange="trackDateState(this)" validateMax max="{{ now()->toDateString() }}" required />
+            <x-input label="Date" name="date" id="date" type="date" :value="old('date')" onchange="trackDateState(this)" validateMax max="{{ now()->toDateString() }}" required />
 
             {{-- cusomer --}}
             <x-select
@@ -57,13 +57,13 @@
             />
 
             {{-- remarks --}}
-            <x-input label="Remarks" name="remarks" id="remarks" placeholder="Enter Remarks" />
+            <x-input label="Remarks" name="remarks" id="remarks" :value="old('remarks')" placeholder="Enter Remarks" />
 
             {{-- <x-input name="program_no" id="program_no" type="hidden" value="{{ $lastProgram->program_no + 1 }}" /> --}}
 
             <div class="col-span-full">
                 {{-- amount --}}
-                <x-input label="Amount" type="amount" name="amount" id="amount" placeholder='Enter Amount' required dataValidate="required|amount" />
+                <x-input label="Amount" type="amount" name="amount" id="amount" :value="old('amount')" placeholder='Enter Amount' required dataValidate="required|amount" />
             </div>
         </div>
         <div class="w-full flex justify-end mt-4">

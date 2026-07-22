@@ -143,6 +143,21 @@ class PaymentProgramController extends Controller
             'remarks'=> 'nullable|string',
         ]);
 
+        $validator->after(function ($validator) use ($request) {
+            if ($request->category === 'waiting') {
+                return;
+            }
+
+            if (blank($request->sub_category)) {
+                $validator->errors()->add('sub_category', 'Please select a valid category account.');
+                return;
+            }
+
+            if (! $this->resolveSubCategoryModel((string) $request->category, (int) $request->sub_category)) {
+                $validator->errors()->add('sub_category', 'The selected category account is not available.');
+            }
+        });
+
         if ($validator->fails()) {
             return redirect()->back()->withErrors($validator)->withInput();
         }
@@ -218,6 +233,21 @@ class PaymentProgramController extends Controller
             'remarks' => 'nullable|string',
             'amount' => 'nullable|integer|min:1',
         ]);
+
+        $validator->after(function ($validator) use ($request) {
+            if ($request->category === 'waiting') {
+                return;
+            }
+
+            if (blank($request->sub_category)) {
+                $validator->errors()->add('sub_category', 'Please select a valid category account.');
+                return;
+            }
+
+            if (! $this->resolveSubCategoryModel((string) $request->category, (int) $request->sub_category)) {
+                $validator->errors()->add('sub_category', 'The selected category account is not available.');
+            }
+        });
 
         if ($validator->fails()) {
             return redirect()->back()->withErrors($validator)->withInput()->with('error', $validator->errors()->first());
