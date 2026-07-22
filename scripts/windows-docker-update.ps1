@@ -789,6 +789,24 @@ function Ensure-GarmentsLicenseEnvKeys($EnvPath) {
     Ensure-EnvKey $EnvPath "LICENSE_GRACE_DAYS" "7"
 }
 
+function Ensure-GarmentsRuntimeDatabasePath($EnvPath) {
+    $current = Read-EnvValueFromFile $EnvPath "DB_DATABASE" ""
+    $normalized = $current.Trim().Trim('"').Trim("'").Replace("\", "/")
+    $target = "/var/www/html/database/runtime/database.sqlite"
+
+    if ([string]::IsNullOrWhiteSpace($normalized) -or
+        $normalized -eq "/var/www/html/database/database.sqlite" -or
+        $normalized -eq "database/database.sqlite") {
+        $content = Get-Content -LiteralPath $EnvPath -Raw -ErrorAction Stop
+        $updated = Set-EnvLine $content "DB_DATABASE" $target
+        Save-EnvContent $EnvPath $updated
+        Write-Host "Updated DB_DATABASE to runtime volume path so Laravel migrations remain visible: $target"
+        return
+    }
+
+    Write-Host "Preserved custom DB_DATABASE path: $current"
+}
+
 function Remove-InstalledEnvTemplate($InstallDir) {
     $template = Join-Path $InstallDir ".env.example"
     try {
@@ -876,6 +894,36 @@ php artisan app:repair-storage --no-interaction || (
 '@
 
     Invoke-ComposeExecSafe $InstallDir $repairCommand 'repair storage permissions'
+}
+
+function Test-GarmentsImageContainsMigration($Image, $LatestMigration) {
+    if ([string]::IsNullOrWhiteSpace($LatestMigration)) {
+        Write-Host "Release manifest did not include latest_migration; skipping image migration visibility check."
+        return
+    }
+
+    Write-Host "Verifying Docker image contains latest migration: $LatestMigration"
+    docker run --rm --entrypoint sh $Image -lc "test -f 'database/migrations/$LatestMigration'"
+    if ($LASTEXITCODE -ne 0) {
+        throw "Docker image $Image does not contain expected migration: $LatestMigration"
+    }
+}
+
+function Test-GarmentsRunningContainerContainsMigration($InstallDir, $LatestMigration) {
+    if ([string]::IsNullOrWhiteSpace($LatestMigration)) {
+        return
+    }
+
+    Write-Host "Verifying running container can see latest migration: $LatestMigration"
+    Push-Location $InstallDir
+    try {
+        docker compose exec -T app sh -lc "test -f 'database/migrations/$LatestMigration'"
+        if ($LASTEXITCODE -ne 0) {
+            throw "Running app container cannot see expected migration: $LatestMigration. Check docker-compose database volume mount."
+        }
+    } finally {
+        Pop-Location
+    }
 }
 
 function Verify-PostUpdateState($InstallDir, $ExpectedVersion) {
@@ -1069,13 +1117,17 @@ try {
 
     Ensure-GarmentsUpdaterEnvKeys $EnvPath
     Ensure-GarmentsLicenseEnvKeys $EnvPath
+    Ensure-GarmentsRuntimeDatabasePath $EnvPath
     Ensure-GarmentsFirewallRule $InstallDir 8000
 
     $TargetVersion = [string]$Manifest.version
     $TargetImage = [string]$Manifest.image
+    $LatestMigration = [string]$Manifest.latest_migration
     if ([string]::IsNullOrWhiteSpace($TargetImage)) {
         $TargetImage = "sparkpair/garmentsos-pro:$TargetVersion"
     }
+
+    Test-GarmentsImageContainsMigration $TargetImage $LatestMigration
 
     Update-GarmentsEnvForRelease $EnvPath $TargetVersion $TargetImage
 
@@ -1084,6 +1136,7 @@ try {
         Write-UpdateLog $InstallDir "update start version: $TargetVersion"
         docker compose up -d
         Wait-GarmentsAppExecReady $InstallDir
+        Test-GarmentsRunningContainerContainsMigration $InstallDir $LatestMigration
         $script:EnvWriteStoppedCompose = $false
     } finally {
         Pop-Location

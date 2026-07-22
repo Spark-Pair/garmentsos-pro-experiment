@@ -30,7 +30,7 @@ chown -R www-data:www-data storage bootstrap/cache database || true
 chmod -R ug+rwX storage bootstrap/cache database || true
 find storage/framework/cache/data -mindepth 1 -maxdepth 10 -exec rm -rf {} + 2>/dev/null || true
 
-DB_PATH="$(php -r '$env=parse_ini_file(".env", false, INI_SCANNER_RAW); echo $env["DB_DATABASE"] ?? "database/database.sqlite";')"
+DB_PATH="$(php -r '$env=parse_ini_file(".env", false, INI_SCANNER_RAW); echo $env["DB_DATABASE"] ?? "database/runtime/database.sqlite";')"
 if [[ "$DB_PATH" != /* ]]; then
   DB_PATH="/var/www/html/$DB_PATH"
 fi

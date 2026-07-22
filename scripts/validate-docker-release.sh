@@ -42,6 +42,17 @@ for path in "${required[@]}"; do
   fi
 done
 
+if grep -Eq 'garmentsos_database:[[:space:]]*/var/www/html/database([[:space:]]|$)' "$TARGET/docker-compose.yml"; then
+  echo "Docker release mounts the database volume over /var/www/html/database, which hides Laravel migrations." >&2
+  echo "Mount garmentsos_database at /var/www/html/database/runtime instead." >&2
+  exit 1
+fi
+
+if ! grep -Eq 'garmentsos_database:[[:space:]]*/var/www/html/database/runtime([[:space:]]|$)' "$TARGET/docker-compose.yml"; then
+  echo "Docker release must mount garmentsos_database at /var/www/html/database/runtime." >&2
+  exit 1
+fi
+
 bad_paths="$(
   cd "$TARGET"
   find . \

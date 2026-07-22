@@ -169,6 +169,7 @@ cat > "$DEST/manifest.json" <<JSON
   "image": "$IMAGE",
   "image_tar": "images/$PACKAGE_NAME.tar",
   "image_sha256": "$tar_checksum",
+  "latest_migration": "$latest_migration",
   "git_commit": "$commit",
   "git_branch": "$branch",
   "built_at": "$built_at",

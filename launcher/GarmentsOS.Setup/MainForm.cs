@@ -3202,10 +3202,25 @@ public sealed class MainForm : Form
     private async Task RunProcessAsync(string fileName, string arguments, string workingDirectory, Action<string>? onOutput = null, TimeSpan? timeout = null)
     {
         var process = StartProcess(fileName, arguments, workingDirectory);
+        var recentOutput = new List<string>();
+        var outputLock = new object();
+        void CaptureLine(string line)
+        {
+            lock (outputLock)
+            {
+                recentOutput.Add(line);
+                if (recentOutput.Count > 120)
+                {
+                    recentOutput.RemoveAt(0);
+                }
+            }
+        }
+
         process.OutputDataReceived += (_, e) =>
         {
             if (e.Data is not null)
             {
+                CaptureLine(e.Data);
                 Log(e.Data);
                 onOutput?.Invoke(e.Data);
             }
@@ -3214,6 +3229,7 @@ public sealed class MainForm : Form
         {
             if (e.Data is not null)
             {
+                CaptureLine(e.Data);
                 Log(e.Data);
                 onOutput?.Invoke(e.Data);
             }
@@ -3243,7 +3259,19 @@ public sealed class MainForm : Form
 
         if (process.ExitCode != 0)
         {
-            throw new InvalidOperationException($"{fileName} exited with code {process.ExitCode}.");
+            string output;
+            lock (outputLock)
+            {
+                output = string.Join(Environment.NewLine, recentOutput);
+            }
+
+            var message = $"{fileName} exited with code {process.ExitCode}.";
+            if (!string.IsNullOrWhiteSpace(output))
+            {
+                message += Environment.NewLine + "Recent output:" + Environment.NewLine + output;
+            }
+
+            throw new InvalidOperationException(message);
         }
     }
 

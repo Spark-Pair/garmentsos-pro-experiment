@@ -716,7 +716,7 @@ $envContent = Read-EnvContentSafe $EnvPath
 if ($EnvCreated) {
     $envContent = Set-EnvLine $envContent "APP_URL" "http://localhost:$Port"
     $envContent = Set-EnvLine $envContent "APP_PORT" $Port
-    $envContent = Set-EnvLine $envContent "DB_DATABASE" "/var/www/html/database/database.sqlite"
+    $envContent = Set-EnvLine $envContent "DB_DATABASE" "/var/www/html/database/runtime/database.sqlite"
     $envContent = Set-EnvLine $envContent "LICENSE_ENABLED" "true"
     $envContent = Set-EnvLine $envContent "LICENSE_ENFORCEMENT_ENABLED" "true"
     if ($envContent -match '(?m)^APP_KEY=\s*$') {

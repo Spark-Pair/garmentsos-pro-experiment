@@ -9,7 +9,7 @@ services:
       RUN_MIGRATIONS_ON_START: "${RUN_MIGRATIONS_ON_START:-false}"
     volumes:
       - ./.env:/var/www/html/.env:ro
-      - garmentsos_database:/var/www/html/database
+      - garmentsos_database:/var/www/html/database/runtime
       - garmentsos_storage:/var/www/html/storage
     restart: unless-stopped
 
