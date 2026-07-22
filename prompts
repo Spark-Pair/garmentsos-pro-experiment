@@ -73,9 +73,12 @@ do the same thing, calculate it just in one place and use it everywhere the cust
 16. production materials/tags store in saperate table not in array
 
 17. bundeling building issue on github new migrations are not biuld if build then not pullling on client PC
+✅
 
 18. issue on updating application
+✅
 
-19. app stuck on loader on create backup
+19. app stuck on loader on download backup
+✅
 
-18. developer settings cant save its showing success toast but not save it
+18. developer settings save but not showing toggle on
