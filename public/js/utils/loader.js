@@ -1,9 +1,33 @@
 function initGlobalLoader() {
+    function isDownloadLikeLink(link) {
+        const href = link.getAttribute('href') || '';
+
+        return link.hasAttribute('download') ||
+            link.dataset.noLoader === 'true' ||
+            link.dataset.downloadLink === 'true' ||
+            href.includes('download=1') ||
+            /\/download(?:[/?#]|$)/i.test(href);
+    }
+
+    function suppressLoaderForDownload() {
+        window.__skipNextGlobalLoader = true;
+
+        window.setTimeout(function () {
+            hideLoader();
+            window.__skipNextGlobalLoader = false;
+        }, 1200);
+    }
+
     function bindPageHandlers() {
         document.querySelectorAll('a').forEach(link => {
             link.addEventListener('click', function () {
                 const href = this.getAttribute('href');
                 const target = this.getAttribute('target');
+
+                if (isDownloadLikeLink(this)) {
+                    suppressLoaderForDownload();
+                    return;
+                }
 
                 if (
                     href &&
@@ -24,7 +48,18 @@ function initGlobalLoader() {
     }
 
     window.addEventListener('beforeunload', function () {
+        if (window.__skipNextGlobalLoader) {
+            return;
+        }
+
         showLoader();
+    });
+
+    window.addEventListener('focus', function () {
+        if (window.__skipNextGlobalLoader) {
+            hideLoader();
+            window.__skipNextGlobalLoader = false;
+        }
     });
 
     if (document.readyState === 'loading') {

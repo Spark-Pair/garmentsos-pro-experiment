@@ -6,7 +6,14 @@ async function backupDB() {
             typeof window.showDirectoryPicker === 'function';
 
         if (!canUseFolderPicker) {
+            window.__skipNextGlobalLoader = true;
             window.location.href = '/backup-db?download=1';
+            window.setTimeout(function () {
+                if (typeof hideLoader === 'function') {
+                    hideLoader();
+                }
+                window.__skipNextGlobalLoader = false;
+            }, 1200);
             if (typeof showMessageBox === 'function') {
                 showMessageBox('info', 'Backup download started. Browser save location settings apply on this URL.');
             }

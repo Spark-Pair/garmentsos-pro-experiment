@@ -274,7 +274,7 @@
                                             @csrf
                                             <button type="submit" class="{{ $secondaryButton }}">Verify</button>
                                         </form>
-                                        <a href="{{ route('developer.backups.download', $log) }}" class="{{ $secondaryButton }}">Download</a>
+                                        <a href="{{ route('developer.backups.download', $log) }}" class="{{ $secondaryButton }}" data-download-link="true">Download</a>
                                         <a href="{{ route('developer.backups.restore.show', $log) }}"
                                             class="{{ $restoreEnabled ? $secondaryButton : $disabledButton }}"
                                             @if (!$restoreEnabled) aria-disabled="true" @endif>
