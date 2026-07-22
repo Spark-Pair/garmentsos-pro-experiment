@@ -939,8 +939,8 @@ function Verify-PostUpdateState($InstallDir, $ExpectedVersion) {
         Wait-GarmentsAppExecReady $InstallDir
         Invoke-GarmentsStorageRepair $InstallDir
 
-        $dockerHealthy = docker compose ps --status running --filter "name=app" 2>$null
-        $checks["docker_running"] = ($dockerHealthy -match "app")
+        $dockerHealthy = docker compose ps app 2>$null
+        $checks["docker_running"] = ($LASTEXITCODE -eq 0 -and $dockerHealthy -match "Up")
 
         $storageLink = docker compose exec -T app sh -lc 'test -L public/storage && echo linked' 2>$null
         $checks["storage_link"] = ($storageLink -match "linked")

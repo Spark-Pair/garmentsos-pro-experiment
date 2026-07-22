@@ -2170,7 +2170,6 @@ public sealed class MainForm : Form
         var rollbackScripts = new[]
         {
             Path.Combine(installDir, "scripts", "windows-docker-rollback.ps1"),
-            Path.Combine(installDir, "scripts", "windows-docker-restore.ps1"),
             Path.Combine(installDir, "scripts", "windows-docker-recover.ps1"),
         };
 
@@ -2396,16 +2395,42 @@ public sealed class MainForm : Form
             .Where(path =>
             {
                 var name = Path.GetFileName(path);
-                return !name.StartsWith("cleanup_", StringComparison.OrdinalIgnoreCase)
+                return name.StartsWith("backup_", StringComparison.OrdinalIgnoreCase)
+                    && !name.StartsWith("cleanup_", StringComparison.OrdinalIgnoreCase)
                     && !name.StartsWith("env_", StringComparison.OrdinalIgnoreCase)
+                    && !name.StartsWith("license_state_", StringComparison.OrdinalIgnoreCase)
                     && !name.Contains(".env", StringComparison.OrdinalIgnoreCase);
             })
             .Select(path => new FileSystemInfoWrapper(path))
-            .Where(item => item.Exists && item.LengthOrNonEmpty > 0)
+            .Where(item => item.Exists && item.LengthOrNonEmpty > 0 && IsValidBusinessBackup(item.Path))
             .OrderByDescending(item => item.LastWriteTimeUtc)
             .FirstOrDefault();
 
         return candidates?.Path;
+    }
+
+    private static bool IsValidBusinessBackup(string path)
+    {
+        if (!Directory.Exists(path))
+        {
+            return false;
+        }
+
+        var metadata = Path.Combine(path, "backup-metadata.json");
+        var database = Path.Combine(path, "database.sqlite");
+        if (!File.Exists(metadata) || !File.Exists(database))
+        {
+            return false;
+        }
+
+        try
+        {
+            return new FileInfo(database).Length > 0;
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     private sealed class FileSystemInfoWrapper
