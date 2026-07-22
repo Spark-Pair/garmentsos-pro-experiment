@@ -27,7 +27,7 @@ trait CustomerComputed
                 'status' => $this->user->status,
             ],
             'city' => $this->city->title,
-            'date' => $this->date,
+            'date' => $this->date?->format('Y-m-d'),
             'name_city' => $this->customer_name . ' | ' . $this->city->title,
             'data' => [
                 'id' => $this->id,
@@ -36,7 +36,7 @@ trait CustomerComputed
                 'urdu_title' => $this->urdu_title,
                 'phone_number' => $this->phone_number,
                 'category' => $this->category,
-                'date' => $this->date,
+                'date' => $this->date?->format('Y-m-d'),
                 'city' => $this->city ? [
                     'id' => $this->city->id,
                     'title' => $this->city->title,

@@ -52,7 +52,7 @@ trait InvoiceComputed
                 'order_no' => $this->order_no,
                 'shipment_no' => $this->shipment_no,
                 'deliver_to' => $this->order?->deliver_to,
-                'date' => $this->date,
+                'date' => $this->date?->format('Y-m-d'),
                 'netAmount' => (float) ($this->netAmount ?? 0),
                 'cotton_count' => (int) ($this->cotton_count ?? 0),
                 'customer' => $this->customer ? [

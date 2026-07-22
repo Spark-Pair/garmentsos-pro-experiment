@@ -24,14 +24,14 @@ trait SupplierComputed
                 'username' => $this->user->username,
                 'status' => $this->user->status,
             ],
-            'date' => $this->date,
+            'date' => $this->date?->format('Y-m-d'),
             'data'=> [
                 'id' => $this->id,
                 'supplier_name' => $this->supplier_name,
                 'person_name' => $this->person_name,
                 'urdu_title' => $this->urdu_title,
                 'phone_number' => $this->phone_number,
-                'date' => $this->date,
+                'date' => $this->date?->format('Y-m-d'),
                 'categories_array' => $this->categories_array,
                 'user' => [
                     'id' => $this->user->id,

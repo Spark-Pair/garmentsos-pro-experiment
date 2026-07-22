@@ -42,7 +42,7 @@ trait ShipmentComputed
                 'shipment_no' => $this->shipment_no,
                 'branch_id' => $this->branch_id,
                 'branch_branding' => app(\App\Services\Branches\ModuleBranchService::class)->documentBranding('shipments', $this),
-                'date' => $this->date,
+                'date' => $this->date?->format('Y-m-d'),
                 'discount' => (float) ($this->discount ?? 0),
                 'netAmount' => (float) ($this->netAmount ?? 0),
                 'city' => $this->city,

@@ -36,7 +36,7 @@ trait CargoComputed
                 'id' => $this->id,
                 'cargo_no' => $this->cargo_no,
                 'cargo_name' => $this->cargo_name,
-                'date' => $this->date,
+                'date' => $this->date?->format('Y-m-d'),
                 'invoices' => $invoices,
             ],
             'oncontextmenu' => "generateContextMenu(event)",

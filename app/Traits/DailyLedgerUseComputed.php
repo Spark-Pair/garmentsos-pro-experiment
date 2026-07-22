@@ -13,7 +13,7 @@ trait DailyLedgerUseComputed
             'id' => $this->id,
             'ledger_type' => 'use',
             'date' => $this->date->format('d-M-Y, D'),
-            'date_raw' => $this->date->toDateString(),
+            'date_raw' => $this->date?->format('Y-m-d'),
             'description' => ucfirst($this->case) . ' | ' . ($this->remarks ?? '-'),
             'case' => $this->case,
             'remarks' => $this->remarks,

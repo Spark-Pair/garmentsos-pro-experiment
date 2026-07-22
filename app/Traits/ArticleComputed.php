@@ -56,7 +56,7 @@ trait ArticleComputed
             'quantity'=> $this->quantity,
             'current_stock'=> (int) ($stock['current_stock_pcs'] ?? 0),
             'ordered_quantity'=> (int) ($stock['ordered_quantity_pcs'] ?? 0),
-            'ready_date'=> $this->date,
+            'ready_date'=> $this->date?->format('Y-m-d'),
             'rates_array'=> $this->rates_array,
             'oncontextmenu' => "generateContextMenu(event)",
             'onclick' => "generateModal(this)",

@@ -53,7 +53,7 @@ trait DRComputed
             'data' => [
                 'id' => $this->id,
                 'd_r_no' => $this->d_r_no,
-                'date' => $this->date,
+                'date' => $this->date?->format('Y-m-d'),
                 'customer_id' => $this->customer_id,
                 'new_payments' => $this->new_payments,
                 'return_payments' => $this->return_payments,

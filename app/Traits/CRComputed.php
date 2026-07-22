@@ -104,7 +104,7 @@ trait CRComputed
             'data' => [
                 'id' => $this->id,
                 'c_r_no' => $this->c_r_no,
-                'date' => $this->date,
+                'date' => $this->date?->format('Y-m-d'),
                 'voucher_id' => $this->voucher_id,
                 'new_payments' => $this->new_payments,
                 'return_payments' => $this->return_payments,

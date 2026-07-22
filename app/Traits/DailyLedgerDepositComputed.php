@@ -13,7 +13,7 @@ trait DailyLedgerDepositComputed
             'id' => $this->id,
             'ledger_type' => 'deposit',
             'date' => $this->date->format('d-M-Y, D'),
-            'date_raw' => $this->date->toDateString(),
+            'date_raw' => $this->date?->format('Y-m-d'),
             'description' => ucfirst($this->method) . ' | ' . ($this->reff_no ?? '-'),
             'method' => $this->method,
             'reff_no' => $this->reff_no,
