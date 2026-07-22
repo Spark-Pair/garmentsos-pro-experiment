@@ -553,6 +553,10 @@ function Restore-GarmentsLicenseState($InstallDir, $ArchivePath) {
             if ([string]::IsNullOrWhiteSpace($containerId)) {
                 Write-Warning "App container is not running; attempting to start app for license state restore."
                 docker compose up -d app | Out-Host
+
+                if($LASTEXITCODE -ne 0){
+                    throw "docker compose up failed."
+                }
                 $containerId = (docker compose ps -q app)
             }
 
@@ -834,25 +838,47 @@ function Write-UpdateLog($InstallDir, $Message) {
     }
 }
 
-function Invoke-ComposeExecSafe($InstallDir, $Command, $Label) {
+function Invoke-ComposeExecSafe(
+    [string]$InstallDir,
+    [string]$Command,
+    [string]$Label
+) {
+
     Push-Location $InstallDir
+
     try {
+
         Write-Host "Running $Label"
-        $output = @(
-            & docker compose exec -T app sh -lc $Command 2>&1
-        )
+
+        Wait-GarmentsAppExecReady $InstallDir
+
+        $output = docker compose exec -T app sh -lc "$Command"
 
         $exitCode = $LASTEXITCODE
+
         if ($output) {
-            $output | Out-Host
+            $output | Write-Host
         }
+
         if ($exitCode -ne 0) {
-            throw "$Label failed with exit code $exitCode."
+
+            Write-Host ""
+            Write-Host "docker returned exit code $exitCode"
+
+            docker compose ps
+
+            docker compose logs app --tail=100
+
+            throw "$Label failed (docker exit $exitCode)"
         }
-        return $output
-    } finally {
-        Pop-Location
+
     }
+    finally {
+
+        Pop-Location
+
+    }
+
 }
 
 function Wait-GarmentsAppExecReady($InstallDir, [int]$TimeoutSeconds = 120) {
@@ -885,12 +911,24 @@ function Wait-GarmentsAppExecReady($InstallDir, [int]$TimeoutSeconds = 120) {
 function Invoke-GarmentsStorageRepair($InstallDir) {
     Wait-GarmentsAppExecReady $InstallDir
 
+#     $repairCommand = @'
+# php artisan app:repair-storage --no-interaction || (
+#   mkdir -p storage/app/license storage/app/private/backups storage/framework/cache/data storage/framework/sessions storage/framework/views storage/logs bootstrap/cache database &&
+#   chown -R www-data:www-data storage bootstrap/cache database 2>/dev/null || true &&
+#   chmod -R ug+rwX storage bootstrap/cache database 2>/dev/null || true
+# )
+# '@
+
     $repairCommand = @'
-php artisan app:repair-storage --no-interaction || (
-  mkdir -p storage/app/license storage/app/private/backups storage/framework/cache/data storage/framework/sessions storage/framework/views storage/logs bootstrap/cache database &&
-  chown -R www-data:www-data storage bootstrap/cache database 2>/dev/null || true &&
-  chmod -R ug+rwX storage bootstrap/cache database 2>/dev/null || true
-)
+set -e
+
+php artisan app:repair-storage --no-interaction
+
+mkdir -p storage/app/license
+mkdir -p storage/framework/cache/data
+
+chown -R www-data:www-data storage bootstrap/cache database || true
+chmod -R ug+rwX storage bootstrap/cache database || true
 '@
 
     Invoke-ComposeExecSafe $InstallDir $repairCommand 'repair storage permissions'
@@ -1052,7 +1090,11 @@ function Invoke-GarmentsFinalSuccessPass($InstallDir) {
 if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
     throw "Docker Desktop is required."
 }
-docker info | Out-Null
+try {
+    docker info | Out-Null
+} catch {
+    throw "Docker Desktop is not running."
+}
 
 if ([string]::IsNullOrWhiteSpace($ReleaseDir)) {
     $ReleaseDir = Split-Path -Parent $PSScriptRoot
@@ -1099,6 +1141,10 @@ $LicenseStateBackup = Backup-GarmentsLicenseState $InstallDir
 
 try {
     docker load -i $ImageTar | Out-Host
+    
+    if($LASTEXITCODE -ne 0){
+        throw "Docker image load failed."
+    }
 
     Copy-Item -Force (Join-Path $ReleaseDir "docker-compose.yml") $InstallDir
     Copy-Item -Force (Join-Path $ReleaseDir ".env.example") $InstallDir
@@ -1135,6 +1181,10 @@ try {
     try {
         Write-UpdateLog $InstallDir "update start version: $TargetVersion"
         docker compose up -d
+
+        if($LASTEXITCODE -ne 0){
+            throw "docker compose up failed."
+        }
         Wait-GarmentsAppExecReady $InstallDir
         Test-GarmentsRunningContainerContainsMigration $InstallDir $LatestMigration
         $script:EnvWriteStoppedCompose = $false
@@ -1163,6 +1213,10 @@ try {
         Push-Location $InstallDir
         try {
             docker compose up -d
+
+            if($LASTEXITCODE -ne 0){
+                throw "docker compose up failed."
+            }
             Wait-GarmentsAppExecReady $InstallDir
             $script:EnvWriteStoppedCompose = $false
         } finally {
@@ -1205,4 +1259,11 @@ try {
     Write-Warning "Update failed after pre-update backup. Attempting to preserve/restore license device identity. $($_.Exception.Message)"
     Restore-GarmentsLicenseState $InstallDir $LicenseStateBackup
     throw
+}
+
+if($LASTEXITCODE -eq 137){
+
+    docker compose logs app --tail=200
+
+    throw "Container terminated unexpectedly (137)."
 }
