@@ -837,6 +837,47 @@ function Invoke-ComposeExecSafe($InstallDir, $Command, $Label) {
     }
 }
 
+function Wait-GarmentsAppExecReady($InstallDir, [int]$TimeoutSeconds = 120) {
+    $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
+
+    Push-Location $InstallDir
+    try {
+        do {
+            $containerId = (docker compose ps -q app 2>$null)
+            if (-not [string]::IsNullOrWhiteSpace($containerId)) {
+                $running = docker inspect -f "{{.State.Running}}" $containerId 2>$null
+                if ($running -match "true") {
+                    docker compose exec -T app sh -lc 'php -v >/dev/null 2>&1' 2>$null
+                    if ($LASTEXITCODE -eq 0) {
+                        Write-Host "App container is ready for Laravel commands."
+                        return
+                    }
+                }
+            }
+
+            Start-Sleep -Seconds 3
+        } while ((Get-Date) -lt $deadline)
+    } finally {
+        Pop-Location
+    }
+
+    throw "App container did not become ready for Laravel commands within $TimeoutSeconds seconds."
+}
+
+function Invoke-GarmentsStorageRepair($InstallDir) {
+    Wait-GarmentsAppExecReady $InstallDir
+
+    $repairCommand = @'
+php artisan app:repair-storage --no-interaction || (
+  mkdir -p storage/app/license storage/app/private/backups storage/framework/cache/data storage/framework/sessions storage/framework/views storage/logs bootstrap/cache database &&
+  chown -R www-data:www-data storage bootstrap/cache database 2>/dev/null || true &&
+  chmod -R ug+rwX storage bootstrap/cache database 2>/dev/null || true
+)
+'@
+
+    Invoke-ComposeExecSafe $InstallDir $repairCommand 'repair storage permissions'
+}
+
 function Verify-PostUpdateState($InstallDir, $ExpectedVersion) {
     $checks = [ordered]@{}
 
@@ -846,6 +887,9 @@ function Verify-PostUpdateState($InstallDir, $ExpectedVersion) {
         $envContent = Get-Content -LiteralPath $envPath -Raw -ErrorAction Stop
         $appVersion = Read-EnvValue $envContent "APP_VERSION"
         $checks["app_version"] = $appVersion
+
+        Wait-GarmentsAppExecReady $InstallDir
+        Invoke-GarmentsStorageRepair $InstallDir
 
         $dockerHealthy = docker compose ps --status running --filter "name=app" 2>$null
         $checks["docker_running"] = ($dockerHealthy -match "app")
@@ -902,6 +946,7 @@ function Invoke-GarmentsLaravelMaintenance($InstallDir) {
         try {
             Write-Host "Running Laravel maintenance commands..."
             Write-Host "Skipping composer install in client runtime; release Docker image already contains vendor/autoload."
+            Invoke-GarmentsStorageRepair $InstallDir
             Invoke-ComposeExecSafe $InstallDir 'php artisan migrate --force' 'migrate'
             Write-Host "Laravel migration maintenance completed."
         } finally {
@@ -917,6 +962,7 @@ function Invoke-GarmentsPostSuccessMaintenance($InstallDir) {
     Push-Location $InstallDir
     try {
         Write-Host "Running final Laravel maintenance after successful update..."
+        Invoke-GarmentsStorageRepair $InstallDir
         try {
             Invoke-ComposeExecSafe $InstallDir 'php artisan storage:link --force || php artisan storage:link' 'storage:link'
         }
@@ -937,6 +983,7 @@ function Restart-GarmentsAppContainer($InstallDir, $Reason) {
     try {
         Write-Host "Restarting GarmentsOS app container: $Reason"
         docker compose restart app | Out-Host
+        Wait-GarmentsAppExecReady $InstallDir
         Write-UpdateLog $InstallDir "docker compose restart app: $Reason completed"
     } finally {
         Pop-Location
@@ -1036,6 +1083,7 @@ try {
     try {
         Write-UpdateLog $InstallDir "update start version: $TargetVersion"
         docker compose up -d
+        Wait-GarmentsAppExecReady $InstallDir
         $script:EnvWriteStoppedCompose = $false
     } finally {
         Pop-Location
@@ -1047,6 +1095,7 @@ try {
     Push-Location $InstallDir
     try {
         docker compose restart app | Out-Host
+        Wait-GarmentsAppExecReady $InstallDir
         Write-UpdateLog $InstallDir "docker compose restart app: completed"
     } finally {
         Pop-Location
@@ -1061,6 +1110,7 @@ try {
         Push-Location $InstallDir
         try {
             docker compose up -d
+            Wait-GarmentsAppExecReady $InstallDir
             $script:EnvWriteStoppedCompose = $false
         } finally {
             Pop-Location
