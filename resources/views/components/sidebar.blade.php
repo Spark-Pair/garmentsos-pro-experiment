@@ -484,6 +484,28 @@
             },
         @endif
 
+        @if (module_enabled('inventory') && in_array(Auth::user()->role, ['developer', 'owner', 'admin', 'accountant', 'store_keeper']))
+            {
+                id: "inventory",
+                name: "Inventory",
+                details: {
+                    '': 'Manage material and production stock',
+                },
+                bottomChip: '2 actions',
+                svgIcon:'<svg class="size-5 fill-[var(--text-color)] group-hover:fill-[var(--primary-color)]" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640"><path d="M32 192L320 64L608 192L608 448L320 576L32 448L32 192zM320 116.5L103.7 212.7L320 308.9L536.3 212.7L320 116.5zM80 253.4L80 416.8L296 512.8L296 349.4L80 253.4zM344 512.8L560 416.8L560 253.4L344 349.4L344 512.8z"/></svg>',
+                noMargin: true,
+                onclick: 'openSubMenu(event, this)',
+                oncontextmenu: 'openSubMenu(event, this)',
+                switchBtn: {
+                    active: false,
+                },
+                subMenu: [
+                    {name: 'Show Inventory', href: "/inventory"},
+                    {name: 'Add Inventory', href: "/inventory/create"},
+                ]
+            },
+        @endif
+
         @if (in_array(Auth::user()->role, ['developer', 'owner', 'admin', 'accountant']))
             {
                 id: "orders",

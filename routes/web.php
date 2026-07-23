@@ -25,6 +25,7 @@ use App\Http\Controllers\ExpenseController;
 use App\Http\Controllers\FabricController;
 use App\Http\Controllers\FirstRunSetupController;
 use App\Http\Controllers\InvoiceController;
+use App\Http\Controllers\InventoryController;
 use App\Http\Controllers\ModuleBranchPreferenceController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\OrderController;
@@ -173,6 +174,8 @@ Route::group(['middleware' => ['setup.complete', 'auth', 'activeSession', 'ensur
     Route::resource('shipments', ShipmentController::class);
 
     Route::resource('physical-quantities', PhysicalQuantityController::class);
+
+    Route::resource('inventory', InventoryController::class)->only(['index', 'create', 'store'])->middleware('moduleEnabled:inventory');
 
     Route::resource('invoices', InvoiceController::class);
     Route::get('print-invoices', [InvoiceController::class, 'print'])->name('invoices.print');

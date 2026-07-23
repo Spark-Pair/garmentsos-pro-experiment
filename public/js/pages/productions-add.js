@@ -13,6 +13,7 @@
         const units = config.units || [];
         const rates = config.rates || [];
         const tickets = config.tickets || [];
+        const inventoryItems = config.inventoryItems || [];
         const printTicket = config.printTicket || null;
         if (config.companyData) {
             window.companyData = config.companyData;
@@ -86,6 +87,15 @@
             let allParts = Object.entries(partsByCategorySeason);
             let Units = units;
             let allRates = rates;
+            if (config.isInventoryEnabled) {
+                const inventoryOptions = inventoryItems.reduce((options, item) => {
+                    options[item.id] = {
+                        text: `${item.name}${item.stock_quantity !== undefined ? ` | ${formatNumbersWithDigits(item.stock_quantity)}` : ""} ${item.unit || ""}`.trim(),
+                        data_option: item,
+                    };
+                    return options;
+                }, {});
+            }
             let materialModalData = {};
             let materialsArray = [];
             let selectedPartsArray = [];
@@ -333,14 +343,15 @@
 
                 tableBody = materialsArray.map((item, index) => {
                     return [
-                        { data: index + 1, class: "w-[10%]" },
-                        { data: item.title, class: "w-[25%]" },
-                        { data: item.unit, class: "w-[25%]" },
+                        { data: index + 1, class: "w-[8%]" },
+                        { data: item.title, class: "w-[28%]" },
+                        { data: item.unit, class: "w-[18%]" },
                         { data: item.quantity, class: "w-[15%]" },
+                        { data: item.inventory_item_id ? "Inventory" : "Manual", class: "w-[18%]" },
                         {
                             rawHTML: `
                             <div class="w-[10%] text-center">
-                                <button onclick="deleteMaterial(this)" type="button" class="text-[var(--danger-color)] text-xs px-2 py-1 rounded-lg hover:text-[var(--h-danger-color)] transition-all duration-300 ease-in-out cursor-pointer">
+                                <button onclick="deleteMaterial(this)" data-index="${index}" type="button" class="text-[var(--danger-color)] text-xs px-2 py-1 rounded-lg hover:text-[var(--h-danger-color)] transition-all duration-300 ease-in-out cursor-pointer">
                                     <i class="fas fa-trash"></i>
                                 </button>
                             </div>
@@ -354,6 +365,17 @@
                     class: "max-w-4xl h-[37rem]",
                     name: "Add Materials",
                     fields: [
+                        ...(config.isInventoryEnabled
+                            ? [{
+                                category: "select",
+                                label: "Inventory Item",
+                                id: "inventory_item_id",
+                                name: "inventory_item_id",
+                                options: [inventoryOptions],
+                                onchange: "trackInventoryMaterialState(this)",
+                            }]
+                            : []),
+
                         {
                             category: "input",
                             label: "Title",
@@ -378,14 +400,15 @@
                             onclick: "addthis(this)",
                         },
                     ],
-                    fieldsGridCount: "3",
+                    fieldsGridCount: config.isInventoryEnabled ? '4' : '3',
                     table: {
                         name: "Rates",
                         headers: [
-                            { label: "#", class: "w-[10%]" },
-                            { label: "Title", class: "w-[25%]" },
-                            { label: "Unit", class: "w-[25%]" },
+                            { label: "#", class: "w-[8%]" },
+                            { label: "Title", class: "w-[28%]" },
+                            { label: "Unit", class: "w-[18%]" },
                             { label: "Quantity", class: "w-[15%]" },
+                            { label: "Source", class: "w-[18%]" },
                             { label: "Action", class: "w-[10%]" },
                         ],
                         body: tableBody,
@@ -398,6 +421,26 @@
 
             window.generateMaterialsModal = generateMaterialsModal;
 
+            window.trackInventoryMaterialState = function trackInventoryMaterialState(elem) {
+                const formDom = elem.closest("form");
+                const option = elem.options[elem.selectedIndex];
+                const item = JSON.parse(option?.dataset.option || "{}");
+                const titleInpDom = formDom.querySelector("#title");
+                const unitSelectDom = formDom.querySelector("#unit");
+
+                if (item && item.id) {
+                    titleInpDom.value = item.name || "";
+                    unitSelectDom.value = item.unit || "";
+                    titleInpDom.dataset.inventoryItemId = item.id;
+                    titleInpDom.dataset.stockQuantity = item.stock_quantity ?? "";
+                } else {
+                    delete titleInpDom.dataset.inventoryItemId;
+                    delete titleInpDom.dataset.stockQuantity;
+                }
+
+                window.enableDisableBtn(elem);
+            };
+
             window.enableDisableBtn = function enableDisableBtn(elem) {
                 const formDom = elem.closest("form");
 
@@ -405,6 +448,7 @@
                 const titleInpDom = formDom.querySelector("#title");
                 const unitSelectDom = formDom.querySelector("#unit");
                 const quantityInpDom = formDom.querySelector("#quantity");
+                const inventorySelectDom = formDom.querySelector("#inventory_item_id");
 
                 if (
                     titleInpDom.value !== "" &&
@@ -442,11 +486,10 @@
 
                 titleInpDom.focus();
 
-                let title =
-                    elem.parentElement.previousElementSibling.previousElementSibling
-                        .previousElementSibling.innerText;
-
-                materialsArray = materialsArray.filter((quantity) => quantity.title !== title);
+                const index = parseInt(elem.dataset.index, 10);
+                if (!Number.isNaN(index)) {
+                    materialsArray.splice(index, 1);
+                }
 
                 renderMaterialList(elem.closest("#table-body"));
             };
@@ -457,12 +500,13 @@
                     materialsArray.forEach((material, index) => {
                         tableBody.innerHTML += `
                             <div class="flex justify-between items-center border-t border-gray-600 py-2 px-4">
-                                <div class="w-[10%]">${index + 1}</div>
-                                <div class="w-[25%]">${material.title}</div>
-                                <div class="w-[25%]">${material.unit}</div>
+                                <div class="w-[8%]">${index + 1}</div>
+                                <div class="w-[28%]">${material.title}</div>
+                                <div class="w-[18%]">${material.unit}</div>
                                 <div class="w-[15%]">${formatNumbersWithDigits(material.quantity)}</div>
+                                <div class="w-[18%]">${material.inventory_item_id ? "Inventory" : "Manual"}</div>
                                 <div class="w-[10%] text-center">
-                                    <button onclick="deleteMaterial(this)" type="button" class="text-[var(--danger-color)] text-xs px-2 py-1 rounded-lg hover:text-[var(--h-danger-color)] transition-all duration-300 ease-in-out cursor-pointer">
+                                    <button onclick="deleteMaterial(this)" data-index="${index}" type="button" class="text-[var(--danger-color)] text-xs px-2 py-1 rounded-lg hover:text-[var(--h-danger-color)] transition-all duration-300 ease-in-out cursor-pointer">
                                         <i class="fas fa-trash"></i>
                                     </button>
                                 </div>
@@ -488,13 +532,22 @@
                 materialObject.title = titleInpDom.value;
                 materialObject.unit = unitSelectDom.value;
                 materialObject.quantity = quantityInpDom.value;
+                if (titleInpDom.dataset.inventoryItemId) {
+                    materialObject.inventory_item_id = parseInt(titleInpDom.dataset.inventoryItemId);
+                }
                 materialsArray.push(materialObject);
                 titleInpDom.value = "";
                 unitSelectDom.value = "";
                 quantityInpDom.value = "";
+                delete titleInpDom.dataset.inventoryItemId;
+                delete titleInpDom.dataset.stockQuantity;
+                const inventorySelectDom = formDom.querySelector("#inventory_item_id");
+                if (inventorySelectDom) {
+                    inventorySelectDom.value = "";
+                }
                 titleInpDom.focus();
                 document.getElementById("materials").value = `${materialsArray.length} Material${
-                    materialsArray > 1 ? "s" : ""
+                    materialsArray.length > 1 ? "s" : ""
                 } Selected`;
                 document.querySelector('input[name="materials"]').value = JSON.stringify(materialsArray);
                 renderMaterialList(tableBodyDom);
@@ -1253,6 +1306,8 @@
             window.trackTicketState = function trackTicketState(elem) {
                 if (elem.value != "") {
                     let selectedTicket = JSON.parse(elem.parentElement.querySelector("li.selected").dataset.option);
+                    console.log(selectedTicket);
+                    
                     selectThisArticle(selectedTicket.article);
                     selectThisOption(document.querySelector(`li[data-value="${selectedTicket.work_id}"]`));
                     selectThisOption(document.querySelector(`li[data-value="${selectedTicket.worker_id}"]`));

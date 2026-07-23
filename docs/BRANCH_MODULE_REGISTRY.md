@@ -1,6 +1,6 @@
 # Branch Module Registry
 
-The Dynamic Branch Module Registry currently contains 50 modules.
+The Dynamic Branch Module Registry currently contains 51 modules.
 
 ## Current Module List
 
@@ -39,6 +39,7 @@ The Dynamic Branch Module Registry currently contains 50 modules.
 - employees
 - suppliers
 - users
+- inventory
 - physical_quantities
 - productions
 - reports_article

@@ -3,12 +3,17 @@
 namespace App\Traits;
 
 use App\Models\SupplierPayment;
+use App\Services\Production\ProductionItemSyncService;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 
 trait ProductionComputed
 {
     public function toFormattedArray()
     {
+        $items = app(ProductionItemSyncService::class);
+        $tags = $items->tagsForPayload($this);
+        $materials = $items->materialsForPayload($this);
+
         return [
             'id' => $this->id,
             'article_no' => $this->article->article_no,
@@ -21,8 +26,8 @@ trait ProductionComputed
             'amount' => $this->amount,
             'title' => $this->title,
             'parts' => $this->parts,
-            'materials' => $this->materials,
-            'tags' => $this->tags,
+            'materials' => $materials,
+            'tags' => $tags,
             'oncontextmenu' => 'generateContextMenu(event)',
             'onclick' => 'generateModal(this)',
             'data' => [
@@ -42,8 +47,8 @@ trait ProductionComputed
                 'amount' => $this->amount,
                 'title' => $this->title,
                 'parts' => $this->parts,
-                'materials' => $this->materials,
-                'tags' => $this->tags,
+                'materials' => $materials,
+                'tags' => $tags,
                 'creator' => $this->creator?->name,
             ],
         ];

@@ -6,12 +6,14 @@ use App\Models\Employee;
 use App\Models\Fabric;
 use App\Models\IssuedFabric;
 use App\Models\Production;
+use App\Models\ProductionTag;
 use App\Models\ReturnFabric;
 use App\Models\Setup;
 use App\Models\Supplier;
 use App\Services\Branches\ModuleBranchService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 
 class FabricController extends Controller
 {
@@ -42,16 +44,40 @@ class FabricController extends Controller
                 ->applyFilters($request, false) // 👈 important
                 ->get()->map->toFormattedArray();
 
+            $productionTags = collect();
+            if (Schema::hasTable('production_tags')) {
+                $productionTags = $branches->applyRelatedScope(
+                        ProductionTag::with(['production.article', 'production.worker'])->orderByDesc('id'),
+                        'productions',
+                        'fabrics'
+                    )
+                    ->get()
+                    ->map(function (ProductionTag $tag) {
+                        return [
+                            'id' => 'production-tag-' . $tag->id,
+                            'type' => 'Used in Production',
+                            'tag' => $tag->tag,
+                            'quantity' => $tag->quantity,
+                            'date' => optional($tag->production?->issue_date ?? $tag->created_at)->format('d-M-Y, D'),
+                            'supplier_name' => $tag->production?->worker?->employee_name,
+                            'employee_name' => $tag->production?->worker?->employee_name,
+                            'fabric' => $tag->production?->article?->article_no,
+                            'color' => '-',
+                            'unit' => $tag->unit ?? '-',
+                            'remarks' => 'Ticket: ' . ($tag->production?->ticket ?? '-'),
+                            'created_at' => $tag->created_at,
+                        ];
+                    });
+            }
+
             // Combine arrays manually
             $finalData = collect()
                 ->merge($issuedFabrics)
                 ->merge($ReturnFabrics)
+                ->merge($productionTags)
                 ->merge($addedFabrics)
                 ->sortByDesc(function ($item) {
-                    $date = Carbon::parse($item['date'])->format('Y-m-d');
-                    $time = Carbon::parse($item['created_at'])->format('H:i:s');
-
-                    return Carbon::createFromFormat('Y-m-d H:i:s', "$date $time");
+                    return Carbon::parse($item['created_at'])->timestamp;
                 })
                 ->values();
 

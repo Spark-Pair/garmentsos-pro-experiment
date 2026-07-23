@@ -371,6 +371,8 @@
             units: @json(app('defaults')->units),
             rates: @json($rates),
             tickets: @json($ticket_options ?? []),
+            inventoryItems: @json($inventoryItems ?? []),
+            isInventoryEnabled: @json(module_enabled('inventory')),
         };
         window.__productionTicketAfterSave = @json(session('production_ticket_preview'));
         window.addEventListener('DOMContentLoaded', () => {

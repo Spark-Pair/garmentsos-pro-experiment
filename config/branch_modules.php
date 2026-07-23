@@ -144,6 +144,7 @@ return [
 
         'productions' => array_merge($document, ['label' => 'Productions', 'group' => 'Production / Stock', 'page_reference' => 'productions', 'doc_identity_prefix' => 'P', 'safe_default_enabled' => true]),
         'physical_quantities' => array_merge($filterReady, ['label' => 'Physical Quantities / Stock', 'group' => 'Production / Stock', 'page_reference' => 'physical-quantities', 'supports_branch_branding' => true, 'can_use_branch_branding' => true]),
+        'inventory' => array_merge($filterReady, ['label' => 'Inventory', 'group' => 'Production / Stock', 'page_reference' => 'inventory', 'table_names' => ['inventory_items', 'inventory_transactions'], 'safe_default_enabled' => true, 'dependencies' => 'Recommended with Productions, Fabrics, Suppliers, Supplier Payments, and Physical Quantities.']),
 
         'vouchers' => array_merge($document, ['label' => 'Vouchers', 'group' => 'Finance / Bank / Expenses', 'page_reference' => 'vouchers', 'doc_identity_prefix' => 'V', 'safe_default_enabled' => true]),
         'expenses' => array_merge($filterReady, ['label' => 'Expenses', 'group' => 'Finance / Bank / Expenses', 'page_reference' => 'expenses']),

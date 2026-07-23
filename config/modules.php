@@ -16,6 +16,11 @@ return [
         'default_enabled' => true,
         'description' => 'Article catalog and related article actions.',
     ],
+    'inventory' => [
+        'label' => 'Inventory',
+        'default_enabled' => true,
+        'description' => 'Material, fabric, tag, and accessory stock used by production.',
+    ],
     'orders' => [
         'label' => 'Orders',
         'default_enabled' => true,

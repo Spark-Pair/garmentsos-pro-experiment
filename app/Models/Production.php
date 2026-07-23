@@ -82,4 +82,14 @@ class Production extends Model
     {
         return $this->belongsTo(Branch::class);
     }
+
+    public function productionTags()
+    {
+        return $this->hasMany(ProductionTag::class);
+    }
+
+    public function productionMaterials()
+    {
+        return $this->hasMany(ProductionMaterial::class);
+    }
 }

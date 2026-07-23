@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Article;
 use App\Models\Employee;
 use App\Models\Fabric;
+use App\Models\InventoryItem;
 use App\Models\Production;
 use App\Models\Rate;
 use App\Models\ReturnFabric;
@@ -12,9 +13,11 @@ use App\Models\Setup;
 use App\Models\Supplier;
 use App\Services\Branches\BranchSerialService;
 use App\Services\Branches\ModuleBranchService;
+use App\Services\Production\ProductionItemSyncService;
 use App\Support\Money;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Validator;
 
 class ProductionController extends Controller
@@ -33,8 +36,14 @@ class ProductionController extends Controller
 
         if ($request->ajax()) {
             $branches = app(ModuleBranchService::class);
+            $relations = ['article', 'work', 'worker', 'creator'];
+            if (app(ProductionItemSyncService::class)->tablesReady()) {
+                $relations[] = 'productionTags';
+                $relations[] = 'productionMaterials.inventoryItem';
+            }
+
             $productionsQuery = $branches
-                ->applyScope(Production::with(['article', 'work', 'worker', 'creator'])->orderByDesc('id'), 'productions');
+                ->applyScope(Production::with($relations)->orderByDesc('id'), 'productions');
 
             if ($this->isSupplierRole()) {
                 $supplier = $this->currentSupplier();
@@ -80,9 +89,9 @@ class ProductionController extends Controller
                 ->orderByDesc('id')
                 ->get();
             foreach ($allTickets as $ticket) {
-                $ticket_options[$ticket->id] = [
+                $ticket_options[$ticket->ticket] = [
                     'text' => $ticket->ticket,
-                    'data_option' => $ticket,
+                    'data_option' => $ticket->toArray(),
                 ];
             }
             $articles = $branches->applyRelatedScope(Article::whereNotNull('fabric_type'), 'articles', 'productions')
@@ -154,10 +163,30 @@ class ProductionController extends Controller
         }
 
         $rates = Rate::with('type')->get();
+        $inventoryItems = collect();
+        if (Schema::hasTable('inventory_items')) {
+            $inventoryItems = $branches->applyRelatedScope(
+                    InventoryItem::where('is_active', true)->with('fabric', 'transactions'),
+                    'inventory',
+                    'productions',
+                )
+                ->orderBy('name')
+                ->get()
+                ->map(fn (InventoryItem $item) => [
+                    'id' => $item->id,
+                    'name' => $item->name,
+                    'type' => $item->type,
+                    'unit' => $item->unit,
+                    'tag' => $item->tag,
+                    'fabric' => $item->fabric?->title,
+                    'stock_quantity' => $item->stock_quantity,
+                ])
+                ->values();
+        }
 
         $branchBranding = app(ModuleBranchService::class)->documentBranding('productions');
 
-        return view('productions.add', compact('articles', 'work_options', 'worker_options', 'rates', 'ticket_options', 'branchBranding'));
+        return view('productions.add', compact('articles', 'work_options', 'worker_options', 'rates', 'ticket_options', 'branchBranding', 'inventoryItems'));
     }
 
     /**
@@ -176,7 +205,6 @@ class ProductionController extends Controller
             'tags' => 'nullable|string',
             'materials' => 'nullable|string',
             'parts' => 'nullable|string',
-            'quantity' => 'nullable|integer|min:1',
             'title' => 'nullable|string',
             'rate' => 'nullable|decimal:0,2|min:1',
             'amount' => 'nullable|decimal:0,2|min:1',
@@ -188,14 +216,17 @@ class ProductionController extends Controller
             return redirect()->back()->withErrors($validator)->withInput();
         }
 
+        $incomingTags = $this->decodeJsonArray($request->tags);
+        $incomingMaterials = $this->decodeJsonArray($request->materials);
+        $incomingParts = $this->decodeJsonArray($request->parts);
+
         $data = [
             'article_id' => $request->article_id,
             'work_id' => $request->work_id,
             'worker_id' => $request->worker_id,
-            'tags' => isset($request->tags) ? json_decode($request->tags) : null,
-            'materials' => isset($request->materials) ? json_decode($request->materials) : null,
-            'parts' => isset($request->parts) ? json_decode($request->parts) : null,
-            'quantity' => $request->quantity,
+            'tags' => null,
+            'materials' => null,
+            'parts' => $incomingParts,
             'title' => $request->title,
             'rate' => $request->rate,
             'amount' => $request->amount,
@@ -210,15 +241,21 @@ class ProductionController extends Controller
             $ticket = $request->ticket_name;
             $production = Production::where('ticket', $request->ticket_name)->first();
             if ($production) {
+                $itemSync = app(ProductionItemSyncService::class);
+                $tagsForSync = $incomingTags ?: $itemSync->tagsForPayload($production);
+                $materialsForSync = $incomingMaterials ?: $itemSync->materialsForPayload($production);
+
                 $production->update([
                     'receive_date' => $request->receive_date,
-                    'tags' => isset($request->tags) ? json_decode($request->tags) : null,
-                    'parts' => isset($request->parts) ? json_decode($request->parts) : $production->parts,
+                    'tags' => null,
+                    'parts' => $incomingParts ?: $production->parts,
                     'title' => $request->title,
                     'rate' => $request->rate,
                     'amount' => $request->amount,
                     'branch_id' => $production->branch_id,
                 ]);
+
+                $itemSync->sync($production->fresh(), $tagsForSync, $materialsForSync);
             }
         } else {
             if ($request->article_quantity) {
@@ -235,6 +272,11 @@ class ProductionController extends Controller
                 ? app(BranchSerialService::class)->nextProductionTicket($workPrefix)
                 : $workPrefix . str_pad($production->id, 3, '0', STR_PAD_LEFT);
             $production->update(['ticket' => $ticket]);
+            app(ProductionItemSyncService::class)->sync(
+                $production->fresh(),
+                $incomingTags,
+                $incomingMaterials,
+            );
         }
 
         $issueOrReceive = '';
@@ -244,7 +286,14 @@ class ProductionController extends Controller
             $issueOrReceive = 'receive';
         }
 
-        $production?->loadMissing(['article', 'work', 'worker', 'creator']);
+        if ($production) {
+            $previewRelations = ['article', 'work', 'worker', 'creator'];
+            if (app(ProductionItemSyncService::class)->tablesReady()) {
+                $previewRelations[] = 'productionTags';
+                $previewRelations[] = 'productionMaterials.inventoryItem';
+            }
+            $production->loadMissing($previewRelations);
+        }
 
         return redirect()->route('productions.create')
             ->with('success', 'Production ' . $issueOrReceive . ' successfully. Ticket: ' . $ticket)
@@ -268,11 +317,26 @@ class ProductionController extends Controller
             'amount' => $production->amount,
             'title' => $production->title,
             'parts' => $production->parts,
-            'materials' => $production->materials,
-            'tags' => $production->tags,
+            'tags' => app(ProductionItemSyncService::class)->tagsForPayload($production),
+            'materials' => app(ProductionItemSyncService::class)->materialsForPayload($production),
             'creator' => $production->creator?->name,
             'branch_branding' => app(ModuleBranchService::class)->documentBranding('productions', $production),
         ];
+    }
+
+    private function decodeJsonArray(mixed $value): array
+    {
+        if (is_array($value)) {
+            return $value;
+        }
+
+        if (!is_string($value) || trim($value) === '') {
+            return [];
+        }
+
+        $decoded = json_decode($value, true);
+
+        return is_array($decoded) ? $decoded : [];
     }
 
     /**
