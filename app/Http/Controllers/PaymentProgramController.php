@@ -6,6 +6,7 @@ use App\Models\BankAccount;
 use App\Models\PaymentProgram;
 use App\Models\Customer;
 use App\Models\Supplier;
+use App\Services\Branches\BranchSerialService;
 use App\Services\Branches\ModuleBranchService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -166,10 +167,26 @@ class PaymentProgramController extends Controller
             $branches = app(ModuleBranchService::class);
             $subCategoryModel = $this->resolveSubCategoryModel($request->category, $request->sub_category);
 
-            $nextProgramNo = ((int) $branches->applyScope(PaymentProgram::query()->lockForUpdate(), 'payment_programs')->max('program_no')) + 1;
+            $query = $branches->applyScope(
+                PaymentProgram::query()->lockForUpdate(),
+                'payment_programs'
+            );
+
+            $lastProgramNo = $query->orderByDesc('id')->value('program_no');
+
+            $lastNumeric = 0;
+            if ($lastProgramNo && preg_match('/(\d+)$/', $lastProgramNo, $matches)) {
+                $lastNumeric = (int) $matches[1];
+            }
+
+            $nextProgramNo = $lastNumeric + 1;
 
             $program = new PaymentProgram($branches->assignBranchOnCreate([
-                'program_no' => $nextProgramNo,
+                'program_no' => app(BranchSerialService::class)->formatBranchDocumentNumber(
+                    (string) $nextProgramNo,
+                    'payment_programs',
+                    $branches->selectedBranchForModule('payment_programs')
+                ),
                 'date' => $request->date,
                 'customer_id' => $request->customer_id,
                 'category' => $request->category,

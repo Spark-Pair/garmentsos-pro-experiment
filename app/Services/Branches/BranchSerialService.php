@@ -78,15 +78,23 @@ class BranchSerialService
         }
 
         $branchPrefix = $this->cleanPrefix($branch->prefix ?: $branch->code ?: '');
-        $docIdentity = $this->cleanPrefix((string) ($config['doc_identity_prefix'] ?? self::DOCUMENT_IDENTITIES[$moduleKey] ?? ''));
-
-        if (!$branchPrefix || !$docIdentity) {
-            return $baseNumber;
-        }
+        $docIdentity = $this->cleanPrefix(
+            (string) ($config['doc_identity_prefix'] ?? self::DOCUMENT_IDENTITIES[$moduleKey] ?? '')
+        );
 
         $baseNumber = $this->stripKnownDocumentPrefix($baseNumber, $branchPrefix, $docIdentity);
 
-        return "{$branchPrefix}-{$docIdentity}-{$baseNumber}";
+        if (!$branchPrefix) {
+            return $baseNumber;
+        }
+
+        // Agar document identity available hai to include karo
+        if ($docIdentity !== '') {
+            return "{$branchPrefix}-{$docIdentity}-{$baseNumber}";
+        }
+
+        // Warna sirf branch prefix lagao
+        return "{$branchPrefix}-{$baseNumber}";
     }
 
     private function nextBaseNumber(string $moduleKey, string $modelClass, string $column, int $pad, ?int $branchId): string
