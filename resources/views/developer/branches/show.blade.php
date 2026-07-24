@@ -11,7 +11,11 @@
         $badge = 'inline-flex items-center rounded-xl border px-3 py-1.5 text-xs font-semibold';
         $toggle = 'inline-flex items-center gap-2 rounded-lg border border-[var(--h-bg-color)] bg-[var(--h-bg-color)]/55 px-3 py-2 text-xs text-[var(--secondary-text)]';
         $miniToggle = 'flex items-center justify-between gap-3 rounded-xl border border-[var(--h-bg-color)] bg-[var(--h-bg-color)]/35 px-3 py-2 text-xs text-[var(--secondary-text)] transition hover:border-[var(--primary-color)]/40';
-        $moduleGroups = collect($moduleRegistry)->groupBy(fn ($module) => $module['group'] ?? 'Other');
+        $moduleGroups = collect($moduleRegistry)
+        ->groupBy(
+            fn ($module) => $module['group'] ?? 'Other',
+            true // Preserve original module keys
+        );
         $branchModuleService = app(\App\Services\Branches\ModuleBranchService::class);
         $enabledCount = $moduleSettings->filter(fn ($setting) => $setting->branch_enabled && $setting->status === 'active')->count();
         $switchingCount = $moduleSettings->filter(fn ($setting) => $setting->allow_user_switching && $setting->status === 'active')->count();
